@@ -11,13 +11,16 @@
 
 import Link from "next/link";
 import {
+  BookOpen,
   Building2,
   CalendarDays,
   ClipboardList,
+  FileText,
   FlaskConical,
   NotebookText,
   Plus,
   SlidersHorizontal,
+  Table2,
   UserRound,
   Users,
 } from "lucide-react";
@@ -244,6 +247,24 @@ export function AppRail({
       icon: <ClipboardList className="size-[18px]" />,
       show: isOrganizationAccount,
       isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/wiki/pages",
+      label: "知識頁面",
+      icon: <FileText className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/wiki/pages", currentPathname),
+    },
+    {
+      href: "/wiki/articles",
+      label: "文章庫",
+      icon: <BookOpen className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/wiki/articles", currentPathname),
+    },
+    {
+      href: "/wiki/databases",
+      label: "資料庫",
+      icon: <Table2 className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/wiki/databases", currentPathname),
     },
     {
       href: "/dev-tools",

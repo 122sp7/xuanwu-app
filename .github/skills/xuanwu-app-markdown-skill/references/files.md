@@ -20054,6 +20054,1193 @@ How-to guides are task-oriented procedures for users who already know the basics
 - Changelog history
 ````
 
+## File: docs/guides/how-to/ui-ux/component-patterns.md
+````markdown
+# UI 元件模式（Component Patterns）
+
+> **參考文件類型**：本文件定義 Xuanwu App 中 UI 元件的使用規範、組合模式與常見陷阱。
+> 元件實作以 **shadcn/ui** 為基礎，Lucide React 提供圖示。
+
+---
+
+## 1. 元件架構原則
+
+### 1.1 元件分類
+
+| 類型 | 分層 | 說明 |
+|---|---|---|
+| **基礎元件（Primitive）** | UI 元件庫層 | shadcn/ui 提供；不修改來源 |
+| **功能元件（Feature）** | 模組介面層 | 業務功能元件；含狀態與資料 |
+| **Shell 元件（Layout）** | 應用外殼層 | 版型元件；App Rail、Sidebar 等 |
+| **頁面元件（Page）** | 頁面協調層 | 薄協調層；只組裝元件 |
+
+### 1.2 Server vs Client 元件選擇
+
+| 情況 | 選擇 |
+|---|---|
+| 靜態渲染、無互動 | `Server Component`（預設） |
+| 需要 `useState`、`useEffect`、事件處理 | `'use client'` |
+| 需要 Firestore `onSnapshot` 即時訂閱 | `'use client'` |
+| 需要 `useRouter`、`useSearchParams` | `'use client'` |
+
+---
+
+## 2. 常用元件模式
+
+### 2.1 卡片容器模式（Card Pattern）
+
+用於包裝獨立功能區塊（上傳區、查詢區、結果區）。
+
+```tsx
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+<Card>
+  <CardHeader>
+    <CardTitle>Upload File</CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* 內容 */}
+  </CardContent>
+</Card>
+```
+
+**使用時機**：
+- 功能明確邊界的操作區塊
+- 統計摘要卡片
+- 設定區塊
+
+### 2.2 操作按鈕模式（Action Button Pattern）
+
+主要操作（Primary Action）按鈕的標準 loading 狀態處理：
+
+```tsx
+import { Button } from "@ui-shadcn/ui/button";
+import { Loader2 } from "lucide-react";
+
+<Button
+  onClick={handleAction}
+  disabled={isLoading || !canSubmit}
+>
+  {isLoading ? (
+    <>
+      <Loader2 className="mr-2 size-4 animate-spin" />
+      上傳中...
+    </>
+  ) : (
+    "上傳並啟動解析 ↑"
+  )}
+</Button>
+```
+
+**規則**：
+- loading 時必須同時 `disabled` 防止重複提交。
+- loading 文字以進行式動詞結尾（「上傳中...」而非「上傳」）。
+- disabled（非 loading）時加 Tooltip 說明原因。
+
+### 2.3 骨架屏模式（Skeleton Pattern）
+
+資料載入時的占位元件：
+
+```tsx
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+// 列表骨架屏
+{isLoading ? (
+  <div className="space-y-2">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Skeleton key={i} className="h-12 w-full" />
+    ))}
+  </div>
+) : (
+  <DataTable data={data} />
+)}
+```
+
+### 2.4 空狀態模式（Empty State Pattern）
+
+```tsx
+{data.length === 0 && (
+  <div className="flex flex-col items-center gap-4 py-16 text-center">
+    <FileX className="size-12 text-muted-foreground" />
+    <div>
+      <p className="font-semibold">目前還沒有文件</p>
+      <p className="text-sm text-muted-foreground">
+        試著上傳第一份檔案。
+      </p>
+    </div>
+    <Button variant="outline" onClick={scrollToUpload}>
+      前往上傳
+    </Button>
+  </div>
+)}
+```
+
+### 2.5 Toast 通知模式
+
+```tsx
+import { toast } from "sonner";
+
+// 成功
+toast.success("已觸發重整，稍後觀察 rag status 更新");
+
+// 失敗（含原因）
+toast.error(`上傳失敗：${error.message}`);
+
+// 背景任務提示
+toast.info("正在處理中，請稍候…");
+```
+
+**注意**：`<Toaster />` 已由全域 Provider 掛載，無需重複掛載。
+
+### 2.6 Dropdown 選單模式
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="ghost" size="sm" aria-label="更多操作">
+      <MoreHorizontal className="size-4" />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem onClick={handleEdit}>編輯</DropdownMenuItem>
+    <DropdownMenuItem
+      className="text-destructive"
+      onClick={handleDelete}
+    >
+      刪除
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+```
+
+### 2.7 狀態徽章模式（Status Badge Pattern）
+
+```tsx
+import { Badge } from "@ui-shadcn/ui/badge";
+
+function StatusBadge({ status }: { status: "ready" | "processing" | "error" | "pending" }) {
+  const map = {
+    ready:      { label: "✓ ready",       variant: "success" },
+    processing: { label: "⏳ processing",  variant: "secondary" },
+    error:      { label: "✗ error",        variant: "destructive" },
+    pending:    { label: "— pending",      variant: "outline" },
+  };
+  const { label, variant } = map[status];
+  return <Badge variant={variant as never}>{label}</Badge>;
+}
+```
+
+**規則**：狀態徽章必須同時包含圖示與文字（不可只用顏色）。
+
+### 2.8 Tooltip 模式
+
+```tsx
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button disabled aria-disabled>
+        手動重整
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>文件尚未完成解析</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+```
+
+---
+
+## 3. 表單元件模式
+
+### 3.1 基本輸入框
+
+```tsx
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+<div className="space-y-2">
+  <Label htmlFor="title">標題</Label>
+  <Input
+    id="title"
+    value={title}
+    onChange={(e) => setTitle(e.target.value)}
+    placeholder="請輸入標題..."
+    aria-invalid={!!error}
+  />
+  {error && (
+    <p className="text-sm text-destructive" role="alert">
+      {error}
+    </p>
+  )}
+</div>
+```
+
+### 3.2 拖曳上傳區（Drop Zone）
+
+Drop Zone 的可近用性規格：
+
+```tsx
+<div
+  role="button"
+  tabIndex={0}
+  aria-label="點擊選擇檔案，或拖曳檔案至此上傳"
+  className={cn(
+    "rounded-lg border-2 border-dashed p-8 text-center transition-colors",
+    isDragOver && "border-primary bg-primary/5",
+    "focus:outline-none focus:ring-2 focus:ring-ring"
+  )}
+  onDragOver={handleDragOver}
+  onDragLeave={handleDragLeave}
+  onDrop={handleDrop}
+  onClick={handleClick}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") handleClick();
+  }}
+>
+  {isDragOver ? "放開以上傳" : "點擊或拖曳上傳"}
+</div>
+```
+
+---
+
+## 4. 資料表格模式（Data Table Pattern）
+
+使用 TanStack Table（`@lib-tanstack`）實作資料表格：
+
+```tsx
+// 簡易表格（列表較短時）
+<Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>檔名</TableHead>
+      <TableHead>狀態</TableHead>
+      <TableHead>操作</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {documents.map((doc) => (
+      <TableRow key={doc.id}>
+        <TableCell>{doc.filename}</TableCell>
+        <TableCell><StatusBadge status={doc.status} /></TableCell>
+        <TableCell>
+          <ActionButton doc={doc} />
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+```
+
+**選用 TanStack Table 時機**：
+- 需要排序功能
+- 需要列選取（多選刪除）
+- 需要虛擬化（列數 > 100）
+
+---
+
+## 5. 頁面組裝模式（Page Composition Pattern）
+
+`page.tsx` 應保持薄協調，只組裝元件：
+
+```tsx
+// ✅ 正確：薄協調層
+export default async function WikiDocumentsPage() {
+  return <WikiDocumentsView />;
+}
+
+// ✅ 正確：有少量 Server-side data fetch
+export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
+  const workspace = await getWorkspaceById(params.workspaceId);
+  if (!workspace) notFound();
+  return <WorkspaceOverview workspace={workspace} />;
+}
+
+// ❌ 錯誤：page 內有業務邏輯
+export default async function DocumentsPage() {
+  const db = getFirestore();
+  const docs = await db.collection("documents").get(); // 直接在 page 呼叫 Firebase
+  return <div>{/* ... */}</div>;
+}
+```
+
+---
+
+## 6. 常見反模式（Anti-patterns）
+
+| 反模式 | 問題 | 正確做法 |
+|---|---|---|
+| 直接在 page 使用 Firebase SDK | 違反 MDDD 分層 | 透過 use-case 或 Server Action |
+| 在元件內直接 `new FirebaseXxxRepository()` | 難以測試 | 由 use-case 透過 constructor injection |
+| 只用顏色區分狀態 | 色盲使用者無法識別 | 同時包含圖示與文字 |
+| Toast 成功但無失敗處理 | 靜默失敗 | try/catch 包覆，失敗也顯示 toast |
+| Disabled 按鈕無 Tooltip | 使用者不知為何不可用 | 加 `Tooltip` 說明原因 |
+| 空狀態顯示空白頁面 | 使用者困惑 | 實作 Empty State 元件 |
+| `'use client'` 加在 layout 或不必要的元件 | 阻止 Server Component 優化 | 只在必要的最小範圍加 `'use client'` |
+
+---
+
+## 7. 元件命名規範
+
+| 元件類型 | 命名格式 | 範例 |
+|---|---|---|
+| Feature 元件 | `{Module}{Feature}View` | `WikiDocumentsView` |
+| 子元件（列表項） | `{Feature}Row` / `{Feature}Card` | `DocumentRow` |
+| 表單元件 | `{Action}{Resource}Form` | `UploadDocumentForm` |
+| Dialog 元件 | `{Action}{Resource}Dialog` | `CreateWorkspaceDialog` |
+| 頁面 Shell 元件 | `{Module}Shell` | `WikiShell` |
+
+---
+
+## 8. 匯入規則
+
+```tsx
+// ✅ 正確
+import { Button } from "@ui-shadcn/ui/button";
+import { Card } from "@ui-shadcn/ui/card";
+import { cn } from "@shared-utils";
+import { Plus, Loader2 } from "lucide-react";
+
+// ❌ 錯誤：使用 legacy 路徑
+import { Button } from "@/ui/shadcn/ui/button";
+import { cn } from "@/shared/utils";
+```
+````
+
+## File: docs/guides/how-to/ui-ux/information-architecture.md
+````markdown
+# 資訊架構（Information Architecture）
+
+> **參考文件類型**：本文件定義 Xuanwu App 的全站資訊架構、導覽層級、路由地圖與頁面組織原則。
+> 實際路由以目前應用程式路由實作為準；本文件作為閱讀地圖與設計指引。
+
+---
+
+## 1. 全站資訊架構圖
+
+```
+Xuanwu App
+├── (public)                          ← 未登入公開區域
+│   ├── /login                        ← 登入頁
+│   └── /register（planned）          ← 註冊頁
+│
+└── (shell)                           ← 已登入 Shell（三欄版型）
+    ├── /workspace                    ← 工作區中心
+    │   └── /workspace/[workspaceId]  ← 單一工作區
+    │
+    ├── /wiki                    ← 知識庫（Wiki）
+    │   ├── /wiki（知識總覽）
+    │   ├── /wiki/documents      ← 主操作頁
+    │   ├── /wiki/rag-query      ← AI 問答
+    │   ├── /wiki/rag-reindex    ← RAG 重整
+    │   ├── /wiki/pages          ← 頁面管理
+    │   └── /wiki/libraries      ← 資料庫管理
+    │
+    ├── /ai-chat                      ← AI 對話介面
+    │
+    ├── /organization                 ← 組織管理
+    │   ├── /organization/members     ← 成員管理
+    │   ├── /organization/teams       ← 團隊管理
+    │   ├── /organization/permissions ← 權限管理
+    │   ├── /organization/workspaces  ← 工作區管理
+    │   ├── /organization/schedule    ← 排程管理
+    │   ├── /organization/daily       ← 每日摘要
+    │   └── /organization/audit       ← 稽核記錄
+    │
+    ├── /dashboard                    ← 個人儀表板
+    │
+    └── /settings                     ← 設定
+```
+
+---
+
+## 2. Shell 版型層級
+
+### 2.1 三欄結構
+
+```
++--App Rail--+--Secondary Nav (Dashboard Sidebar)--+--Main Content--+
+|   48px     |           240px（可收合）              |   flex-1       |
+|            |                                       |                |
+| 圖示導覽   |  依所在區域顯示次要導覽                |  page.tsx      |
+|            |                                       |  協調層        |
++------------+---------------------------------------+----------------+
+```
+
+### 2.2 App Rail（最左欄）
+
+App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
+
+| 圖示 | 路由 | 標籤 |
+|---|---|---|
+| `Building2` | `/workspace` | 工作區中心 |
+| `BookOpen` | `/wiki` | Account Wiki |
+| `Bot` | `/ai-chat` | AI 對話 |
+| `Users` | `/organization` | 組織管理 |
+| `FlaskConical` | `/dev-tools`（開發環境） | 開發工具 |
+| `Settings` | `/settings` | 設定 |
+| `Plus` | — | 快速建立工作區 / 組織 |
+
+### 2.3 Dashboard Sidebar（次要側邊欄）
+
+次要側邊欄根據**目前所在的功能區域**動態顯示對應的子導覽。
+
+**工作區（/workspace/[id]）子導覽**：
+
+| 群組 | 項目 |
+|---|---|
+| Primary | Overview、Members |
+| Spaces | Spaces 列表 |
+| Databases | Databases 列表 |
+| Library | Files、Documents |
+| Modules | Issues、Tasks、Schedule、Daily |
+
+**Wiki（/wiki）子導覽**：
+
+| 項目 | 路由 | 狀態 |
+|---|---|---|
+| 知識總覽 | `/wiki` | ✅ 現有 |
+| RAG Query | `/wiki/rag-query` | ✅ 現有 |
+| RAG Reindex | `/wiki/rag-reindex` | ✅ 現有 |
+| Documents [+] | `/wiki/documents` | ✅ 現有 |
+| Pages | `/wiki/pages` | ✅ 現有 |
+| Libraries | `/wiki/libraries` | ✅ 現有 |
+| Workspaces | — | ✅ 現有（可摺疊） |
+
+**組織管理（/organization）子導覽**：
+
+| 項目 | 路由 | 說明 |
+|---|---|---|
+| 成員 | `/organization/members` | 組織成員管理 |
+| 團隊 | `/organization/teams` | 群組管理 |
+| 權限 | `/organization/permissions` | RBAC 角色與權限 |
+| 工作區 | `/organization/workspaces` | 組織下工作區管理 |
+| 排程 | `/organization/schedule` | 排程管理 |
+| 每日 | `/organization/daily` | 每日摘要 |
+| 稽核 | `/organization/audit` | 操作稽核記錄 |
+
+---
+
+## 3. 路由設計原則
+
+### 3.1 路由命名規則
+
+| 類型 | 格式 | 範例 |
+|---|---|---|
+| 資源列表 | `/resource` | `/wiki/documents` |
+| 資源詳情 | `/resource/[id]` | `/workspace/[workspaceId]` |
+| 功能子頁 | `/context/function` | `/wiki/rag-query` |
+| 設定頁 | `/resource/settings` | `/workspace/[id]/settings` |
+
+### 3.2 路由群組（Route Groups）
+
+Next.js App Router 使用路由群組 `(name)` 來共用 layout 而不影響 URL：
+
+| 群組 | 路徑 | 共用 layout |
+|---|---|---|
+| `(public)` | — | 未登入頁面 layout（無 Shell） |
+| `(shell)` | — | 已登入 Shell layout（三欄版型 + Auth guard） |
+
+### 3.3 URL 參數規範
+
+| 參數 | 說明 | 範例 |
+|---|---|---|
+| `workspaceId` | workspace 篩選視角 | `?workspaceId=ws_123` |
+| `tab` | 功能頁籤切換 | `?tab=overview` |
+| `q` | 搜尋關鍵字 | `?q=keyword` |
+
+---
+
+## 4. 資料範圍與 Scope 設計
+
+Xuanwu App 的資料圍繞三層結構：
+
+```
+System
+└── Account（個人帳號 / 組織帳號）
+    └── Workspace（工作區）
+        └── Resources（Pages、Files、Documents...）
+```
+
+| 層次 | 說明 | 存取範圍 |
+|---|---|---|
+| **Account** | 資料主範圍。所有資料歸屬於帳號，不跨帳號共用。 | 帳號擁有者 + 邀請成員 |
+| **Workspace** | 帳號下的分組視角。workspace 是篩選，不是資料邊界。 | Workspace 成員 |
+| **Namespace** | 路由 slug 機制，背景能力，不在 UI 中獨立暴露。 | 系統內部 |
+
+**重要設計原則**：
+- 使用者的 **預設視角** 為帳號全覽（account scope）。
+- 切換 workspace 是「縮小視角」的操作，不是「換資料庫」的操作。
+- 跨 workspace 的資料彙總需在 account 層完成。
+
+---
+
+## 5. 頁面類型分類
+
+### 5.1 列表頁（List Page）
+
+顯示某類資源的清單，支援篩選、排序與操作。
+
+**必要元素**：
+- 頁首標題 + 篩選狀態提示
+- 載入中骨架屏（Skeleton）
+- 空狀態（Empty State）+ 引導行動
+- 每列的操作按鈕
+
+**範例**：`/wiki/documents`、`/wiki/pages`
+
+### 5.2 詳情頁（Detail Page）
+
+顯示單一資源的完整資訊，支援編輯操作。
+
+**必要元素**：
+- 返回連結（Back button）
+- 資源標題 + 元資料
+- 內容主體
+- 操作按鈕（Edit / Delete / Share）
+
+**範例**：`/workspace/[workspaceId]`
+
+### 5.3 功能操作頁（Functional Page）
+
+以特定功能為主（非 CRUD 列表），例如 RAG 查詢、上傳操作。
+
+**必要元素**：
+- 操作輸入區
+- 執行按鈕（含 loading 狀態）
+- 結果顯示區
+- 錯誤 / 空狀態處理
+
+**範例**：`/wiki/rag-query`、`/wiki/rag-reindex`
+
+### 5.4 總覽頁（Overview / Dashboard Page）
+
+提供某功能區域的整體摘要與入口。
+
+**必要元素**：
+- 快速操作入口（Quick Actions）
+- 統計摘要（Counters / Metrics）
+- 最近活動或重要提示
+
+**範例**：`/wiki`（知識總覽）
+
+---
+
+## 6. 導覽自訂化
+
+使用者可透過「自訂導覽」對話框（`CustomizeNavigationDialog`）調整側邊欄顯示的項目：
+
+- **偏好存儲**：`localStorage` key `xuanwu:nav-preferences`
+- **偏好格式**：pinnedItems（置頂項目）+ workspaceOrder（工作區排序）
+- **有效項目集合**：系統定義 `VALID_PINNED_ITEMS` 與 `VALID_WORKSPACE_ORDER_IDS`，確保偏好合法性
+
+---
+
+## 7. 搜尋與導覽輔助
+
+### 7.1 全站搜尋（planned）
+
+- **入口**：Header 右側搜尋圖示（`/search`）
+- **範圍**：account 範圍內所有 Pages、Documents、Records
+- **鍵盤捷徑**：`Cmd/Ctrl + K`
+
+### 7.2 麵包屑（Breadcrumb）
+
+- 目前各頁面使用「← 返回」按鈕
+- 計畫在頁首加入麵包屑導覽（planned）
+
+### 7.3 語言切換
+
+- Header Controls 提供語言切換器（`translation-switcher.tsx`）
+- 支援語言：中文（繁體）、英文（計畫中）
+````
+
+## File: docs/guides/how-to/ui-ux/ux-principles.md
+````markdown
+# UX 原則與互動規範
+
+> **說明文件類型**：本文件說明 Xuanwu App 的使用者體驗設計哲學，定義互動模式、反饋機制與可近用性標準。
+> 設計決策均與 Diátaxis 的「說明」象限對應 — 著重「為什麼」而非「如何做」。
+
+---
+
+## 1. 核心 UX 原則
+
+### 1.1 UX1 — 操作可見（System Visibility）
+
+> _使用者在任何時刻都知道系統正在做什麼。_
+
+**來源**：Don Norman《The Design of Everyday Things》— 回饋原則。
+
+**實作規範**：
+- 所有非同步操作（上傳、查詢、刪除）必須有 loading 狀態指示。
+- loading 狀態使用 **spinner + 文字** 雙重提示（例如「上傳中...」），不只有 spinner。
+- 後台處理完成後（例如文件解析），以 **toast 通知** 明確告知結果。
+- 即時變動的資料（例如文件 `status`）盡量使用 **Firestore `onSnapshot`** 讓狀態自動更新，而非需要使用者手動刷新。
+
+### 1.2 UX2 — 降低認知負擔（Minimize Cognitive Load）
+
+> _核心操作集中在一個頁面完成，不強迫使用者在多頁面間跳轉。_
+
+**來源**：Steve Krug《Don't Make Me Think》— 最少點擊數。
+
+**實作規範**：
+- 每個主功能頁面（例如 `/wiki/documents`）自我完備 — 上傳、列表、操作三位一體。
+- 側邊欄導覽項目最多顯示 **7 個頂層項目**（米勒定律：工作記憶限制）。
+- 次要操作（例如快捷建立）使用 **hover 顯示** 的次要元素，不佔主要視覺空間。
+
+### 1.3 UX3 — 錯誤可修復（Error Recovery）
+
+> _出錯時顯示原因與建議的下一步行動。_
+
+**來源**：Don Norman《The Design of Everyday Things》— 錯誤設計原則。
+
+**實作規範**：
+- 所有錯誤 toast 包含 **原因 + 建議行動**（例如「上傳失敗，請確認網路連線後重試」）。
+- 格式驗證錯誤在使用者動作當下即時顯示，不等待 submit。
+- 禁用按鈕（disabled）必須搭配 **tooltip 說明不可用原因**，不可靜默。
+
+### 1.4 UX4 — 資料全覽預設（Default to Overview）
+
+> _預設顯示 account 全覽，不因工作區切換讓資料「消失」。_
+
+**來源**：Lean UX — 從使用者痛點出發的設計。
+
+**實作規範**：
+- 所有資料列表預設顯示 **account 範圍**，不以 workspace 為預設篩選。
+- workspace 篩選為選擇性操作，透過 URL 參數（`?workspaceId=<id>`）觸發。
+- 篩選啟動時，頁面需顯示明確的篩選提示（例如「workspace: {id} ×」）。
+
+### 1.5 UX5 — 鍵盤可近用性（Keyboard Accessibility）
+
+> _所有互動操作均可由鍵盤完整操作，不依賴滑鼠。_
+
+**來源**：WCAG 2.1 AA 標準。
+
+**實作規範**：
+- 所有可互動元素（按鈕、連結、輸入框）可 Tab 鍵聚焦。
+- Dropdown / Popover 支援 ↑↓ 導覽與 Enter 觸發、Esc 關閉。
+- 焦點管理：開啟 Modal/Dialog 後焦點移入；關閉後焦點回到觸發元素。
+- 焦點環（focus ring）在所有互動元素上清晰可見。
+
+### 1.6 UX6 — 一致性（Consistency）
+
+> _相同功能在全平台使用相同元件與文案模式。_
+
+**來源**：Jakob Nielsen《10 Usability Heuristics》— Consistency and Standards。
+
+**實作規範**：
+- 統一使用 shadcn/ui 元件庫，不自行實作已有的基礎元件。
+- 操作文案統一：「建立」（不混用「新增」和「新建」）、「刪除」（不混用「移除」）。
+- 狀態圖示統一：`✓ ready`、`⏳ processing`、`✗ error`。
+
+---
+
+## 2. 互動模式規範
+
+### 2.1 Toast 通知規則
+
+Toast 是 Xuanwu App 的主要反饋機制，使用 **Sonner** 函式庫。
+
+| 情境 | Toast 類型 | 顯示時間 |
+|---|---|---|
+| 操作成功（建立、儲存、觸發） | `success` | 3 秒自動消失 |
+| 操作失敗（網路、驗證、權限） | `error` | 5 秒（或手動關閉） |
+| 背景處理中（可能需要等待） | `info` | 4 秒自動消失 |
+| 危險操作前的確認 | 不用 toast，用 Dialog | — |
+
+**格式規範**：
+```
+成功：「已{動作} {對象}」        例：「已建立 工作區 Marketing」
+失敗：「{動作}失敗：{原因}」     例：「上傳失敗：格式不支援」
+處理中：「{動作}中，請稍候…」   例：「重整中，請稍候…」
+```
+
+**實作位置**：`<Toaster />` 已掛載於全域 Provider。
+
+### 2.2 Loading 狀態規範
+
+| 情境 | Loading 模式 |
+|---|---|
+| 頁面初始載入 | Skeleton（骨架屏） — 整頁占位符 |
+| 列表資料載入 | Skeleton rows — 每列占位符 |
+| 按鈕觸發的操作 | Inline spinner + 文字 + disabled |
+| 單列操作（不影響其他列） | 僅該列顯示 spinner，其他列保持互動 |
+| 全頁阻斷操作 | 避免使用；若必要，使用半透明 overlay |
+
+### 2.3 空狀態設計
+
+每個列表頁面須定義 **空狀態（Empty State）**，避免空白頁面讓使用者困惑。
+
+| 場景 | 空狀態內容 |
+|---|---|
+| 無文件（Documents） | 說明文字 + 指向 Upload 卡的引導箭頭 |
+| 無頁面（Pages） | 說明文字 + 「建立第一個頁面」按鈕 |
+| 無查詢結果（RAG Query） | 說明文字 + 建議的下一步（確認文件已 indexed） |
+| 無工作區 | 說明文字 + 「建立工作區」按鈕 |
+
+**空狀態文案格式**：
+```
+「目前還沒有 {資源名稱}，{引導動作}。」
+例：「目前還沒有文件，試著上傳第一份檔案。」
+```
+
+### 2.4 確認對話框規則
+
+需要使用 Dialog 確認的操作：
+
+| 操作類型 | 是否需要確認 |
+|---|---|
+| 刪除永久性資源 | ✅ 必須 |
+| 批次刪除 | ✅ 必須 |
+| 清除資料 | ✅ 必須 |
+| 建立 | ❌ 不需要 |
+| 儲存 | ❌ 不需要 |
+| 觸發背景任務（例如 reindex） | ❌ 不需要（有 toast 反饋即可） |
+
+---
+
+## 3. 表單設計規範
+
+### 3.1 輸入驗證時機
+
+| 驗證類型 | 觸發時機 |
+|---|---|
+| 格式驗證（日期、Email） | blur（失去焦點時） |
+| 必填欄位 | submit（提交時）；如果已 blur 過也可 blur 時顯示 |
+| 即時搜尋 | change（每次輸入後，加 debounce） |
+| 伺服器端驗證 | submit 後，以 toast 或 inline error 顯示 |
+
+### 3.2 按鈕狀態
+
+所有可提交的按鈕（Primary Button）遵循以下狀態：
+
+```
+idle → loading → success（toast） or error（toast）
+```
+
+- **idle**：正常可點擊狀態，顯示操作文字。
+- **loading**：顯示 spinner + 操作進行中文字，按鈕 disabled。
+- **success**：toast 顯示成功訊息，按鈕回到 idle（或 navigate）。
+- **error**：toast 顯示錯誤訊息，按鈕回到 idle（允許重試）。
+
+---
+
+## 4. 導覽行為規範
+
+### 4.1 側邊欄展開 / 收合
+
+- **預設狀態**：展開。
+- **收合觸發**：使用者點擊 `PanelLeftClose` 圖示，偏好存於 `localStorage`（key: `xuanwu:nav-preferences`）。
+- **收合狀態**：僅顯示圖示，懸停（hover）顯示 Tooltip 提示完整名稱。
+
+### 4.2 Active 狀態顯示
+
+- 側邊欄以路由 prefix 判斷 active（`pathname.startsWith(href + "/")`）。
+- Active 項目：背景色 `bg-accent`，文字加粗。
+
+### 4.3 麵包屑（Breadcrumb）
+
+目前未實作全站麵包屑；各功能區頁首有「返回」按鈕（例如「← 返回 Wiki Beta」）。
+
+---
+
+## 5. 可近用性完整清單
+
+### 5.1 必要實作（WCAG 2.1 AA）
+
+| 需求 | 實作細節 |
+|---|---|
+| 色彩對比 | 文字與背景對比 ≥ 4.5:1（一般文字）；≥ 3:1（大文字） |
+| 鍵盤可操作 | 所有功能可不依賴滑鼠完成 |
+| 螢幕閱讀器 | 圖示按鈕有 `aria-label`；狀態用 `aria-live` 或 `role="status"` |
+| 焦點管理 | 開啟 Dialog/Popover 後焦點移入，關閉後焦點回到觸發元素 |
+| 錯誤識別 | 錯誤訊息不僅依賴紅色，需有文字說明 |
+| 選單鍵盤操作 | Arrow 鍵導覽、Enter 觸發、Esc 關閉 |
+
+### 5.2 元件可近用性規格
+
+| 元件 | 鍵盤行為 | ARIA 需求 |
+|---|---|---|
+| Drop Zone | Tab 聚焦；Enter/Space 觸發選檔 | `role="button"`, `aria-label` |
+| Dropdown Menu | ↑↓ 導覽；Enter 選擇；Esc 關閉 | `role="menu"`, `role="menuitem"` |
+| Dialog | Esc 關閉；焦點陷阱 | `role="dialog"`, `aria-labelledby` |
+| Toast | 自動朗讀 | `role="alert"` 或 `aria-live="assertive"` |
+| Table | Tab 導覽至互動元素 | `<table>` 語意標籤 |
+| Badge / Status | — | 不可只用顏色；需有文字 |
+
+---
+
+## 6. 回應式設計規範
+
+Xuanwu App 主要針對桌面（Desktop first），但核心頁面需支援平板與手機。
+
+| 斷點 | Tailwind Prefix | 說明 |
+|---|---|---|
+| 手機 | （預設） | 單欄版型；隱藏 Secondary Nav |
+| 平板 | `md:` | 可選性顯示 Secondary Nav |
+| 桌面 | `lg:` | 完整三欄版型 |
+
+**手機版規則**：
+- App Rail 收合為底部導覽列（planned）。
+- 資料列表改為卡片式呈現，取代桌面的表格。
+- 複雜操作（例如上傳）維持可用，但版型調整為全寬。
+````
+
+## File: docs/guides/how-to/ui-ux/wireframes.md
+````markdown
+# 線框圖（Wireframes）
+
+> **參考文件類型**：本文件包含 Xuanwu App 各主要功能區域的線框圖（Wireframe），以 ASCII 文字圖呈現布局結構與元件配置。
+> 詳細的個別功能 UI 規格，請參閱系統規格索引。
+
+---
+
+## 1. Shell 版型（三欄結構）
+
+所有已登入頁面共用三欄 Shell 版型：
+
+```
++--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
+|   48px       |    240px          |    flex-1         |
+|              |  （可收合）        |                   |
+| [Logo]       |  根據功能區域      |  page.tsx         |
+|              |  動態顯示子導覽    |  協調層           |
+| [Workspace]  |                   |                   |
+| [Wiki Beta]  |                   |                   |
+| [AI Chat]    |                   |                   |
+| [Org]        |                   |                   |
+|              |                   |                   |
+| ─────────── |                   |                   |
+| [Settings]   |                   |                   |
+| [User Avatar]|                   |                   |
++--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
+```
+
+### Header（頁首）
+
+```
++----------------------------------------------------------------+
+| Breadcrumb / Page Title        [Search] [Lang] [Theme] [User] |
++----------------------------------------------------------------+
+```
+
+---
+
+## 2. Wiki 功能區
+
+### 2.1 `/wiki`（知識總覽）
+
+```
++--App Rail--+--Wiki Nav--+------Main Content------+
+|            | 知識總覽 ●      | [← 返回]               |
+|            | RAG Query       |                        |
+|            | RAG Reindex     | Wiki Beta              |
+|            | Documents   [+] | ─────────────────────  |
+|            | Pages           |                        |
+|            | Libraries       | ┌─────────┐ ┌─────────┐|
+|            | ─────────────  | │ 文件上傳 │ │RAG Query│|
+|            | Workspaces ▼   | │  圖示+   │ │ 圖示+   │|
+|            |  > ws-1         | │  說明文字│ │ 說明文字│|
+|            |  > ws-2         | └─────────┘ └─────────┘|
+|            |                 |                        |
+|            |                 | 帳號統計               |
+|            |                 | 文件：N  Ready：M      |
+|            |                 | 工作區：K              |
++--App Rail--+--Wiki Nav--+------Main Content------+
+```
+
+### 2.2 `/wiki/documents`（主操作頁）
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · Documents       |
+|            | RAG Query       | account 全覽 / ws: {id} ×  |
+|            | RAG Reindex     | ─────────────────────────── |
+|            | Documents ● [+] |                             |
+|            | Pages           | ┌── 上傳檔案 ─────────────┐|
+|            | Libraries       | │                           │|
+|            |                 | │  ╔═══════════════════╗   │|
+|            |                 | │  ║ 點擊或拖曳上傳     ║   │|
+|            |                 | │  ║ .pdf .tiff .png    ║   │|
+|            |                 | │  ╚═══════════════════╝   │|
+|            |                 | │                           │|
+|            |                 | │  [上傳並啟動解析 ↑] [✕]  │|
+|            |                 | └───────────────────────────┘|
+|            |                 |                             |
+|            |                 | ┌── Documents (帳號全覽) ───┐|
+|            |                 | │ filename │ status │ rag   │|
+|            |                 | │──────────│────────│───────│|
+|            |                 | │report.pdf│✓ ready │✓ idx  │|
+|            |                 | │scan.tiff │⏳ proc │⏳ pend│|
+|            |                 | │error.pdf │✗ error │ —    │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+**Documents [+] 快捷選單（Popover）**：
+
+```
+Documents [+]
+          │
+          ▼
+     ┌─────────────────┐
+     │ ＋ 新增頁面      │
+     │ ＋ 新增資料庫    │
+     └─────────────────┘
+```
+
+### 2.3 `/wiki/rag-query`
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · RAG Query       |
+|            | RAG Query ●     | ─────────────────────────── |
+|            | RAG Reindex     |                             |
+|            | Documents   [+] | ┌── RAG Query ─────────────┐|
+|            | Pages           | │                           │|
+|            | Libraries       | │ ┌─────────────────────┐   │|
+|            |                 | │ │ 請輸入你的問題...     │   │|
+|            |                 | │ └─────────────────────┘   │|
+|            |                 | │ top_k: [5 ▼] [送出查詢]  │|
+|            |                 | └───────────────────────────┘|
+|            |                 |                             |
+|            |                 | ┌── Answer ────────────────┐|
+|            |                 | │ AI 回答文字...            │|
+|            |                 | │                           │|
+|            |                 | │ [cache:hit][scope:acct]  │|
+|            |                 | │ [vector:5][search:3]     │|
+|            |                 | └───────────────────────────┘|
+|            |                 |                             |
+|            |                 | ┌── Citations (3 筆) ──────┐|
+|            |                 | │ 1. report.pdf — 第5頁     │|
+|            |                 | │    "...引用片段..."        │|
+|            |                 | │ 2. scan.tiff — 第1頁      │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+### 2.4 `/wiki/pages`（Pages 頁面管理）
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · Pages           |
+|            | RAG Query       | ─────────────────────────── |
+|            | RAG Reindex     |                  [新增頁面]  |
+|            | Documents   [+] |                             |
+|            | Pages ●         | ┌── 頁面列表 ───────────────┐|
+|            | Libraries       | │ title     │ updatedAt │ → │|
+|            |                 | │───────────│───────────│───│|
+|            |                 | │ 專案概覽  │ 2026-03-20│ > │|
+|            |                 | │   > 里程碑│ 2026-03-21│ > │|
+|            |                 | │ 技術規格  │ 2026-03-22│ > │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+### 2.5 `/wiki/libraries`（Libraries 資料庫管理）
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · Libraries       |
+|            | RAG Query       | ─────────────────────────── |
+|            | RAG Reindex     |              [新增資料庫]    |
+|            | Documents   [+] |                             |
+|            | Pages           | ┌── 資料庫列表 ─────────────┐|
+|            | Libraries ●     | │ name      │ fields │ rows │|
+|            |                 | │───────────│────────│──────│|
+|            |                 | │ 任務追蹤  │ 5欄位  │ 20列 │|
+|            |                 | │ 聯絡人    │ 3欄位  │ 8列  │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+---
+
+## 3. 工作區（Workspace）
+
+### 3.1 `/workspace`（工作區中心）
+
+```
++--App Rail--+--Nav--+--------Main Content---------+
+|            |       | 工作區中心                  |
+|            |       | ─────────────────────────── |
+|            |       | [建立工作區]                 |
+|            |       |                             |
+|            |       | ┌── 我的工作區 ─────────────┐|
+|            |       | │ ┌─────────┐ ┌─────────┐  │|
+|            |       | │ │  工作區  │ │  工作區  │  │|
+|            |       | │ │  Marketing│ │ Product │  │|
+|            |       | │ │  →進入    │ │  →進入  │  │|
+|            |       | │ └─────────┘ └─────────┘  │|
+|            |       | └───────────────────────────┘|
++--App Rail--+--Nav--+--------Main Content---------+
+```
+
+---
+
+## 4. 組織管理（Organization）
+
+### 4.1 `/organization/members`
+
+```
++--App Rail--+--Org Nav--+--------Main Content---------+
+|            | 成員 ●    | 組織 · 成員管理             |
+|            | 團隊      | ─────────────────────────── |
+|            | 權限      |                 [邀請成員]   |
+|            | 工作區    |                             |
+|            | 排程      | ┌── 成員列表 ───────────────┐|
+|            | 每日      | │ 姓名  │ 角色   │ 狀態 │操作│|
+|            | 稽核      | │───────│────────│──────│────│|
+|            |           | │ Alice │ Admin  │ 活躍 │ … │|
+|            |           | │ Bob   │ Member │ 活躍 │ … │|
+|            |           | └───────────────────────────┘|
++--App Rail--+--Org Nav--+--------Main Content---------+
+```
+
+---
+
+## 5. AI Chat
+
+### 5.1 `/ai-chat`
+
+```
++--App Rail--+--Nav--+--------Main Content---------+
+|            |       | AI 對話                     |
+|            |       | ─────────────────────────── |
+|            |       | ┌── 對話歷史 ───────────────┐|
+|            |       | │ 使用者: 這份文件說什麼?    │|
+|            |       | │                           │|
+|            |       | │ AI: 根據文件內容，...      │|
+|            |       | │                           │|
+|            |       | └───────────────────────────┘|
+|            |       |                             |
+|            |       | ┌── 輸入區 ─────────────────┐|
+|            |       | │ 請輸入問題...    [送出 →]  │|
+|            |       | └───────────────────────────┘|
++--App Rail--+--Nav--+--------Main Content---------+
+```
+
+---
+
+## 6. 手機版線框圖
+
+手機版（< 768px）調整三欄為單欄：
+
+### 6.1 手機版 Documents
+
+```
++--[Header: Wiki Beta · Documents]--+
+| [← 返回]                [↺ 刷新] |
++-------------------------------------+
+| ┌── 上傳檔案 ─────────────────────┐|
+| │  .pdf .tiff .png .jpg            │|
+| │  ╔═══════════════════╗           │|
+| │  ║   點擊或拖曳上傳   ║           │|
+| │  ╚═══════════════════╝           │|
+| │  [上傳並啟動解析] [清除]         │|
+| └─────────────────────────────────┘|
+|                                     |
+| ┌── Documents (N 筆) ──────────────┐|
+| │ report.pdf                        │|
+| │  ✓ ready · ✓ indexed · 12 頁    │|
+| │  [手動重整]                       │|
+| │─────────────────────────────────│|
+| │ scan.tiff                         │|
+| │  ⏳ processing · ⏳ pending      │|
+| │  [— 解析中 —]                   │|
+| └─────────────────────────────────┘|
+```
+
+### 6.2 手機版底部導覽（planned）
+
+```
++─────────────────────────────────────+
+| [工作區] [Wiki] [AI] [組織] [設定]  |
++─────────────────────────────────────+
+```
+
+---
+
+## 7. 對話框（Dialog）設計
+
+### 7.1 建立工作區 Dialog
+
+```
++─────────────────────────────────────────+
+│  建立工作區                          ✕  │
+│                                         │
+│  工作區名稱                             │
+│  ┌─────────────────────────────────┐   │
+│  │ 請輸入工作區名稱...              │   │
+│  └─────────────────────────────────┘   │
+│  {錯誤訊息（若有）}                    │
+│                                         │
+│                    [取消]  [建立工作區] │
++─────────────────────────────────────────+
+```
+
+### 7.2 刪除確認 Dialog
+
+```
++─────────────────────────────────────────+
+│  確認刪除                            ✕  │
+│                                         │
+│  您確定要刪除「{資源名稱}」嗎？         │
+│  此操作無法復原。                       │
+│                                         │
+│                       [取消]  [確認刪除]│
++─────────────────────────────────────────+
+```
+
+---
+
+## 8. 狀態元件規格
+
+### 8.1 Status Badge
+
+```
+✓ ready         ← 綠色背景，白色文字
+⏳ processing   ← 藍/琥珀色背景，白色文字
+✗ error         ← 紅色背景，白色文字
+— pending       ← 灰色背景，灰色文字
+```
+
+### 8.2 Loading Skeleton 
+
+```
+Documents 列表載入中：
++─────────────────────────────────────+
+│ ▓▓▓▓▓▓▓▓▓▓▓ │ ▓▓▓▓▓▓▓ │ ▓▓▓▓▓  │
+│ ▓▓▓▓▓▓▓▓    │ ▓▓▓▓▓▓▓ │ ▓▓▓    │
+│ ▓▓▓▓▓▓▓▓▓▓  │ ▓▓▓▓▓▓  │ ▓▓▓▓   │
++─────────────────────────────────────+
+（▓ 代表 Skeleton 骨架屏 pulse 動畫區塊）
+```
+
+---
+
+## 相關主題
+
+- 設計系統：色彩、字型規範
+- UX 原則：互動規則、可近用性
+- 資訊架構：全站路由地圖
+- 規格索引：Wiki 與其他功能規格入口
+````
+
 ## File: docs/handoffs.md
 ````markdown
 # Handoffs
@@ -20460,6 +21647,199 @@ Reference pages are information-oriented and must be exact, complete, and scanna
 - Step-by-step tutorials
 - Opinionated implementation stories
 - Extended rationale discussions
+````
+
+## File: docs/reference/specification/system-overview.md
+````markdown
+# 系統全局規格（System Overview Specification）
+
+> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
+
+---
+
+## 1. 系統定位
+
+**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
+
+- 內容頁面與結構化資料庫體驗（Content / UI Layer）
+- 知識關聯與導航視角（Knowledge Graph Layer）
+- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
+- 多工作區協作與組織管理
+- 文件解析、向量化與智慧問答
+
+### 1.1 核心價值主張
+
+| 面向 | 價值 |
+|---|---|
+| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
+| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
+| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
+| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
+
+---
+
+## 2. 目標用戶
+
+| 用戶類型 | 說明 | 核心需求 |
+|---|---|---|
+| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
+| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
+| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
+| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
+
+---
+
+## 3. 核心功能規格
+
+### 3.1 Account 與 Workspace 管理
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 個人帳號 | 用戶可建立個人帳號 | `account` |
+| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
+| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
+| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
+| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
+
+### 3.2 知識庫功能
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
+| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
+| 文件解析 | Google Document AI 自動解析 | `py_fn` |
+| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
+| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
+| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
+| Pages | 區塊式頁面建立與管理 | `content` |
+| Libraries | 結構化資料庫管理 | `asset` |
+
+### 3.3 AI 功能
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| AI Chat | 通用 AI 對話介面 | `agent` |
+| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
+| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
+
+### 3.4 組織管理
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
+| 團隊管理 | 成員分組 | `organization` |
+| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
+| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
+| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
+
+---
+
+## 4. 技術架構規格
+
+### 4.1 運行時邊界
+
+系統分為兩個主要運行時：
+
+| 運行時 | 職責 | 技術 |
+|---|---|---|
+| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
+| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
+
+**禁止跨越邊界**：
+- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
+- py_fn 不持有 UI 狀態或 session 邏輯。
+
+### 4.2 資料層架構
+
+```
+Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
+Firebase Storage      ← 檔案儲存（上傳文件）
+Upstash Vector        ← 向量索引（RAG）
+Upstash Redis         ← 快取（RAG query cache）
+```
+
+### 4.3 Firestore 資料模型（頂層）
+
+```
+accounts/{accountId}/
+├── documents/{documentId}     ← 文件（Wiki）
+├── pages/{pageId}             ← 頁面（Pages）
+├── databases/{databaseId}     ← 資料庫（Libraries）
+├── workspaces/{workspaceId}   ← 工作區（Workspace）
+└── members/{memberId}         ← 成員（Account）
+```
+
+> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
+
+### 4.4 認證與授權
+
+```
+Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
+```
+
+| 角色 | 說明 |
+|---|---|
+| `owner` | 帳號擁有者，全部權限 |
+| `admin` | 管理員，可管理成員與設定 |
+| `member` | 一般成員，可讀寫工作區資源 |
+| `viewer` | 唯讀成員，只能查看 |
+
+---
+
+## 5. 模組責任邊界
+
+16 個 MDDD 業務模組的責任分配：
+
+| 模組 | 職責概要 |
+|---|---|
+| `account` | 用戶帳號、成員角色、帳號策略 |
+| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
+| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
+| `content` | Block 編輯器頁面、WikiPage、版本歷程 |
+| `identity` | 身份認證、Token 刷新 |
+| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
+| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
+| `notification` | 通知推送 |
+| `organization` | 組織（租戶）管理、策略 |
+| `retrieval` | RAG 查詢、Wiki RAG 類型、向量檢索 |
+| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
+| `workspace` | 工作區管理、成員管理、WikiContentTree |
+| `workspace-audit` | 不可變稽核記錄 |
+| `workspace-feed` | 工作區動態摘要 |
+| `workspace-flow` | 工作區任務與流程管理 |
+| `workspace-scheduling` | 雙向資源排程 |
+
+---
+
+## 6. 整合點
+
+| 整合對象 | 用途 | SDK/協議 |
+|---|---|---|
+| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
+| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
+| Firebase Auth | 身份認證 | Firebase SDK v12 |
+| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
+| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
+| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
+| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
+| Upstash Vector | 向量搜尋 | Upstash SDK |
+| Upstash Redis | 快取 | Upstash SDK |
+| QStash | 非同步任務佇列 | Upstash QStash |
+
+---
+
+## 7. 驗收標準（系統級別）
+
+| 代號 | 標準 |
+|---|---|
+| S1 | 使用者可登入並進入 Shell |
+| S2 | 使用者可建立組織與工作區 |
+| S3 | 使用者可上傳文件並在列表看到 |
+| S4 | 文件解析後 `status` 更新為 `ready` |
+| S5 | RAG 問答可回傳 answer 與 citations |
+| S6 | 管理員可管理組織成員與角色 |
+| S7 | Console 無初始化錯誤 |
+| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
 ````
 
 ## File: docs/skills.md
@@ -23712,1384 +25092,933 @@ modules/*
 5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 ````
 
-## File: docs/guides/how-to/ui-ux/component-patterns.md
+## File: docs/guides/explanation/architecture-domain.md
 ````markdown
-# UI 元件模式（Component Patterns）
+# 領域概念模型：AI 知識平台架構實現指南
 
-> **參考文件類型**：本文件定義 Xuanwu App 中 UI 元件的使用規範、組合模式與常見陷阱。
-> 元件實作以 **shadcn/ui** 為基礎，Lucide React 提供圖示。
-
----
-
-## 1. 元件架構原則
-
-### 1.1 元件分類
-
-| 類型 | 分層 | 說明 |
-|---|---|---|
-| **基礎元件（Primitive）** | UI 元件庫層 | shadcn/ui 提供；不修改來源 |
-| **功能元件（Feature）** | 模組介面層 | 業務功能元件；含狀態與資料 |
-| **Shell 元件（Layout）** | 應用外殼層 | 版型元件；App Rail、Sidebar 等 |
-| **頁面元件（Page）** | 頁面協調層 | 薄協調層；只組裝元件 |
-
-### 1.2 Server vs Client 元件選擇
-
-| 情況 | 選擇 |
-|---|---|
-| 靜態渲染、無互動 | `Server Component`（預設） |
-| 需要 `useState`、`useEffect`、事件處理 | `'use client'` |
-| 需要 Firestore `onSnapshot` 即時訂閱 | `'use client'` |
-| 需要 `useRouter`、`useSearchParams` | `'use client'` |
+基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
 
 ---
 
-## 2. 常用元件模式
+## 一、四層架構與有界上下文對應
 
-### 2.1 卡片容器模式（Card Pattern）
+architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
 
-用於包裝獨立功能區塊（上傳區、查詢區、結果區）。
-
-```tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-<Card>
-  <CardHeader>
-    <CardTitle>Upload File</CardTitle>
-  </CardHeader>
-  <CardContent>
-    {/* 內容 */}
-  </CardContent>
-</Card>
+```text
+┌─────────────────────────────────────────────────┐
+│              AI Layer（AI 層）                    │  ← modules/search, modules/notebook, modules/knowledge
+├─────────────────────────────────────────────────┤
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/wiki
+├─────────────────────────────────────────────────┤
+│         Content / UI Layer（內容層）               │  ← modules/knowledge, modules/source
+├─────────────────────────────────────────────────┤
+│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
+│                                                  │     modules/account, modules/identity, modules/shared
+└─────────────────────────────────────────────────┘
 ```
 
-**使用時機**：
-- 功能明確邊界的操作區塊
-- 統計摘要卡片
-- 設定區塊
+| 架構層 | 對應模組 | 核心職責 |
+| --- | --- | --- |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
+| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
+| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
+| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
 
-### 2.2 操作按鈕模式（Action Button Pattern）
+**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
 
-主要操作（Primary Action）按鈕的標準 loading 狀態處理：
+```text
+依賴方向（箭頭表示「依賴」）：
 
-```tsx
-import { Button } from "@ui-shadcn/ui/button";
-import { Loader2 } from "lucide-react";
-
-<Button
-  onClick={handleAction}
-  disabled={isLoading || !canSubmit}
->
-  {isLoading ? (
-    <>
-      <Loader2 className="mr-2 size-4 animate-spin" />
-      上傳中...
-    </>
-  ) : (
-    "上傳並啟動解析 ↑"
-  )}
-</Button>
+AI Layer
+  ↓ 依賴
+Knowledge Graph Layer
+  ↓ 依賴
+Content / UI Layer
+  ↓ 依賴
+Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
 ```
 
-**規則**：
-- loading 時必須同時 `disabled` 防止重複提交。
-- loading 文字以進行式動詞結尾（「上傳中...」而非「上傳」）。
-- disabled（非 loading）時加 Tooltip 說明原因。
+---
 
-### 2.3 骨架屏模式（Skeleton Pattern）
+## 二、Content / UI Layer 的領域概念
 
-資料載入時的占位元件：
+### 2.1 Page（頁面聚合根）
 
-```tsx
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
 
-// 列表骨架屏
-{isLoading ? (
-  <div className="space-y-2">
-    {Array.from({ length: 5 }).map((_, i) => (
-      <Skeleton key={i} className="h-12 w-full" />
-    ))}
-  </div>
-) : (
-  <DataTable data={data} />
-)}
+**實現位置：** `modules/knowledge/domain/entities/content-page.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 唯一識別碼（聚合根 ID） |
+| `title` | `string` | 頁面標題（Graph Node 標籤） |
+| `slug` | `string` | URL 友好路徑（重定向的基礎） |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
+| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
+| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
+| `organizationId` | `string` | 所屬組織（多租戶） |
+
+**值物件：**
+- `PageStatus`：`"draft" | "published" | "archived"`
+- `PageSlug`：確保唯一且 URL-safe 的值物件
+
+**不變式（Invariants）：**
+- 一個 Page 必須屬於一個 Workspace。
+- `slug` 在同一 Workspace 中必須唯一。
+- 已 `archived` 的頁面不能再接受 Block 更新。
+
+### 2.2 Block（區塊聚合根）
+
+Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
+
+**實現位置：** `modules/knowledge/domain/entities/content-block.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Block 唯一識別碼 |
+| `pageId` | `string` | 所屬頁面（外鍵） |
+| `type` | `BlockType` | Block 類型（見下方） |
+| `content` | `BlockContent` | 具體內容（依 type 變化） |
+| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
+| `order` | `number` | 在頁面中的排列順序 |
+
+**BlockType 值物件（對應 Notion Block 類型）：**
+
+```typescript
+type BlockType =
+  | "text"
+  | "heading_1" | "heading_2" | "heading_3"
+  | "toggle"
+  | "callout"
+  | "code"
+  | "quote"
+  | "divider"
+  | "table"
+  | "image" | "video" | "file"
+  | "embed"
+  | "synced_block"
+  | "column_layout"
+  | "bulleted_list" | "numbered_list"
+  | "to_do"
+  | "page_link";
 ```
 
-### 2.4 空狀態模式（Empty State Pattern）
+**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
 
-```tsx
-{data.length === 0 && (
-  <div className="flex flex-col items-center gap-4 py-16 text-center">
-    <FileX className="size-12 text-muted-foreground" />
-    <div>
-      <p className="font-semibold">目前還沒有文件</p>
-      <p className="text-sm text-muted-foreground">
-        試著上傳第一份檔案。
-      </p>
-    </div>
-    <Button variant="outline" onClick={scrollToUpload}>
-      前往上傳
-    </Button>
-  </div>
-)}
+### 2.3 ContentVersion（版本快照）
+
+對應 Wiki 的 Edit History / Diff / Rollback 能力。
+
+**實現位置：** `modules/knowledge/domain/entities/content-version.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 版本 ID |
+| `pageId` | `string` | 所屬頁面 |
+| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
+| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
+| `authorId` | `string` | 作者 ID |
+| `createdAt` | `Timestamp` | 版本時間戳 |
+| `isMinorEdit` | `boolean` | 是否為小修改標記 |
+
+---
+
+## 三、Knowledge Graph Layer 的領域概念
+
+### 3.1 GraphNode（知識圖節點）
+
+對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
+
+**實現位置：** `modules/wiki/domain/entities/graph-node.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
+| `label` | `string` | 顯示標籤 |
+| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
+| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
+
+**GraphNodeStatus 狀態機：**
+
+```text
+draft ──────────→ active ──────────→ archived
+  ↑                  │
+  └──────────────────┘ (reactivation)
 ```
 
-### 2.5 Toast 通知模式
+**領域事件：**
+- `graph-node.activated`：節點從 draft 轉為 active 時觸發
+- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
 
-```tsx
-import { toast } from "sonner";
+### 3.2 GraphEdge / Link（知識圖邊）
 
-// 成功
-toast.success("已觸發重整，稍後觀察 rag status 更新");
+對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
 
-// 失敗（含原因）
-toast.error(`上傳失敗：${error.message}`);
+**實現位置：** `modules/wiki/domain/entities/link.ts`
 
-// 背景任務提示
-toast.info("正在處理中，請稍候…");
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邊唯一 ID |
+| `fromNodeId` | `string` | 來源節點（連結發起方） |
+| `toNodeId` | `string` | 目標節點（連結目標） |
+| `type` | `EdgeType` | 語意關係類型（見下方） |
+| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
+
+**EdgeType 值物件（對應 Schema + Ontology Layer）：**
+
+```typescript
+type EdgeType =
+  | "IS_A"        // 繼承關係（A 是 B 的一種）
+  | "PART_OF"     // 組成關係（A 是 B 的一部分）
+  | "RELATED_TO"  // 相關關係（通用）
+  | "DEPENDS_ON"  // 依賴關係
+  | "CAUSES"      // 因果關係
+  | "CONTRADICTS" // 矛盾關係
+  | "REDIRECT"    // 重定向（別名統一）
+  | "CATEGORY";   // 分類從屬
 ```
 
-**注意**：`<Toaster />` 已由全域 Provider 掛載，無需重複掛載。
+**不變式：**
+- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
+- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
 
-### 2.6 Dropdown 選單模式
+**Backlink 的領域含義：**  
+Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
 
-```tsx
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+### 3.3 WikiPage（Wiki 頁面整合）
 
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="ghost" size="sm" aria-label="更多操作">
-      <MoreHorizontal className="size-4" />
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent align="end">
-    <DropdownMenuItem onClick={handleEdit}>編輯</DropdownMenuItem>
-    <DropdownMenuItem
-      className="text-destructive"
-      onClick={handleDelete}
-    >
-      刪除
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
+輕量化的 Wiki 風格頁面實體，用於 wiki 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
+
+> **模組遷移說明：** `modules/wiki` 獨立模組已移除。WikiPage 概念已遷移至 `modules/knowledge`（頁面層）；WikiLibrary 概念遷移至 `modules/source`（結構化資料層）；WikiContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/search`。
+
+**實現位置：** `modules/knowledge/domain/entities/wiki-page.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 頁面唯一識別碼 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL 友好路徑 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `order` | `number` | 在內容樹中的排列順序 |
+| `status` | `WikiPageStatus` | 頁面狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+### 3.4 WikiLibrary（Wiki 知識庫聚合根）
+
+WikiLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
+
+**實現位置：** `modules/source/domain/entities/wiki-library.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Library 唯一 ID（聚合根） |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `name` | `string` | Library 名稱（顯示於側邊欄） |
+| `slug` | `string` | URL 友好路徑 |
+| `status` | `WikiLibraryStatus` | 狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+**相關實體：**
+- `WikiLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
+- `WikiLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
+
+**與其他概念的關係：**
+- 一個 Workspace 可包含多個 WikiLibrary。
+- WikiContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
+
+### 3.5 Slug 工具（原 Namespace 模組）
+
+> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
+
+Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
+
+**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
+
+| 函式 | 說明 |
+| --- | --- |
+| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
+| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
+
+## 四、AI Layer 的領域概念
+
+### 4.1 IngestionDocument（攝入文件聚合根）
+
+文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 文件唯一 ID |
+| `organizationId` | `string` | 所屬組織（多租戶隔離） |
+| `workspaceId` | `string` | 所屬工作區 |
+| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
+| `title` | `string` | 文件標題 |
+| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
+| `status` | `IngestionStatus` | 攝入狀態（見下方） |
+
+**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
+
+```text
+                        ┌─────────────────────────────────────┐
+                        ↓                                     │
+uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
+    │          │          │           │                         │
+    └──────────┴──────────┴───────────┴─────────────────────────┘
+                                  failed（任一階段可轉入）
 ```
 
-### 2.7 狀態徽章模式（Status Badge Pattern）
+| 狀態 | 說明 |
+| --- | --- |
+| `uploaded` | 檔案已上傳，等待處理 |
+| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
+| `chunking` | 正在分塊（Chunk 階段：語意分段） |
+| `embedding` | 正在向量化（Embedding 階段） |
+| `indexed` | 已完成索引，可供查詢 |
+| `stale` | 原始文件已更新，需重新索引 |
+| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
+| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
 
-```tsx
-import { Badge } from "@ui-shadcn/ui/badge";
+---
 
-function StatusBadge({ status }: { status: "ready" | "processing" | "error" | "pending" }) {
-  const map = {
-    ready:      { label: "✓ ready",       variant: "success" },
-    processing: { label: "⏳ processing",  variant: "secondary" },
-    error:      { label: "✗ error",        variant: "destructive" },
-    pending:    { label: "— pending",      variant: "outline" },
-  };
-  const { label, variant } = map[status];
-  return <Badge variant={variant as never}>{label}</Badge>;
+### 4.2 IngestionJob（攝入作業）
+
+追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 作業唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `stage` | `PipelineStage` | 當前執行階段 |
+| `startedAt` | `Timestamp` | 開始時間 |
+| `completedAt` | `Timestamp \| null` | 完成時間 |
+| `error` | `string \| null` | 錯誤訊息（若 failed） |
+
+**PipelineStage 值物件：**
+
+```typescript
+type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
+```
+
+### 4.3 IngestionChunk（語意分塊）
+
+代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
+
+**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Chunk 唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `content` | `string` | Chunk 文字內容 |
+| `chunkIndex` | `number` | 在文件中的順序編號 |
+| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
+| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
+| `vector` | `number[]` | 向量表示（Embedding 結果） |
+| `tokenCount` | `number` | Token 數量（分塊品質指標） |
+
+**不變式：**
+- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
+- `content` 長度不得超過所選 Embedding Model 的 token 上限。
+
+### 4.4 RagQuery（RAG 查詢聚合根）
+
+代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
+
+**實現位置：** `modules/search/domain/entities/RagQuery.ts`
+
+**核心介面：**
+
+```typescript
+interface RagQuery {
+  id: string;
+  workspaceId: string;
+  input: string;               // 用戶原始輸入
+  intent?: QueryIntent;        // 分類後的查詢意圖
+  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
+  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
 }
 ```
 
-**規則**：狀態徽章必須同時包含圖示與文字（不可只用顏色）。
+**QueryIntent 值物件（對應 Query Understanding Layer）：**
 
-### 2.8 Tooltip 模式
-
-```tsx
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button disabled aria-disabled>
-        手動重整
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>文件尚未完成解析</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+```typescript
+type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
 ```
 
----
+**RagRetrievedChunk 值物件（檢索結果項目）：**
 
-## 3. 表單元件模式
-
-### 3.1 基本輸入框
-
-```tsx
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-<div className="space-y-2">
-  <Label htmlFor="title">標題</Label>
-  <Input
-    id="title"
-    value={title}
-    onChange={(e) => setTitle(e.target.value)}
-    placeholder="請輸入標題..."
-    aria-invalid={!!error}
-  />
-  {error && (
-    <p className="text-sm text-destructive" role="alert">
-      {error}
-    </p>
-  )}
-</div>
-```
-
-### 3.2 拖曳上傳區（Drop Zone）
-
-Drop Zone 的可近用性規格：
-
-```tsx
-<div
-  role="button"
-  tabIndex={0}
-  aria-label="點擊選擇檔案，或拖曳檔案至此上傳"
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-    isDragOver && "border-primary bg-primary/5",
-    "focus:outline-none focus:ring-2 focus:ring-ring"
-  )}
-  onDragOver={handleDragOver}
-  onDragLeave={handleDragLeave}
-  onDrop={handleDrop}
-  onClick={handleClick}
-  onKeyDown={(e) => {
-    if (e.key === "Enter" || e.key === " ") handleClick();
-  }}
->
-  {isDragOver ? "放開以上傳" : "點擊或拖曳上傳"}
-</div>
-```
-
----
-
-## 4. 資料表格模式（Data Table Pattern）
-
-使用 TanStack Table（`@lib-tanstack`）實作資料表格：
-
-```tsx
-// 簡易表格（列表較短時）
-<Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>檔名</TableHead>
-      <TableHead>狀態</TableHead>
-      <TableHead>操作</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {documents.map((doc) => (
-      <TableRow key={doc.id}>
-        <TableCell>{doc.filename}</TableCell>
-        <TableCell><StatusBadge status={doc.status} /></TableCell>
-        <TableCell>
-          <ActionButton doc={doc} />
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-```
-
-**選用 TanStack Table 時機**：
-- 需要排序功能
-- 需要列選取（多選刪除）
-- 需要虛擬化（列數 > 100）
-
----
-
-## 5. 頁面組裝模式（Page Composition Pattern）
-
-`page.tsx` 應保持薄協調，只組裝元件：
-
-```tsx
-// ✅ 正確：薄協調層
-export default async function WikiDocumentsPage() {
-  return <WikiDocumentsView />;
-}
-
-// ✅ 正確：有少量 Server-side data fetch
-export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
-  const workspace = await getWorkspaceById(params.workspaceId);
-  if (!workspace) notFound();
-  return <WorkspaceOverview workspace={workspace} />;
-}
-
-// ❌ 錯誤：page 內有業務邏輯
-export default async function DocumentsPage() {
-  const db = getFirestore();
-  const docs = await db.collection("documents").get(); // 直接在 page 呼叫 Firebase
-  return <div>{/* ... */}</div>;
+```typescript
+interface RagRetrievedChunk {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;           // 相關性分數（Reranker 輸出）
+  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
 }
 ```
 
----
+**RagCitation 值物件（引用系統，對應 Source Grounding）：**
 
-## 6. 常見反模式（Anti-patterns）
-
-| 反模式 | 問題 | 正確做法 |
-|---|---|---|
-| 直接在 page 使用 Firebase SDK | 違反 MDDD 分層 | 透過 use-case 或 Server Action |
-| 在元件內直接 `new FirebaseXxxRepository()` | 難以測試 | 由 use-case 透過 constructor injection |
-| 只用顏色區分狀態 | 色盲使用者無法識別 | 同時包含圖示與文字 |
-| Toast 成功但無失敗處理 | 靜默失敗 | try/catch 包覆，失敗也顯示 toast |
-| Disabled 按鈕無 Tooltip | 使用者不知為何不可用 | 加 `Tooltip` 說明原因 |
-| 空狀態顯示空白頁面 | 使用者困惑 | 實作 Empty State 元件 |
-| `'use client'` 加在 layout 或不必要的元件 | 阻止 Server Component 優化 | 只在必要的最小範圍加 `'use client'` |
-
----
-
-## 7. 元件命名規範
-
-| 元件類型 | 命名格式 | 範例 |
-|---|---|---|
-| Feature 元件 | `{Module}{Feature}View` | `WikiDocumentsView` |
-| 子元件（列表項） | `{Feature}Row` / `{Feature}Card` | `DocumentRow` |
-| 表單元件 | `{Action}{Resource}Form` | `UploadDocumentForm` |
-| Dialog 元件 | `{Action}{Resource}Dialog` | `CreateWorkspaceDialog` |
-| 頁面 Shell 元件 | `{Module}Shell` | `WikiShell` |
-
----
-
-## 8. 匯入規則
-
-```tsx
-// ✅ 正確
-import { Button } from "@ui-shadcn/ui/button";
-import { Card } from "@ui-shadcn/ui/card";
-import { cn } from "@shared-utils";
-import { Plus, Loader2 } from "lucide-react";
-
-// ❌ 錯誤：使用 legacy 路徑
-import { Button } from "@/ui/shadcn/ui/button";
-import { cn } from "@/shared/utils";
-```
-````
-
-## File: docs/guides/how-to/ui-ux/information-architecture.md
-````markdown
-# 資訊架構（Information Architecture）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的全站資訊架構、導覽層級、路由地圖與頁面組織原則。
-> 實際路由以目前應用程式路由實作為準；本文件作為閱讀地圖與設計指引。
-
----
-
-## 1. 全站資訊架構圖
-
-```
-Xuanwu App
-├── (public)                          ← 未登入公開區域
-│   ├── /login                        ← 登入頁
-│   └── /register（planned）          ← 註冊頁
-│
-└── (shell)                           ← 已登入 Shell（三欄版型）
-    ├── /workspace                    ← 工作區中心
-    │   └── /workspace/[workspaceId]  ← 單一工作區
-    │
-    ├── /wiki                    ← 知識庫（Wiki）
-    │   ├── /wiki（知識總覽）
-    │   ├── /wiki/documents      ← 主操作頁
-    │   ├── /wiki/rag-query      ← AI 問答
-    │   ├── /wiki/rag-reindex    ← RAG 重整
-    │   ├── /wiki/pages          ← 頁面管理
-    │   └── /wiki/libraries      ← 資料庫管理
-    │
-    ├── /ai-chat                      ← AI 對話介面
-    │
-    ├── /organization                 ← 組織管理
-    │   ├── /organization/members     ← 成員管理
-    │   ├── /organization/teams       ← 團隊管理
-    │   ├── /organization/permissions ← 權限管理
-    │   ├── /organization/workspaces  ← 工作區管理
-    │   ├── /organization/schedule    ← 排程管理
-    │   ├── /organization/daily       ← 每日摘要
-    │   └── /organization/audit       ← 稽核記錄
-    │
-    ├── /dashboard                    ← 個人儀表板
-    │
-    └── /settings                     ← 設定
+```typescript
+interface RagCitation {
+  documentId: string;
+  documentTitle: string;
+  chunkId: string;
+  sectionPath: string;
+  pageNumber?: number;
+  confidenceScore: number;     // 引用可信度
+}
 ```
 
----
+**RagRetrievalSummary 值物件（完整回答結果）：**
 
-## 2. Shell 版型層級
-
-### 2.1 三欄結構
-
-```
-+--App Rail--+--Secondary Nav (Dashboard Sidebar)--+--Main Content--+
-|   48px     |           240px（可收合）              |   flex-1       |
-|            |                                       |                |
-| 圖示導覽   |  依所在區域顯示次要導覽                |  page.tsx      |
-|            |                                       |  協調層        |
-+------------+---------------------------------------+----------------+
+```typescript
+interface RagRetrievalSummary {
+  answer: string;              // LLM 生成的回答
+  citations: RagCitation[];    // 引用來源列表
+  faithfulnessScore?: number;  // Faithfulness 驗證分數
+  isGrounded: boolean;         // 是否通過 Grounding 驗證
+}
 ```
 
-### 2.2 App Rail（最左欄）
+### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
 
-App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
+對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
 
-| 圖示 | 路由 | 標籤 |
-|---|---|---|
-| `Building2` | `/workspace` | 工作區中心 |
-| `BookOpen` | `/wiki` | Account Wiki |
-| `Bot` | `/ai-chat` | AI 對話 |
-| `Users` | `/organization` | 組織管理 |
-| `FlaskConical` | `/dev-tools`（開發環境） | 開發工具 |
-| `Settings` | `/settings` | 設定 |
-| `Plus` | — | 快速建立工作區 / 組織 |
+**實現位置：**
+- `modules/notebook/domain/entities/thread.ts`
+- `modules/notebook/domain/entities/message.ts`
 
-### 2.3 Dashboard Sidebar（次要側邊欄）
+**AgentThread 核心屬性：**
 
-次要側邊欄根據**目前所在的功能區域**動態顯示對應的子導覽。
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 對話 Thread ID |
+| `workspaceId` | `string` | 所屬工作區 |
+| `userId` | `string` | 發起用戶 |
+| `createdAt` | `Timestamp` | 建立時間 |
+| `updatedAt` | `Timestamp` | 最後更新時間 |
 
-**工作區（/workspace/[id]）子導覽**：
+**AgentMessage 核心屬性：**
 
-| 群組 | 項目 |
-|---|---|
-| Primary | Overview、Members |
-| Spaces | Spaces 列表 |
-| Databases | Databases 列表 |
-| Library | Files、Documents |
-| Modules | Issues、Tasks、Schedule、Daily |
-
-**Wiki（/wiki）子導覽**：
-
-| 項目 | 路由 | 狀態 |
-|---|---|---|
-| 知識總覽 | `/wiki` | ✅ 現有 |
-| RAG Query | `/wiki/rag-query` | ✅ 現有 |
-| RAG Reindex | `/wiki/rag-reindex` | ✅ 現有 |
-| Documents [+] | `/wiki/documents` | ✅ 現有 |
-| Pages | `/wiki/pages` | ✅ 現有 |
-| Libraries | `/wiki/libraries` | ✅ 現有 |
-| Workspaces | — | ✅ 現有（可摺疊） |
-
-**組織管理（/organization）子導覽**：
-
-| 項目 | 路由 | 說明 |
-|---|---|---|
-| 成員 | `/organization/members` | 組織成員管理 |
-| 團隊 | `/organization/teams` | 群組管理 |
-| 權限 | `/organization/permissions` | RBAC 角色與權限 |
-| 工作區 | `/organization/workspaces` | 組織下工作區管理 |
-| 排程 | `/organization/schedule` | 排程管理 |
-| 每日 | `/organization/daily` | 每日摘要 |
-| 稽核 | `/organization/audit` | 操作稽核記錄 |
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 訊息唯一 ID |
+| `threadId` | `string` | 所屬 Thread |
+| `role` | `"user" \| "assistant"` | 訊息角色 |
+| `content` | `string` | 訊息內容 |
+| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
+| `createdAt` | `Timestamp` | 建立時間 |
 
 ---
 
-## 3. 路由設計原則
+## 五、Platform Foundation Layer 的領域概念
 
-### 3.1 路由命名規則
+Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
 
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 資源列表 | `/resource` | `/wiki/documents` |
-| 資源詳情 | `/resource/[id]` | `/workspace/[workspaceId]` |
-| 功能子頁 | `/context/function` | `/wiki/rag-query` |
-| 設定頁 | `/resource/settings` | `/workspace/[id]/settings` |
+### 5.1 Identity（身份識別）
 
-### 3.2 路由群組（Route Groups）
+Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
 
-Next.js App Router 使用路由群組 `(name)` 來共用 layout 而不影響 URL：
+**實現位置：** `modules/identity/domain/entities/Identity.ts`
 
-| 群組 | 路徑 | 共用 layout |
-|---|---|---|
-| `(public)` | — | 未登入頁面 layout（無 Shell） |
-| `(shell)` | — | 已登入 Shell layout（三欄版型 + Auth guard） |
+**核心屬性：**
 
-### 3.3 URL 參數規範
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
+| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
+| `displayName` | `string \| null` | 顯示名稱 |
+| `photoURL` | `string \| null` | 大頭照 URL |
+| `isAnonymous` | `boolean` | 是否為匿名會話 |
+| `emailVerified` | `boolean` | 信箱是否已驗證 |
 
-| 參數 | 說明 | 範例 |
-|---|---|---|
-| `workspaceId` | workspace 篩選視角 | `?workspaceId=ws_123` |
-| `tab` | 功能頁籤切換 | `?tab=overview` |
-| `q` | 搜尋關鍵字 | `?q=keyword` |
+**值物件：**
+- `SignInCredentials`：`{ email: string; password: string }`
+- `RegistrationInput`：`{ email: string; password: string; name: string }`
+
+**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
+
+#### TokenRefreshSignal（Custom Claims 刷新訊號）
+
+當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
+
+```text
+Party 1（account / organization 模組）
+    → 角色或政策變更
+    → 呼叫 identityApi.emitTokenRefreshSignal()
+
+Party 2（identity 模組 TokenRefreshRepository）
+    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
+
+Party 3（前端 useTokenRefreshListener hook）
+    → 監聽 Firestore 該文件
+    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
+```
+
+**TokenRefreshSignal 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `accountId` | `string` | 觸發刷新的帳戶 ID |
+| `reason` | `TokenRefreshReason` | 觸發原因 |
+| `issuedAt` | `string` | ISO-8601 時間戳 |
+| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
+
+**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
 
 ---
 
-## 4. 資料範圍與 Scope 設計
+### 5.2 Account（帳戶聚合根）
 
-Xuanwu App 的資料圍繞三層結構：
+Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
 
+**實現位置：** `modules/account/domain/entities/Account.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
+| `name` | `string` | 帳戶顯示名稱 |
+| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
+| `email` | `string \| undefined` | 聯絡信箱 |
+| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
+| `bio` | `string \| undefined` | 個人簡介或組織描述 |
+| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
+| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
+| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
+| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
+| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
+| `createdAt` | `Timestamp \| undefined` | 建立時間 |
+
+**值物件：**
+- `AccountType`：`"user" | "organization"`
+- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
+- `Presence`：`"active" | "away" | "offline"`
+- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
+- `Wallet`：`{ balance: number }`（積分系統）
+
+**Team 嵌套物件（組織帳戶專屬）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 小組 ID |
+| `name` | `string` | 小組名稱 |
+| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
+| `memberIds` | `string[]` | 成員 ID 列表 |
+
+**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
+
+#### AccountPolicy（帳戶層 ABAC 政策）
+
+Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
+
+**AccountPolicy 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 政策唯一 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `name` | `string` | 政策名稱 |
+| `rules` | `PolicyRule[]` | 規則列表 |
+| `isActive` | `boolean` | 是否啟用 |
+| `createdAt` | `string` | ISO-8601 建立時間 |
+| `traceId` | `string \| undefined` | 審計追蹤 ID |
+
+**PolicyRule 值物件：**
+
+```typescript
+interface PolicyRule {
+  resource: string;                      // 受保護資源路徑
+  actions: string[];                     // 允許或拒絕的操作列表
+  effect: "allow" | "deny";             // 政策效果
+  conditions?: Record<string, string>;   // 條件約束（可選）
+}
 ```
-System
-└── Account（個人帳號 / 組織帳號）
-    └── Workspace（工作區）
-        └── Resources（Pages、Files、Documents...）
-```
 
-| 層次 | 說明 | 存取範圍 |
-|---|---|---|
-| **Account** | 資料主範圍。所有資料歸屬於帳號，不跨帳號共用。 | 帳號擁有者 + 邀請成員 |
-| **Workspace** | 帳號下的分組視角。workspace 是篩選，不是資料邊界。 | Workspace 成員 |
-| **Namespace** | 路由 slug 機制，背景能力，不在 UI 中獨立暴露。 | 系統內部 |
-
-**重要設計原則**：
-- 使用者的 **預設視角** 為帳號全覽（account scope）。
-- 切換 workspace 是「縮小視角」的操作，不是「換資料庫」的操作。
-- 跨 workspace 的資料彙總需在 account 層完成。
+政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
 
 ---
 
-## 5. 頁面類型分類
+### 5.3 Organization（組織聚合根）
 
-### 5.1 列表頁（List Page）
+Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
 
-顯示某類資源的清單，支援篩選、排序與操作。
+**實現位置：** `modules/organization/domain/entities/Organization.ts`
 
-**必要元素**：
-- 頁首標題 + 篩選狀態提示
-- 載入中骨架屏（Skeleton）
-- 空狀態（Empty State）+ 引導行動
-- 每列的操作按鈕
+**核心屬性：**
 
-**範例**：`/wiki/documents`、`/wiki/pages`
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 組織唯一 ID（聚合根） |
+| `name` | `string` | 組織名稱 |
+| `ownerId` | `string` | 擁有者 UID |
+| `email` | `string \| undefined` | 組織聯絡信箱 |
+| `description` | `string \| undefined` | 組織描述 |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
+| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
+| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
+| `teams` | `Team[]` | 小組列表 |
+| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
+| `createdAt` | `Timestamp` | 建立時間 |
 
-### 5.2 詳情頁（Detail Page）
+**PartnerInvite 值物件（合作夥伴邀請）：**
 
-顯示單一資源的完整資訊，支援編輯操作。
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邀請唯一 ID |
+| `email` | `string` | 被邀請方信箱 |
+| `teamId` | `string` | 加入的小組 |
+| `role` | `OrganizationRole` | 授予角色 |
+| `inviteState` | `InviteState` | 邀請狀態 |
+| `invitedAt` | `Timestamp` | 邀請時間 |
+| `protocol` | `string` | 協議說明（外部協作規範） |
 
-**必要元素**：
-- 返回連結（Back button）
-- 資源標題 + 元資料
-- 內容主體
-- 操作按鈕（Edit / Delete / Share）
+**InviteState 值物件：** `"pending" | "accepted" | "expired"`
 
-**範例**：`/workspace/[workspaceId]`
+#### OrgPolicy（組織層 ABAC 政策）
 
-### 5.3 功能操作頁（Functional Page）
+與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
 
-以特定功能為主（非 CRUD 列表），例如 RAG 查詢、上傳操作。
+**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
 
-**必要元素**：
-- 操作輸入區
-- 執行按鈕（含 loading 狀態）
-- 結果顯示區
-- 錯誤 / 空狀態處理
-
-**範例**：`/wiki/rag-query`、`/wiki/rag-reindex`
-
-### 5.4 總覽頁（Overview / Dashboard Page）
-
-提供某功能區域的整體摘要與入口。
-
-**必要元素**：
-- 快速操作入口（Quick Actions）
-- 統計摘要（Counters / Metrics）
-- 最近活動或重要提示
-
-**範例**：`/wiki`（知識總覽）
+**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
 
 ---
 
-## 6. 導覽自訂化
+### 5.4 Workspace（工作區聚合根）
 
-使用者可透過「自訂導覽」對話框（`CustomizeNavigationDialog`）調整側邊欄顯示的項目：
+Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
 
-- **偏好存儲**：`localStorage` key `xuanwu:nav-preferences`
-- **偏好格式**：pinnedItems（置頂項目）+ workspaceOrder（工作區排序）
-- **有效項目集合**：系統定義 `VALID_PINNED_ITEMS` 與 `VALID_WORKSPACE_ORDER_IDS`，確保偏好合法性
+**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 工作區唯一 ID（聚合根） |
+| `name` | `string` | 工作區名稱 |
+| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
+| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
+| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
+| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
+| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
+| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
+| `teamIds` | `string[]` | 關聯的組織小組 |
+| `address` | `Address \| undefined` | 實體地址（選填） |
+| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
+| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**WorkspaceLifecycleState 狀態機：**
+
+```text
+preparatory ──────────→ active ──────────→ stopped
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `preparatory` | 工作區準備中，正在初始化能力與設定 |
+| `active` | 工作區正常運作，可使用全部能力 |
+| `stopped` | 工作區已停用，保留資料但不可新增內容 |
+
+**Capability 值物件（能力模組）：**
+
+工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
+
+```typescript
+interface Capability {
+  id: string;
+  name: string;
+  type: "ui" | "api" | "data" | "governance" | "monitoring";
+  status: "stable" | "beta";
+  description: string;
+  config?: object;  // 各能力的自訂設定
+}
+```
+
+**WorkspaceGrant 值物件（存取授權）：**
+
+```typescript
+interface WorkspaceGrant {
+  userId?: string;   // 個人授權
+  teamId?: string;   // 小組授權
+  role: string;      // 授予的角色
+  protocol?: string; // 授權協議（外部合作適用）
+}
+```
+
+**不變式：**
+- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
+- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
+- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
+
+**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
+
+#### WorkspaceMemberView（工作區成員讀取模型）
+
+WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
+
+**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 成員 ID |
+| `displayName` | `string` | 顯示名稱 |
+| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
+| `isExternal` | `boolean` | 是否為外部合作成員 |
+| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
+
+**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
+
+#### WikiContentTree（側邊欄導覽樹聚合根）
+
+WikiContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
+
+**實現位置：** `modules/workspace/domain/entities/WikiContentTree.ts`
+
+**樹狀結構：**
+
+```text
+WikiAccountContentNode（帳戶節點）
+  ├── accountId, accountName, accountType（personal | organization）
+  ├── membersHref（組織帳戶限定）
+  ├── teamsHref（組織帳戶限定）
+  └── workspaces[]
+        └── WikiWorkspaceContentNode（工作區節點）
+              ├── workspaceId, workspaceName
+              └── contentBaseItems[]
+                    └── WikiContentItemNode（內容入口）
+                          ├── key（spaces | pages | libraries | rag | ai-tools …）
+                          ├── label, href
+                          └── enabled（是否啟用）
+```
+
+**不變式：**
+- Personal 帳戶節點排列在 Organization 帳戶節點之前。
+- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
 
 ---
 
-## 7. 搜尋與導覽輔助
+### 5.5 Platform Foundation 跨模組關係
 
-### 7.1 全站搜尋（planned）
+```text
+Identity ──→ Account ──→ Organization ──→ Workspace
+  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
+  │             │               │               │
+  │         AccountPolicy   OrgPolicy       Capability
+  │             │               │
+  └─────────────┴───────────────┘
+         [S6] Claims Refresh Protocol
+         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
+```
 
-- **入口**：Header 右側搜尋圖示（`/search`）
-- **範圍**：account 範圍內所有 Pages、Documents、Records
-- **鍵盤捷徑**：`Cmd/Ctrl + K`
+| 關係 | 說明 |
+| --- | --- |
+| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
+| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
+| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
+| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
+| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
 
-### 7.2 麵包屑（Breadcrumb）
+## 六、三層記憶架構的領域映射
 
-- 目前各頁面使用「← 返回」按鈕
-- 計畫在頁首加入麵包屑導覽（planned）
+架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
 
-### 7.3 語言切換
-
-- Header Controls 提供語言切換器（`translation-switcher.tsx`）
-- 支援語言：中文（繁體）、英文（計畫中）
-````
-
-## File: docs/guides/how-to/ui-ux/ux-principles.md
-````markdown
-# UX 原則與互動規範
-
-> **說明文件類型**：本文件說明 Xuanwu App 的使用者體驗設計哲學，定義互動模式、反饋機制與可近用性標準。
-> 設計決策均與 Diátaxis 的「說明」象限對應 — 著重「為什麼」而非「如何做」。
+| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
+| --- | --- | --- | --- |
+| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
+| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
+| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
 
 ---
 
-## 1. 核心 UX 原則
-
-### 1.1 UX1 — 操作可見（System Visibility）
-
-> _使用者在任何時刻都知道系統正在做什麼。_
-
-**來源**：Don Norman《The Design of Everyday Things》— 回饋原則。
-
-**實作規範**：
-- 所有非同步操作（上傳、查詢、刪除）必須有 loading 狀態指示。
-- loading 狀態使用 **spinner + 文字** 雙重提示（例如「上傳中...」），不只有 spinner。
-- 後台處理完成後（例如文件解析），以 **toast 通知** 明確告知結果。
-- 即時變動的資料（例如文件 `status`）盡量使用 **Firestore `onSnapshot`** 讓狀態自動更新，而非需要使用者手動刷新。
-
-### 1.2 UX2 — 降低認知負擔（Minimize Cognitive Load）
-
-> _核心操作集中在一個頁面完成，不強迫使用者在多頁面間跳轉。_
-
-**來源**：Steve Krug《Don't Make Me Think》— 最少點擊數。
-
-**實作規範**：
-- 每個主功能頁面（例如 `/wiki/documents`）自我完備 — 上傳、列表、操作三位一體。
-- 側邊欄導覽項目最多顯示 **7 個頂層項目**（米勒定律：工作記憶限制）。
-- 次要操作（例如快捷建立）使用 **hover 顯示** 的次要元素，不佔主要視覺空間。
-
-### 1.3 UX3 — 錯誤可修復（Error Recovery）
-
-> _出錯時顯示原因與建議的下一步行動。_
-
-**來源**：Don Norman《The Design of Everyday Things》— 錯誤設計原則。
-
-**實作規範**：
-- 所有錯誤 toast 包含 **原因 + 建議行動**（例如「上傳失敗，請確認網路連線後重試」）。
-- 格式驗證錯誤在使用者動作當下即時顯示，不等待 submit。
-- 禁用按鈕（disabled）必須搭配 **tooltip 說明不可用原因**，不可靜默。
-
-### 1.4 UX4 — 資料全覽預設（Default to Overview）
-
-> _預設顯示 account 全覽，不因工作區切換讓資料「消失」。_
-
-**來源**：Lean UX — 從使用者痛點出發的設計。
-
-**實作規範**：
-- 所有資料列表預設顯示 **account 範圍**，不以 workspace 為預設篩選。
-- workspace 篩選為選擇性操作，透過 URL 參數（`?workspaceId=<id>`）觸發。
-- 篩選啟動時，頁面需顯示明確的篩選提示（例如「workspace: {id} ×」）。
-
-### 1.5 UX5 — 鍵盤可近用性（Keyboard Accessibility）
-
-> _所有互動操作均可由鍵盤完整操作，不依賴滑鼠。_
-
-**來源**：WCAG 2.1 AA 標準。
-
-**實作規範**：
-- 所有可互動元素（按鈕、連結、輸入框）可 Tab 鍵聚焦。
-- Dropdown / Popover 支援 ↑↓ 導覽與 Enter 觸發、Esc 關閉。
-- 焦點管理：開啟 Modal/Dialog 後焦點移入；關閉後焦點回到觸發元素。
-- 焦點環（focus ring）在所有互動元素上清晰可見。
-
-### 1.6 UX6 — 一致性（Consistency）
-
-> _相同功能在全平台使用相同元件與文案模式。_
-
-**來源**：Jakob Nielsen《10 Usability Heuristics》— Consistency and Standards。
-
-**實作規範**：
-- 統一使用 shadcn/ui 元件庫，不自行實作已有的基礎元件。
-- 操作文案統一：「建立」（不混用「新增」和「新建」）、「刪除」（不混用「移除」）。
-- 狀態圖示統一：`✓ ready`、`⏳ processing`、`✗ error`。
-
----
-
-## 2. 互動模式規範
-
-### 2.1 Toast 通知規則
-
-Toast 是 Xuanwu App 的主要反饋機制，使用 **Sonner** 函式庫。
-
-| 情境 | Toast 類型 | 顯示時間 |
-|---|---|---|
-| 操作成功（建立、儲存、觸發） | `success` | 3 秒自動消失 |
-| 操作失敗（網路、驗證、權限） | `error` | 5 秒（或手動關閉） |
-| 背景處理中（可能需要等待） | `info` | 4 秒自動消失 |
-| 危險操作前的確認 | 不用 toast，用 Dialog | — |
-
-**格式規範**：
-```
-成功：「已{動作} {對象}」        例：「已建立 工作區 Marketing」
-失敗：「{動作}失敗：{原因}」     例：「上傳失敗：格式不支援」
-處理中：「{動作}中，請稍候…」   例：「重整中，請稍候…」
-```
-
-**實作位置**：`<Toaster />` 已掛載於全域 Provider。
-
-### 2.2 Loading 狀態規範
-
-| 情境 | Loading 模式 |
-|---|---|
-| 頁面初始載入 | Skeleton（骨架屏） — 整頁占位符 |
-| 列表資料載入 | Skeleton rows — 每列占位符 |
-| 按鈕觸發的操作 | Inline spinner + 文字 + disabled |
-| 單列操作（不影響其他列） | 僅該列顯示 spinner，其他列保持互動 |
-| 全頁阻斷操作 | 避免使用；若必要，使用半透明 overlay |
-
-### 2.3 空狀態設計
-
-每個列表頁面須定義 **空狀態（Empty State）**，避免空白頁面讓使用者困惑。
-
-| 場景 | 空狀態內容 |
-|---|---|
-| 無文件（Documents） | 說明文字 + 指向 Upload 卡的引導箭頭 |
-| 無頁面（Pages） | 說明文字 + 「建立第一個頁面」按鈕 |
-| 無查詢結果（RAG Query） | 說明文字 + 建議的下一步（確認文件已 indexed） |
-| 無工作區 | 說明文字 + 「建立工作區」按鈕 |
-
-**空狀態文案格式**：
-```
-「目前還沒有 {資源名稱}，{引導動作}。」
-例：「目前還沒有文件，試著上傳第一份檔案。」
-```
-
-### 2.4 確認對話框規則
-
-需要使用 Dialog 確認的操作：
-
-| 操作類型 | 是否需要確認 |
-|---|---|
-| 刪除永久性資源 | ✅ 必須 |
-| 批次刪除 | ✅ 必須 |
-| 清除資料 | ✅ 必須 |
-| 建立 | ❌ 不需要 |
-| 儲存 | ❌ 不需要 |
-| 觸發背景任務（例如 reindex） | ❌ 不需要（有 toast 反饋即可） |
-
----
-
-## 3. 表單設計規範
-
-### 3.1 輸入驗證時機
-
-| 驗證類型 | 觸發時機 |
-|---|---|
-| 格式驗證（日期、Email） | blur（失去焦點時） |
-| 必填欄位 | submit（提交時）；如果已 blur 過也可 blur 時顯示 |
-| 即時搜尋 | change（每次輸入後，加 debounce） |
-| 伺服器端驗證 | submit 後，以 toast 或 inline error 顯示 |
-
-### 3.2 按鈕狀態
-
-所有可提交的按鈕（Primary Button）遵循以下狀態：
-
-```
-idle → loading → success（toast） or error（toast）
-```
-
-- **idle**：正常可點擊狀態，顯示操作文字。
-- **loading**：顯示 spinner + 操作進行中文字，按鈕 disabled。
-- **success**：toast 顯示成功訊息，按鈕回到 idle（或 navigate）。
-- **error**：toast 顯示錯誤訊息，按鈕回到 idle（允許重試）。
-
----
-
-## 4. 導覽行為規範
-
-### 4.1 側邊欄展開 / 收合
-
-- **預設狀態**：展開。
-- **收合觸發**：使用者點擊 `PanelLeftClose` 圖示，偏好存於 `localStorage`（key: `xuanwu:nav-preferences`）。
-- **收合狀態**：僅顯示圖示，懸停（hover）顯示 Tooltip 提示完整名稱。
-
-### 4.2 Active 狀態顯示
-
-- 側邊欄以路由 prefix 判斷 active（`pathname.startsWith(href + "/")`）。
-- Active 項目：背景色 `bg-accent`，文字加粗。
-
-### 4.3 麵包屑（Breadcrumb）
-
-目前未實作全站麵包屑；各功能區頁首有「返回」按鈕（例如「← 返回 Wiki Beta」）。
-
----
-
-## 5. 可近用性完整清單
-
-### 5.1 必要實作（WCAG 2.1 AA）
-
-| 需求 | 實作細節 |
-|---|---|
-| 色彩對比 | 文字與背景對比 ≥ 4.5:1（一般文字）；≥ 3:1（大文字） |
-| 鍵盤可操作 | 所有功能可不依賴滑鼠完成 |
-| 螢幕閱讀器 | 圖示按鈕有 `aria-label`；狀態用 `aria-live` 或 `role="status"` |
-| 焦點管理 | 開啟 Dialog/Popover 後焦點移入，關閉後焦點回到觸發元素 |
-| 錯誤識別 | 錯誤訊息不僅依賴紅色，需有文字說明 |
-| 選單鍵盤操作 | Arrow 鍵導覽、Enter 觸發、Esc 關閉 |
-
-### 5.2 元件可近用性規格
-
-| 元件 | 鍵盤行為 | ARIA 需求 |
-|---|---|---|
-| Drop Zone | Tab 聚焦；Enter/Space 觸發選檔 | `role="button"`, `aria-label` |
-| Dropdown Menu | ↑↓ 導覽；Enter 選擇；Esc 關閉 | `role="menu"`, `role="menuitem"` |
-| Dialog | Esc 關閉；焦點陷阱 | `role="dialog"`, `aria-labelledby` |
-| Toast | 自動朗讀 | `role="alert"` 或 `aria-live="assertive"` |
-| Table | Tab 導覽至互動元素 | `<table>` 語意標籤 |
-| Badge / Status | — | 不可只用顏色；需有文字 |
-
----
-
-## 6. 回應式設計規範
-
-Xuanwu App 主要針對桌面（Desktop first），但核心頁面需支援平板與手機。
-
-| 斷點 | Tailwind Prefix | 說明 |
-|---|---|---|
-| 手機 | （預設） | 單欄版型；隱藏 Secondary Nav |
-| 平板 | `md:` | 可選性顯示 Secondary Nav |
-| 桌面 | `lg:` | 完整三欄版型 |
-
-**手機版規則**：
-- App Rail 收合為底部導覽列（planned）。
-- 資料列表改為卡片式呈現，取代桌面的表格。
-- 複雜操作（例如上傳）維持可用，但版型調整為全寬。
-````
-
-## File: docs/guides/how-to/ui-ux/wireframes.md
-````markdown
-# 線框圖（Wireframes）
-
-> **參考文件類型**：本文件包含 Xuanwu App 各主要功能區域的線框圖（Wireframe），以 ASCII 文字圖呈現布局結構與元件配置。
-> 詳細的個別功能 UI 規格，請參閱系統規格索引。
-
----
-
-## 1. Shell 版型（三欄結構）
-
-所有已登入頁面共用三欄 Shell 版型：
-
-```
-+--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
-|   48px       |    240px          |    flex-1         |
-|              |  （可收合）        |                   |
-| [Logo]       |  根據功能區域      |  page.tsx         |
-|              |  動態顯示子導覽    |  協調層           |
-| [Workspace]  |                   |                   |
-| [Wiki Beta]  |                   |                   |
-| [AI Chat]    |                   |                   |
-| [Org]        |                   |                   |
-|              |                   |                   |
-| ─────────── |                   |                   |
-| [Settings]   |                   |                   |
-| [User Avatar]|                   |                   |
-+--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
-```
-
-### Header（頁首）
-
-```
-+----------------------------------------------------------------+
-| Breadcrumb / Page Title        [Search] [Lang] [Theme] [User] |
-+----------------------------------------------------------------+
+## 七、Ingestion Pipeline 的領域事件
+
+完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
+
+| 領域事件 | 觸發時機 | 訂閱方 |
+| --- | --- | --- |
+| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
+| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
+| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
+| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
+| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
+| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
+
+**事件 DTO 結構慣例：**
+
+```typescript
+interface DomainEventDTO {
+  type: "knowledge.document_registered";  // 格式：module.event_name
+  payload: { documentId: string; workspaceId: string; };
+  occurredAtISO: string;                  // ISO 8601 時間戳
+}
 ```
 
 ---
 
-## 2. Wiki 功能區
+## 八、Query Understanding Layer 的領域服務
 
-### 2.1 `/wiki`（知識總覽）
+Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
 
-```
-+--App Rail--+--Wiki Nav--+------Main Content------+
-|            | 知識總覽 ●      | [← 返回]               |
-|            | RAG Query       |                        |
-|            | RAG Reindex     | Wiki Beta              |
-|            | Documents   [+] | ─────────────────────  |
-|            | Pages           |                        |
-|            | Libraries       | ┌─────────┐ ┌─────────┐|
-|            | ─────────────  | │ 文件上傳 │ │RAG Query│|
-|            | Workspaces ▼   | │  圖示+   │ │ 圖示+   │|
-|            |  > ws-1         | │  說明文字│ │ 說明文字│|
-|            |  > ws-2         | └─────────┘ └─────────┘|
-|            |                 |                        |
-|            |                 | 帳號統計               |
-|            |                 | 文件：N  Ready：M      |
-|            |                 | 工作區：K              |
-+--App Rail--+--Wiki Nav--+------Main Content------+
+**建議的領域服務介面（位於 `modules/search/domain/services/`）：**
+
+```typescript
+interface QueryPlannerService {
+  classifyIntent(query: string): Promise<QueryIntent>;
+  decomposeQuery(query: string): Promise<string[]>;
+  rewriteForRetrieval(query: string): Promise<string>;
+  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
+}
 ```
 
-### 2.2 `/wiki/documents`（主操作頁）
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Documents       |
-|            | RAG Query       | account 全覽 / ws: {id} ×  |
-|            | RAG Reindex     | ─────────────────────────── |
-|            | Documents ● [+] |                             |
-|            | Pages           | ┌── 上傳檔案 ─────────────┐|
-|            | Libraries       | │                           │|
-|            |                 | │  ╔═══════════════════╗   │|
-|            |                 | │  ║ 點擊或拖曳上傳     ║   │|
-|            |                 | │  ║ .pdf .tiff .png    ║   │|
-|            |                 | │  ╚═══════════════════╝   │|
-|            |                 | │                           │|
-|            |                 | │  [上傳並啟動解析 ↑] [✕]  │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Documents (帳號全覽) ───┐|
-|            |                 | │ filename │ status │ rag   │|
-|            |                 | │──────────│────────│───────│|
-|            |                 | │report.pdf│✓ ready │✓ idx  │|
-|            |                 | │scan.tiff │⏳ proc │⏳ pend│|
-|            |                 | │error.pdf │✗ error │ —    │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
-
-**Documents [+] 快捷選單（Popover）**：
-
-```
-Documents [+]
-          │
-          ▼
-     ┌─────────────────┐
-     │ ＋ 新增頁面      │
-     │ ＋ 新增資料庫    │
-     └─────────────────┘
-```
-
-### 2.3 `/wiki/rag-query`
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · RAG Query       |
-|            | RAG Query ●     | ─────────────────────────── |
-|            | RAG Reindex     |                             |
-|            | Documents   [+] | ┌── RAG Query ─────────────┐|
-|            | Pages           | │                           │|
-|            | Libraries       | │ ┌─────────────────────┐   │|
-|            |                 | │ │ 請輸入你的問題...     │   │|
-|            |                 | │ └─────────────────────┘   │|
-|            |                 | │ top_k: [5 ▼] [送出查詢]  │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Answer ────────────────┐|
-|            |                 | │ AI 回答文字...            │|
-|            |                 | │                           │|
-|            |                 | │ [cache:hit][scope:acct]  │|
-|            |                 | │ [vector:5][search:3]     │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Citations (3 筆) ──────┐|
-|            |                 | │ 1. report.pdf — 第5頁     │|
-|            |                 | │    "...引用片段..."        │|
-|            |                 | │ 2. scan.tiff — 第1頁      │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
-
-### 2.4 `/wiki/pages`（Pages 頁面管理）
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Pages           |
-|            | RAG Query       | ─────────────────────────── |
-|            | RAG Reindex     |                  [新增頁面]  |
-|            | Documents   [+] |                             |
-|            | Pages ●         | ┌── 頁面列表 ───────────────┐|
-|            | Libraries       | │ title     │ updatedAt │ → │|
-|            |                 | │───────────│───────────│───│|
-|            |                 | │ 專案概覽  │ 2026-03-20│ > │|
-|            |                 | │   > 里程碑│ 2026-03-21│ > │|
-|            |                 | │ 技術規格  │ 2026-03-22│ > │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
-
-### 2.5 `/wiki/libraries`（Libraries 資料庫管理）
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Libraries       |
-|            | RAG Query       | ─────────────────────────── |
-|            | RAG Reindex     |              [新增資料庫]    |
-|            | Documents   [+] |                             |
-|            | Pages           | ┌── 資料庫列表 ─────────────┐|
-|            | Libraries ●     | │ name      │ fields │ rows │|
-|            |                 | │───────────│────────│──────│|
-|            |                 | │ 任務追蹤  │ 5欄位  │ 20列 │|
-|            |                 | │ 聯絡人    │ 3欄位  │ 8列  │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
+**對應的 Genkit Flow（`modules/notebook/infrastructure/genkit/` 或 `modules/search/infrastructure/genkit/`）：**
+- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
+- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
+- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
 
 ---
 
-## 3. 工作區（Workspace）
+## 九、Schema + Ontology Layer 的領域概念
 
-### 3.1 `/workspace`（工作區中心）
+架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
 
+### Ontology 在 EdgeType 中的實現
+
+GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
+
+```text
+IS_A        → 類別繼承（OWL SubClassOf）
+PART_OF     → 組成關係（Mereology）
+RELATED_TO  → 通用相關（RDF関係）
+DEPENDS_ON  → 工程依賴
+CAUSES      → 因果推理
+CONTRADICTS → 知識矛盾偵測
 ```
-+--App Rail--+--Nav--+--------Main Content---------+
-|            |       | 工作區中心                  |
-|            |       | ─────────────────────────── |
-|            |       | [建立工作區]                 |
-|            |       |                             |
-|            |       | ┌── 我的工作區 ─────────────┐|
-|            |       | │ ┌─────────┐ ┌─────────┐  │|
-|            |       | │ │  工作區  │ │  工作區  │  │|
-|            |       | │ │  Marketing│ │ Product │  │|
-|            |       | │ │  →進入    │ │  →進入  │  │|
-|            |       | │ └─────────┘ └─────────┘  │|
-|            |       | └───────────────────────────┘|
-+--App Rail--+--Nav--+--------Main Content---------+
-```
+
+### 未來擴充：Entity Normalization（實體正規化）
+
+為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
+1. `WikiPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
+2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
+3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
 
 ---
 
-## 4. 組織管理（Organization）
+## 十、Hybrid Retrieval 的技術邊界說明
 
-### 4.1 `/organization/members`
+architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
 
-```
-+--App Rail--+--Org Nav--+--------Main Content---------+
-|            | 成員 ●    | 組織 · 成員管理             |
-|            | 團隊      | ─────────────────────────── |
-|            | 權限      |                 [邀請成員]   |
-|            | 工作區    |                             |
-|            | 排程      | ┌── 成員列表 ───────────────┐|
-|            | 每日      | │ 姓名  │ 角色   │ 狀態 │操作│|
-|            | 稽核      | │───────│────────│──────│────│|
-|            |           | │ Alice │ Admin  │ 活躍 │ … │|
-|            |           | │ Bob   │ Member │ 活躍 │ … │|
-|            |           | └───────────────────────────┘|
-+--App Rail--+--Org Nav--+--------Main Content---------+
-```
+| 元件 | 層級 | 位置 |
+| --- | --- | --- |
+| Dense Retrieval（Vector Search） | Infrastructure | `modules/search/infrastructure/firebase/` |
+| Sparse Retrieval（BM25） | Infrastructure | `modules/search/infrastructure/` |
+| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/wiki/infrastructure/` |
+| Reranker | Infrastructure / AI | `modules/search/infrastructure/genkit/` |
+| Fusion & Ranking | Application | `modules/search/application/use-cases/answer-rag-query.use-case.ts` |
+
+領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
 
 ---
 
-## 5. AI Chat
+## 十一、完整領域概念清單
 
-### 5.1 `/ai-chat`
-
-```
-+--App Rail--+--Nav--+--------Main Content---------+
-|            |       | AI 對話                     |
-|            |       | ─────────────────────────── |
-|            |       | ┌── 對話歷史 ───────────────┐|
-|            |       | │ 使用者: 這份文件說什麼?    │|
-|            |       | │                           │|
-|            |       | │ AI: 根據文件內容，...      │|
-|            |       | │                           │|
-|            |       | └───────────────────────────┘|
-|            |       |                             |
-|            |       | ┌── 輸入區 ─────────────────┐|
-|            |       | │ 請輸入問題...    [送出 →]  │|
-|            |       | └───────────────────────────┘|
-+--App Rail--+--Nav--+--------Main Content---------+
-```
-
----
-
-## 6. 手機版線框圖
-
-手機版（< 768px）調整三欄為單欄：
-
-### 6.1 手機版 Documents
-
-```
-+--[Header: Wiki Beta · Documents]--+
-| [← 返回]                [↺ 刷新] |
-+-------------------------------------+
-| ┌── 上傳檔案 ─────────────────────┐|
-| │  .pdf .tiff .png .jpg            │|
-| │  ╔═══════════════════╗           │|
-| │  ║   點擊或拖曳上傳   ║           │|
-| │  ╚═══════════════════╝           │|
-| │  [上傳並啟動解析] [清除]         │|
-| └─────────────────────────────────┘|
-|                                     |
-| ┌── Documents (N 筆) ──────────────┐|
-| │ report.pdf                        │|
-| │  ✓ ready · ✓ indexed · 12 頁    │|
-| │  [手動重整]                       │|
-| │─────────────────────────────────│|
-| │ scan.tiff                         │|
-| │  ⏳ processing · ⏳ pending      │|
-| │  [— 解析中 —]                   │|
-| └─────────────────────────────────┘|
-```
-
-### 6.2 手機版底部導覽（planned）
-
-```
-+─────────────────────────────────────+
-| [工作區] [Wiki] [AI] [組織] [設定]  |
-+─────────────────────────────────────+
-```
-
----
-
-## 7. 對話框（Dialog）設計
-
-### 7.1 建立工作區 Dialog
-
-```
-+─────────────────────────────────────────+
-│  建立工作區                          ✕  │
-│                                         │
-│  工作區名稱                             │
-│  ┌─────────────────────────────────┐   │
-│  │ 請輸入工作區名稱...              │   │
-│  └─────────────────────────────────┘   │
-│  {錯誤訊息（若有）}                    │
-│                                         │
-│                    [取消]  [建立工作區] │
-+─────────────────────────────────────────+
-```
-
-### 7.2 刪除確認 Dialog
-
-```
-+─────────────────────────────────────────+
-│  確認刪除                            ✕  │
-│                                         │
-│  您確定要刪除「{資源名稱}」嗎？         │
-│  此操作無法復原。                       │
-│                                         │
-│                       [取消]  [確認刪除]│
-+─────────────────────────────────────────+
-```
+| 領域概念 | 類型 | 模組 | 狀態 |
+| --- | --- | --- | --- |
+| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
+| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
+| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
+| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
+| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
+| `Account` | 聚合根 | `account` | ✅ 已實現 |
+| `AccountType` | 值物件 | `account` | ✅ 已實現 |
+| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
+| `Presence` | 值物件 | `account` | ✅ 已實現 |
+| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
+| `Wallet` | 值物件 | `account` | ✅ 已實現 |
+| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
+| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
+| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
+| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
+| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
+| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
+| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
+| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
+| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
+| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
+| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
+| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
+| `WikiContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
+| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
+| `BlockType` | 值物件 | `content` | ✅ 已實現 |
+| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
+| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
+| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
+| `WikiPage` | 投影實體 | `content` | ✅ 已實現 |
+| `WikiLibrary` | 聚合根 | `asset` | ✅ 已實現 |
+| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
+| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
+| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
+| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
+| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
+| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
+| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
+| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
+| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
+| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
+| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
 
 ---
 
-## 8. 狀態元件規格
-
-### 8.1 Status Badge
-
-```
-✓ ready         ← 綠色背景，白色文字
-⏳ processing   ← 藍/琥珀色背景，白色文字
-✗ error         ← 紅色背景，白色文字
-— pending       ← 灰色背景，灰色文字
-```
-
-### 8.2 Loading Skeleton 
-
-```
-Documents 列表載入中：
-+─────────────────────────────────────+
-│ ▓▓▓▓▓▓▓▓▓▓▓ │ ▓▓▓▓▓▓▓ │ ▓▓▓▓▓  │
-│ ▓▓▓▓▓▓▓▓    │ ▓▓▓▓▓▓▓ │ ▓▓▓    │
-│ ▓▓▓▓▓▓▓▓▓▓  │ ▓▓▓▓▓▓  │ ▓▓▓▓   │
-+─────────────────────────────────────+
-（▓ 代表 Skeleton 骨架屏 pulse 動畫區塊）
-```
-
----
-
-## 相關主題
-
-- 設計系統：色彩、字型規範
-- UX 原則：互動規則、可近用性
-- 資訊架構：全站路由地圖
-- 規格索引：Wiki 與其他功能規格入口
-````
-
-## File: docs/reference/specification/system-overview.md
-````markdown
-# 系統全局規格（System Overview Specification）
-
-> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
-
----
-
-## 1. 系統定位
-
-**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
-
-- 內容頁面與結構化資料庫體驗（Content / UI Layer）
-- 知識關聯與導航視角（Knowledge Graph Layer）
-- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
-- 多工作區協作與組織管理
-- 文件解析、向量化與智慧問答
-
-### 1.1 核心價值主張
-
-| 面向 | 價值 |
-|---|---|
-| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
-| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
-| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
-| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
-
----
-
-## 2. 目標用戶
-
-| 用戶類型 | 說明 | 核心需求 |
-|---|---|---|
-| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
-| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
-| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
-| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
-
----
-
-## 3. 核心功能規格
-
-### 3.1 Account 與 Workspace 管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 個人帳號 | 用戶可建立個人帳號 | `account` |
-| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
-| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
-| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
-| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
-
-### 3.2 知識庫功能
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
-| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
-| 文件解析 | Google Document AI 自動解析 | `py_fn` |
-| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
-| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
-| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
-| Pages | 區塊式頁面建立與管理 | `content` |
-| Libraries | 結構化資料庫管理 | `asset` |
-
-### 3.3 AI 功能
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| AI Chat | 通用 AI 對話介面 | `agent` |
-| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
-| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
-
-### 3.4 組織管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
-| 團隊管理 | 成員分組 | `organization` |
-| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
-| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
-| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
-
----
-
-## 4. 技術架構規格
-
-### 4.1 運行時邊界
-
-系統分為兩個主要運行時：
-
-| 運行時 | 職責 | 技術 |
-|---|---|---|
-| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
-| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
-
-**禁止跨越邊界**：
-- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
-- py_fn 不持有 UI 狀態或 session 邏輯。
-
-### 4.2 資料層架構
-
-```
-Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
-Firebase Storage      ← 檔案儲存（上傳文件）
-Upstash Vector        ← 向量索引（RAG）
-Upstash Redis         ← 快取（RAG query cache）
-```
-
-### 4.3 Firestore 資料模型（頂層）
-
-```
-accounts/{accountId}/
-├── documents/{documentId}     ← 文件（Wiki）
-├── pages/{pageId}             ← 頁面（Pages）
-├── databases/{databaseId}     ← 資料庫（Libraries）
-├── workspaces/{workspaceId}   ← 工作區（Workspace）
-└── members/{memberId}         ← 成員（Account）
-```
-
-> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
-
-### 4.4 認證與授權
-
-```
-Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
-```
-
-| 角色 | 說明 |
-|---|---|
-| `owner` | 帳號擁有者，全部權限 |
-| `admin` | 管理員，可管理成員與設定 |
-| `member` | 一般成員，可讀寫工作區資源 |
-| `viewer` | 唯讀成員，只能查看 |
-
----
-
-## 5. 模組責任邊界
-
-16 個 MDDD 業務模組的責任分配：
-
-| 模組 | 職責概要 |
-|---|---|
-| `account` | 用戶帳號、成員角色、帳號策略 |
-| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
-| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
-| `content` | Block 編輯器頁面、WikiPage、版本歷程 |
-| `identity` | 身份認證、Token 刷新 |
-| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
-| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
-| `notification` | 通知推送 |
-| `organization` | 組織（租戶）管理、策略 |
-| `retrieval` | RAG 查詢、Wiki RAG 類型、向量檢索 |
-| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
-| `workspace` | 工作區管理、成員管理、WikiContentTree |
-| `workspace-audit` | 不可變稽核記錄 |
-| `workspace-feed` | 工作區動態摘要 |
-| `workspace-flow` | 工作區任務與流程管理 |
-| `workspace-scheduling` | 雙向資源排程 |
-
----
-
-## 6. 整合點
-
-| 整合對象 | 用途 | SDK/協議 |
-|---|---|---|
-| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
-| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
-| Firebase Auth | 身份認證 | Firebase SDK v12 |
-| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
-| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
-| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
-| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
-| Upstash Vector | 向量搜尋 | Upstash SDK |
-| Upstash Redis | 快取 | Upstash SDK |
-| QStash | 非同步任務佇列 | Upstash QStash |
-
----
-
-## 7. 驗收標準（系統級別）
-
-| 代號 | 標準 |
-|---|---|
-| S1 | 使用者可登入並進入 Shell |
-| S2 | 使用者可建立組織與工作區 |
-| S3 | 使用者可上傳文件並在列表看到 |
-| S4 | 文件解析後 `status` 更新為 `ready` |
-| S5 | RAG 問答可回傳 answer 與 citations |
-| S6 | 管理員可管理組織成員與角色 |
-| S7 | Console 無初始化錯誤 |
-| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
+> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 ````
 
 ## File: modules/account/aggregates.md
@@ -33060,935 +33989,6 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/guides/explanation/architecture-domain.md
-````markdown
-# 領域概念模型：AI 知識平台架構實現指南
-
-基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
-
----
-
-## 一、四層架構與有界上下文對應
-
-architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
-
-```text
-┌─────────────────────────────────────────────────┐
-│              AI Layer（AI 層）                    │  ← modules/search, modules/notebook, modules/knowledge
-├─────────────────────────────────────────────────┤
-│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/wiki
-├─────────────────────────────────────────────────┤
-│         Content / UI Layer（內容層）               │  ← modules/knowledge, modules/source
-├─────────────────────────────────────────────────┤
-│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
-│                                                  │     modules/account, modules/identity, modules/shared
-└─────────────────────────────────────────────────┘
-```
-
-| 架構層 | 對應模組 | 核心職責 |
-| --- | --- | --- |
-| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
-| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
-| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
-| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
-
-**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
-
-```text
-依賴方向（箭頭表示「依賴」）：
-
-AI Layer
-  ↓ 依賴
-Knowledge Graph Layer
-  ↓ 依賴
-Content / UI Layer
-  ↓ 依賴
-Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
-```
-
----
-
-## 二、Content / UI Layer 的領域概念
-
-### 2.1 Page（頁面聚合根）
-
-Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
-
-**實現位置：** `modules/knowledge/domain/entities/content-page.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 唯一識別碼（聚合根 ID） |
-| `title` | `string` | 頁面標題（Graph Node 標籤） |
-| `slug` | `string` | URL 友好路徑（重定向的基礎） |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
-| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
-| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
-| `organizationId` | `string` | 所屬組織（多租戶） |
-
-**值物件：**
-- `PageStatus`：`"draft" | "published" | "archived"`
-- `PageSlug`：確保唯一且 URL-safe 的值物件
-
-**不變式（Invariants）：**
-- 一個 Page 必須屬於一個 Workspace。
-- `slug` 在同一 Workspace 中必須唯一。
-- 已 `archived` 的頁面不能再接受 Block 更新。
-
-### 2.2 Block（區塊聚合根）
-
-Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
-
-**實現位置：** `modules/knowledge/domain/entities/content-block.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Block 唯一識別碼 |
-| `pageId` | `string` | 所屬頁面（外鍵） |
-| `type` | `BlockType` | Block 類型（見下方） |
-| `content` | `BlockContent` | 具體內容（依 type 變化） |
-| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
-| `order` | `number` | 在頁面中的排列順序 |
-
-**BlockType 值物件（對應 Notion Block 類型）：**
-
-```typescript
-type BlockType =
-  | "text"
-  | "heading_1" | "heading_2" | "heading_3"
-  | "toggle"
-  | "callout"
-  | "code"
-  | "quote"
-  | "divider"
-  | "table"
-  | "image" | "video" | "file"
-  | "embed"
-  | "synced_block"
-  | "column_layout"
-  | "bulleted_list" | "numbered_list"
-  | "to_do"
-  | "page_link";
-```
-
-**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
-
-### 2.3 ContentVersion（版本快照）
-
-對應 Wiki 的 Edit History / Diff / Rollback 能力。
-
-**實現位置：** `modules/knowledge/domain/entities/content-version.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 版本 ID |
-| `pageId` | `string` | 所屬頁面 |
-| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
-| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
-| `authorId` | `string` | 作者 ID |
-| `createdAt` | `Timestamp` | 版本時間戳 |
-| `isMinorEdit` | `boolean` | 是否為小修改標記 |
-
----
-
-## 三、Knowledge Graph Layer 的領域概念
-
-### 3.1 GraphNode（知識圖節點）
-
-對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
-
-**實現位置：** `modules/wiki/domain/entities/graph-node.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
-| `label` | `string` | 顯示標籤 |
-| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
-| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
-
-**GraphNodeStatus 狀態機：**
-
-```text
-draft ──────────→ active ──────────→ archived
-  ↑                  │
-  └──────────────────┘ (reactivation)
-```
-
-**領域事件：**
-- `graph-node.activated`：節點從 draft 轉為 active 時觸發
-- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
-
-### 3.2 GraphEdge / Link（知識圖邊）
-
-對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
-
-**實現位置：** `modules/wiki/domain/entities/link.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邊唯一 ID |
-| `fromNodeId` | `string` | 來源節點（連結發起方） |
-| `toNodeId` | `string` | 目標節點（連結目標） |
-| `type` | `EdgeType` | 語意關係類型（見下方） |
-| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
-
-**EdgeType 值物件（對應 Schema + Ontology Layer）：**
-
-```typescript
-type EdgeType =
-  | "IS_A"        // 繼承關係（A 是 B 的一種）
-  | "PART_OF"     // 組成關係（A 是 B 的一部分）
-  | "RELATED_TO"  // 相關關係（通用）
-  | "DEPENDS_ON"  // 依賴關係
-  | "CAUSES"      // 因果關係
-  | "CONTRADICTS" // 矛盾關係
-  | "REDIRECT"    // 重定向（別名統一）
-  | "CATEGORY";   // 分類從屬
-```
-
-**不變式：**
-- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
-- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
-
-**Backlink 的領域含義：**  
-Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
-
-### 3.3 WikiPage（Wiki 頁面整合）
-
-輕量化的 Wiki 風格頁面實體，用於 wiki 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
-
-> **模組遷移說明：** `modules/wiki` 獨立模組已移除。WikiPage 概念已遷移至 `modules/knowledge`（頁面層）；WikiLibrary 概念遷移至 `modules/source`（結構化資料層）；WikiContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/search`。
-
-**實現位置：** `modules/knowledge/domain/entities/wiki-page.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 頁面唯一識別碼 |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL 友好路徑 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `order` | `number` | 在內容樹中的排列順序 |
-| `status` | `WikiPageStatus` | 頁面狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-### 3.4 WikiLibrary（Wiki 知識庫聚合根）
-
-WikiLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
-
-**實現位置：** `modules/source/domain/entities/wiki-library.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Library 唯一 ID（聚合根） |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `name` | `string` | Library 名稱（顯示於側邊欄） |
-| `slug` | `string` | URL 友好路徑 |
-| `status` | `WikiLibraryStatus` | 狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-**相關實體：**
-- `WikiLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
-- `WikiLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
-
-**與其他概念的關係：**
-- 一個 Workspace 可包含多個 WikiLibrary。
-- WikiContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
-
-### 3.5 Slug 工具（原 Namespace 模組）
-
-> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
-
-Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
-
-**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
-
-| 函式 | 說明 |
-| --- | --- |
-| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
-| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
-
-## 四、AI Layer 的領域概念
-
-### 4.1 IngestionDocument（攝入文件聚合根）
-
-文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 文件唯一 ID |
-| `organizationId` | `string` | 所屬組織（多租戶隔離） |
-| `workspaceId` | `string` | 所屬工作區 |
-| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
-| `title` | `string` | 文件標題 |
-| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
-| `status` | `IngestionStatus` | 攝入狀態（見下方） |
-
-**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
-
-```text
-                        ┌─────────────────────────────────────┐
-                        ↓                                     │
-uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
-    │          │          │           │                         │
-    └──────────┴──────────┴───────────┴─────────────────────────┘
-                                  failed（任一階段可轉入）
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `uploaded` | 檔案已上傳，等待處理 |
-| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
-| `chunking` | 正在分塊（Chunk 階段：語意分段） |
-| `embedding` | 正在向量化（Embedding 階段） |
-| `indexed` | 已完成索引，可供查詢 |
-| `stale` | 原始文件已更新，需重新索引 |
-| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
-| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
-
----
-
-### 4.2 IngestionJob（攝入作業）
-
-追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 作業唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `stage` | `PipelineStage` | 當前執行階段 |
-| `startedAt` | `Timestamp` | 開始時間 |
-| `completedAt` | `Timestamp \| null` | 完成時間 |
-| `error` | `string \| null` | 錯誤訊息（若 failed） |
-
-**PipelineStage 值物件：**
-
-```typescript
-type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
-```
-
-### 4.3 IngestionChunk（語意分塊）
-
-代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
-
-**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Chunk 唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `content` | `string` | Chunk 文字內容 |
-| `chunkIndex` | `number` | 在文件中的順序編號 |
-| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
-| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
-| `vector` | `number[]` | 向量表示（Embedding 結果） |
-| `tokenCount` | `number` | Token 數量（分塊品質指標） |
-
-**不變式：**
-- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
-- `content` 長度不得超過所選 Embedding Model 的 token 上限。
-
-### 4.4 RagQuery（RAG 查詢聚合根）
-
-代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
-
-**實現位置：** `modules/search/domain/entities/RagQuery.ts`
-
-**核心介面：**
-
-```typescript
-interface RagQuery {
-  id: string;
-  workspaceId: string;
-  input: string;               // 用戶原始輸入
-  intent?: QueryIntent;        // 分類後的查詢意圖
-  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
-  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
-}
-```
-
-**QueryIntent 值物件（對應 Query Understanding Layer）：**
-
-```typescript
-type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
-```
-
-**RagRetrievedChunk 值物件（檢索結果項目）：**
-
-```typescript
-interface RagRetrievedChunk {
-  chunkId: string;
-  documentId: string;
-  content: string;
-  score: number;           // 相關性分數（Reranker 輸出）
-  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
-}
-```
-
-**RagCitation 值物件（引用系統，對應 Source Grounding）：**
-
-```typescript
-interface RagCitation {
-  documentId: string;
-  documentTitle: string;
-  chunkId: string;
-  sectionPath: string;
-  pageNumber?: number;
-  confidenceScore: number;     // 引用可信度
-}
-```
-
-**RagRetrievalSummary 值物件（完整回答結果）：**
-
-```typescript
-interface RagRetrievalSummary {
-  answer: string;              // LLM 生成的回答
-  citations: RagCitation[];    // 引用來源列表
-  faithfulnessScore?: number;  // Faithfulness 驗證分數
-  isGrounded: boolean;         // 是否通過 Grounding 驗證
-}
-```
-
-### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
-
-對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
-
-**實現位置：**
-- `modules/notebook/domain/entities/thread.ts`
-- `modules/notebook/domain/entities/message.ts`
-
-**AgentThread 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 對話 Thread ID |
-| `workspaceId` | `string` | 所屬工作區 |
-| `userId` | `string` | 發起用戶 |
-| `createdAt` | `Timestamp` | 建立時間 |
-| `updatedAt` | `Timestamp` | 最後更新時間 |
-
-**AgentMessage 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 訊息唯一 ID |
-| `threadId` | `string` | 所屬 Thread |
-| `role` | `"user" \| "assistant"` | 訊息角色 |
-| `content` | `string` | 訊息內容 |
-| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
----
-
-## 五、Platform Foundation Layer 的領域概念
-
-Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
-
-### 5.1 Identity（身份識別）
-
-Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
-
-**實現位置：** `modules/identity/domain/entities/Identity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
-| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 大頭照 URL |
-| `isAnonymous` | `boolean` | 是否為匿名會話 |
-| `emailVerified` | `boolean` | 信箱是否已驗證 |
-
-**值物件：**
-- `SignInCredentials`：`{ email: string; password: string }`
-- `RegistrationInput`：`{ email: string; password: string; name: string }`
-
-**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
-
-#### TokenRefreshSignal（Custom Claims 刷新訊號）
-
-當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
-
-```text
-Party 1（account / organization 模組）
-    → 角色或政策變更
-    → 呼叫 identityApi.emitTokenRefreshSignal()
-
-Party 2（identity 模組 TokenRefreshRepository）
-    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
-
-Party 3（前端 useTokenRefreshListener hook）
-    → 監聽 Firestore 該文件
-    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
-```
-
-**TokenRefreshSignal 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `accountId` | `string` | 觸發刷新的帳戶 ID |
-| `reason` | `TokenRefreshReason` | 觸發原因 |
-| `issuedAt` | `string` | ISO-8601 時間戳 |
-| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
-
-**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
-
----
-
-### 5.2 Account（帳戶聚合根）
-
-Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
-
-**實現位置：** `modules/account/domain/entities/Account.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
-| `name` | `string` | 帳戶顯示名稱 |
-| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
-| `email` | `string \| undefined` | 聯絡信箱 |
-| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
-| `bio` | `string \| undefined` | 個人簡介或組織描述 |
-| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
-| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
-| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
-| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
-| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
-| `createdAt` | `Timestamp \| undefined` | 建立時間 |
-
-**值物件：**
-- `AccountType`：`"user" | "organization"`
-- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
-- `Presence`：`"active" | "away" | "offline"`
-- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
-- `Wallet`：`{ balance: number }`（積分系統）
-
-**Team 嵌套物件（組織帳戶專屬）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 小組 ID |
-| `name` | `string` | 小組名稱 |
-| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
-| `memberIds` | `string[]` | 成員 ID 列表 |
-
-**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
-
-#### AccountPolicy（帳戶層 ABAC 政策）
-
-Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
-
-**AccountPolicy 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 政策唯一 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `name` | `string` | 政策名稱 |
-| `rules` | `PolicyRule[]` | 規則列表 |
-| `isActive` | `boolean` | 是否啟用 |
-| `createdAt` | `string` | ISO-8601 建立時間 |
-| `traceId` | `string \| undefined` | 審計追蹤 ID |
-
-**PolicyRule 值物件：**
-
-```typescript
-interface PolicyRule {
-  resource: string;                      // 受保護資源路徑
-  actions: string[];                     // 允許或拒絕的操作列表
-  effect: "allow" | "deny";             // 政策效果
-  conditions?: Record<string, string>;   // 條件約束（可選）
-}
-```
-
-政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
-
----
-
-### 5.3 Organization（組織聚合根）
-
-Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
-
-**實現位置：** `modules/organization/domain/entities/Organization.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 組織唯一 ID（聚合根） |
-| `name` | `string` | 組織名稱 |
-| `ownerId` | `string` | 擁有者 UID |
-| `email` | `string \| undefined` | 組織聯絡信箱 |
-| `description` | `string \| undefined` | 組織描述 |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
-| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
-| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
-| `teams` | `Team[]` | 小組列表 |
-| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**PartnerInvite 值物件（合作夥伴邀請）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邀請唯一 ID |
-| `email` | `string` | 被邀請方信箱 |
-| `teamId` | `string` | 加入的小組 |
-| `role` | `OrganizationRole` | 授予角色 |
-| `inviteState` | `InviteState` | 邀請狀態 |
-| `invitedAt` | `Timestamp` | 邀請時間 |
-| `protocol` | `string` | 協議說明（外部協作規範） |
-
-**InviteState 值物件：** `"pending" | "accepted" | "expired"`
-
-#### OrgPolicy（組織層 ABAC 政策）
-
-與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
-
-**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
-
-**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
-
----
-
-### 5.4 Workspace（工作區聚合根）
-
-Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
-
-**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 工作區唯一 ID（聚合根） |
-| `name` | `string` | 工作區名稱 |
-| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
-| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
-| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
-| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
-| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
-| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
-| `teamIds` | `string[]` | 關聯的組織小組 |
-| `address` | `Address \| undefined` | 實體地址（選填） |
-| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
-| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**WorkspaceLifecycleState 狀態機：**
-
-```text
-preparatory ──────────→ active ──────────→ stopped
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `preparatory` | 工作區準備中，正在初始化能力與設定 |
-| `active` | 工作區正常運作，可使用全部能力 |
-| `stopped` | 工作區已停用，保留資料但不可新增內容 |
-
-**Capability 值物件（能力模組）：**
-
-工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
-
-```typescript
-interface Capability {
-  id: string;
-  name: string;
-  type: "ui" | "api" | "data" | "governance" | "monitoring";
-  status: "stable" | "beta";
-  description: string;
-  config?: object;  // 各能力的自訂設定
-}
-```
-
-**WorkspaceGrant 值物件（存取授權）：**
-
-```typescript
-interface WorkspaceGrant {
-  userId?: string;   // 個人授權
-  teamId?: string;   // 小組授權
-  role: string;      // 授予的角色
-  protocol?: string; // 授權協議（外部合作適用）
-}
-```
-
-**不變式：**
-- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
-- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
-- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
-
-**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
-
-#### WorkspaceMemberView（工作區成員讀取模型）
-
-WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
-
-**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 成員 ID |
-| `displayName` | `string` | 顯示名稱 |
-| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
-| `isExternal` | `boolean` | 是否為外部合作成員 |
-| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
-
-**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
-
-#### WikiContentTree（側邊欄導覽樹聚合根）
-
-WikiContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
-
-**實現位置：** `modules/workspace/domain/entities/WikiContentTree.ts`
-
-**樹狀結構：**
-
-```text
-WikiAccountContentNode（帳戶節點）
-  ├── accountId, accountName, accountType（personal | organization）
-  ├── membersHref（組織帳戶限定）
-  ├── teamsHref（組織帳戶限定）
-  └── workspaces[]
-        └── WikiWorkspaceContentNode（工作區節點）
-              ├── workspaceId, workspaceName
-              └── contentBaseItems[]
-                    └── WikiContentItemNode（內容入口）
-                          ├── key（spaces | pages | libraries | rag | ai-tools …）
-                          ├── label, href
-                          └── enabled（是否啟用）
-```
-
-**不變式：**
-- Personal 帳戶節點排列在 Organization 帳戶節點之前。
-- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
-
----
-
-### 5.5 Platform Foundation 跨模組關係
-
-```text
-Identity ──→ Account ──→ Organization ──→ Workspace
-  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
-  │             │               │               │
-  │         AccountPolicy   OrgPolicy       Capability
-  │             │               │
-  └─────────────┴───────────────┘
-         [S6] Claims Refresh Protocol
-         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
-```
-
-| 關係 | 說明 |
-| --- | --- |
-| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
-| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
-| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
-| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
-| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
-
-## 六、三層記憶架構的領域映射
-
-架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
-
-| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
-| --- | --- | --- | --- |
-| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
-| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
-| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
-
----
-
-## 七、Ingestion Pipeline 的領域事件
-
-完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
-
-| 領域事件 | 觸發時機 | 訂閱方 |
-| --- | --- | --- |
-| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
-| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
-| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
-| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
-| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
-| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
-
-**事件 DTO 結構慣例：**
-
-```typescript
-interface DomainEventDTO {
-  type: "knowledge.document_registered";  // 格式：module.event_name
-  payload: { documentId: string; workspaceId: string; };
-  occurredAtISO: string;                  // ISO 8601 時間戳
-}
-```
-
----
-
-## 八、Query Understanding Layer 的領域服務
-
-Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
-
-**建議的領域服務介面（位於 `modules/search/domain/services/`）：**
-
-```typescript
-interface QueryPlannerService {
-  classifyIntent(query: string): Promise<QueryIntent>;
-  decomposeQuery(query: string): Promise<string[]>;
-  rewriteForRetrieval(query: string): Promise<string>;
-  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
-}
-```
-
-**對應的 Genkit Flow（`modules/notebook/infrastructure/genkit/` 或 `modules/search/infrastructure/genkit/`）：**
-- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
-- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
-- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
-
----
-
-## 九、Schema + Ontology Layer 的領域概念
-
-架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
-
-### Ontology 在 EdgeType 中的實現
-
-GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
-
-```text
-IS_A        → 類別繼承（OWL SubClassOf）
-PART_OF     → 組成關係（Mereology）
-RELATED_TO  → 通用相關（RDF関係）
-DEPENDS_ON  → 工程依賴
-CAUSES      → 因果推理
-CONTRADICTS → 知識矛盾偵測
-```
-
-### 未來擴充：Entity Normalization（實體正規化）
-
-為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
-1. `WikiPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
-2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
-3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
-
----
-
-## 十、Hybrid Retrieval 的技術邊界說明
-
-architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
-
-| 元件 | 層級 | 位置 |
-| --- | --- | --- |
-| Dense Retrieval（Vector Search） | Infrastructure | `modules/search/infrastructure/firebase/` |
-| Sparse Retrieval（BM25） | Infrastructure | `modules/search/infrastructure/` |
-| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/wiki/infrastructure/` |
-| Reranker | Infrastructure / AI | `modules/search/infrastructure/genkit/` |
-| Fusion & Ranking | Application | `modules/search/application/use-cases/answer-rag-query.use-case.ts` |
-
-領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
-
----
-
-## 十一、完整領域概念清單
-
-| 領域概念 | 類型 | 模組 | 狀態 |
-| --- | --- | --- | --- |
-| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
-| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
-| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
-| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
-| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
-| `Account` | 聚合根 | `account` | ✅ 已實現 |
-| `AccountType` | 值物件 | `account` | ✅ 已實現 |
-| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
-| `Presence` | 值物件 | `account` | ✅ 已實現 |
-| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
-| `Wallet` | 值物件 | `account` | ✅ 已實現 |
-| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
-| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
-| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
-| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
-| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
-| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
-| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
-| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
-| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
-| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
-| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
-| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
-| `WikiContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
-| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
-| `BlockType` | 值物件 | `content` | ✅ 已實現 |
-| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
-| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
-| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
-| `WikiPage` | 投影實體 | `content` | ✅ 已實現 |
-| `WikiLibrary` | 聚合根 | `asset` | ✅ 已實現 |
-| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
-| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
-| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
-| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
-| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
-| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
-| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
-| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
-| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
-| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
-| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
-
----
-
-> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 ````
 
 ## File: modules/account/AGENT.md

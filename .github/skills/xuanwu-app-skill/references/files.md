@@ -550,6 +550,621 @@ export function AccountSwitcher({
 }
 ````
 
+## File: app/(shell)/_components/customize-navigation-dialog.tsx
+````typescript
+"use client";
+
+/**
+ * Module: customize-navigation-dialog.tsx
+ * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
+ * Responsibilities: checkbox toggles per item, workspace nav-style radio, show-N-workspaces
+ *   preference, all persisted to localStorage.
+ * Constraints: UI-only; pure preference storage, no backend call.
+ */
+
+import { GripVertical } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  attachClosestEdge,
+  combine,
+  draggable,
+  DropIndicator,
+  dropTargetForElements,
+  extractClosestEdge,
+  reorder,
+  type Edge,
+} from "@lib-dragdrop";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  /** IDs of personal nav items that are pinned */
+  pinnedPersonal: string[];
+  /** IDs of workspace org-management items that are pinned */
+  pinnedWorkspace: string[];
+  /** Whether to show a limited number of workspaces */
+  showLimitedWorkspaces: boolean;
+  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
+  maxWorkspaces: number;
+  /** Explicit display order of workspace items for sidebar and customize dialog */
+  workspaceOrder: string[];
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
+];
+
+// ── Workspace / org-management items ──────────────────────────────────────
+
+const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
+  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
+  { id: "recent", tabKey: "Recent", fallbackLabel: "Recent" },
+  { id: "favorites", tabKey: "Favorites", fallbackLabel: "Favorites" },
+  { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
+  { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
+  { id: "docs", tabKey: "Docs", fallbackLabel: "Docs" },
+  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
+  { id: "meeting-notes", tabKey: "Meeting Notes", fallbackLabel: "Meeting Notes" },
+  { id: "sop", tabKey: "SOP", fallbackLabel: "SOP" },
+  { id: "engineering", tabKey: "Engineering", fallbackLabel: "Engineering" },
+  { id: "product", tabKey: "Product", fallbackLabel: "Product" },
+  { id: "design", tabKey: "Design", fallbackLabel: "Design" },
+  { id: "databases", tabKey: "Databases", fallbackLabel: "Databases" },
+  { id: "projects", tabKey: "Projects", fallbackLabel: "Projects" },
+  { id: "roadmap", tabKey: "Roadmap", fallbackLabel: "Roadmap" },
+  { id: "notes", tabKey: "Notes", fallbackLabel: "Notes" },
+  { id: "documents", tabKey: "Documents", fallbackLabel: "Documents" },
+  { id: "assets", tabKey: "Assets", fallbackLabel: "Assets" },
+  { id: "crm", tabKey: "CRM", fallbackLabel: "CRM" },
+  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
+  { id: "tags", tabKey: "Tags", fallbackLabel: "Tags" },
+  { id: "templates", tabKey: "Templates", fallbackLabel: "Templates" },
+  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
+  { id: "trash", tabKey: "Trash", fallbackLabel: "Trash" },
+  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
+  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
+  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
+  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
+];
+
+const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [...WORKSPACE_NAV_ITEMS.map((item) => item.id), ...ORGANIZATION_NAV_ITEMS.map((item) => item.id)],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+
+function normalizePinnedIds(
+  ids: unknown,
+  validSet: Set<string>,
+  fallback: string[],
+) {
+  if (!Array.isArray(ids)) {
+    return fallback;
+  }
+
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+function normalizeWorkspaceOrder(order: unknown) {
+  const fallback = DEFAULT_PREFS.workspaceOrder;
+  if (!Array.isArray(order)) {
+    return fallback;
+  }
+
+  const validOrder = order
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
+
+  const deduped = Array.from(new Set(validOrder));
+  for (const id of fallback) {
+    if (!deduped.includes(id)) {
+      deduped.push(id);
+    }
+  }
+
+  return deduped;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: normalizePinnedIds(
+        parsed.pinnedWorkspace,
+        VALID_WORKSPACE_ITEM_IDS,
+        DEFAULT_PREFS.pinnedWorkspace,
+      ),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces: typeof parsed.maxWorkspaces === "number" ? parsed.maxWorkspaces : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+function writeNavPreferences(prefs: NavPreferences) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────
+
+interface CheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
+  return (
+    <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+      <Checkbox
+        id={`nav-check-${id}`}
+        checked={checked}
+        onCheckedChange={onToggle}
+        className="shrink-0"
+      />
+      <Label
+        htmlFor={`nav-check-${id}`}
+        className="cursor-pointer select-none text-sm font-normal"
+      >
+        {label}
+      </Label>
+    </div>
+  );
+}
+
+interface WorkspaceCheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  activeDropEdge: Edge | null;
+  isDropTarget: boolean;
+  onToggle: () => void;
+  onDragOverItem: (targetId: string, edge: Edge | null) => void;
+  onDragLeaveItem: (targetId: string) => void;
+  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
+}
+
+function WorkspaceCheckRow({
+  id,
+  label,
+  checked,
+  activeDropEdge,
+  isDropTarget,
+  onToggle,
+  onDragOverItem,
+  onDragLeaveItem,
+  onReorder,
+}: WorkspaceCheckRowProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    return combine(
+      draggable({
+        element,
+        getInitialData: () => ({
+          type: "workspace-nav-item",
+          itemId: id,
+        }),
+      }),
+      dropTargetForElements({
+        element,
+        canDrop: ({ source }) => {
+          return source.data.type === "workspace-nav-item" && source.data.itemId !== id;
+        },
+        getData: ({ input, element: dropElement }) => {
+          return attachClosestEdge(
+            {
+              type: "workspace-nav-item",
+              itemId: id,
+            },
+            {
+              input,
+              element: dropElement,
+              allowedEdges: ["top", "bottom"],
+            },
+          );
+        },
+        onDragEnter: ({ self }) => {
+          onDragOverItem(id, extractClosestEdge(self.data));
+        },
+        onDrag: ({ self }) => {
+          onDragOverItem(id, extractClosestEdge(self.data));
+        },
+        onDragLeave: () => {
+          onDragLeaveItem(id);
+        },
+        onDrop: ({ source, self }) => {
+          const sourceId = typeof source.data.itemId === "string" ? source.data.itemId : null;
+          if (!sourceId || sourceId === id) {
+            onDragLeaveItem(id);
+            return;
+          }
+          onReorder(sourceId, id, extractClosestEdge(self.data));
+          onDragLeaveItem(id);
+        },
+      }),
+    );
+  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+        <Checkbox
+          id={`nav-check-${id}`}
+          checked={checked}
+          onCheckedChange={onToggle}
+          className="shrink-0"
+        />
+        <Label
+          htmlFor={`nav-check-${id}`}
+          className="cursor-pointer select-none text-sm font-normal"
+        >
+          {label}
+        </Label>
+      </div>
+
+      {isDropTarget && activeDropEdge && (
+        <div className="pointer-events-none absolute inset-x-2">
+          <DropIndicator edge={activeDropEdge} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+
+interface CustomizeNavigationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPreferencesChange?: (prefs: NavPreferences) => void;
+}
+
+export function CustomizeNavigationDialog({
+  open,
+  onOpenChange,
+  onPreferencesChange,
+}: CustomizeNavigationDialogProps) {
+  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
+  const uiLocale = useMemo<"zh" | "en">(() => {
+    if (typeof navigator === "undefined") {
+      return "zh";
+    }
+    const language = navigator.language?.toLowerCase() ?? "";
+    return language.startsWith("zh") ? "zh" : "en";
+  }, []);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const localeFile = uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
+    let canceled = false;
+
+    fetch(localeFile)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load locale file: ${res.status}`);
+        }
+        return res.json() as Promise<SidebarLocaleBundle>;
+      })
+      .then((json) => {
+        if (!canceled) {
+          setLocaleBundle(json);
+        }
+      })
+      .catch(() => {
+        if (!canceled) {
+          setLocaleBundle(null);
+        }
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [uiLocale]);
+
+  const text = DIALOG_TEXT[uiLocale];
+
+  const workspaceItemsById = useMemo(
+    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
+    [],
+  );
+
+  const orderedWorkspaceItems = useMemo(() => {
+    return prefs.workspaceOrder
+      .map((id) => workspaceItemsById[id])
+      .filter((item): item is (typeof WORKSPACE_NAV_ITEMS)[number] => item != null);
+  }, [prefs.workspaceOrder, workspaceItemsById]);
+
+  const getWorkspaceLabel = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) => {
+    return localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
+  };
+
+  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) => {
+    return uiLocale === "zh" ? item.zhLabel : item.enLabel;
+  };
+
+  function updatePrefs(update: Partial<NavPreferences>) {
+    const next = { ...prefs, ...update };
+    writeNavPreferences(next);
+    setPrefs(next);
+    onPreferencesChange?.(next);
+  }
+
+  function togglePersonal(id: string) {
+    const next = prefs.pinnedPersonal.includes(id)
+      ? prefs.pinnedPersonal.filter((x) => x !== id)
+      : [...prefs.pinnedPersonal, id];
+    updatePrefs({ pinnedPersonal: next });
+  }
+
+  function toggleWorkspace(id: string) {
+    const next = prefs.pinnedWorkspace.includes(id)
+      ? prefs.pinnedWorkspace.filter((x) => x !== id)
+      : [...prefs.pinnedWorkspace, id];
+    updatePrefs({ pinnedWorkspace: next });
+  }
+
+  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
+    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
+    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
+
+    if (startIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
+    const nextOrder = reorder({
+      list: prefs.workspaceOrder,
+      startIndex,
+      finishIndex: destinationIndex,
+    });
+
+    updatePrefs({ workspaceOrder: nextOrder });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{text.title}</DialogTitle>
+          <DialogDescription>{text.description}</DialogDescription>
+        </DialogHeader>
+
+        {/* ── Personal items ─────────────────────────────────────────── */}
+        <div className="mt-2 space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionPersonal}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {PERSONAL_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={text[item.labelKey]}
+                checked={prefs.pinnedPersonal.includes(item.id)}
+                onToggle={() => {
+                  togglePersonal(item.id);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Workspace items ────────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionWorkspace}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {orderedWorkspaceItems.map((item) => (
+              <WorkspaceCheckRow
+                key={item.id}
+                id={item.id}
+                label={getWorkspaceLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                isDropTarget={dragTarget?.id === item.id}
+                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
+                onToggle={() => {
+                  toggleWorkspace(item.id);
+                }}
+                onDragOverItem={(targetId, edge) => {
+                  setDragTarget({ id: targetId, edge });
+                }}
+                onDragLeaveItem={(targetId) => {
+                  setDragTarget((current) => (current?.id === targetId ? null : current));
+                }}
+                onReorder={reorderWorkspaceItems}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Organization items ──────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionOrganization}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {ORGANIZATION_NAV_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={getOrganizationLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                onToggle={() => {
+                  toggleWorkspace(item.id);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Display settings ───────────────────────────────────────── */}
+        <div className="space-y-3">
+          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionDisplay}
+          </p>
+
+          {/* Show limited workspaces */}
+          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="nav-limit-workspaces"
+                checked={prefs.showLimitedWorkspaces}
+                onCheckedChange={(checked) => {
+                  updatePrefs({ showLimitedWorkspaces: Boolean(checked) });
+                }}
+              />
+              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
+                {text.limitedLabel}
+              </Label>
+            </div>
+            {prefs.showLimitedWorkspaces && (
+              <div className="space-y-1.5 pl-7">
+                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
+                  {text.limitedInputLabel}
+                </Label>
+                <Input
+                  id="nav-max-workspaces"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={prefs.maxWorkspaces}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1) {
+                      updatePrefs({ maxWorkspaces: Math.min(val, 50) });
+                    }
+                  }}
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer ─────────────────────────────────────────────────── */}
+        <div className="flex justify-end pt-2">
+          <Button
+            type="button"
+            onClick={() => {
+              onOpenChange(false);
+            }}
+          >
+            {text.done}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: app/(shell)/_components/header-controls.tsx
 ````typescript
 "use client";
@@ -2468,6 +3083,135 @@ export default function OrganizationTeamsPage() {
 }
 ````
 
+## File: app/(shell)/organization/workspaces/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationWorkspacesPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [workspaces, setWorkspaces] = useState<
+    Awaited<ReturnType<typeof getWorkspacesForAccount>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getWorkspacesForAccount(organizationId);
+        if (!cancelled) {
+          setWorkspaces(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setWorkspaces([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+        </p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Workspaces</CardTitle>
+          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
+          )}
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
+          )}
+          {loadState === "loaded" &&
+            workspaces.map((workspace) => (
+              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                    </Button>
+                    <Badge
+                      variant={
+                        workspace.lifecycleState === "active"
+                          ? "default"
+                          : workspace.lifecycleState === "preparatory"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/settings/general/page.tsx
 ````typescript
 /**
@@ -2513,6 +3257,33 @@ import { redirect } from "next/navigation";
 
 export default function SettingsProfilePage() {
   redirect("/workspace");
+}
+````
+
+## File: app/(shell)/wiki/namespaces/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+export default function WikiNamespacesPage() {
+  redirect("/wiki");
+}
+````
+
+## File: app/(shell)/wiki/rag-reindex/page.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+export default function WikiRagReindexPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/wiki/documents");
+  }, [router]);
+
+  return null;
 }
 ````
 
@@ -11857,6 +12628,77 @@ export class FixIssueUseCase {
 }
 ````
 
+## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file materialize-tasks-from-content.use-case.ts
+ * @description Use case: Batch-create Tasks (and optionally Invoices) from a
+ * `content.page_approved` event payload.
+ *
+ * Idempotency: callers must ensure the same `sourceReference.causationId` is
+ * not processed twice.  This use case does NOT check for duplicates itself;
+ * that responsibility belongs to the ContentToWorkflowMaterializer process
+ * manager which wraps this use case.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import type { MaterializeFromContentDto } from "../dto/materialize-from-content.dto";
+
+export class MaterializeTasksFromContentUseCase {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  async execute(dto: MaterializeFromContentDto): Promise<CommandResult> {
+    if (!dto.workspaceId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
+    }
+    if (!dto.contentPageId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "contentPageId is required.");
+    }
+
+    const taskIds: string[] = [];
+    for (const item of dto.extractedTasks) {
+      if (!item.title.trim()) continue;
+      const task = await this.taskRepository.create({
+        workspaceId: dto.workspaceId,
+        title: item.title.trim(),
+        description: item.description ?? "",
+        dueDateISO: item.dueDate,
+        sourceReference: dto.sourceReference,
+      });
+      taskIds.push(task.id);
+    }
+
+    const invoiceIds: string[] = [];
+    for (const item of dto.extractedInvoices) {
+      if (item.amount <= 0) continue;
+      const invoice = await this.invoiceRepository.create({
+        workspaceId: dto.workspaceId,
+        sourceReference: dto.sourceReference,
+      });
+      // Add the extracted item to the invoice.
+      // taskId is empty here because the invoice was generated from AI-extracted data
+      // before any Tasks are created; the association is completed manually by the
+      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
+      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
+      await this.invoiceRepository.addItem({
+        invoiceId: invoice.id,
+        amount: item.amount,
+        taskId: "",
+      });
+      invoiceIds.push(invoice.id);
+    }
+
+    return commandSuccess(dto.contentPageId, Date.now());
+  }
+}
+````
+
 ## File: modules/workspace-flow/application/use-cases/open-issue.use-case.ts
 ````typescript
 /**
@@ -13591,6 +14433,48 @@ export function toInvoiceItem(id: string, data: Record<string, unknown>): Invoic
 }
 ````
 
+## File: modules/workspace-flow/infrastructure/firebase/invoice.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file invoice.converter.ts
+ * @description Firestore document-to-entity converter for Invoice.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toSourceReference } from "./sourceReference.converter";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+/**
+ * Converts a raw Firestore document data map into a typed Invoice entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
+  const rawStatus = data.status as InvoiceStatus;
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : 0,
+    submittedAtISO: typeof data.submittedAtISO === "string" ? data.submittedAtISO : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
+    closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
 ## File: modules/workspace-flow/infrastructure/firebase/issue.converter.ts
 ````typescript
 /**
@@ -13630,6 +14514,49 @@ export function toIssue(id: string, data: Record<string, unknown>): Issue {
     createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
     assignedTo: typeof data.assignedTo === "string" ? data.assignedTo : undefined,
     resolvedAtISO: typeof data.resolvedAtISO === "string" ? data.resolvedAtISO : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/task.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file task.converter.ts
+ * @description Firestore document-to-entity converter for Task.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Task } from "../../domain/entities/Task";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toSourceReference } from "./sourceReference.converter";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+/**
+ * Converts a raw Firestore document data map into a typed Task entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toTask(id: string, data: Record<string, unknown>): Task {
+  const rawStatus = data.status as TaskStatus;
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    assigneeId: typeof data.assigneeId === "string" ? data.assigneeId : undefined,
+    dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
+    acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
+    archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };
@@ -17749,6 +18676,72 @@ export function WorkspaceSchedulingTab({
 }
 ````
 
+## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
+
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
+  return [
+    { key: "spaces", label: "Wiki", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
+    { key: "pages", label: "Pages", href: "/wiki/pages", enabled: true },
+    { key: "libraries", label: "Libraries", href: "/wiki/libraries", enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/wiki", enabled: false },
+    { key: "rag", label: "RAG", href: "/wiki", enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}?tab=Wiki`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
 ````typescript
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
@@ -17970,6 +18963,55 @@ export class CreateWorkspaceLocationUseCase {
 }
 ````
 
+## File: modules/workspace/domain/entities/WikiContentTree.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: domain/entities
+ * Purpose: Wiki content-tree navigation types — the sidebar/overview tree
+ *          built from workspace membership. Lives in workspace because the tree
+ *          is anchored to account→workspace hierarchy.
+ */
+
+export type WikiAccountType = "personal" | "organization";
+
+export interface WikiWorkspaceRef {
+  id: string;
+  name: string;
+}
+
+export interface WikiContentItemNode {
+  key: "spaces" | "pages" | "libraries" | "documents" | "vector-index" | "rag" | "ai-tools";
+  label: string;
+  href: string;
+  enabled: boolean;
+}
+
+export interface WikiWorkspaceContentNode {
+  workspaceId: string;
+  workspaceName: string;
+  href: string;
+  contentBaseItems: WikiContentItemNode[];
+}
+
+export interface WikiAccountContentNode {
+  accountId: string;
+  accountName: string;
+  accountType: WikiAccountType;
+  isActive: boolean;
+  membersHref?: string;
+  teamsHref?: string;
+  workspaces: WikiWorkspaceContentNode[];
+}
+
+export interface WikiAccountSeed {
+  accountId: string;
+  accountName: string;
+  accountType: WikiAccountType;
+  isActive: boolean;
+}
+````
+
 ## File: modules/workspace/domain/entities/Workspace.ts
 ````typescript
 /**
@@ -18088,6 +19130,22 @@ export interface WorkspaceMemberView {
 }
 ````
 
+## File: modules/workspace/domain/repositories/WikiWorkspaceRepository.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: domain/repositories
+ * Purpose: Repository port for fetching workspace refs used by the
+ *          Wiki content-tree use-case.
+ */
+
+import type { WikiWorkspaceRef } from "../entities/WikiContentTree";
+
+export interface WikiWorkspaceRepository {
+  listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;
+}
+````
+
 ## File: modules/workspace/domain/repositories/WorkspaceQueryRepository.ts
 ````typescript
 /**
@@ -18144,6 +19202,101 @@ export interface WorkspaceRepository {
   createLocation(workspaceId: string, location: Omit<WorkspaceLocation, "locationId">): Promise<string>;
   updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void>;
   deleteLocation(workspaceId: string, locationId: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/index.ts
+````typescript
+/**
+ * workspace module public API
+ */
+export type {
+  WorkspaceEntity,
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+  WorkspacePersonnel,
+  CapabilitySpec,
+  Capability,
+  Address,
+  WorkspaceLocation,
+  WorkspaceGrant,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+} from "./domain/entities/Workspace";
+export type {
+  WorkspaceMemberView,
+  WorkspaceMemberPresence,
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+} from "./domain/entities/WorkspaceMember";
+export type { WorkspaceRepository } from "./domain/repositories/WorkspaceRepository";
+export type { WorkspaceQueryRepository } from "./domain/repositories/WorkspaceQueryRepository";
+export {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithCapabilitiesUseCase,
+  UpdateWorkspaceSettingsUseCase,
+  DeleteWorkspaceUseCase,
+  MountCapabilitiesUseCase,
+  GrantTeamAccessUseCase,
+  GrantIndividualAccessUseCase,
+  CreateWorkspaceLocationUseCase,
+} from "./application/use-cases/workspace.use-cases";
+export { FetchWorkspaceMembersUseCase } from "./application/use-cases/workspace-member.use-cases";
+export { FirebaseWorkspaceRepository } from "./infrastructure/firebase/FirebaseWorkspaceRepository";
+export { FirebaseWorkspaceQueryRepository } from "./infrastructure/firebase/FirebaseWorkspaceQueryRepository";
+export {
+  createWorkspace,
+  createWorkspaceWithCapabilities,
+  updateWorkspaceSettings,
+  deleteWorkspace,
+  mountCapabilities,
+  authorizeWorkspaceTeam,
+  grantIndividualWorkspaceAccess,
+  createWorkspaceLocation,
+} from "./interfaces/_actions/workspace.actions";
+export { WorkspaceHubScreen } from "./interfaces/components/WorkspaceHubScreen";
+export { WorkspaceDetailScreen } from "./interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceMembersTab } from "./interfaces/components/WorkspaceMembersTab";
+export { WorkspaceWikiView } from "./interfaces/components/WorkspaceWikiView";
+export {
+  WORKSPACE_TAB_VALUES,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_GROUPS,
+  getWorkspaceTabMeta,
+  getWorkspaceTabStatus,
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "./interfaces/workspace-tabs";
+export type { WorkspaceTabDevStatus, WorkspaceTabGroup, WorkspaceTabValue } from "./interfaces/workspace-tabs";
+export { useWorkspaceHub } from "./interfaces/hooks/useWorkspaceHub";
+export {
+  getWorkspaceById,
+  getWorkspaceByIdForAccount,
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "./interfaces/queries/workspace.queries";
+export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
+````typescript
+import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
+
+import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
+import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
+
+const workspaceRepo = new FirebaseWorkspaceRepository();
+
+export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository {
+  async listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]> {
+    const workspaces = await workspaceRepo.findAllByAccountId(accountId);
+    return workspaces.map((workspace) => ({
+      id: workspace.id,
+      name: workspace.name,
+    }));
+  }
 }
 ````
 
@@ -18921,6 +20074,25 @@ export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
 }
 ````
 
+## File: modules/workspace/interfaces/components/WorkspaceWikiTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
+
+interface WorkspaceWikiTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+/**
+ * Workspace tab entrypoint delegates rendering to workspace owned view.
+ */
+export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
+  return <WorkspaceWikiView workspace={workspace} />;
+}
+````
+
 ## File: modules/workspace/interfaces/hooks/useWorkspaceHub.ts
 ````typescript
 "use client";
@@ -19136,6 +20308,122 @@ export async function getWorkspaceByIdForAccount(
   if (!normalizedAccountId || !normalizedWorkspaceId) return null;
   const workspaceRepo = new FirebaseWorkspaceRepository();
   return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+}
+````
+
+## File: modules/workspace/interfaces/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Favorites",
+  "Recent",
+  "Engineering",
+  "Product",
+  "Design",
+  "Docs",
+  "SOP",
+  "Meeting Notes",
+  "Members",
+  "Projects",
+  "Notes",
+  "Documents",
+  "Assets",
+  "CRM",
+  "Roadmap",
+  "Daily",
+  "Tags",
+  "Files",
+  "Templates",
+  "Wiki",
+  "Schedule",
+  "Audit",
+  "Tasks",
+  "Trash",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
+  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
+  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
+  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
+  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
+  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
+  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
+  "Meeting Notes": {
+    label: "Meeting Notes",
+    prefId: "meeting-notes",
+    group: "spaces",
+    status: "🚧",
+  },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
+  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
+  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
+  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
+  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
+  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
+  Wiki: {
+    label: "Wiki",
+    prefId: "wiki",
+    group: "spaces",
+    status: "🏗️",
+  },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
+  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview", "Recent", "Favorites"],
+  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
+  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
+  library: ["Files", "Tags", "Templates", "Members", "Trash"],
+  modules: ["Daily", "Schedule", "Audit", "Tasks"],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
 }
 ````
 
@@ -47369,135 +48657,802 @@ Location: .claude/skills/[domain]/[skill-name]/SKILL.md
 }
 ````
 
-## File: app/(shell)/_components/customize-navigation-dialog.tsx
+## File: app/(shell)/_components/app-breadcrumbs.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+
+const SEGMENT_LABELS: Record<string, string> = {
+  "organization": "組織",
+  "workspace": "工作區",
+  "wiki": "Account Wiki",
+  "rag-query": "Ask / Cite",
+  "documents": "文件",
+  "libraries": "Libraries",
+  "pages": "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  "dev-tools": "開發工具",
+  "namespaces": "命名空間",
+  "members": "成員",
+  "teams": "團隊",
+  "permissions": "權限",
+  "workspaces": "工作區清單",
+  "schedule": "排程",
+  "daily": "每日",
+  "audit": "稽核",
+};
+
+function segmentLabel(segment: string) {
+  return SEGMENT_LABELS[segment] ?? segment;
+}
+
+export function AppBreadcrumbs() {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+
+  // Only render when there's more than one segment (i.e., not just root page).
+  if (segments.length <= 1) return null;
+
+  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
+    label: segmentLabel(seg),
+    href: "/" + segments.slice(0, idx + 1).join("/"),
+  }));
+
+  return (
+    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+      {crumbs.map((crumb, idx) => (
+        <span key={crumb.href} className="flex items-center gap-1">
+          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
+          {idx < crumbs.length - 1 ? (
+            <Link
+              href={crumb.href}
+              className="transition hover:text-foreground"
+            >
+              {crumb.label}
+            </Link>
+          ) : (
+            <span className="font-medium text-foreground">{crumb.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+````
+
+## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 "use client";
 
 /**
- * Module: customize-navigation-dialog.tsx
- * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
- * Responsibilities: checkbox toggles per item, workspace nav-style radio, show-N-workspaces
- *   preference, all persisted to localStorage.
- * Constraints: UI-only; pure preference storage, no backend call.
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
  */
 
-import { GripVertical } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-
+import Link from "next/link";
 import {
-  attachClosestEdge,
-  combine,
-  draggable,
-  DropIndicator,
-  dropTargetForElements,
-  extractClosestEdge,
-  reorder,
-  type Edge,
-} from "@lib-dragdrop";
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
 import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
 
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  /** IDs of personal nav items that are pinned */
-  pinnedPersonal: string[];
-  /** IDs of workspace org-management items that are pinned */
-  pinnedWorkspace: string[];
-  /** Whether to show a limited number of workspaces */
-  showLimitedWorkspaces: boolean;
-  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
-  maxWorkspaces: number;
-  /** Explicit display order of workspace items for sidebar and customize dialog */
-  workspaceOrder: string[];
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
 }
 
-const STORAGE_KEY = "xuanwu:nav-preferences";
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
 
-// ── Personal nav items ─────────────────────────────────────────────────────
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
 
-const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
 
-// ── Workspace / org-management items ──────────────────────────────────────
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
-  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
-  { id: "recent", tabKey: "Recent", fallbackLabel: "Recent" },
-  { id: "favorites", tabKey: "Favorites", fallbackLabel: "Favorites" },
-  { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
-  { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
-  { id: "docs", tabKey: "Docs", fallbackLabel: "Docs" },
-  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
-  { id: "meeting-notes", tabKey: "Meeting Notes", fallbackLabel: "Meeting Notes" },
-  { id: "sop", tabKey: "SOP", fallbackLabel: "SOP" },
-  { id: "engineering", tabKey: "Engineering", fallbackLabel: "Engineering" },
-  { id: "product", tabKey: "Product", fallbackLabel: "Product" },
-  { id: "design", tabKey: "Design", fallbackLabel: "Design" },
-  { id: "databases", tabKey: "Databases", fallbackLabel: "Databases" },
-  { id: "projects", tabKey: "Projects", fallbackLabel: "Projects" },
-  { id: "roadmap", tabKey: "Roadmap", fallbackLabel: "Roadmap" },
-  { id: "notes", tabKey: "Notes", fallbackLabel: "Notes" },
-  { id: "documents", tabKey: "Documents", fallbackLabel: "Documents" },
-  { id: "assets", tabKey: "Assets", fallbackLabel: "Assets" },
-  { id: "crm", tabKey: "CRM", fallbackLabel: "CRM" },
-  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
-  { id: "tags", tabKey: "Tags", fallbackLabel: "Tags" },
-  { id: "templates", tabKey: "Templates", fallbackLabel: "Templates" },
-  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
-  { id: "trash", tabKey: "Trash", fallbackLabel: "Trash" },
-  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
-  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
-  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
-];
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
 
-const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
 
-const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  function buildWikiWorkspaceHref(workspaceId: string): string {
+    if (pathname.startsWith("/wiki")) {
+      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
+      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+    }
+    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
+  }
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            if (item.href === "/wiki") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="Account Wiki: 切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">Account Wiki: 切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onSelectWorkspace(null);
+                        router.push("/wiki");
+                      }}
+                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
+                    >
+                      Account Wiki 首頁
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWikiWorkspaceHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        {/* ── User avatar / sign-out ────────────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="開啟使用者選單"
+                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                      {getInitial(user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="end" className="w-48">
+            <DropdownMenuLabel className="space-y-0.5">
+              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
+              登出
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
+  );
+}
+````
+
+## File: app/(shell)/_components/dashboard-sidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
 
 interface SidebarLocaleBundle {
   workspace?: {
@@ -47506,481 +49461,1292 @@ interface SidebarLocaleBundle {
   };
 }
 
-const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [...WORKSPACE_NAV_ITEMS.map((item) => item.id), ...ORGANIZATION_NAV_ITEMS.map((item) => item.id)],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+// ── Section helpers ──────────────────────────────────────────────────────────
+
+type NavSection = "workspace" | "wiki" | "ai-chat" | "account" | "organization" | "other";
+
+function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/wiki")) return "wiki";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+// ── Section icon labels for the title bar ────────────────────────────────────
+
+const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  "wiki": { label: "Account Wiki", icon: <BookOpen className="size-3" /> },
+  "ai-chat": { label: "Notebook", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
 };
 
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
-
-function normalizePinnedIds(
-  ids: unknown,
-  validSet: Set<string>,
-  fallback: string[],
-) {
-  if (!Array.isArray(ids)) {
-    return fallback;
-  }
-
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-function normalizeWorkspaceOrder(order: unknown) {
-  const fallback = DEFAULT_PREFS.workspaceOrder;
-  if (!Array.isArray(order)) {
-    return fallback;
-  }
-
-  const validOrder = order
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
-
-  const deduped = Array.from(new Set(validOrder));
-  for (const id of fallback) {
-    if (!deduped.includes(id)) {
-      deduped.push(id);
-    }
-  }
-
-  return deduped;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces: typeof parsed.maxWorkspaces === "number" ? parsed.maxWorkspaces : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-function writeNavPreferences(prefs: NavPreferences) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-interface CheckRowProps {
-  id: string;
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}
-
-function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
   return (
-    <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
-      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
-      <Checkbox
-        id={`nav-check-${id}`}
-        checked={checked}
-        onCheckedChange={onToggle}
-        className="shrink-0"
-      />
-      <Label
-        htmlFor={`nav-check-${id}`}
-        className="cursor-pointer select-none text-sm font-normal"
-      >
-        {label}
-      </Label>
-    </div>
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
   );
 }
 
-interface WorkspaceCheckRowProps {
-  id: string;
-  label: string;
-  checked: boolean;
-  activeDropEdge: Edge | null;
-  isDropTarget: boolean;
-  onToggle: () => void;
-  onDragOverItem: (targetId: string, edge: Edge | null) => void;
-  onDragLeaveItem: (targetId: string) => void;
-  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
-}
-
-function WorkspaceCheckRow({
-  id,
-  label,
-  checked,
-  activeDropEdge,
-  isDropTarget,
-  onToggle,
-  onDragOverItem,
-  onDragLeaveItem,
-  onReorder,
-}: WorkspaceCheckRowProps) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) {
-      return;
-    }
-
-    return combine(
-      draggable({
-        element,
-        getInitialData: () => ({
-          type: "workspace-nav-item",
-          itemId: id,
-        }),
-      }),
-      dropTargetForElements({
-        element,
-        canDrop: ({ source }) => {
-          return source.data.type === "workspace-nav-item" && source.data.itemId !== id;
-        },
-        getData: ({ input, element: dropElement }) => {
-          return attachClosestEdge(
-            {
-              type: "workspace-nav-item",
-              itemId: id,
-            },
-            {
-              input,
-              element: dropElement,
-              allowedEdges: ["top", "bottom"],
-            },
-          );
-        },
-        onDragEnter: ({ self }) => {
-          onDragOverItem(id, extractClosestEdge(self.data));
-        },
-        onDrag: ({ self }) => {
-          onDragOverItem(id, extractClosestEdge(self.data));
-        },
-        onDragLeave: () => {
-          onDragLeaveItem(id);
-        },
-        onDrop: ({ source, self }) => {
-          const sourceId = typeof source.data.itemId === "string" ? source.data.itemId : null;
-          if (!sourceId || sourceId === id) {
-            onDragLeaveItem(id);
-            return;
-          }
-          onReorder(sourceId, id, extractClosestEdge(self.data));
-          onDragLeaveItem(id);
-        },
-      }),
-    );
-  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
-        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
-        <Checkbox
-          id={`nav-check-${id}`}
-          checked={checked}
-          onCheckedChange={onToggle}
-          className="shrink-0"
-        />
-        <Label
-          htmlFor={`nav-check-${id}`}
-          className="cursor-pointer select-none text-sm font-normal"
-        >
-          {label}
-        </Label>
-      </div>
-
-      {isDropTarget && activeDropEdge && (
-        <div className="pointer-events-none absolute inset-x-2">
-          <DropIndicator edge={activeDropEdge} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main component ─────────────────────────────────────────────────────────
-
-interface CustomizeNavigationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onPreferencesChange?: (prefs: NavPreferences) => void;
-}
-
-export function CustomizeNavigationDialog({
-  open,
-  onOpenChange,
-  onPreferencesChange,
-}: CustomizeNavigationDialogProps) {
-  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
-  const uiLocale = useMemo<"zh" | "en">(() => {
-    if (typeof navigator === "undefined") {
-      return "zh";
-    }
-    const language = navigator.language?.toLowerCase() ?? "";
-    return language.startsWith("zh") ? "zh" : "en";
-  }, []);
+export function DashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isWikiWorkspacesExpanded, setIsWikiWorkspacesExpanded] = useState(false);
+  const [wikiQuickCreateOpen, setWikiQuickCreateOpen] = useState(false);
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
+  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
+  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
   const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+  const searchParams = useSearchParams();
+
+  function toggleCollapsed() {
+    onToggleCollapsed();
+  }
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(() => {
+    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  const visibleAccountItems = useMemo(() => {
+    return ACCOUNT_NAV_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  // Whether to show recent workspaces section (controlled by personal prefs)
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  // Max workspaces to show (apply user preference)
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  // Track recently visited workspaces in localStorage
+  useEffect(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [activeAccount?.id, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [activeAccount?.id, pathname]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
       return;
     }
 
-    const localeFile = uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
-    let canceled = false;
+    if (typeof window === "undefined" || !pathname.startsWith("/wiki")) {
+      return;
+    }
 
-    fetch(localeFile)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load locale file: ${res.status}`);
-        }
-        return res.json() as Promise<SidebarLocaleBundle>;
+    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
+    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(searchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+
+  const recentWorkspaceLinks = useMemo(() => {
+    return recentWorkspaceIds
+      .map((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
       })
-      .then((json) => {
-        if (!canceled) {
-          setLocaleBundle(json);
+      .filter((item): item is { id: string; name: string; href: string } => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/wiki")) {
+        const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
+
+  const allWorkspaceLinks = useMemo(() => {
+    return Object.values(workspacesById)
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        href: buildWorkspaceContextHref(workspace.id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [workspacesById, buildWorkspaceContextHref]);
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
+    ? rawWorkspaceTab
+    : "Overview";
+
+  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
+    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  }
+
+  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
+    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+  }
+
+  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
+    if (tab === "Wiki") {
+      const status = getWorkspaceTabStatus(tab);
+      return `${status} WorkSpace Wiki`;
+    }
+    const status = getWorkspaceTabStatus(tab);
+    return `${status} ${tWorkspaceTab(tab, fallback)}`;
+  }
+
+  function tWorkspaceGroup(groupKey: string, fallback: string) {
+    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
+  }
+
+  function getWorkspacePrefId(tabValue: string) {
+    if (isWorkspaceTabValue(tabValue)) {
+      return getWorkspaceTabPrefId(tabValue);
+    }
+    return tabValue.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function isWorkspaceItemEnabled(prefId: string) {
+    return navPrefs.pinnedWorkspace.includes(prefId);
+  }
+
+  function getWorkspaceItemOrder(prefId: string) {
+    const index = navPrefs.workspaceOrder.indexOf(prefId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
+    return [...items].sort(
+      (left, right) =>
+        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
+        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarLocale() {
+      const isZhHant =
+        typeof navigator !== "undefined" &&
+        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
+      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
+
+      try {
+        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as SidebarLocaleBundle;
+        if (!cancelled) {
+          setLocaleBundle(data);
         }
-      })
-      .catch(() => {
-        if (!canceled) {
-          setLocaleBundle(null);
-        }
-      });
+      } catch {
+        // Keep fallback labels when localization files are unavailable.
+      }
+    }
+
+    void loadSidebarLocale();
 
     return () => {
-      canceled = true;
+      cancelled = true;
     };
-  }, [uiLocale]);
+  }, []);
 
-  const text = DIALOG_TEXT[uiLocale];
-
-  const workspaceItemsById = useMemo(
-    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
-    [],
-  );
-
-  const orderedWorkspaceItems = useMemo(() => {
-    return prefs.workspaceOrder
-      .map((id) => workspaceItemsById[id])
-      .filter((item): item is (typeof WORKSPACE_NAV_ITEMS)[number] => item != null);
-  }, [prefs.workspaceOrder, workspaceItemsById]);
-
-  const getWorkspaceLabel = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) => {
-    return localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
-  };
-
-  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) => {
-    return uiLocale === "zh" ? item.zhLabel : item.enLabel;
-  };
-
-  function updatePrefs(update: Partial<NavPreferences>) {
-    const next = { ...prefs, ...update };
-    writeNavPreferences(next);
-    setPrefs(next);
-    onPreferencesChange?.(next);
-  }
-
-  function togglePersonal(id: string) {
-    const next = prefs.pinnedPersonal.includes(id)
-      ? prefs.pinnedPersonal.filter((x) => x !== id)
-      : [...prefs.pinnedPersonal, id];
-    updatePrefs({ pinnedPersonal: next });
-  }
-
-  function toggleWorkspace(id: string) {
-    const next = prefs.pinnedWorkspace.includes(id)
-      ? prefs.pinnedWorkspace.filter((x) => x !== id)
-      : [...prefs.pinnedWorkspace, id];
-    updatePrefs({ pinnedWorkspace: next });
-  }
-
-  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
-    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
-    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
-
-    if (startIndex === -1 || targetIndex === -1) {
+  async function handleWikiQuickCreate(kind: "page" | "database") {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
       return;
     }
 
-    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
-    const nextOrder = reorder({
-      list: prefs.workspaceOrder,
-      startIndex,
-      finishIndex: destinationIndex,
-    });
+    setCreatingKind(kind);
+    try {
+      const db = getFirebaseFirestore();
+      const collectionName = kind === "page" ? "pages" : "databases";
+      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
 
-    updatePrefs({ workspaceOrder: nextOrder });
+      const payload: Record<string, unknown> = {
+        title: baseTitle,
+        kind,
+        accountId,
+        createdAt: firestoreApi.serverTimestamp(),
+        updatedAt: firestoreApi.serverTimestamp(),
+      };
+
+      if (activeWorkspaceId) {
+        payload.spaceId = activeWorkspaceId;
+      }
+
+      if (kind === "database") {
+        payload.template = "task-governance";
+        payload.metadata = {
+          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
+          description: "任務依賴與技能門檻分類模板",
+        };
+      }
+
+      await firestoreApi.addDoc(
+        firestoreApi.collection(db, "accounts", accountId, collectionName),
+        payload,
+      );
+
+      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
+      setWikiQuickCreateOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
+    } finally {
+      setCreatingKind(null);
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{text.title}</DialogTitle>
-          <DialogDescription>{text.description}</DialogDescription>
-        </DialogHeader>
-
-        {/* ── Personal items ─────────────────────────────────────────── */}
-        <div className="mt-2 space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionPersonal}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {PERSONAL_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={text[item.labelKey]}
-                checked={prefs.pinnedPersonal.includes(item.id)}
-                onToggle={() => {
-                  togglePersonal(item.id);
+    <>
+    <aside
+      aria-label="Secondary navigation"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
+      }`}
+    >
+      <>
+          {/* ── Sidebar title bar ──────────────────────────────────── */}
+          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+            {/* Section label */}
+            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              {sectionMeta.icon}
+              {sectionMeta.label}
+            </span>
+            {/* Customize + collapse buttons grouped on the right */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                title="設定"
+                aria-label="設定"
+                onClick={() => {
+                  setCustomizeOpen(true);
                 }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Workspace items ────────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionWorkspace}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {orderedWorkspaceItems.map((item) => (
-              <WorkspaceCheckRow
-                key={item.id}
-                id={item.id}
-                label={getWorkspaceLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                isDropTarget={dragTarget?.id === item.id}
-                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
-                onToggle={() => {
-                  toggleWorkspace(item.id);
-                }}
-                onDragOverItem={(targetId, edge) => {
-                  setDragTarget({ id: targetId, edge });
-                }}
-                onDragLeaveItem={(targetId) => {
-                  setDragTarget((current) => (current?.id === targetId ? null : current));
-                }}
-                onReorder={reorderWorkspaceItems}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Organization items ──────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionOrganization}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {ORGANIZATION_NAV_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={getOrganizationLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                onToggle={() => {
-                  toggleWorkspace(item.id);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Display settings ───────────────────────────────────────── */}
-        <div className="space-y-3">
-          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionDisplay}
-          </p>
-
-          {/* Show limited workspaces */}
-          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="nav-limit-workspaces"
-                checked={prefs.showLimitedWorkspaces}
-                onCheckedChange={(checked) => {
-                  updatePrefs({ showLimitedWorkspaces: Boolean(checked) });
-                }}
-              />
-              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
-                {text.limitedLabel}
-              </Label>
+                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="收起側欄"
+                title="收起側欄"
+                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </button>
             </div>
-            {prefs.showLimitedWorkspaces && (
-              <div className="space-y-1.5 pl-7">
-                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
-                  {text.limitedInputLabel}
-                </Label>
-                <Input
-                  id="nav-max-workspaces"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={prefs.maxWorkspaces}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 1) {
-                      updatePrefs({ maxWorkspaces: Math.min(val, 50) });
-                    }
+          </div>
+
+          {/* ── Scrollable nav body ── section-specific ───────────── */}
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            {section === "account" && (
+              <>
+                {showAccountManagement && visibleAccountItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Account navigation">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      Account
+                    </p>
+                    {visibleAccountItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看 Account 選項。
+                  </p>
+                )}
+              </>
+            )}
+
+            {section === "organization" && (
+              <>
+                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Organization management">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      組織管理
+                    </p>
+                    {visibleOrganizationManagementItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看管理選項。
+                  </p>
+                )}
+              </>
+            )}
+
+            {section === "workspace" && (
+              <>
+                {workspacePathId ? (
+                  <nav className="space-y-3" aria-label="Workspace navigation">
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    {isWorkspaceItemEnabled("workspace-modules") && (
+                      <div className="my-1.5 border-t border-border/40" />
+                    )}
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("workspace-modules") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceModulesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceModulesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
+                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceModulesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("spaces") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceSpacesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceSpacesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
+                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceSpacesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
+                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                    .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("databases") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceDatabasesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
+                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceDatabasesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                  </nav>
+                ) : (
+                  // ── Workspace hub: show recent workspaces ──────────────
+                  <>
+                    {showRecentWorkspaces && (
+                      <div className="space-y-0.5">
+                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                          最近工作區
+                        </p>
+                        {visibleRecentWorkspaceLinks.length === 0 ? (
+                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                            尚無最近開啟的工作區。
+                          </p>
+                        ) : (
+                          visibleRecentWorkspaceLinks.map((ws) => (
+                            <Link
+                              key={ws.id}
+                              href={ws.href}
+                              onClick={() => {
+                                onSelectWorkspace(ws.id);
+                              }}
+                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                              }`}
+                              title={ws.name}
+                            >
+                              <span className="truncate">{ws.name}</span>
+                            </Link>
+                          ))
+                        )}
+                        {hasOverflow && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExpanded((prev) => !prev);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {isExpanded ? "收起" : "顯示更多"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {section === "wiki" && (
+              <nav className="space-y-0.5" aria-label="Account Wiki navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Account Wiki Bridge
+                </p>
+                {(
+                  [
+                    { href: "/wiki", label: "Workspace Bridge" },
+                    { href: "/wiki/block-editor", label: "區塊編輯器" },
+                    { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
+                    { href: "/wiki/rag-query", label: "Ask / Cite" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                  <Link
+                    href="/wiki/documents"
+                    aria-current={isActiveRoute("/wiki/documents") ? "page" : undefined}
+                    className={`flex-1 ${
+                      isActiveRoute("/wiki/documents")
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Documents
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setWikiQuickCreateOpen((prev) => !prev);
+                    }}
+                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
+                    aria-label="快速新增頁面或資料庫"
+                    title="快速新增"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+
+                  {wikiQuickCreateOpen ? (
+                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiQuickCreate("page")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiQuickCreate("database")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {(
+                  [
+                    { href: "/wiki/pages", label: "Pages" },
+                    { href: "/wiki/libraries", label: "Libraries" },
+                    { href: "/wiki/rag-reindex", label: "RAG Reindex" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="my-1.5 border-t border-border/40" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsWikiWorkspacesExpanded((prev) => !prev);
                   }}
-                  className="w-full"
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-expanded={isWikiWorkspacesExpanded}
+                >
+                  <span>Workspaces</span>
+                  {isWikiWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                </button>
+
+                {isWikiWorkspacesExpanded && (
+                  <div className="space-y-0.5 pl-2">
+                    {!workspacesHydrated ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+                    ) : allWorkspaceLinks.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+                    ) : (
+                      allWorkspaceLinks.map((workspace) => {
+                        const active = activeWorkspaceId === workspace.id;
+                        return (
+                          <Link
+                            key={workspace.id}
+                            href={workspace.href}
+                            onClick={() => {
+                              onSelectWorkspace(workspace.id);
+                            }}
+                            aria-current={active ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              active
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                            title={workspace.name}
+                          >
+                            <span className="truncate">{workspace.name}</span>
+                          </Link>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </nav>
+            )}
+
+            {section === "ai-chat" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook / AI
+                </p>
+                {(
+                  [
+                    { href: "/ai-chat", label: "Notebook shell" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+          </div>
+        </>
+    </aside>
+
+    <CustomizeNavigationDialog
+      open={customizeOpen}
+      onOpenChange={setCustomizeOpen}
+      onPreferencesChange={setNavPrefs}
+    />
+    </>
+  );
+}
+````
+
+## File: app/(shell)/_components/global-search-dialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+
+const NAV_ITEMS = [
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/wiki", label: "Account Wiki Bridge", group: "導覽" },
+  { href: "/ai-chat", label: "Notebook / AI", group: "導覽" },
+  { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
+  { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
+  { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
+  { href: "/wiki/rag-query", label: "Ask / Cite", group: "Wiki" },
+  { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
+] as const;
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
+  "Wiki": <FileText className="size-4 mr-2 opacity-60" />,
+};
+
+interface GlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
+  const router = useRouter();
+
+  function handleSelect(href: string) {
+    onOpenChange(false);
+    router.push(href);
+  }
+
+  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
+
+  return (
+    <CommandDialog
+      title="全域搜尋"
+      description="搜尋頁面或功能"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <CommandInput placeholder="搜尋頁面或功能…" />
+      <CommandList>
+        <CommandEmpty>找不到結果。</CommandEmpty>
+        {groups.map((group) => (
+          <CommandGroup key={group} heading={group}>
+            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={() => handleSelect(item.href)}
+              >
+                {GROUP_ICONS[group]}
+                {item.label}
+                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+export function useGlobalSearch() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return { open, setOpen };
+}
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
+
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
+  "/workspace": "工作區中心",
+  "/wiki": "Account Wiki Bridge",
+  "/wiki/rag-query": "Notebook / AI · Ask / Cite",
+  "/wiki/documents": "Knowledge · 文件來源",
+  "/ai-chat": "Notebook / AI",
+  "/dev-tools": "開發工具",
+};
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
+
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export default function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <DashboardSidebar
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
                 />
               </div>
-            )}
-          </div>
-        </div>
+            </div>
 
-        {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            onClick={() => {
-              onOpenChange(false);
-            }}
-          >
-            {text.done}
-          </Button>
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </ShellGuard>
   );
+}
+````
+
+## File: app/(shell)/organization/content/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+/**
+ * Module: organization/content page
+ * Purpose: redirect to the consolidated content hub at /wiki.
+ * Content management is centralised in the Wiki section.
+ */
+export default function OrganizationKnowledgePage() {
+  redirect("/wiki");
 }
 ````
 
@@ -48170,430 +50936,561 @@ export default function DispatcherPage() {
 }
 ````
 
-## File: app/(shell)/organization/workspaces/page.tsx
+## File: app/(shell)/wiki/articles/[articleId]/page.tsx
 ````typescript
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+} from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getArticle,
+  getCategories,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  ArticleDialog,
+} from "@/modules/knowledge-base/api";
+import type { Article, Category } from "@/modules/knowledge-base/api";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-export default function OrganizationWorkspacesPage() {
+export default function ArticleDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const articleId = params.articleId as string;
+
   const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+  const { state: authState } = useAuth();
 
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
 
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
+  const [article, setArticle] = useState<Article | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getWorkspacesForAccount(organizationId);
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setLoadState("error");
-        }
-      }
+  const load = useCallback(async () => {
+    if (!accountId || !articleId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [art, cats] = await Promise.all([
+        getArticle(accountId, articleId),
+        getCategories(accountId, workspaceId),
+      ]);
+      setArticle(art);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
     }
-    void load();
+  }, [accountId, workspaceId, articleId]);
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
+  useEffect(() => { load(); }, [load]);
 
-  if (!activeOrganizationId) {
+  function handlePublish() {
+    startTransition(async () => {
+      await publishArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleVerify() {
+    startTransition(async () => {
+      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
+      await load();
+    });
+  }
+
+  function handleRequestReview() {
+    startTransition(async () => {
+      await requestArticleReview({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  if (loading) {
     return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到文章。</p>
+      </div>
+    );
+  }
+
+  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+    draft: "outline",
+    published: "default",
+    archived: "secondary",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "草稿",
+    published: "已發佈",
+    archived: "已封存",
+  };
+  const veriLabel: Record<string, string> = {
+    verified: "已驗證",
+    needs_review: "待審查",
+    unverified: "未驗證",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Back + actions bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/wiki/articles")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {article.status === "draft" && (
+            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
+              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
+            </Button>
+          )}
+          {article.status !== "archived" && (
+            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+            </Button>
+          )}
+          {article.verificationState !== "verified" && (
+            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
+              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
+            </Button>
+          )}
+          {article.verificationState === "verified" && (
+            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
+              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
+          </Button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant[article.status] ?? "outline"}>
+            {statusLabel[article.status] ?? article.status}
+          </Badge>
+          {article.verificationState && (
+            <Badge variant="outline" className="text-xs">
+              {veriLabel[article.verificationState] ?? article.verificationState}
+            </Badge>
+          )}
+          {article.tags.map((tag) => (
+            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
+        <p className="text-xs text-muted-foreground">
+          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* Body tabs */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="comments">
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
+          </TabsTrigger>
+          <TabsTrigger value="versions">
+            <History className="mr-1 h-3.5 w-3.5" /> 版本
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          <div className="min-h-[200px] rounded-lg border border-border/60 bg-muted/10 p-4">
+            {article.content ? (
+              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
+                {article.content}
+              </pre>
+            ) : (
+              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="comments">
+          {currentUserId ? (
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={workspaceId}
+              contentId={articleId}
+              contentType="article"
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="versions">
+          {currentUserId ? (
+            <VersionHistoryPanel
+              accountId={accountId}
+              contentId={articleId}
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看版本歷史。</p>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      {/* Edit Dialog */}
+      <ArticleDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        article={article}
+        onSuccess={() => load()}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/block-editor/page.tsx
+````typescript
+"use client";
+
+import { BlockEditorView } from "@/modules/knowledge/api";
+
+export default function WikiBlockEditorPage() {
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
+        <p className="text-sm text-muted-foreground">
+          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
+        </p>
+      </header>
+
+      <BlockEditorView />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, Plus, PlusCircle } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  DatabaseTableView,
+} from "@/modules/knowledge-database/api";
+import type { Database } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import type { FieldType } from "@/modules/knowledge-database/api";
+
+const FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "文字" },
+  { value: "number", label: "數字" },
+  { value: "checkbox", label: "核取方塊" },
+  { value: "date", label: "日期" },
+  { value: "select", label: "單選" },
+  { value: "multi_select", label: "多選" },
+  { value: "url", label: "URL" },
+  { value: "email", label: "電子郵件" },
+];
+
+function AddFieldDialog({
+  open,
+  onOpenChange,
+  onAdd,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onAdd: (name: string, type: FieldType, required: boolean) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<FieldType>("text");
+  const [required, setRequired] = useState(false);
+
+  function reset() {
+    setName(""); setType("text"); setRequired(false);
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) reset();
+    onOpenChange(v);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd(name.trim(), type, required);
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
+        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="field-name">名稱 *</Label>
+            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>類型</Label>
+            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((ft) => (
+                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="field-required"
+              type="checkbox"
+              checked={required}
+              onChange={(e) => setRequired(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function DatabaseDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        field: { name, type, config: {}, required },
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase(accountId, databaseId);
+      router.push("/wiki/databases");
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/wiki/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-        </p>
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/wiki/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
+        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
+        </div>
       </div>
 
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Workspaces</CardTitle>
-          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">工作區載入中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
-                    </Button>
-                    <Badge
-                      variant={
-                        workspace.lifecycleState === "active"
-                          ? "default"
-                          : workspace.lifecycleState === "preparatory"
-                            ? "secondary"
-                            : "outline"
-                      }
-                    >
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/articles/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getArticles } from "@/modules/knowledge-base/api";
-import type { Article, ArticleStatus, VerificationState } from "@/modules/knowledge-base/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-export default function WikiArticlesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!accountId || !workspaceId) {
-      setLoading(false);
-      return;
-    }
-
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await getArticles({ accountId, workspaceId });
-        if (!disposed) setArticles(data);
-      } catch {
-        // error loading articles
-      } finally {
-        if (!disposed) setLoading(false);
-      }
-    }
-
-    load();
-    return () => { disposed = true; };
-  }, [accountId, workspaceId]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
         </p>
       </header>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/wiki")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Account Wiki
-        </button>
-        <Button size="sm" className="ml-auto" disabled>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
+      {/* Table View */}
+      <DatabaseTableView
+        database={database}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+      />
 
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : articles.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無文章。點擊「新增文章」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {articles.map((article) => {
-            const status = STATUS_CONFIG[article.status];
-            const veri = VERIFICATION_CONFIG[article.verificationState];
-            const VeriIcon = veri.icon;
-            return (
-              <Card key={article.id} className="hover:bg-muted/10 transition-colors">
-                <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                    <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <VeriIcon className="h-3 w-3" />
-                    <span>{veri.label}</span>
-                  </div>
-                  {article.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {article.tags.slice(0, 3).map((tag) => (
-                        <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-[10px] text-muted-foreground/70">
-                    v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
     </div>
   );
 }
 ````
 
-## File: app/(shell)/wiki/databases/page.tsx
+## File: app/(shell)/wiki/libraries/page.tsx
 ````typescript
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { getDatabases } from "@/modules/knowledge-database/api";
-import type { Database } from "@/modules/knowledge-database/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { LibrariesView, LibraryTableView } from "@/modules/source/api";
 
-export default function WikiDatabasesPage() {
+export default function WikiLibrariesPage() {
   const router = useRouter();
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
 
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!accountId || !workspaceId) {
-      setLoading(false);
-      return;
-    }
-
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const data = await getDatabases(accountId, workspaceId);
-        if (!disposed) setDatabases(data);
-      } catch {
-        // error loading databases
-      } finally {
-        if (!disposed) setLoading(false);
-      }
-    }
-
-    load();
-    return () => { disposed = true; };
-  }, [accountId, workspaceId]);
+  const workspaceId = appState.activeWorkspaceId ?? undefined;
 
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
         <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
         </p>
       </header>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/wiki")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Account Wiki
-        </button>
-        <Button size="sm" className="ml-auto" disabled>
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
-        </Button>
-      </div>
+      <button
+        type="button"
+        onClick={() => router.push("/wiki")}
+        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        返回 Account Wiki
+      </button>
 
-      {!accountId || !workspaceId ? (
+      {accountId ? (
+          <>
+            <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
+            <LibrariesView accountId={accountId} workspaceId={workspaceId} />
+          </>
+        ) : (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
+          尚未取得帳號情境，請先登入或切換帳號。
         </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card key={db.id} className="hover:bg-muted/10 transition-colors">
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
       )}
     </div>
   );
-}
-````
-
-## File: app/(shell)/wiki/namespaces/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function WikiNamespacesPage() {
-  redirect("/wiki");
-}
-````
-
-## File: app/(shell)/wiki/rag-reindex/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
-export default function WikiRagReindexPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.replace("/wiki/documents");
-  }, [router]);
-
-  return null;
 }
 ````
 
@@ -55010,6 +57907,1193 @@ How-to guides are task-oriented procedures for users who already know the basics
 - Changelog history
 ````
 
+## File: docs/guides/how-to/ui-ux/component-patterns.md
+````markdown
+# UI 元件模式（Component Patterns）
+
+> **參考文件類型**：本文件定義 Xuanwu App 中 UI 元件的使用規範、組合模式與常見陷阱。
+> 元件實作以 **shadcn/ui** 為基礎，Lucide React 提供圖示。
+
+---
+
+## 1. 元件架構原則
+
+### 1.1 元件分類
+
+| 類型 | 分層 | 說明 |
+|---|---|---|
+| **基礎元件（Primitive）** | UI 元件庫層 | shadcn/ui 提供；不修改來源 |
+| **功能元件（Feature）** | 模組介面層 | 業務功能元件；含狀態與資料 |
+| **Shell 元件（Layout）** | 應用外殼層 | 版型元件；App Rail、Sidebar 等 |
+| **頁面元件（Page）** | 頁面協調層 | 薄協調層；只組裝元件 |
+
+### 1.2 Server vs Client 元件選擇
+
+| 情況 | 選擇 |
+|---|---|
+| 靜態渲染、無互動 | `Server Component`（預設） |
+| 需要 `useState`、`useEffect`、事件處理 | `'use client'` |
+| 需要 Firestore `onSnapshot` 即時訂閱 | `'use client'` |
+| 需要 `useRouter`、`useSearchParams` | `'use client'` |
+
+---
+
+## 2. 常用元件模式
+
+### 2.1 卡片容器模式（Card Pattern）
+
+用於包裝獨立功能區塊（上傳區、查詢區、結果區）。
+
+```tsx
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+<Card>
+  <CardHeader>
+    <CardTitle>Upload File</CardTitle>
+  </CardHeader>
+  <CardContent>
+    {/* 內容 */}
+  </CardContent>
+</Card>
+```
+
+**使用時機**：
+- 功能明確邊界的操作區塊
+- 統計摘要卡片
+- 設定區塊
+
+### 2.2 操作按鈕模式（Action Button Pattern）
+
+主要操作（Primary Action）按鈕的標準 loading 狀態處理：
+
+```tsx
+import { Button } from "@ui-shadcn/ui/button";
+import { Loader2 } from "lucide-react";
+
+<Button
+  onClick={handleAction}
+  disabled={isLoading || !canSubmit}
+>
+  {isLoading ? (
+    <>
+      <Loader2 className="mr-2 size-4 animate-spin" />
+      上傳中...
+    </>
+  ) : (
+    "上傳並啟動解析 ↑"
+  )}
+</Button>
+```
+
+**規則**：
+- loading 時必須同時 `disabled` 防止重複提交。
+- loading 文字以進行式動詞結尾（「上傳中...」而非「上傳」）。
+- disabled（非 loading）時加 Tooltip 說明原因。
+
+### 2.3 骨架屏模式（Skeleton Pattern）
+
+資料載入時的占位元件：
+
+```tsx
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+// 列表骨架屏
+{isLoading ? (
+  <div className="space-y-2">
+    {Array.from({ length: 5 }).map((_, i) => (
+      <Skeleton key={i} className="h-12 w-full" />
+    ))}
+  </div>
+) : (
+  <DataTable data={data} />
+)}
+```
+
+### 2.4 空狀態模式（Empty State Pattern）
+
+```tsx
+{data.length === 0 && (
+  <div className="flex flex-col items-center gap-4 py-16 text-center">
+    <FileX className="size-12 text-muted-foreground" />
+    <div>
+      <p className="font-semibold">目前還沒有文件</p>
+      <p className="text-sm text-muted-foreground">
+        試著上傳第一份檔案。
+      </p>
+    </div>
+    <Button variant="outline" onClick={scrollToUpload}>
+      前往上傳
+    </Button>
+  </div>
+)}
+```
+
+### 2.5 Toast 通知模式
+
+```tsx
+import { toast } from "sonner";
+
+// 成功
+toast.success("已觸發重整，稍後觀察 rag status 更新");
+
+// 失敗（含原因）
+toast.error(`上傳失敗：${error.message}`);
+
+// 背景任務提示
+toast.info("正在處理中，請稍候…");
+```
+
+**注意**：`<Toaster />` 已由全域 Provider 掛載，無需重複掛載。
+
+### 2.6 Dropdown 選單模式
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+
+<DropdownMenu>
+  <DropdownMenuTrigger asChild>
+    <Button variant="ghost" size="sm" aria-label="更多操作">
+      <MoreHorizontal className="size-4" />
+    </Button>
+  </DropdownMenuTrigger>
+  <DropdownMenuContent align="end">
+    <DropdownMenuItem onClick={handleEdit}>編輯</DropdownMenuItem>
+    <DropdownMenuItem
+      className="text-destructive"
+      onClick={handleDelete}
+    >
+      刪除
+    </DropdownMenuItem>
+  </DropdownMenuContent>
+</DropdownMenu>
+```
+
+### 2.7 狀態徽章模式（Status Badge Pattern）
+
+```tsx
+import { Badge } from "@ui-shadcn/ui/badge";
+
+function StatusBadge({ status }: { status: "ready" | "processing" | "error" | "pending" }) {
+  const map = {
+    ready:      { label: "✓ ready",       variant: "success" },
+    processing: { label: "⏳ processing",  variant: "secondary" },
+    error:      { label: "✗ error",        variant: "destructive" },
+    pending:    { label: "— pending",      variant: "outline" },
+  };
+  const { label, variant } = map[status];
+  return <Badge variant={variant as never}>{label}</Badge>;
+}
+```
+
+**規則**：狀態徽章必須同時包含圖示與文字（不可只用顏色）。
+
+### 2.8 Tooltip 模式
+
+```tsx
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+<TooltipProvider>
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button disabled aria-disabled>
+        手動重整
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>文件尚未完成解析</TooltipContent>
+  </Tooltip>
+</TooltipProvider>
+```
+
+---
+
+## 3. 表單元件模式
+
+### 3.1 基本輸入框
+
+```tsx
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+<div className="space-y-2">
+  <Label htmlFor="title">標題</Label>
+  <Input
+    id="title"
+    value={title}
+    onChange={(e) => setTitle(e.target.value)}
+    placeholder="請輸入標題..."
+    aria-invalid={!!error}
+  />
+  {error && (
+    <p className="text-sm text-destructive" role="alert">
+      {error}
+    </p>
+  )}
+</div>
+```
+
+### 3.2 拖曳上傳區（Drop Zone）
+
+Drop Zone 的可近用性規格：
+
+```tsx
+<div
+  role="button"
+  tabIndex={0}
+  aria-label="點擊選擇檔案，或拖曳檔案至此上傳"
+  className={cn(
+    "rounded-lg border-2 border-dashed p-8 text-center transition-colors",
+    isDragOver && "border-primary bg-primary/5",
+    "focus:outline-none focus:ring-2 focus:ring-ring"
+  )}
+  onDragOver={handleDragOver}
+  onDragLeave={handleDragLeave}
+  onDrop={handleDrop}
+  onClick={handleClick}
+  onKeyDown={(e) => {
+    if (e.key === "Enter" || e.key === " ") handleClick();
+  }}
+>
+  {isDragOver ? "放開以上傳" : "點擊或拖曳上傳"}
+</div>
+```
+
+---
+
+## 4. 資料表格模式（Data Table Pattern）
+
+使用 TanStack Table（`@lib-tanstack`）實作資料表格：
+
+```tsx
+// 簡易表格（列表較短時）
+<Table>
+  <TableHeader>
+    <TableRow>
+      <TableHead>檔名</TableHead>
+      <TableHead>狀態</TableHead>
+      <TableHead>操作</TableHead>
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    {documents.map((doc) => (
+      <TableRow key={doc.id}>
+        <TableCell>{doc.filename}</TableCell>
+        <TableCell><StatusBadge status={doc.status} /></TableCell>
+        <TableCell>
+          <ActionButton doc={doc} />
+        </TableCell>
+      </TableRow>
+    ))}
+  </TableBody>
+</Table>
+```
+
+**選用 TanStack Table 時機**：
+- 需要排序功能
+- 需要列選取（多選刪除）
+- 需要虛擬化（列數 > 100）
+
+---
+
+## 5. 頁面組裝模式（Page Composition Pattern）
+
+`page.tsx` 應保持薄協調，只組裝元件：
+
+```tsx
+// ✅ 正確：薄協調層
+export default async function WikiDocumentsPage() {
+  return <WikiDocumentsView />;
+}
+
+// ✅ 正確：有少量 Server-side data fetch
+export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
+  const workspace = await getWorkspaceById(params.workspaceId);
+  if (!workspace) notFound();
+  return <WorkspaceOverview workspace={workspace} />;
+}
+
+// ❌ 錯誤：page 內有業務邏輯
+export default async function DocumentsPage() {
+  const db = getFirestore();
+  const docs = await db.collection("documents").get(); // 直接在 page 呼叫 Firebase
+  return <div>{/* ... */}</div>;
+}
+```
+
+---
+
+## 6. 常見反模式（Anti-patterns）
+
+| 反模式 | 問題 | 正確做法 |
+|---|---|---|
+| 直接在 page 使用 Firebase SDK | 違反 MDDD 分層 | 透過 use-case 或 Server Action |
+| 在元件內直接 `new FirebaseXxxRepository()` | 難以測試 | 由 use-case 透過 constructor injection |
+| 只用顏色區分狀態 | 色盲使用者無法識別 | 同時包含圖示與文字 |
+| Toast 成功但無失敗處理 | 靜默失敗 | try/catch 包覆，失敗也顯示 toast |
+| Disabled 按鈕無 Tooltip | 使用者不知為何不可用 | 加 `Tooltip` 說明原因 |
+| 空狀態顯示空白頁面 | 使用者困惑 | 實作 Empty State 元件 |
+| `'use client'` 加在 layout 或不必要的元件 | 阻止 Server Component 優化 | 只在必要的最小範圍加 `'use client'` |
+
+---
+
+## 7. 元件命名規範
+
+| 元件類型 | 命名格式 | 範例 |
+|---|---|---|
+| Feature 元件 | `{Module}{Feature}View` | `WikiDocumentsView` |
+| 子元件（列表項） | `{Feature}Row` / `{Feature}Card` | `DocumentRow` |
+| 表單元件 | `{Action}{Resource}Form` | `UploadDocumentForm` |
+| Dialog 元件 | `{Action}{Resource}Dialog` | `CreateWorkspaceDialog` |
+| 頁面 Shell 元件 | `{Module}Shell` | `WikiShell` |
+
+---
+
+## 8. 匯入規則
+
+```tsx
+// ✅ 正確
+import { Button } from "@ui-shadcn/ui/button";
+import { Card } from "@ui-shadcn/ui/card";
+import { cn } from "@shared-utils";
+import { Plus, Loader2 } from "lucide-react";
+
+// ❌ 錯誤：使用 legacy 路徑
+import { Button } from "@/ui/shadcn/ui/button";
+import { cn } from "@/shared/utils";
+```
+````
+
+## File: docs/guides/how-to/ui-ux/information-architecture.md
+````markdown
+# 資訊架構（Information Architecture）
+
+> **參考文件類型**：本文件定義 Xuanwu App 的全站資訊架構、導覽層級、路由地圖與頁面組織原則。
+> 實際路由以目前應用程式路由實作為準；本文件作為閱讀地圖與設計指引。
+
+---
+
+## 1. 全站資訊架構圖
+
+```
+Xuanwu App
+├── (public)                          ← 未登入公開區域
+│   ├── /login                        ← 登入頁
+│   └── /register（planned）          ← 註冊頁
+│
+└── (shell)                           ← 已登入 Shell（三欄版型）
+    ├── /workspace                    ← 工作區中心
+    │   └── /workspace/[workspaceId]  ← 單一工作區
+    │
+    ├── /wiki                    ← 知識庫（Wiki）
+    │   ├── /wiki（知識總覽）
+    │   ├── /wiki/documents      ← 主操作頁
+    │   ├── /wiki/rag-query      ← AI 問答
+    │   ├── /wiki/rag-reindex    ← RAG 重整
+    │   ├── /wiki/pages          ← 頁面管理
+    │   └── /wiki/libraries      ← 資料庫管理
+    │
+    ├── /ai-chat                      ← AI 對話介面
+    │
+    ├── /organization                 ← 組織管理
+    │   ├── /organization/members     ← 成員管理
+    │   ├── /organization/teams       ← 團隊管理
+    │   ├── /organization/permissions ← 權限管理
+    │   ├── /organization/workspaces  ← 工作區管理
+    │   ├── /organization/schedule    ← 排程管理
+    │   ├── /organization/daily       ← 每日摘要
+    │   └── /organization/audit       ← 稽核記錄
+    │
+    ├── /dashboard                    ← 個人儀表板
+    │
+    └── /settings                     ← 設定
+```
+
+---
+
+## 2. Shell 版型層級
+
+### 2.1 三欄結構
+
+```
++--App Rail--+--Secondary Nav (Dashboard Sidebar)--+--Main Content--+
+|   48px     |           240px（可收合）              |   flex-1       |
+|            |                                       |                |
+| 圖示導覽   |  依所在區域顯示次要導覽                |  page.tsx      |
+|            |                                       |  協調層        |
++------------+---------------------------------------+----------------+
+```
+
+### 2.2 App Rail（最左欄）
+
+App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
+
+| 圖示 | 路由 | 標籤 |
+|---|---|---|
+| `Building2` | `/workspace` | 工作區中心 |
+| `BookOpen` | `/wiki` | Account Wiki |
+| `Bot` | `/ai-chat` | AI 對話 |
+| `Users` | `/organization` | 組織管理 |
+| `FlaskConical` | `/dev-tools`（開發環境） | 開發工具 |
+| `Settings` | `/settings` | 設定 |
+| `Plus` | — | 快速建立工作區 / 組織 |
+
+### 2.3 Dashboard Sidebar（次要側邊欄）
+
+次要側邊欄根據**目前所在的功能區域**動態顯示對應的子導覽。
+
+**工作區（/workspace/[id]）子導覽**：
+
+| 群組 | 項目 |
+|---|---|
+| Primary | Overview、Members |
+| Spaces | Spaces 列表 |
+| Databases | Databases 列表 |
+| Library | Files、Documents |
+| Modules | Issues、Tasks、Schedule、Daily |
+
+**Wiki（/wiki）子導覽**：
+
+| 項目 | 路由 | 狀態 |
+|---|---|---|
+| 知識總覽 | `/wiki` | ✅ 現有 |
+| RAG Query | `/wiki/rag-query` | ✅ 現有 |
+| RAG Reindex | `/wiki/rag-reindex` | ✅ 現有 |
+| Documents [+] | `/wiki/documents` | ✅ 現有 |
+| Pages | `/wiki/pages` | ✅ 現有 |
+| Libraries | `/wiki/libraries` | ✅ 現有 |
+| Workspaces | — | ✅ 現有（可摺疊） |
+
+**組織管理（/organization）子導覽**：
+
+| 項目 | 路由 | 說明 |
+|---|---|---|
+| 成員 | `/organization/members` | 組織成員管理 |
+| 團隊 | `/organization/teams` | 群組管理 |
+| 權限 | `/organization/permissions` | RBAC 角色與權限 |
+| 工作區 | `/organization/workspaces` | 組織下工作區管理 |
+| 排程 | `/organization/schedule` | 排程管理 |
+| 每日 | `/organization/daily` | 每日摘要 |
+| 稽核 | `/organization/audit` | 操作稽核記錄 |
+
+---
+
+## 3. 路由設計原則
+
+### 3.1 路由命名規則
+
+| 類型 | 格式 | 範例 |
+|---|---|---|
+| 資源列表 | `/resource` | `/wiki/documents` |
+| 資源詳情 | `/resource/[id]` | `/workspace/[workspaceId]` |
+| 功能子頁 | `/context/function` | `/wiki/rag-query` |
+| 設定頁 | `/resource/settings` | `/workspace/[id]/settings` |
+
+### 3.2 路由群組（Route Groups）
+
+Next.js App Router 使用路由群組 `(name)` 來共用 layout 而不影響 URL：
+
+| 群組 | 路徑 | 共用 layout |
+|---|---|---|
+| `(public)` | — | 未登入頁面 layout（無 Shell） |
+| `(shell)` | — | 已登入 Shell layout（三欄版型 + Auth guard） |
+
+### 3.3 URL 參數規範
+
+| 參數 | 說明 | 範例 |
+|---|---|---|
+| `workspaceId` | workspace 篩選視角 | `?workspaceId=ws_123` |
+| `tab` | 功能頁籤切換 | `?tab=overview` |
+| `q` | 搜尋關鍵字 | `?q=keyword` |
+
+---
+
+## 4. 資料範圍與 Scope 設計
+
+Xuanwu App 的資料圍繞三層結構：
+
+```
+System
+└── Account（個人帳號 / 組織帳號）
+    └── Workspace（工作區）
+        └── Resources（Pages、Files、Documents...）
+```
+
+| 層次 | 說明 | 存取範圍 |
+|---|---|---|
+| **Account** | 資料主範圍。所有資料歸屬於帳號，不跨帳號共用。 | 帳號擁有者 + 邀請成員 |
+| **Workspace** | 帳號下的分組視角。workspace 是篩選，不是資料邊界。 | Workspace 成員 |
+| **Namespace** | 路由 slug 機制，背景能力，不在 UI 中獨立暴露。 | 系統內部 |
+
+**重要設計原則**：
+- 使用者的 **預設視角** 為帳號全覽（account scope）。
+- 切換 workspace 是「縮小視角」的操作，不是「換資料庫」的操作。
+- 跨 workspace 的資料彙總需在 account 層完成。
+
+---
+
+## 5. 頁面類型分類
+
+### 5.1 列表頁（List Page）
+
+顯示某類資源的清單，支援篩選、排序與操作。
+
+**必要元素**：
+- 頁首標題 + 篩選狀態提示
+- 載入中骨架屏（Skeleton）
+- 空狀態（Empty State）+ 引導行動
+- 每列的操作按鈕
+
+**範例**：`/wiki/documents`、`/wiki/pages`
+
+### 5.2 詳情頁（Detail Page）
+
+顯示單一資源的完整資訊，支援編輯操作。
+
+**必要元素**：
+- 返回連結（Back button）
+- 資源標題 + 元資料
+- 內容主體
+- 操作按鈕（Edit / Delete / Share）
+
+**範例**：`/workspace/[workspaceId]`
+
+### 5.3 功能操作頁（Functional Page）
+
+以特定功能為主（非 CRUD 列表），例如 RAG 查詢、上傳操作。
+
+**必要元素**：
+- 操作輸入區
+- 執行按鈕（含 loading 狀態）
+- 結果顯示區
+- 錯誤 / 空狀態處理
+
+**範例**：`/wiki/rag-query`、`/wiki/rag-reindex`
+
+### 5.4 總覽頁（Overview / Dashboard Page）
+
+提供某功能區域的整體摘要與入口。
+
+**必要元素**：
+- 快速操作入口（Quick Actions）
+- 統計摘要（Counters / Metrics）
+- 最近活動或重要提示
+
+**範例**：`/wiki`（知識總覽）
+
+---
+
+## 6. 導覽自訂化
+
+使用者可透過「自訂導覽」對話框（`CustomizeNavigationDialog`）調整側邊欄顯示的項目：
+
+- **偏好存儲**：`localStorage` key `xuanwu:nav-preferences`
+- **偏好格式**：pinnedItems（置頂項目）+ workspaceOrder（工作區排序）
+- **有效項目集合**：系統定義 `VALID_PINNED_ITEMS` 與 `VALID_WORKSPACE_ORDER_IDS`，確保偏好合法性
+
+---
+
+## 7. 搜尋與導覽輔助
+
+### 7.1 全站搜尋（planned）
+
+- **入口**：Header 右側搜尋圖示（`/search`）
+- **範圍**：account 範圍內所有 Pages、Documents、Records
+- **鍵盤捷徑**：`Cmd/Ctrl + K`
+
+### 7.2 麵包屑（Breadcrumb）
+
+- 目前各頁面使用「← 返回」按鈕
+- 計畫在頁首加入麵包屑導覽（planned）
+
+### 7.3 語言切換
+
+- Header Controls 提供語言切換器（`translation-switcher.tsx`）
+- 支援語言：中文（繁體）、英文（計畫中）
+````
+
+## File: docs/guides/how-to/ui-ux/ux-principles.md
+````markdown
+# UX 原則與互動規範
+
+> **說明文件類型**：本文件說明 Xuanwu App 的使用者體驗設計哲學，定義互動模式、反饋機制與可近用性標準。
+> 設計決策均與 Diátaxis 的「說明」象限對應 — 著重「為什麼」而非「如何做」。
+
+---
+
+## 1. 核心 UX 原則
+
+### 1.1 UX1 — 操作可見（System Visibility）
+
+> _使用者在任何時刻都知道系統正在做什麼。_
+
+**來源**：Don Norman《The Design of Everyday Things》— 回饋原則。
+
+**實作規範**：
+- 所有非同步操作（上傳、查詢、刪除）必須有 loading 狀態指示。
+- loading 狀態使用 **spinner + 文字** 雙重提示（例如「上傳中...」），不只有 spinner。
+- 後台處理完成後（例如文件解析），以 **toast 通知** 明確告知結果。
+- 即時變動的資料（例如文件 `status`）盡量使用 **Firestore `onSnapshot`** 讓狀態自動更新，而非需要使用者手動刷新。
+
+### 1.2 UX2 — 降低認知負擔（Minimize Cognitive Load）
+
+> _核心操作集中在一個頁面完成，不強迫使用者在多頁面間跳轉。_
+
+**來源**：Steve Krug《Don't Make Me Think》— 最少點擊數。
+
+**實作規範**：
+- 每個主功能頁面（例如 `/wiki/documents`）自我完備 — 上傳、列表、操作三位一體。
+- 側邊欄導覽項目最多顯示 **7 個頂層項目**（米勒定律：工作記憶限制）。
+- 次要操作（例如快捷建立）使用 **hover 顯示** 的次要元素，不佔主要視覺空間。
+
+### 1.3 UX3 — 錯誤可修復（Error Recovery）
+
+> _出錯時顯示原因與建議的下一步行動。_
+
+**來源**：Don Norman《The Design of Everyday Things》— 錯誤設計原則。
+
+**實作規範**：
+- 所有錯誤 toast 包含 **原因 + 建議行動**（例如「上傳失敗，請確認網路連線後重試」）。
+- 格式驗證錯誤在使用者動作當下即時顯示，不等待 submit。
+- 禁用按鈕（disabled）必須搭配 **tooltip 說明不可用原因**，不可靜默。
+
+### 1.4 UX4 — 資料全覽預設（Default to Overview）
+
+> _預設顯示 account 全覽，不因工作區切換讓資料「消失」。_
+
+**來源**：Lean UX — 從使用者痛點出發的設計。
+
+**實作規範**：
+- 所有資料列表預設顯示 **account 範圍**，不以 workspace 為預設篩選。
+- workspace 篩選為選擇性操作，透過 URL 參數（`?workspaceId=<id>`）觸發。
+- 篩選啟動時，頁面需顯示明確的篩選提示（例如「workspace: {id} ×」）。
+
+### 1.5 UX5 — 鍵盤可近用性（Keyboard Accessibility）
+
+> _所有互動操作均可由鍵盤完整操作，不依賴滑鼠。_
+
+**來源**：WCAG 2.1 AA 標準。
+
+**實作規範**：
+- 所有可互動元素（按鈕、連結、輸入框）可 Tab 鍵聚焦。
+- Dropdown / Popover 支援 ↑↓ 導覽與 Enter 觸發、Esc 關閉。
+- 焦點管理：開啟 Modal/Dialog 後焦點移入；關閉後焦點回到觸發元素。
+- 焦點環（focus ring）在所有互動元素上清晰可見。
+
+### 1.6 UX6 — 一致性（Consistency）
+
+> _相同功能在全平台使用相同元件與文案模式。_
+
+**來源**：Jakob Nielsen《10 Usability Heuristics》— Consistency and Standards。
+
+**實作規範**：
+- 統一使用 shadcn/ui 元件庫，不自行實作已有的基礎元件。
+- 操作文案統一：「建立」（不混用「新增」和「新建」）、「刪除」（不混用「移除」）。
+- 狀態圖示統一：`✓ ready`、`⏳ processing`、`✗ error`。
+
+---
+
+## 2. 互動模式規範
+
+### 2.1 Toast 通知規則
+
+Toast 是 Xuanwu App 的主要反饋機制，使用 **Sonner** 函式庫。
+
+| 情境 | Toast 類型 | 顯示時間 |
+|---|---|---|
+| 操作成功（建立、儲存、觸發） | `success` | 3 秒自動消失 |
+| 操作失敗（網路、驗證、權限） | `error` | 5 秒（或手動關閉） |
+| 背景處理中（可能需要等待） | `info` | 4 秒自動消失 |
+| 危險操作前的確認 | 不用 toast，用 Dialog | — |
+
+**格式規範**：
+```
+成功：「已{動作} {對象}」        例：「已建立 工作區 Marketing」
+失敗：「{動作}失敗：{原因}」     例：「上傳失敗：格式不支援」
+處理中：「{動作}中，請稍候…」   例：「重整中，請稍候…」
+```
+
+**實作位置**：`<Toaster />` 已掛載於全域 Provider。
+
+### 2.2 Loading 狀態規範
+
+| 情境 | Loading 模式 |
+|---|---|
+| 頁面初始載入 | Skeleton（骨架屏） — 整頁占位符 |
+| 列表資料載入 | Skeleton rows — 每列占位符 |
+| 按鈕觸發的操作 | Inline spinner + 文字 + disabled |
+| 單列操作（不影響其他列） | 僅該列顯示 spinner，其他列保持互動 |
+| 全頁阻斷操作 | 避免使用；若必要，使用半透明 overlay |
+
+### 2.3 空狀態設計
+
+每個列表頁面須定義 **空狀態（Empty State）**，避免空白頁面讓使用者困惑。
+
+| 場景 | 空狀態內容 |
+|---|---|
+| 無文件（Documents） | 說明文字 + 指向 Upload 卡的引導箭頭 |
+| 無頁面（Pages） | 說明文字 + 「建立第一個頁面」按鈕 |
+| 無查詢結果（RAG Query） | 說明文字 + 建議的下一步（確認文件已 indexed） |
+| 無工作區 | 說明文字 + 「建立工作區」按鈕 |
+
+**空狀態文案格式**：
+```
+「目前還沒有 {資源名稱}，{引導動作}。」
+例：「目前還沒有文件，試著上傳第一份檔案。」
+```
+
+### 2.4 確認對話框規則
+
+需要使用 Dialog 確認的操作：
+
+| 操作類型 | 是否需要確認 |
+|---|---|
+| 刪除永久性資源 | ✅ 必須 |
+| 批次刪除 | ✅ 必須 |
+| 清除資料 | ✅ 必須 |
+| 建立 | ❌ 不需要 |
+| 儲存 | ❌ 不需要 |
+| 觸發背景任務（例如 reindex） | ❌ 不需要（有 toast 反饋即可） |
+
+---
+
+## 3. 表單設計規範
+
+### 3.1 輸入驗證時機
+
+| 驗證類型 | 觸發時機 |
+|---|---|
+| 格式驗證（日期、Email） | blur（失去焦點時） |
+| 必填欄位 | submit（提交時）；如果已 blur 過也可 blur 時顯示 |
+| 即時搜尋 | change（每次輸入後，加 debounce） |
+| 伺服器端驗證 | submit 後，以 toast 或 inline error 顯示 |
+
+### 3.2 按鈕狀態
+
+所有可提交的按鈕（Primary Button）遵循以下狀態：
+
+```
+idle → loading → success（toast） or error（toast）
+```
+
+- **idle**：正常可點擊狀態，顯示操作文字。
+- **loading**：顯示 spinner + 操作進行中文字，按鈕 disabled。
+- **success**：toast 顯示成功訊息，按鈕回到 idle（或 navigate）。
+- **error**：toast 顯示錯誤訊息，按鈕回到 idle（允許重試）。
+
+---
+
+## 4. 導覽行為規範
+
+### 4.1 側邊欄展開 / 收合
+
+- **預設狀態**：展開。
+- **收合觸發**：使用者點擊 `PanelLeftClose` 圖示，偏好存於 `localStorage`（key: `xuanwu:nav-preferences`）。
+- **收合狀態**：僅顯示圖示，懸停（hover）顯示 Tooltip 提示完整名稱。
+
+### 4.2 Active 狀態顯示
+
+- 側邊欄以路由 prefix 判斷 active（`pathname.startsWith(href + "/")`）。
+- Active 項目：背景色 `bg-accent`，文字加粗。
+
+### 4.3 麵包屑（Breadcrumb）
+
+目前未實作全站麵包屑；各功能區頁首有「返回」按鈕（例如「← 返回 Wiki Beta」）。
+
+---
+
+## 5. 可近用性完整清單
+
+### 5.1 必要實作（WCAG 2.1 AA）
+
+| 需求 | 實作細節 |
+|---|---|
+| 色彩對比 | 文字與背景對比 ≥ 4.5:1（一般文字）；≥ 3:1（大文字） |
+| 鍵盤可操作 | 所有功能可不依賴滑鼠完成 |
+| 螢幕閱讀器 | 圖示按鈕有 `aria-label`；狀態用 `aria-live` 或 `role="status"` |
+| 焦點管理 | 開啟 Dialog/Popover 後焦點移入，關閉後焦點回到觸發元素 |
+| 錯誤識別 | 錯誤訊息不僅依賴紅色，需有文字說明 |
+| 選單鍵盤操作 | Arrow 鍵導覽、Enter 觸發、Esc 關閉 |
+
+### 5.2 元件可近用性規格
+
+| 元件 | 鍵盤行為 | ARIA 需求 |
+|---|---|---|
+| Drop Zone | Tab 聚焦；Enter/Space 觸發選檔 | `role="button"`, `aria-label` |
+| Dropdown Menu | ↑↓ 導覽；Enter 選擇；Esc 關閉 | `role="menu"`, `role="menuitem"` |
+| Dialog | Esc 關閉；焦點陷阱 | `role="dialog"`, `aria-labelledby` |
+| Toast | 自動朗讀 | `role="alert"` 或 `aria-live="assertive"` |
+| Table | Tab 導覽至互動元素 | `<table>` 語意標籤 |
+| Badge / Status | — | 不可只用顏色；需有文字 |
+
+---
+
+## 6. 回應式設計規範
+
+Xuanwu App 主要針對桌面（Desktop first），但核心頁面需支援平板與手機。
+
+| 斷點 | Tailwind Prefix | 說明 |
+|---|---|---|
+| 手機 | （預設） | 單欄版型；隱藏 Secondary Nav |
+| 平板 | `md:` | 可選性顯示 Secondary Nav |
+| 桌面 | `lg:` | 完整三欄版型 |
+
+**手機版規則**：
+- App Rail 收合為底部導覽列（planned）。
+- 資料列表改為卡片式呈現，取代桌面的表格。
+- 複雜操作（例如上傳）維持可用，但版型調整為全寬。
+````
+
+## File: docs/guides/how-to/ui-ux/wireframes.md
+````markdown
+# 線框圖（Wireframes）
+
+> **參考文件類型**：本文件包含 Xuanwu App 各主要功能區域的線框圖（Wireframe），以 ASCII 文字圖呈現布局結構與元件配置。
+> 詳細的個別功能 UI 規格，請參閱系統規格索引。
+
+---
+
+## 1. Shell 版型（三欄結構）
+
+所有已登入頁面共用三欄 Shell 版型：
+
+```
++--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
+|   48px       |    240px          |    flex-1         |
+|              |  （可收合）        |                   |
+| [Logo]       |  根據功能區域      |  page.tsx         |
+|              |  動態顯示子導覽    |  協調層           |
+| [Workspace]  |                   |                   |
+| [Wiki Beta]  |                   |                   |
+| [AI Chat]    |                   |                   |
+| [Org]        |                   |                   |
+|              |                   |                   |
+| ─────────── |                   |                   |
+| [Settings]   |                   |                   |
+| [User Avatar]|                   |                   |
++--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
+```
+
+### Header（頁首）
+
+```
++----------------------------------------------------------------+
+| Breadcrumb / Page Title        [Search] [Lang] [Theme] [User] |
++----------------------------------------------------------------+
+```
+
+---
+
+## 2. Wiki 功能區
+
+### 2.1 `/wiki`（知識總覽）
+
+```
++--App Rail--+--Wiki Nav--+------Main Content------+
+|            | 知識總覽 ●      | [← 返回]               |
+|            | RAG Query       |                        |
+|            | RAG Reindex     | Wiki Beta              |
+|            | Documents   [+] | ─────────────────────  |
+|            | Pages           |                        |
+|            | Libraries       | ┌─────────┐ ┌─────────┐|
+|            | ─────────────  | │ 文件上傳 │ │RAG Query│|
+|            | Workspaces ▼   | │  圖示+   │ │ 圖示+   │|
+|            |  > ws-1         | │  說明文字│ │ 說明文字│|
+|            |  > ws-2         | └─────────┘ └─────────┘|
+|            |                 |                        |
+|            |                 | 帳號統計               |
+|            |                 | 文件：N  Ready：M      |
+|            |                 | 工作區：K              |
++--App Rail--+--Wiki Nav--+------Main Content------+
+```
+
+### 2.2 `/wiki/documents`（主操作頁）
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · Documents       |
+|            | RAG Query       | account 全覽 / ws: {id} ×  |
+|            | RAG Reindex     | ─────────────────────────── |
+|            | Documents ● [+] |                             |
+|            | Pages           | ┌── 上傳檔案 ─────────────┐|
+|            | Libraries       | │                           │|
+|            |                 | │  ╔═══════════════════╗   │|
+|            |                 | │  ║ 點擊或拖曳上傳     ║   │|
+|            |                 | │  ║ .pdf .tiff .png    ║   │|
+|            |                 | │  ╚═══════════════════╝   │|
+|            |                 | │                           │|
+|            |                 | │  [上傳並啟動解析 ↑] [✕]  │|
+|            |                 | └───────────────────────────┘|
+|            |                 |                             |
+|            |                 | ┌── Documents (帳號全覽) ───┐|
+|            |                 | │ filename │ status │ rag   │|
+|            |                 | │──────────│────────│───────│|
+|            |                 | │report.pdf│✓ ready │✓ idx  │|
+|            |                 | │scan.tiff │⏳ proc │⏳ pend│|
+|            |                 | │error.pdf │✗ error │ —    │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+**Documents [+] 快捷選單（Popover）**：
+
+```
+Documents [+]
+          │
+          ▼
+     ┌─────────────────┐
+     │ ＋ 新增頁面      │
+     │ ＋ 新增資料庫    │
+     └─────────────────┘
+```
+
+### 2.3 `/wiki/rag-query`
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · RAG Query       |
+|            | RAG Query ●     | ─────────────────────────── |
+|            | RAG Reindex     |                             |
+|            | Documents   [+] | ┌── RAG Query ─────────────┐|
+|            | Pages           | │                           │|
+|            | Libraries       | │ ┌─────────────────────┐   │|
+|            |                 | │ │ 請輸入你的問題...     │   │|
+|            |                 | │ └─────────────────────┘   │|
+|            |                 | │ top_k: [5 ▼] [送出查詢]  │|
+|            |                 | └───────────────────────────┘|
+|            |                 |                             |
+|            |                 | ┌── Answer ────────────────┐|
+|            |                 | │ AI 回答文字...            │|
+|            |                 | │                           │|
+|            |                 | │ [cache:hit][scope:acct]  │|
+|            |                 | │ [vector:5][search:3]     │|
+|            |                 | └───────────────────────────┘|
+|            |                 |                             |
+|            |                 | ┌── Citations (3 筆) ──────┐|
+|            |                 | │ 1. report.pdf — 第5頁     │|
+|            |                 | │    "...引用片段..."        │|
+|            |                 | │ 2. scan.tiff — 第1頁      │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+### 2.4 `/wiki/pages`（Pages 頁面管理）
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · Pages           |
+|            | RAG Query       | ─────────────────────────── |
+|            | RAG Reindex     |                  [新增頁面]  |
+|            | Documents   [+] |                             |
+|            | Pages ●         | ┌── 頁面列表 ───────────────┐|
+|            | Libraries       | │ title     │ updatedAt │ → │|
+|            |                 | │───────────│───────────│───│|
+|            |                 | │ 專案概覽  │ 2026-03-20│ > │|
+|            |                 | │   > 里程碑│ 2026-03-21│ > │|
+|            |                 | │ 技術規格  │ 2026-03-22│ > │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+### 2.5 `/wiki/libraries`（Libraries 資料庫管理）
+
+```
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+|            | 知識總覽        | Wiki Beta · Libraries       |
+|            | RAG Query       | ─────────────────────────── |
+|            | RAG Reindex     |              [新增資料庫]    |
+|            | Documents   [+] |                             |
+|            | Pages           | ┌── 資料庫列表 ─────────────┐|
+|            | Libraries ●     | │ name      │ fields │ rows │|
+|            |                 | │───────────│────────│──────│|
+|            |                 | │ 任務追蹤  │ 5欄位  │ 20列 │|
+|            |                 | │ 聯絡人    │ 3欄位  │ 8列  │|
+|            |                 | └───────────────────────────┘|
++--App Rail--+--Wiki Nav--+--------Main Content---------+
+```
+
+---
+
+## 3. 工作區（Workspace）
+
+### 3.1 `/workspace`（工作區中心）
+
+```
++--App Rail--+--Nav--+--------Main Content---------+
+|            |       | 工作區中心                  |
+|            |       | ─────────────────────────── |
+|            |       | [建立工作區]                 |
+|            |       |                             |
+|            |       | ┌── 我的工作區 ─────────────┐|
+|            |       | │ ┌─────────┐ ┌─────────┐  │|
+|            |       | │ │  工作區  │ │  工作區  │  │|
+|            |       | │ │  Marketing│ │ Product │  │|
+|            |       | │ │  →進入    │ │  →進入  │  │|
+|            |       | │ └─────────┘ └─────────┘  │|
+|            |       | └───────────────────────────┘|
++--App Rail--+--Nav--+--------Main Content---------+
+```
+
+---
+
+## 4. 組織管理（Organization）
+
+### 4.1 `/organization/members`
+
+```
++--App Rail--+--Org Nav--+--------Main Content---------+
+|            | 成員 ●    | 組織 · 成員管理             |
+|            | 團隊      | ─────────────────────────── |
+|            | 權限      |                 [邀請成員]   |
+|            | 工作區    |                             |
+|            | 排程      | ┌── 成員列表 ───────────────┐|
+|            | 每日      | │ 姓名  │ 角色   │ 狀態 │操作│|
+|            | 稽核      | │───────│────────│──────│────│|
+|            |           | │ Alice │ Admin  │ 活躍 │ … │|
+|            |           | │ Bob   │ Member │ 活躍 │ … │|
+|            |           | └───────────────────────────┘|
++--App Rail--+--Org Nav--+--------Main Content---------+
+```
+
+---
+
+## 5. AI Chat
+
+### 5.1 `/ai-chat`
+
+```
++--App Rail--+--Nav--+--------Main Content---------+
+|            |       | AI 對話                     |
+|            |       | ─────────────────────────── |
+|            |       | ┌── 對話歷史 ───────────────┐|
+|            |       | │ 使用者: 這份文件說什麼?    │|
+|            |       | │                           │|
+|            |       | │ AI: 根據文件內容，...      │|
+|            |       | │                           │|
+|            |       | └───────────────────────────┘|
+|            |       |                             |
+|            |       | ┌── 輸入區 ─────────────────┐|
+|            |       | │ 請輸入問題...    [送出 →]  │|
+|            |       | └───────────────────────────┘|
++--App Rail--+--Nav--+--------Main Content---------+
+```
+
+---
+
+## 6. 手機版線框圖
+
+手機版（< 768px）調整三欄為單欄：
+
+### 6.1 手機版 Documents
+
+```
++--[Header: Wiki Beta · Documents]--+
+| [← 返回]                [↺ 刷新] |
++-------------------------------------+
+| ┌── 上傳檔案 ─────────────────────┐|
+| │  .pdf .tiff .png .jpg            │|
+| │  ╔═══════════════════╗           │|
+| │  ║   點擊或拖曳上傳   ║           │|
+| │  ╚═══════════════════╝           │|
+| │  [上傳並啟動解析] [清除]         │|
+| └─────────────────────────────────┘|
+|                                     |
+| ┌── Documents (N 筆) ──────────────┐|
+| │ report.pdf                        │|
+| │  ✓ ready · ✓ indexed · 12 頁    │|
+| │  [手動重整]                       │|
+| │─────────────────────────────────│|
+| │ scan.tiff                         │|
+| │  ⏳ processing · ⏳ pending      │|
+| │  [— 解析中 —]                   │|
+| └─────────────────────────────────┘|
+```
+
+### 6.2 手機版底部導覽（planned）
+
+```
++─────────────────────────────────────+
+| [工作區] [Wiki] [AI] [組織] [設定]  |
++─────────────────────────────────────+
+```
+
+---
+
+## 7. 對話框（Dialog）設計
+
+### 7.1 建立工作區 Dialog
+
+```
++─────────────────────────────────────────+
+│  建立工作區                          ✕  │
+│                                         │
+│  工作區名稱                             │
+│  ┌─────────────────────────────────┐   │
+│  │ 請輸入工作區名稱...              │   │
+│  └─────────────────────────────────┘   │
+│  {錯誤訊息（若有）}                    │
+│                                         │
+│                    [取消]  [建立工作區] │
++─────────────────────────────────────────+
+```
+
+### 7.2 刪除確認 Dialog
+
+```
++─────────────────────────────────────────+
+│  確認刪除                            ✕  │
+│                                         │
+│  您確定要刪除「{資源名稱}」嗎？         │
+│  此操作無法復原。                       │
+│                                         │
+│                       [取消]  [確認刪除]│
++─────────────────────────────────────────+
+```
+
+---
+
+## 8. 狀態元件規格
+
+### 8.1 Status Badge
+
+```
+✓ ready         ← 綠色背景，白色文字
+⏳ processing   ← 藍/琥珀色背景，白色文字
+✗ error         ← 紅色背景，白色文字
+— pending       ← 灰色背景，灰色文字
+```
+
+### 8.2 Loading Skeleton 
+
+```
+Documents 列表載入中：
++─────────────────────────────────────+
+│ ▓▓▓▓▓▓▓▓▓▓▓ │ ▓▓▓▓▓▓▓ │ ▓▓▓▓▓  │
+│ ▓▓▓▓▓▓▓▓    │ ▓▓▓▓▓▓▓ │ ▓▓▓    │
+│ ▓▓▓▓▓▓▓▓▓▓  │ ▓▓▓▓▓▓  │ ▓▓▓▓   │
++─────────────────────────────────────+
+（▓ 代表 Skeleton 骨架屏 pulse 動畫區塊）
+```
+
+---
+
+## 相關主題
+
+- 設計系統：色彩、字型規範
+- UX 原則：互動規則、可近用性
+- 資訊架構：全站路由地圖
+- 規格索引：Wiki 與其他功能規格入口
+````
+
 ## File: docs/handoffs.md
 ````markdown
 # Handoffs
@@ -55416,6 +59500,199 @@ Reference pages are information-oriented and must be exact, complete, and scanna
 - Step-by-step tutorials
 - Opinionated implementation stories
 - Extended rationale discussions
+````
+
+## File: docs/reference/specification/system-overview.md
+````markdown
+# 系統全局規格（System Overview Specification）
+
+> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
+
+---
+
+## 1. 系統定位
+
+**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
+
+- 內容頁面與結構化資料庫體驗（Content / UI Layer）
+- 知識關聯與導航視角（Knowledge Graph Layer）
+- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
+- 多工作區協作與組織管理
+- 文件解析、向量化與智慧問答
+
+### 1.1 核心價值主張
+
+| 面向 | 價值 |
+|---|---|
+| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
+| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
+| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
+| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
+
+---
+
+## 2. 目標用戶
+
+| 用戶類型 | 說明 | 核心需求 |
+|---|---|---|
+| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
+| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
+| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
+| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
+
+---
+
+## 3. 核心功能規格
+
+### 3.1 Account 與 Workspace 管理
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 個人帳號 | 用戶可建立個人帳號 | `account` |
+| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
+| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
+| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
+| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
+
+### 3.2 知識庫功能
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
+| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
+| 文件解析 | Google Document AI 自動解析 | `py_fn` |
+| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
+| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
+| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
+| Pages | 區塊式頁面建立與管理 | `content` |
+| Libraries | 結構化資料庫管理 | `asset` |
+
+### 3.3 AI 功能
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| AI Chat | 通用 AI 對話介面 | `agent` |
+| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
+| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
+
+### 3.4 組織管理
+
+| 功能 | 說明 | 模組 |
+|---|---|---|
+| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
+| 團隊管理 | 成員分組 | `organization` |
+| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
+| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
+| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
+
+---
+
+## 4. 技術架構規格
+
+### 4.1 運行時邊界
+
+系統分為兩個主要運行時：
+
+| 運行時 | 職責 | 技術 |
+|---|---|---|
+| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
+| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
+
+**禁止跨越邊界**：
+- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
+- py_fn 不持有 UI 狀態或 session 邏輯。
+
+### 4.2 資料層架構
+
+```
+Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
+Firebase Storage      ← 檔案儲存（上傳文件）
+Upstash Vector        ← 向量索引（RAG）
+Upstash Redis         ← 快取（RAG query cache）
+```
+
+### 4.3 Firestore 資料模型（頂層）
+
+```
+accounts/{accountId}/
+├── documents/{documentId}     ← 文件（Wiki）
+├── pages/{pageId}             ← 頁面（Pages）
+├── databases/{databaseId}     ← 資料庫（Libraries）
+├── workspaces/{workspaceId}   ← 工作區（Workspace）
+└── members/{memberId}         ← 成員（Account）
+```
+
+> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
+
+### 4.4 認證與授權
+
+```
+Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
+```
+
+| 角色 | 說明 |
+|---|---|
+| `owner` | 帳號擁有者，全部權限 |
+| `admin` | 管理員，可管理成員與設定 |
+| `member` | 一般成員，可讀寫工作區資源 |
+| `viewer` | 唯讀成員，只能查看 |
+
+---
+
+## 5. 模組責任邊界
+
+16 個 MDDD 業務模組的責任分配：
+
+| 模組 | 職責概要 |
+|---|---|
+| `account` | 用戶帳號、成員角色、帳號策略 |
+| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
+| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
+| `content` | Block 編輯器頁面、WikiPage、版本歷程 |
+| `identity` | 身份認證、Token 刷新 |
+| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
+| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
+| `notification` | 通知推送 |
+| `organization` | 組織（租戶）管理、策略 |
+| `retrieval` | RAG 查詢、Wiki RAG 類型、向量檢索 |
+| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
+| `workspace` | 工作區管理、成員管理、WikiContentTree |
+| `workspace-audit` | 不可變稽核記錄 |
+| `workspace-feed` | 工作區動態摘要 |
+| `workspace-flow` | 工作區任務與流程管理 |
+| `workspace-scheduling` | 雙向資源排程 |
+
+---
+
+## 6. 整合點
+
+| 整合對象 | 用途 | SDK/協議 |
+|---|---|---|
+| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
+| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
+| Firebase Auth | 身份認證 | Firebase SDK v12 |
+| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
+| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
+| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
+| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
+| Upstash Vector | 向量搜尋 | Upstash SDK |
+| Upstash Redis | 快取 | Upstash SDK |
+| QStash | 非同步任務佇列 | Upstash QStash |
+
+---
+
+## 7. 驗收標準（系統級別）
+
+| 代號 | 標準 |
+|---|---|
+| S1 | 使用者可登入並進入 Shell |
+| S2 | 使用者可建立組織與工作區 |
+| S3 | 使用者可上傳文件並在列表看到 |
+| S4 | 文件解析後 `status` 更新為 `ready` |
+| S5 | RAG 問答可回傳 answer 與 citations |
+| S6 | 管理員可管理組織成員與角色 |
+| S7 | Console 無初始化錯誤 |
+| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
 ````
 
 ## File: docs/skills.md
@@ -57197,6 +61474,62 @@ export class ListCommentsUseCase {
 }
 ````
 
+## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/use-cases
+ * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Permission } from "../../domain/entities/permission.entity";
+import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
+import {
+  GrantPermissionSchema, type GrantPermissionDto,
+  RevokePermissionSchema, type RevokePermissionDto,
+} from "../dto/knowledge-collaboration.dto";
+
+export class GrantPermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: GrantPermissionDto): Promise<CommandResult> {
+    const parsed = GrantPermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO } = parsed.data;
+    const permission = await this.repo.grant({
+      accountId, workspaceId, subjectId, subjectType,
+      principalId, principalType, level, grantedByUserId,
+      expiresAtISO: expiresAtISO ?? null,
+    });
+    return commandSuccess(permission.id, Date.now());
+  }
+}
+
+export class RevokePermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: RevokePermissionDto): Promise<CommandResult> {
+    const parsed = RevokePermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListPermissionsBySubjectUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
+    return this.repo.listBySubject(accountId, subjectId);
+  }
+}
+````
+
 ## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
 ````typescript
 /**
@@ -57513,6 +61846,99 @@ export class FirebaseCommentRepository implements ICommentRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Permission, PermissionLevel } from "../../domain/entities/permission.entity";
+import type {
+  IPermissionRepository,
+  GrantPermissionInput,
+} from "../../domain/repositories/IPermissionRepository";
+
+function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationPermissions");
+}
+
+function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationPermissions", id);
+}
+
+function toPermission(id: string, data: Record<string, unknown>): Permission {
+  return {
+    id,
+    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
+    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    principalId: typeof data.principalId === "string" ? data.principalId : "",
+    principalType: (data.principalType as Permission["principalType"]) ?? "user",
+    level: (data.level as PermissionLevel) ?? "view",
+    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
+    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+  };
+}
+
+export class FirebasePermissionRepository implements IPermissionRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async grant(input: GrantPermissionInput): Promise<Permission> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      subjectId: input.subjectId,
+      subjectType: input.subjectType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      principalId: input.principalId,
+      principalType: input.principalType,
+      level: input.level,
+      grantedByUserId: input.grantedByUserId,
+      grantedAtISO: now,
+      expiresAtISO: input.expiresAtISO ?? null,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(permissionDoc(db, input.accountId, id), data);
+    return toPermission(id, data);
+  }
+
+  async revoke(accountId: string, permissionId: string): Promise<void> {
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
+  }
+
+  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
+    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
+    if (!snap.exists()) return null;
+    return toPermission(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
 ````typescript
 /**
@@ -57598,94 +62024,293 @@ export class FirebaseVersionRepository implements IVersionRepository {
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
+## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
 ````typescript
-"use server";
+"use client";
 
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- */
+import { useEffect, useRef, useState, useTransition } from "react";
+import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
-import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto } from "../../application/dto/knowledge-collaboration.dto";
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
 
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
-function makeVersionRepo() { return new FirebaseVersionRepository(); }
+import {
+  getComments,
+} from "../queries/knowledge-collaboration.queries";
+import {
+  createComment,
+  resolveComment,
+  deleteComment,
+} from "../_actions/knowledge-collaboration.actions";
+import type { Comment } from "../../domain/entities/comment.entity";
 
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
 }
 
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [body, setBody] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    setLoading(true);
+    getComments(accountId, contentId).then((data) => {
+      if (!disposed) { setComments(data); setLoading(false); }
+    }).catch(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    startTransition(async () => {
+      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
+      const fresh = await getComments(accountId, contentId);
+      setComments(fresh);
+      setBody("");
+      textareaRef.current?.focus();
+    });
   }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+      const fresh = await getComments(accountId, contentId);
+      setComments(fresh);
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  const active = comments.filter((c) => !c.resolvedAt);
+  const resolved = comments.filter((c) => c.resolvedAt);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {active.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
+        )}
+      </div>
+
+      {/* Comment input */}
+      <div className="flex flex-col gap-2">
+        <Textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="新增留言..."
+          rows={2}
+          className="resize-none text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
+          }}
+        />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            送出
+          </Button>
+        </div>
+      </div>
+
+      {/* Comment list */}
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
+        </div>
+      ) : active.length === 0 && resolved.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無留言。</p>
+      ) : (
+        <div className="space-y-2">
+          {active.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              isOwner={c.authorId === currentUserId}
+              onResolve={() => handleResolve(c.id)}
+              onDelete={() => handleDelete(c.id)}
+              isPending={isPending}
+            />
+          ))}
+          {resolved.length > 0 && (
+            <details className="text-xs text-muted-foreground cursor-pointer">
+              <summary className="select-none">已解決 ({resolved.length})</summary>
+              <div className="mt-2 space-y-2">
+                {resolved.map((c) => (
+                  <CommentItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={c.authorId === currentUserId}
+                    onDelete={() => handleDelete(c.id)}
+                    isPending={isPending}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+interface CommentItemProps {
+  comment: Comment;
+  isOwner: boolean;
+  onResolve?: () => void;
+  onDelete?: () => void;
+  isPending: boolean;
 }
 
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
-  try {
-    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
-  try {
-    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
+  const resolved = !!comment.resolvedAt;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
+      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
+        <div className="ml-auto flex gap-1">
+          {!resolved && onResolve && (
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="標記為已解決"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isOwner && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+              title="刪除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
+## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/queries
- */
+"use client";
 
-import type { Comment } from "../../domain/entities/comment.entity";
+import { useEffect, useState, useTransition } from "react";
+import { History, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getVersions } from "../queries/knowledge-collaboration.queries";
+import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
 import type { Version } from "../../domain/entities/version.entity";
-import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
-import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
 
-export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
-  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+interface VersionHistoryPanelProps {
+  accountId: string;
+  contentId: string;
+  currentUserId: string;
 }
 
-export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
-  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let disposed = false;
+    setLoading(true);
+    getVersions(accountId, contentId).then((data) => {
+      if (!disposed) { setVersions(data); setLoading(false); }
+    }).catch(() => { if (!disposed) setLoading(false); });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handleDelete(versionId: string) {
+    startTransition(async () => {
+      await deleteVersion({ id: versionId, accountId });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">版本歷史</span>
+        {versions.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
+      ) : (
+        <ol className="space-y-2">
+          {versions.map((v, idx) => (
+            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {versions.length - idx}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
+                {v.description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {v.createdByUserId === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(v.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
 }
 ````
 
@@ -58714,6 +63339,382 @@ export async function deleteView(accountId: string, viewId: string): Promise<Com
 }
 ````
 
+## File: modules/knowledge-database/interfaces/components/DatabaseDialog.tsx
+````typescript
+"use client";
+
+import { useState, useTransition } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { createDatabase } from "../_actions/knowledge-database.actions";
+
+interface DatabaseDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  onSuccess?: (databaseId?: string) => void;
+}
+
+export function DatabaseDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onSuccess,
+}: DatabaseDialogProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() {
+    setName("");
+    setDescription("");
+    setError(null);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) reset();
+    onOpenChange(next);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setError("資料庫名稱為必填"); return; }
+    setError(null);
+    startTransition(async () => {
+      const result = await createDatabase({
+        accountId,
+        workspaceId,
+        name: name.trim(),
+        description: description.trim() || null,
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        reset();
+        onOpenChange(false);
+        onSuccess?.(result.aggregateId);
+      } else {
+        setError(result.error.message ?? "建立失敗");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>新增資料庫</DialogTitle>
+        </DialogHeader>
+        <form id="db-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="db-name">名稱 *</Label>
+            <Input
+              id="db-name"
+              placeholder="資料庫名稱"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="db-desc">說明</Label>
+            <Textarea
+              id="db-desc"
+              placeholder="選填：說明此資料庫的用途"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button type="submit" form="db-form" disabled={isPending || !name.trim()}>
+            {isPending ? "建立中…" : "建立"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/knowledge-database/interfaces/components/DatabaseTableView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { Plus, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+import { getRecords } from "../queries/knowledge-database.queries";
+import { createRecord, updateRecord, deleteRecord } from "../_actions/knowledge-database.actions";
+import type { Database, Field } from "../../domain/entities/database.entity";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+
+// Re-exported via api/index.ts — but internal usage is fine via relative path
+interface DatabaseTableViewProps {
+  database: Database;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+}
+
+const FIELD_WIDTHS: Record<string, string> = {
+  text: "min-w-[180px]",
+  number: "min-w-[100px]",
+  checkbox: "min-w-[80px]",
+  date: "min-w-[140px]",
+  default: "min-w-[140px]",
+};
+
+/** Resolve a Map<string,unknown> or Record<string,unknown> to a plain JS value for display */
+function getProperty(record: DatabaseRecord, fieldId: string): unknown {
+  if (record.properties instanceof Map) {
+    return record.properties.get(fieldId);
+  }
+  return (record.properties as Record<string, unknown>)[fieldId];
+}
+
+function setProperty(record: DatabaseRecord, fieldId: string, value: unknown): Record<string, unknown> {
+  const existing: Record<string, unknown> = record.properties instanceof Map
+    ? Object.fromEntries(record.properties)
+    : { ...(record.properties as Record<string, unknown>) };
+  return { ...existing, [fieldId]: value };
+}
+
+function CellInput({
+  field,
+  value,
+  onChange,
+  disabled,
+}: {
+  field: Field;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  disabled: boolean;
+}) {
+  if (field.type === "checkbox") {
+    return (
+      <input
+        type="checkbox"
+        checked={Boolean(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.checked)}
+        className="h-4 w-4 rounded border-border"
+      />
+    );
+  }
+  if (field.type === "number") {
+    return (
+      <Input
+        type="number"
+        value={value == null ? "" : String(value)}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
+        className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+      />
+    );
+  }
+  return (
+    <Input
+      type="text"
+      value={value == null ? "" : String(value)}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+      className="h-7 border-transparent bg-transparent px-1 text-xs focus:border-border"
+    />
+  );
+}
+
+export function DatabaseTableView({
+  database,
+  accountId,
+  workspaceId,
+  currentUserId,
+}: DatabaseTableViewProps) {
+  const [records, setRecords] = useState<DatabaseRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  /** Tracks inline edits keyed by recordId → { fieldId → value } */
+  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
+  const [saving, setSaving] = useState<Record<string, boolean>>({});
+  const [isPending, startTransition] = useTransition();
+
+  const fields = database.fields;
+
+  const load = useCallback(async () => {
+    if (!accountId || !database.id) return;
+    setLoading(true);
+    try {
+      const data = await getRecords(accountId, database.id);
+      setRecords(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, database.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleCellChange(recordId: string, fieldId: string, value: unknown) {
+    setEdits((prev) => ({
+      ...prev,
+      [recordId]: { ...(prev[recordId] ?? {}), [fieldId]: value },
+    }));
+  }
+
+  function handleCellBlur(record: DatabaseRecord, fieldId: string) {
+    const fieldEdits = edits[record.id];
+    if (!fieldEdits || !(fieldId in fieldEdits)) return;
+    const newProperties = setProperty(record, fieldId, fieldEdits[fieldId]);
+    setSaving((prev) => ({ ...prev, [record.id]: true }));
+    startTransition(async () => {
+      await updateRecord({ id: record.id, accountId, properties: newProperties });
+      setSaving((prev) => ({ ...prev, [record.id]: false }));
+      setEdits((prev) => {
+        const next = { ...prev };
+        if (next[record.id]) {
+          const fieldMap = { ...next[record.id] };
+          delete fieldMap[fieldId];
+          if (Object.keys(fieldMap).length === 0) delete next[record.id];
+          else next[record.id] = fieldMap;
+        }
+        return next;
+      });
+      await load();
+    });
+  }
+
+  function handleAddRecord() {
+    startTransition(async () => {
+      await createRecord({
+        databaseId: database.id,
+        workspaceId,
+        accountId,
+        properties: {},
+        createdByUserId: currentUserId,
+      });
+      await load();
+    });
+  }
+
+  function handleDeleteRecord(recordId: string) {
+    startTransition(async () => {
+      await deleteRecord(accountId, recordId);
+      await load();
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-8 w-full" />
+        ))}
+      </div>
+    );
+  }
+
+  if (fields.length === 0) {
+    return (
+      <p className="rounded-md border border-dashed border-border/60 p-4 text-sm text-muted-foreground">
+        此資料庫尚無欄位。請先新增欄位。
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-lg border border-border/60">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-border/60 bg-muted/30">
+              {fields.map((field) => (
+                <th
+                  key={field.id}
+                  className={`px-3 py-2 text-left text-xs font-semibold text-muted-foreground ${FIELD_WIDTHS[field.type] ?? FIELD_WIDTHS.default}`}
+                >
+                  {field.name}
+                  {field.required && <span className="ml-0.5 text-destructive">*</span>}
+                </th>
+              ))}
+              <th className="w-10" />
+            </tr>
+          </thead>
+          <tbody>
+            {records.length === 0 ? (
+              <tr>
+                <td colSpan={fields.length + 1} className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  尚無記錄。點擊下方「新增記錄」。
+                </td>
+              </tr>
+            ) : (
+              records.map((record) => (
+                <tr key={record.id} className="border-b border-border/40 last:border-b-0 hover:bg-muted/10">
+                  {fields.map((field) => {
+                    const editedValue = edits[record.id]?.[field.id];
+                    const currentValue = editedValue !== undefined ? editedValue : getProperty(record, field.id);
+                    return (
+                      <td
+                        key={field.id}
+                        className="px-2 py-1"
+                      >
+                        <CellInput
+                          field={field}
+                          value={currentValue}
+                          onChange={(v) => handleCellChange(record.id, field.id, v)}
+                          disabled={saving[record.id] ?? false}
+                        />
+                      </td>
+                    );
+                  })}
+                  <td className="px-1 py-1 text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={isPending}
+                      onClick={() => handleDeleteRecord(record.id)}
+                    >
+                      <Trash2 className="h-3 w-3 text-muted-foreground" />
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={isPending}
+        onClick={handleAddRecord}
+        className="w-full text-xs"
+      >
+        <Plus className="mr-1.5 h-3 w-3" /> 新增記錄
+      </Button>
+    </div>
+  );
+}
+````
+
 ## File: modules/knowledge-database/interfaces/queries/knowledge-database.queries.ts
 ````typescript
 /**
@@ -59522,6 +64523,277 @@ function BlockRow({ block, setBlockRef, onKeyDown, onChange }: BlockRowProps) {
       >
         {block.content}
       </div>
+    </div>
+  );
+}
+````
+
+## File: modules/knowledge/interfaces/components/PageDialog.tsx
+````typescript
+"use client";
+
+import { useState, useTransition } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import { createKnowledgePage } from "../_actions/knowledge.actions";
+
+interface PageDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  parentPageId?: string | null;
+  onSuccess?: (pageId?: string) => void;
+}
+
+export function PageDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  parentPageId,
+  onSuccess,
+}: PageDialogProps) {
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() {
+    setTitle("");
+    setError(null);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) reset();
+    onOpenChange(next);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) { setError("頁面標題為必填"); return; }
+    setError(null);
+    startTransition(async () => {
+      const result = await createKnowledgePage({
+        accountId,
+        workspaceId,
+        title: title.trim(),
+        parentPageId: parentPageId ?? null,
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        reset();
+        onOpenChange(false);
+        onSuccess?.(result.aggregateId);
+      } else {
+        setError(result.error.message ?? "建立失敗");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{parentPageId ? "新增子頁面" : "新增頁面"}</DialogTitle>
+        </DialogHeader>
+        <form id="page-form" className="space-y-3" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="page-title">標題 *</Label>
+            <Input
+              id="page-title"
+              placeholder="頁面標題"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={isPending}
+              autoFocus
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="page-form" disabled={isPending || !title.trim()}>
+            {isPending ? "建立中…" : "建立"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/knowledge/interfaces/components/PageTreeView.tsx
+````typescript
+"use client";
+
+import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import { PageDialog } from "./PageDialog";
+
+interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onPageClick,
+  onCreated,
+  depth,
+}: {
+  node: KnowledgePageTreeNode;
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+
+  return (
+    <li>
+      <div
+        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
+        style={{ paddingLeft: `${8 + depth * 16}px` }}
+      >
+        <button
+          type="button"
+          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {hasChildren ? (
+            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <FileText className="h-3.5 w-3.5" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-sm"
+          onClick={() => onPageClick?.(node.id)}
+        >
+          {node.title}
+        </button>
+
+        <button
+          type="button"
+          className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
+          onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
+          title="新增子頁面"
+        >
+          <FilePlus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {expanded && hasChildren && (
+        <ul className="list-none">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.id}
+              node={child}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              currentUserId={currentUserId}
+              onPageClick={onPageClick}
+              onCreated={onCreated}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+      )}
+
+      <PageDialog
+        open={addChildOpen}
+        onOpenChange={setAddChildOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        parentPageId={node.id}
+        onSuccess={() => onCreated?.()}
+      />
+    </li>
+  );
+}
+
+export function PageTreeView({
+  nodes,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onPageClick,
+  onCreated,
+}: PageTreeViewProps) {
+  const [addRootOpen, setAddRootOpen] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => setAddRootOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
+        </Button>
+      </div>
+
+      {nodes.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無頁面。點擊「新增頁面」開始建立。</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 bg-background py-1">
+          <ul className="list-none">
+            {nodes.map((node) => (
+              <TreeNode
+                key={node.id}
+                node={node}
+                accountId={accountId}
+                workspaceId={workspaceId}
+                currentUserId={currentUserId}
+                onPageClick={onPageClick}
+                onCreated={onCreated}
+                depth={0}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <PageDialog
+        open={addRootOpen}
+        onOpenChange={setAddRootOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        parentPageId={null}
+        onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
+      />
     </div>
   );
 }
@@ -63401,77 +68673,6 @@ export interface MaterializeFromContentDto {
 }
 ````
 
-## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file materialize-tasks-from-content.use-case.ts
- * @description Use case: Batch-create Tasks (and optionally Invoices) from a
- * `content.page_approved` event payload.
- *
- * Idempotency: callers must ensure the same `sourceReference.causationId` is
- * not processed twice.  This use case does NOT check for duplicates itself;
- * that responsibility belongs to the ContentToWorkflowMaterializer process
- * manager which wraps this use case.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import type { MaterializeFromContentDto } from "../dto/materialize-from-content.dto";
-
-export class MaterializeTasksFromContentUseCase {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  async execute(dto: MaterializeFromContentDto): Promise<CommandResult> {
-    if (!dto.workspaceId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
-    }
-    if (!dto.contentPageId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "contentPageId is required.");
-    }
-
-    const taskIds: string[] = [];
-    for (const item of dto.extractedTasks) {
-      if (!item.title.trim()) continue;
-      const task = await this.taskRepository.create({
-        workspaceId: dto.workspaceId,
-        title: item.title.trim(),
-        description: item.description ?? "",
-        dueDateISO: item.dueDate,
-        sourceReference: dto.sourceReference,
-      });
-      taskIds.push(task.id);
-    }
-
-    const invoiceIds: string[] = [];
-    for (const item of dto.extractedInvoices) {
-      if (item.amount <= 0) continue;
-      const invoice = await this.invoiceRepository.create({
-        workspaceId: dto.workspaceId,
-        sourceReference: dto.sourceReference,
-      });
-      // Add the extracted item to the invoice.
-      // taskId is empty here because the invoice was generated from AI-extracted data
-      // before any Tasks are created; the association is completed manually by the
-      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
-      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
-      await this.invoiceRepository.addItem({
-        invoiceId: invoice.id,
-        amount: item.amount,
-        taskId: "",
-      });
-      invoiceIds.push(invoice.id);
-    }
-
-    return commandSuccess(dto.contentPageId, Date.now());
-  }
-}
-````
-
 ## File: modules/workspace-flow/domain/entities/Invoice.ts
 ````typescript
 /**
@@ -63602,450 +68803,103 @@ export interface SourceReference {
 }
 ````
 
-## File: modules/workspace-flow/infrastructure/firebase/invoice.converter.ts
+## File: modules/workspace-flow/infrastructure/firebase/sourceReference.converter.ts
 ````typescript
 /**
  * @module workspace-flow/infrastructure/firebase
- * @file invoice.converter.ts
- * @description Firestore document-to-entity converter for Invoice.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
+ * @file sourceReference.converter.ts
+ * @description Firestore document-to-value-object converter for SourceReference.
+ * Shared by task.converter.ts and invoice.converter.ts.
  */
 
-import type { Invoice } from "../../domain/entities/Invoice";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toSourceReference } from "./sourceReference.converter";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
 
 /**
- * Converts a raw Firestore document data map into a typed Invoice entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
+ * Convert a raw Firestore field value to a typed SourceReference value object.
+ * Returns `undefined` if the value is absent or does not conform to the expected shape.
  */
-export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
-  const rawStatus = data.status as InvoiceStatus;
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : 0,
-    submittedAtISO: typeof data.submittedAtISO === "string" ? data.submittedAtISO : undefined,
-    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
-    paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
-    closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
-    sourceReference: toSourceReference(data.sourceReference),
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
+export function toSourceReference(raw: unknown): SourceReference | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as Record<string, unknown>;
+  if (r.type !== "KnowledgePage") return undefined;
+  if (
+    typeof r.id !== "string" ||
+    typeof r.causationId !== "string" ||
+    typeof r.correlationId !== "string"
+  ) {
+    return undefined;
+  }
+  return { type: "KnowledgePage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
 }
 ````
 
-## File: modules/workspace-flow/infrastructure/firebase/task.converter.ts
+## File: modules/workspace/api/index.ts
 ````typescript
 /**
- * @module workspace-flow/infrastructure/firebase
- * @file task.converter.ts
- * @description Firestore document-to-entity converter for Task.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
+ * workspace 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
  */
 
-import type { Task } from "../../domain/entities/Task";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toSourceReference } from "./sourceReference.converter";
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
 
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-/**
- * Converts a raw Firestore document data map into a typed Task entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toTask(id: string, data: Record<string, unknown>): Task {
-  const rawStatus = data.status as TaskStatus;
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    assigneeId: typeof data.assigneeId === "string" ? data.assigneeId : undefined,
-    dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
-    acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
-    archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
-    sourceReference: toSourceReference(data.sourceReference),
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-````
-
-## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
- */
-
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
-
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
-  return [
-    { key: "spaces", label: "Wiki", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
-    { key: "pages", label: "Pages", href: "/wiki/pages", enabled: true },
-    { key: "libraries", label: "Libraries", href: "/wiki/libraries", enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/wiki", enabled: false },
-    { key: "rag", label: "RAG", href: "/wiki", enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
-  ];
-}
-
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}?tab=Wiki`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
-}
-
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiAccountContentNode;
-    }),
-  );
-
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
-}
-````
-
-## File: modules/workspace/domain/entities/WikiContentTree.ts
-````typescript
-/**
- * Module: workspace
- * Layer: domain/entities
- * Purpose: Wiki content-tree navigation types — the sidebar/overview tree
- *          built from workspace membership. Lives in workspace because the tree
- *          is anchored to account→workspace hierarchy.
- */
-
-export type WikiAccountType = "personal" | "organization";
-
-export interface WikiWorkspaceRef {
-  id: string;
-  name: string;
-}
-
-export interface WikiContentItemNode {
-  key: "spaces" | "pages" | "libraries" | "documents" | "vector-index" | "rag" | "ai-tools";
-  label: string;
-  href: string;
-  enabled: boolean;
-}
-
-export interface WikiWorkspaceContentNode {
-  workspaceId: string;
-  workspaceName: string;
-  href: string;
-  contentBaseItems: WikiContentItemNode[];
-}
-
-export interface WikiAccountContentNode {
-  accountId: string;
-  accountName: string;
-  accountType: WikiAccountType;
-  isActive: boolean;
-  membersHref?: string;
-  teamsHref?: string;
-  workspaces: WikiWorkspaceContentNode[];
-}
-
-export interface WikiAccountSeed {
-  accountId: string;
-  accountName: string;
-  accountType: WikiAccountType;
-  isActive: boolean;
-}
-````
-
-## File: modules/workspace/domain/repositories/WikiWorkspaceRepository.ts
-````typescript
-/**
- * Module: workspace
- * Layer: domain/repositories
- * Purpose: Repository port for fetching workspace refs used by the
- *          Wiki content-tree use-case.
- */
-
-import type { WikiWorkspaceRef } from "../entities/WikiContentTree";
-
-export interface WikiWorkspaceRepository {
-  listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]>;
-}
-````
-
-## File: modules/workspace/index.ts
-````typescript
-/**
- * workspace module public API
- */
 export type {
   WorkspaceEntity,
+  WorkspaceGrant,
   WorkspaceLifecycleState,
   WorkspaceVisibility,
   WorkspacePersonnel,
-  CapabilitySpec,
-  Capability,
-  Address,
-  WorkspaceLocation,
-  WorkspaceGrant,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-} from "./domain/entities/Workspace";
-export type {
-  WorkspaceMemberView,
-  WorkspaceMemberPresence,
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-} from "./domain/entities/WorkspaceMember";
-export type { WorkspaceRepository } from "./domain/repositories/WorkspaceRepository";
-export type { WorkspaceQueryRepository } from "./domain/repositories/WorkspaceQueryRepository";
+} from "../domain/entities/Workspace";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
 export {
-  CreateWorkspaceUseCase,
-  CreateWorkspaceWithCapabilitiesUseCase,
-  UpdateWorkspaceSettingsUseCase,
-  DeleteWorkspaceUseCase,
-  MountCapabilitiesUseCase,
-  GrantTeamAccessUseCase,
-  GrantIndividualAccessUseCase,
-  CreateWorkspaceLocationUseCase,
-} from "./application/use-cases/workspace.use-cases";
-export { FetchWorkspaceMembersUseCase } from "./application/use-cases/workspace-member.use-cases";
-export { FirebaseWorkspaceRepository } from "./infrastructure/firebase/FirebaseWorkspaceRepository";
-export { FirebaseWorkspaceQueryRepository } from "./infrastructure/firebase/FirebaseWorkspaceQueryRepository";
-export {
-  createWorkspace,
-  createWorkspaceWithCapabilities,
-  updateWorkspaceSettings,
-  deleteWorkspace,
-  mountCapabilities,
-  authorizeWorkspaceTeam,
-  grantIndividualWorkspaceAccess,
-  createWorkspaceLocation,
-} from "./interfaces/_actions/workspace.actions";
-export { WorkspaceHubScreen } from "./interfaces/components/WorkspaceHubScreen";
-export { WorkspaceDetailScreen } from "./interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceMembersTab } from "./interfaces/components/WorkspaceMembersTab";
-export { WorkspaceWikiView } from "./interfaces/components/WorkspaceWikiView";
-export {
-  WORKSPACE_TAB_VALUES,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_GROUPS,
-  getWorkspaceTabMeta,
-  getWorkspaceTabStatus,
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "./interfaces/workspace-tabs";
-export type { WorkspaceTabDevStatus, WorkspaceTabGroup, WorkspaceTabValue } from "./interfaces/workspace-tabs";
-export { useWorkspaceHub } from "./interfaces/hooks/useWorkspaceHub";
-export {
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
   getWorkspacesForAccount,
   subscribeToWorkspacesForAccount,
-} from "./interfaces/queries/workspace.queries";
-export { getWorkspaceMembers } from "./interfaces/queries/workspace-member.queries";
-````
+} from "../interfaces/queries/workspace.queries";
 
-## File: modules/workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts
-````typescript
-import { FirebaseWorkspaceRepository } from "./FirebaseWorkspaceRepository";
+// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
 
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
-import type { WikiWorkspaceRef } from "../../domain/entities/WikiContentTree";
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
 
-const workspaceRepo = new FirebaseWorkspaceRepository();
+// ─── Wiki content-tree use-case ────────────────────────────────────────────
 
-export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository {
-  async listByAccountId(accountId: string): Promise<WikiWorkspaceRef[]> {
-    const workspaces = await workspaceRepo.findAllByAccountId(accountId);
-    return workspaces.map((workspace) => ({
-      id: workspace.id,
-      name: workspace.name,
-    }));
-  }
-}
-````
+import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
+import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
 
-## File: modules/workspace/interfaces/components/WorkspaceWikiTab.tsx
-````typescript
-"use client";
+const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
 
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
-
-interface WorkspaceWikiTabProps {
-  readonly workspace: WorkspaceEntity;
+export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
 }
 
-/**
- * Workspace tab entrypoint delegates rendering to workspace owned view.
- */
-export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
-  return <WorkspaceWikiView workspace={workspace} />;
-}
-````
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
 
-## File: modules/workspace/interfaces/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+export { createWorkspace } from "../interfaces/_actions/workspace.actions";
 
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+// ─── UI components (cross-module public) ─────────────────────────────────────
 
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Favorites",
-  "Recent",
-  "Engineering",
-  "Product",
-  "Design",
-  "Docs",
-  "SOP",
-  "Meeting Notes",
-  "Members",
-  "Projects",
-  "Notes",
-  "Documents",
-  "Assets",
-  "CRM",
-  "Roadmap",
-  "Daily",
-  "Tags",
-  "Files",
-  "Templates",
-  "Wiki",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "Trash",
-] as const;
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
 
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
 
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
+export {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
 
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
-  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
-  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
-  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
-  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
-  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
-  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
-  "Meeting Notes": {
-    label: "Meeting Notes",
-    prefId: "meeting-notes",
-    group: "spaces",
-    status: "🚧",
-  },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
-  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
-  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
-  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
-  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
-  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
-  Wiki: {
-    label: "Wiki",
-    prefId: "wiki",
-    group: "spaces",
-    status: "🏗️",
-  },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
-  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
-};
-
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview", "Recent", "Favorites"],
-  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
-  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
-  library: ["Files", "Tags", "Templates", "Members", "Trash"],
-  modules: ["Daily", "Schedule", "Audit", "Tasks"],
-};
-
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
-
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
-}
-
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
-}
-
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
-}
-
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
-}
-
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
-}
-
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
-}
+export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
 ````
 
 ## File: package.json
@@ -66857,2168 +71711,599 @@ npm run repomix:markdown
 Keep this directory focused on active customizations. Remove stale references, broken links, and unused compatibility notes when the structure changes.
 ````
 
-## File: app/(shell)/_components/app-breadcrumbs.tsx
+## File: app/(shell)/wiki/articles/page.tsx
 ````typescript
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-
-const SEGMENT_LABELS: Record<string, string> = {
-  "organization": "組織",
-  "workspace": "工作區",
-  "wiki": "Account Wiki",
-  "rag-query": "Ask / Cite",
-  "documents": "文件",
-  "libraries": "Libraries",
-  "pages": "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "Notebook",
-  "dev-tools": "開發工具",
-  "namespaces": "命名空間",
-  "members": "成員",
-  "teams": "團隊",
-  "permissions": "權限",
-  "workspaces": "工作區清單",
-  "schedule": "排程",
-  "daily": "每日",
-  "audit": "稽核",
-};
-
-function segmentLabel(segment: string) {
-  return SEGMENT_LABELS[segment] ?? segment;
-}
-
-export function AppBreadcrumbs() {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-
-  // Only render when there's more than one segment (i.e., not just root page).
-  if (segments.length <= 1) return null;
-
-  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
-    label: segmentLabel(seg),
-    href: "/" + segments.slice(0, idx + 1).join("/"),
-  }));
-
-  return (
-    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-      {crumbs.map((crumb, idx) => (
-        <span key={crumb.href} className="flex items-center gap-1">
-          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
-          {idx < crumbs.length - 1 ? (
-            <Link
-              href={crumb.href}
-              className="transition hover:text-foreground"
-            >
-              {crumb.label}
-            </Link>
-          ) : (
-            <span className="font-medium text-foreground">{crumb.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
-  );
-}
-````
-
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
 
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
+import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  function buildWikiWorkspaceHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki")) {
-      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
-      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-    }
-    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            if (item.href === "/wiki") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="Account Wiki: 切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Account Wiki: 切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onSelectWorkspace(null);
-                        router.push("/wiki");
-                      }}
-                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
-                    >
-                      Account Wiki 首頁
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWikiWorkspaceHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        {/* ── User avatar / sign-out ────────────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="開啟使用者選單"
-                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  <Avatar size="sm">
-                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                      {getInitial(user?.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
-              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="end" className="w-48">
-            <DropdownMenuLabel className="space-y-0.5">
-              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-              登出
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
-  );
-}
-````
-
-## File: app/(shell)/_components/dashboard-sidebar.tsx
-````typescript
-"use client";
-
-/**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-
-interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-// ── Section helpers ──────────────────────────────────────────────────────────
-
-type NavSection = "workspace" | "wiki" | "ai-chat" | "account" | "organization" | "other";
-
-function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/wiki")) return "wiki";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-// ── Section icon labels for the title bar ────────────────────────────────────
-
-const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki": { label: "Account Wiki", icon: <BookOpen className="size-3" /> },
-  "ai-chat": { label: "Notebook", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
 };
 
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export function DashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isWikiWorkspacesExpanded, setIsWikiWorkspacesExpanded] = useState(false);
-  const [wikiQuickCreateOpen, setWikiQuickCreateOpen] = useState(false);
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
-  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
-  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-  const searchParams = useSearchParams();
-
-  function toggleCollapsed() {
-    onToggleCollapsed();
-  }
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(() => {
-    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  const visibleAccountItems = useMemo(() => {
-    return ACCOUNT_NAV_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  // Whether to show recent workspaces section (controlled by personal prefs)
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  // Max workspaces to show (apply user preference)
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  // Track recently visited workspaces in localStorage
-  useEffect(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [activeAccount?.id, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [activeAccount?.id, pathname]);
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (typeof window === "undefined" || !pathname.startsWith("/wiki")) {
-      return;
-    }
-
-    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
-    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(searchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
-
-  const recentWorkspaceLinks = useMemo(() => {
-    return recentWorkspaceIds
-      .map((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/wiki")) {
-        const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(() => {
-    return Object.values(workspacesById)
-      .map((workspace) => ({
-        id: workspace.id,
-        name: workspace.name,
-        href: buildWorkspaceContextHref(workspace.id),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, buildWorkspaceContextHref]);
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
-    ? rawWorkspaceTab
-    : "Overview";
-
-  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
-    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-  }
-
-  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
-    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-  }
-
-  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
-    if (tab === "Wiki") {
-      const status = getWorkspaceTabStatus(tab);
-      return `${status} WorkSpace Wiki`;
-    }
-    const status = getWorkspaceTabStatus(tab);
-    return `${status} ${tWorkspaceTab(tab, fallback)}`;
-  }
-
-  function tWorkspaceGroup(groupKey: string, fallback: string) {
-    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
-  }
-
-  function getWorkspacePrefId(tabValue: string) {
-    if (isWorkspaceTabValue(tabValue)) {
-      return getWorkspaceTabPrefId(tabValue);
-    }
-    return tabValue.toLowerCase().replace(/\s+/g, "-");
-  }
-
-  function isWorkspaceItemEnabled(prefId: string) {
-    return navPrefs.pinnedWorkspace.includes(prefId);
-  }
-
-  function getWorkspaceItemOrder(prefId: string) {
-    const index = navPrefs.workspaceOrder.indexOf(prefId);
-    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-  }
-
-  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
-    return [...items].sort(
-      (left, right) =>
-        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
-        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
-    );
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSidebarLocale() {
-      const isZhHant =
-        typeof navigator !== "undefined" &&
-        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
-      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
-
-      try {
-        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as SidebarLocaleBundle;
-        if (!cancelled) {
-          setLocaleBundle(data);
-        }
-      } catch {
-        // Keep fallback labels when localization files are unavailable.
-      }
-    }
-
-    void loadSidebarLocale();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleWikiQuickCreate(kind: "page" | "database") {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-
-    setCreatingKind(kind);
-    try {
-      const db = getFirebaseFirestore();
-      const collectionName = kind === "page" ? "pages" : "databases";
-      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
-
-      const payload: Record<string, unknown> = {
-        title: baseTitle,
-        kind,
-        accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-
-      if (activeWorkspaceId) {
-        payload.spaceId = activeWorkspaceId;
-      }
-
-      if (kind === "database") {
-        payload.template = "task-governance";
-        payload.metadata = {
-          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
-          description: "任務依賴與技能門檻分類模板",
-        };
-      }
-
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, collectionName),
-        payload,
-      );
-
-      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
-      setWikiQuickCreateOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <>
-    <aside
-      aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
-      }`}
-    >
-      <>
-          {/* ── Sidebar title bar ──────────────────────────────────── */}
-          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-            {/* Section label */}
-            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-              {sectionMeta.icon}
-              {sectionMeta.label}
-            </span>
-            {/* Customize + collapse buttons grouped on the right */}
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                title="設定"
-                aria-label="設定"
-                onClick={() => {
-                  setCustomizeOpen(true);
-                }}
-                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="收起側欄"
-                title="收起側欄"
-                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-              >
-                <PanelLeftClose className="size-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Scrollable nav body ── section-specific ───────────── */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            {section === "account" && (
-              <>
-                {showAccountManagement && visibleAccountItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Account navigation">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      Account
-                    </p>
-                    {visibleAccountItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看 Account 選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "organization" && (
-              <>
-                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Organization management">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      組織管理
-                    </p>
-                    {visibleOrganizationManagementItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看管理選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "workspace" && (
-              <>
-                {workspacePathId ? (
-                  <nav className="space-y-3" aria-label="Workspace navigation">
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                    {isWorkspaceItemEnabled("workspace-modules") && (
-                      <div className="my-1.5 border-t border-border/40" />
-                    )}
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("workspace-modules") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceModulesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceModulesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
-                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceModulesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("spaces") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceSpacesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceSpacesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
-                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceSpacesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
-                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                    .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("databases") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceDatabasesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
-                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceDatabasesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                  </nav>
-                ) : (
-                  // ── Workspace hub: show recent workspaces ──────────────
-                  <>
-                    {showRecentWorkspaces && (
-                      <div className="space-y-0.5">
-                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                          最近工作區
-                        </p>
-                        {visibleRecentWorkspaceLinks.length === 0 ? (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                            尚無最近開啟的工作區。
-                          </p>
-                        ) : (
-                          visibleRecentWorkspaceLinks.map((ws) => (
-                            <Link
-                              key={ws.id}
-                              href={ws.href}
-                              onClick={() => {
-                                onSelectWorkspace(ws.id);
-                              }}
-                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                              }`}
-                              title={ws.name}
-                            >
-                              <span className="truncate">{ws.name}</span>
-                            </Link>
-                          ))
-                        )}
-                        {hasOverflow && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsExpanded((prev) => !prev);
-                            }}
-                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                          >
-                            {isExpanded ? "收起" : "顯示更多"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            {section === "wiki" && (
-              <nav className="space-y-0.5" aria-label="Account Wiki navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Account Wiki Bridge
-                </p>
-                {(
-                  [
-                    { href: "/wiki", label: "Workspace Bridge" },
-                    { href: "/wiki/block-editor", label: "區塊編輯器" },
-                    { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
-                    { href: "/wiki/rag-query", label: "Ask / Cite" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                  <Link
-                    href="/wiki/documents"
-                    aria-current={isActiveRoute("/wiki/documents") ? "page" : undefined}
-                    className={`flex-1 ${
-                      isActiveRoute("/wiki/documents")
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Documents
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setWikiQuickCreateOpen((prev) => !prev);
-                    }}
-                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
-                    aria-label="快速新增頁面或資料庫"
-                    title="快速新增"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-
-                  {wikiQuickCreateOpen ? (
-                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiQuickCreate("page")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiQuickCreate("database")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {(
-                  [
-                    { href: "/wiki/pages", label: "Pages" },
-                    { href: "/wiki/libraries", label: "Libraries" },
-                    { href: "/wiki/rag-reindex", label: "RAG Reindex" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="my-1.5 border-t border-border/40" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsWikiWorkspacesExpanded((prev) => !prev);
-                  }}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isWikiWorkspacesExpanded}
-                >
-                  <span>Workspaces</span>
-                  {isWikiWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                </button>
-
-                {isWikiWorkspacesExpanded && (
-                  <div className="space-y-0.5 pl-2">
-                    {!workspacesHydrated ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
-                    ) : allWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
-                    ) : (
-                      allWorkspaceLinks.map((workspace) => {
-                        const active = activeWorkspaceId === workspace.id;
-                        return (
-                          <Link
-                            key={workspace.id}
-                            href={workspace.href}
-                            onClick={() => {
-                              onSelectWorkspace(workspace.id);
-                            }}
-                            aria-current={active ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              active
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                            title={workspace.name}
-                          >
-                            <span className="truncate">{workspace.name}</span>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </nav>
-            )}
-
-            {section === "ai-chat" && (
-              <nav className="space-y-0.5" aria-label="Notebook navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Notebook / AI
-                </p>
-                {(
-                  [
-                    { href: "/ai-chat", label: "Notebook shell" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-          </div>
-        </>
-    </aside>
-
-    <CustomizeNavigationDialog
-      open={customizeOpen}
-      onOpenChange={setCustomizeOpen}
-      onPreferencesChange={setNavPrefs}
-    />
-    </>
-  );
-}
-````
-
-## File: app/(shell)/_components/global-search-dialog.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-
-const NAV_ITEMS = [
-  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
-  { href: "/wiki", label: "Account Wiki Bridge", group: "導覽" },
-  { href: "/ai-chat", label: "Notebook / AI", group: "導覽" },
-  { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
-  { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
-  { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
-  { href: "/wiki/rag-query", label: "Ask / Cite", group: "Wiki" },
-  { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
-] as const;
-
-const GROUP_ICONS: Record<string, React.ReactNode> = {
-  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Wiki": <FileText className="size-4 mr-2 opacity-60" />,
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
 };
 
-interface GlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
-  const router = useRouter();
-
-  function handleSelect(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
-
-  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
-
-  return (
-    <CommandDialog
-      title="全域搜尋"
-      description="搜尋頁面或功能"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <CommandInput placeholder="搜尋頁面或功能…" />
-      <CommandList>
-        <CommandEmpty>找不到結果。</CommandEmpty>
-        {groups.map((group) => (
-          <CommandGroup key={group} heading={group}>
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-              <CommandItem
-                key={item.href}
-                onSelect={() => handleSelect(item.href)}
-              >
-                {GROUP_ICONS[group]}
-                {item.label}
-                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useGlobalSearch() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  return { open, setOpen };
-}
-````
-
-## File: app/(shell)/layout.tsx
-````typescript
-"use client";
-
-/**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
- */
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
-
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/wiki": "Account Wiki Bridge",
-  "/wiki/rag-query": "Notebook / AI · Ask / Cite",
-  "/wiki/documents": "Knowledge · 文件來源",
-  "/ai-chat": "Notebook / AI",
-  "/dev-tools": "開發工具",
-};
-
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
-
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
-export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
-  }
-
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
-  useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
-      return;
-    }
-
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
-
-  async function handleLogout() {
-    setLogoutError(null);
-    try {
-      await logout();
-    } catch {
-      setLogoutError("登出失敗，請稍後再試。");
-    }
-  }
-
-  return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
-
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
-            )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
-
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
-          )}
-
-          <main className="flex-1 overflow-auto p-6">{children}</main>
-        </div>
-      </div>
-    </ShellGuard>
-  );
-}
-````
-
-## File: app/(shell)/organization/content/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-/**
- * Module: organization/content page
- * Purpose: redirect to the consolidated content hub at /wiki.
- * Content management is centralised in the Wiki section.
- */
-export default function OrganizationKnowledgePage() {
-  redirect("/wiki");
-}
-````
-
-## File: app/(shell)/wiki/block-editor/page.tsx
-````typescript
-"use client";
-
-import { BlockEditorView } from "@/modules/knowledge/api";
-
-export default function WikiBlockEditorPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
-        <p className="text-sm text-muted-foreground">
-          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
-        </p>
-      </header>
-
-      <BlockEditorView />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/libraries/page.tsx
-````typescript
-"use client";
-
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { LibrariesView, LibraryTableView } from "@/modules/source/api";
-
-export default function WikiLibrariesPage() {
+export default function WikiArticlesPage() {
   const router = useRouter();
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
 
   const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
+        getCategories(accountId, workspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      router.push(`/wiki/articles/${articleId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/wiki")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Account Wiki
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : articles.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無文章。點擊「新增文章」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {articles.map((article) => {
+            const status = STATUS_CONFIG[article.status];
+            const veri = VERIFICATION_CONFIG[article.verificationState];
+            const VeriIcon = veri.icon;
+            return (
+              <Card
+                key={article.id}
+                className="cursor-pointer hover:bg-muted/10 transition-colors"
+                onClick={() => router.push(`/wiki/articles/${article.id}`)}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                    <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <VeriIcon className="h-3 w-3" />
+                    <span>{veri.label}</span>
+                  </div>
+                  {article.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {article.tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70">
+                    v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+export default function WikiArticlesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      setLoading(false);
+      return;
+    }
+
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const data = await getArticles({ accountId, workspaceId });
+        if (!disposed) setArticles(data);
+      } catch {
+        // error loading articles
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { disposed = true; };
+  }, [accountId, workspaceId]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/wiki")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Account Wiki
+        </button>
+        <Button size="sm" className="ml-auto" disabled>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : articles.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無文章。點擊「新增文章」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {articles.map((article) => {
+            const status = STATUS_CONFIG[article.status];
+            const veri = VERIFICATION_CONFIG[article.verificationState];
+            const VeriIcon = veri.icon;
+            return (
+              <Card key={article.id} className="hover:bg-muted/10 transition-colors">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                    <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <VeriIcon className="h-3 w-3" />
+                    <span>{veri.label}</span>
+                  </div>
+                  {article.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {article.tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground/70">
+                    v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/databases/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getDatabases, DatabaseDialog } from "@/modules/knowledge-database/api";
+import type { Database } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+export default function WikiDatabasesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const data = await getDatabases(accountId, workspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      router.push(`/wiki/databases/${databaseId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/wiki")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Account Wiki
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
+
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => router.push(`/wiki/databases/${db.id}`)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+export default function WikiDatabasesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!accountId || !workspaceId) {
+      setLoading(false);
+      return;
+    }
+
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const data = await getDatabases(accountId, workspaceId);
+        if (!disposed) setDatabases(data);
+      } catch {
+        // error loading databases
+      } finally {
+        if (!disposed) setLoading(false);
+      }
+    }
+
+    load();
+    return () => { disposed = true; };
+  }, [accountId, workspaceId]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/wiki")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Account Wiki
+        </button>
+        <Button size="sm" className="ml-auto" disabled>
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card key={db.id} className="hover:bg-muted/10 transition-colors">
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/pages-dnd/page.tsx
+````typescript
+export default function WikiPagesDnDPage() {
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面拖曳</h1>
+        <p className="text-sm text-muted-foreground">此功能已移除，由 Knowledge Domain 的 KnowledgePage 統一管理。</p>
+      </header>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { RagQueryView } from "@/modules/search";
+
+export default function WikiRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : appState.activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
-      <button
-        type="button"
-        onClick={() => router.push("/wiki")}
-        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        返回 Account Wiki
-      </button>
-
-      {accountId ? (
-          <>
-            <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-            <LibrariesView accountId={accountId} workspaceId={workspaceId} />
-          </>
-        ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
+      <RagQueryView workspaceId={workspaceId} />
     </div>
   );
 }
@@ -70196,1384 +73481,933 @@ modules/*
 5. 若文件只是概念說明，不額外發明上位概念架構文件未定義的 canonical schema、固定規劃數量或模組對照表。
 ````
 
-## File: docs/guides/how-to/ui-ux/component-patterns.md
+## File: docs/guides/explanation/architecture-domain.md
 ````markdown
-# UI 元件模式（Component Patterns）
+# 領域概念模型：AI 知識平台架構實現指南
 
-> **參考文件類型**：本文件定義 Xuanwu App 中 UI 元件的使用規範、組合模式與常見陷阱。
-> 元件實作以 **shadcn/ui** 為基礎，Lucide React 提供圖示。
-
----
-
-## 1. 元件架構原則
-
-### 1.1 元件分類
-
-| 類型 | 分層 | 說明 |
-|---|---|---|
-| **基礎元件（Primitive）** | UI 元件庫層 | shadcn/ui 提供；不修改來源 |
-| **功能元件（Feature）** | 模組介面層 | 業務功能元件；含狀態與資料 |
-| **Shell 元件（Layout）** | 應用外殼層 | 版型元件；App Rail、Sidebar 等 |
-| **頁面元件（Page）** | 頁面協調層 | 薄協調層；只組裝元件 |
-
-### 1.2 Server vs Client 元件選擇
-
-| 情況 | 選擇 |
-|---|---|
-| 靜態渲染、無互動 | `Server Component`（預設） |
-| 需要 `useState`、`useEffect`、事件處理 | `'use client'` |
-| 需要 Firestore `onSnapshot` 即時訂閱 | `'use client'` |
-| 需要 `useRouter`、`useSearchParams` | `'use client'` |
+基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
 
 ---
 
-## 2. 常用元件模式
+## 一、四層架構與有界上下文對應
 
-### 2.1 卡片容器模式（Card Pattern）
+architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
 
-用於包裝獨立功能區塊（上傳區、查詢區、結果區）。
-
-```tsx
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-<Card>
-  <CardHeader>
-    <CardTitle>Upload File</CardTitle>
-  </CardHeader>
-  <CardContent>
-    {/* 內容 */}
-  </CardContent>
-</Card>
+```text
+┌─────────────────────────────────────────────────┐
+│              AI Layer（AI 層）                    │  ← modules/search, modules/notebook, modules/knowledge
+├─────────────────────────────────────────────────┤
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/wiki
+├─────────────────────────────────────────────────┤
+│         Content / UI Layer（內容層）               │  ← modules/knowledge, modules/source
+├─────────────────────────────────────────────────┤
+│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
+│                                                  │     modules/account, modules/identity, modules/shared
+└─────────────────────────────────────────────────┘
 ```
 
-**使用時機**：
-- 功能明確邊界的操作區塊
-- 統計摘要卡片
-- 設定區塊
+| 架構層 | 對應模組 | 核心職責 |
+| --- | --- | --- |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
+| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
+| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
+| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
 
-### 2.2 操作按鈕模式（Action Button Pattern）
+**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
 
-主要操作（Primary Action）按鈕的標準 loading 狀態處理：
+```text
+依賴方向（箭頭表示「依賴」）：
 
-```tsx
-import { Button } from "@ui-shadcn/ui/button";
-import { Loader2 } from "lucide-react";
-
-<Button
-  onClick={handleAction}
-  disabled={isLoading || !canSubmit}
->
-  {isLoading ? (
-    <>
-      <Loader2 className="mr-2 size-4 animate-spin" />
-      上傳中...
-    </>
-  ) : (
-    "上傳並啟動解析 ↑"
-  )}
-</Button>
+AI Layer
+  ↓ 依賴
+Knowledge Graph Layer
+  ↓ 依賴
+Content / UI Layer
+  ↓ 依賴
+Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
 ```
 
-**規則**：
-- loading 時必須同時 `disabled` 防止重複提交。
-- loading 文字以進行式動詞結尾（「上傳中...」而非「上傳」）。
-- disabled（非 loading）時加 Tooltip 說明原因。
+---
 
-### 2.3 骨架屏模式（Skeleton Pattern）
+## 二、Content / UI Layer 的領域概念
 
-資料載入時的占位元件：
+### 2.1 Page（頁面聚合根）
 
-```tsx
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
 
-// 列表骨架屏
-{isLoading ? (
-  <div className="space-y-2">
-    {Array.from({ length: 5 }).map((_, i) => (
-      <Skeleton key={i} className="h-12 w-full" />
-    ))}
-  </div>
-) : (
-  <DataTable data={data} />
-)}
+**實現位置：** `modules/knowledge/domain/entities/content-page.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 唯一識別碼（聚合根 ID） |
+| `title` | `string` | 頁面標題（Graph Node 標籤） |
+| `slug` | `string` | URL 友好路徑（重定向的基礎） |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
+| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
+| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
+| `organizationId` | `string` | 所屬組織（多租戶） |
+
+**值物件：**
+- `PageStatus`：`"draft" | "published" | "archived"`
+- `PageSlug`：確保唯一且 URL-safe 的值物件
+
+**不變式（Invariants）：**
+- 一個 Page 必須屬於一個 Workspace。
+- `slug` 在同一 Workspace 中必須唯一。
+- 已 `archived` 的頁面不能再接受 Block 更新。
+
+### 2.2 Block（區塊聚合根）
+
+Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
+
+**實現位置：** `modules/knowledge/domain/entities/content-block.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Block 唯一識別碼 |
+| `pageId` | `string` | 所屬頁面（外鍵） |
+| `type` | `BlockType` | Block 類型（見下方） |
+| `content` | `BlockContent` | 具體內容（依 type 變化） |
+| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
+| `order` | `number` | 在頁面中的排列順序 |
+
+**BlockType 值物件（對應 Notion Block 類型）：**
+
+```typescript
+type BlockType =
+  | "text"
+  | "heading_1" | "heading_2" | "heading_3"
+  | "toggle"
+  | "callout"
+  | "code"
+  | "quote"
+  | "divider"
+  | "table"
+  | "image" | "video" | "file"
+  | "embed"
+  | "synced_block"
+  | "column_layout"
+  | "bulleted_list" | "numbered_list"
+  | "to_do"
+  | "page_link";
 ```
 
-### 2.4 空狀態模式（Empty State Pattern）
+**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
 
-```tsx
-{data.length === 0 && (
-  <div className="flex flex-col items-center gap-4 py-16 text-center">
-    <FileX className="size-12 text-muted-foreground" />
-    <div>
-      <p className="font-semibold">目前還沒有文件</p>
-      <p className="text-sm text-muted-foreground">
-        試著上傳第一份檔案。
-      </p>
-    </div>
-    <Button variant="outline" onClick={scrollToUpload}>
-      前往上傳
-    </Button>
-  </div>
-)}
+### 2.3 ContentVersion（版本快照）
+
+對應 Wiki 的 Edit History / Diff / Rollback 能力。
+
+**實現位置：** `modules/knowledge/domain/entities/content-version.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 版本 ID |
+| `pageId` | `string` | 所屬頁面 |
+| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
+| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
+| `authorId` | `string` | 作者 ID |
+| `createdAt` | `Timestamp` | 版本時間戳 |
+| `isMinorEdit` | `boolean` | 是否為小修改標記 |
+
+---
+
+## 三、Knowledge Graph Layer 的領域概念
+
+### 3.1 GraphNode（知識圖節點）
+
+對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
+
+**實現位置：** `modules/wiki/domain/entities/graph-node.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
+| `label` | `string` | 顯示標籤 |
+| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
+| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
+
+**GraphNodeStatus 狀態機：**
+
+```text
+draft ──────────→ active ──────────→ archived
+  ↑                  │
+  └──────────────────┘ (reactivation)
 ```
 
-### 2.5 Toast 通知模式
+**領域事件：**
+- `graph-node.activated`：節點從 draft 轉為 active 時觸發
+- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
 
-```tsx
-import { toast } from "sonner";
+### 3.2 GraphEdge / Link（知識圖邊）
 
-// 成功
-toast.success("已觸發重整，稍後觀察 rag status 更新");
+對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
 
-// 失敗（含原因）
-toast.error(`上傳失敗：${error.message}`);
+**實現位置：** `modules/wiki/domain/entities/link.ts`
 
-// 背景任務提示
-toast.info("正在處理中，請稍候…");
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邊唯一 ID |
+| `fromNodeId` | `string` | 來源節點（連結發起方） |
+| `toNodeId` | `string` | 目標節點（連結目標） |
+| `type` | `EdgeType` | 語意關係類型（見下方） |
+| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
+
+**EdgeType 值物件（對應 Schema + Ontology Layer）：**
+
+```typescript
+type EdgeType =
+  | "IS_A"        // 繼承關係（A 是 B 的一種）
+  | "PART_OF"     // 組成關係（A 是 B 的一部分）
+  | "RELATED_TO"  // 相關關係（通用）
+  | "DEPENDS_ON"  // 依賴關係
+  | "CAUSES"      // 因果關係
+  | "CONTRADICTS" // 矛盾關係
+  | "REDIRECT"    // 重定向（別名統一）
+  | "CATEGORY";   // 分類從屬
 ```
 
-**注意**：`<Toaster />` 已由全域 Provider 掛載，無需重複掛載。
+**不變式：**
+- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
+- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
 
-### 2.6 Dropdown 選單模式
+**Backlink 的領域含義：**  
+Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
 
-```tsx
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+### 3.3 WikiPage（Wiki 頁面整合）
 
-<DropdownMenu>
-  <DropdownMenuTrigger asChild>
-    <Button variant="ghost" size="sm" aria-label="更多操作">
-      <MoreHorizontal className="size-4" />
-    </Button>
-  </DropdownMenuTrigger>
-  <DropdownMenuContent align="end">
-    <DropdownMenuItem onClick={handleEdit}>編輯</DropdownMenuItem>
-    <DropdownMenuItem
-      className="text-destructive"
-      onClick={handleDelete}
-    >
-      刪除
-    </DropdownMenuItem>
-  </DropdownMenuContent>
-</DropdownMenu>
+輕量化的 Wiki 風格頁面實體，用於 wiki 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
+
+> **模組遷移說明：** `modules/wiki` 獨立模組已移除。WikiPage 概念已遷移至 `modules/knowledge`（頁面層）；WikiLibrary 概念遷移至 `modules/source`（結構化資料層）；WikiContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/search`。
+
+**實現位置：** `modules/knowledge/domain/entities/wiki-page.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 頁面唯一識別碼 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL 友好路徑 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `order` | `number` | 在內容樹中的排列順序 |
+| `status` | `WikiPageStatus` | 頁面狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+### 3.4 WikiLibrary（Wiki 知識庫聚合根）
+
+WikiLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
+
+**實現位置：** `modules/source/domain/entities/wiki-library.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Library 唯一 ID（聚合根） |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `name` | `string` | Library 名稱（顯示於側邊欄） |
+| `slug` | `string` | URL 友好路徑 |
+| `status` | `WikiLibraryStatus` | 狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+**相關實體：**
+- `WikiLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
+- `WikiLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
+
+**與其他概念的關係：**
+- 一個 Workspace 可包含多個 WikiLibrary。
+- WikiContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
+
+### 3.5 Slug 工具（原 Namespace 模組）
+
+> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
+
+Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
+
+**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
+
+| 函式 | 說明 |
+| --- | --- |
+| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
+| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
+
+## 四、AI Layer 的領域概念
+
+### 4.1 IngestionDocument（攝入文件聚合根）
+
+文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 文件唯一 ID |
+| `organizationId` | `string` | 所屬組織（多租戶隔離） |
+| `workspaceId` | `string` | 所屬工作區 |
+| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
+| `title` | `string` | 文件標題 |
+| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
+| `status` | `IngestionStatus` | 攝入狀態（見下方） |
+
+**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
+
+```text
+                        ┌─────────────────────────────────────┐
+                        ↓                                     │
+uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
+    │          │          │           │                         │
+    └──────────┴──────────┴───────────┴─────────────────────────┘
+                                  failed（任一階段可轉入）
 ```
 
-### 2.7 狀態徽章模式（Status Badge Pattern）
+| 狀態 | 說明 |
+| --- | --- |
+| `uploaded` | 檔案已上傳，等待處理 |
+| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
+| `chunking` | 正在分塊（Chunk 階段：語意分段） |
+| `embedding` | 正在向量化（Embedding 階段） |
+| `indexed` | 已完成索引，可供查詢 |
+| `stale` | 原始文件已更新，需重新索引 |
+| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
+| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
 
-```tsx
-import { Badge } from "@ui-shadcn/ui/badge";
+---
 
-function StatusBadge({ status }: { status: "ready" | "processing" | "error" | "pending" }) {
-  const map = {
-    ready:      { label: "✓ ready",       variant: "success" },
-    processing: { label: "⏳ processing",  variant: "secondary" },
-    error:      { label: "✗ error",        variant: "destructive" },
-    pending:    { label: "— pending",      variant: "outline" },
-  };
-  const { label, variant } = map[status];
-  return <Badge variant={variant as never}>{label}</Badge>;
+### 4.2 IngestionJob（攝入作業）
+
+追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 作業唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `stage` | `PipelineStage` | 當前執行階段 |
+| `startedAt` | `Timestamp` | 開始時間 |
+| `completedAt` | `Timestamp \| null` | 完成時間 |
+| `error` | `string \| null` | 錯誤訊息（若 failed） |
+
+**PipelineStage 值物件：**
+
+```typescript
+type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
+```
+
+### 4.3 IngestionChunk（語意分塊）
+
+代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
+
+**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Chunk 唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `content` | `string` | Chunk 文字內容 |
+| `chunkIndex` | `number` | 在文件中的順序編號 |
+| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
+| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
+| `vector` | `number[]` | 向量表示（Embedding 結果） |
+| `tokenCount` | `number` | Token 數量（分塊品質指標） |
+
+**不變式：**
+- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
+- `content` 長度不得超過所選 Embedding Model 的 token 上限。
+
+### 4.4 RagQuery（RAG 查詢聚合根）
+
+代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
+
+**實現位置：** `modules/search/domain/entities/RagQuery.ts`
+
+**核心介面：**
+
+```typescript
+interface RagQuery {
+  id: string;
+  workspaceId: string;
+  input: string;               // 用戶原始輸入
+  intent?: QueryIntent;        // 分類後的查詢意圖
+  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
+  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
 }
 ```
 
-**規則**：狀態徽章必須同時包含圖示與文字（不可只用顏色）。
+**QueryIntent 值物件（對應 Query Understanding Layer）：**
 
-### 2.8 Tooltip 模式
-
-```tsx
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-<TooltipProvider>
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <Button disabled aria-disabled>
-        手動重整
-      </Button>
-    </TooltipTrigger>
-    <TooltipContent>文件尚未完成解析</TooltipContent>
-  </Tooltip>
-</TooltipProvider>
+```typescript
+type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
 ```
 
----
+**RagRetrievedChunk 值物件（檢索結果項目）：**
 
-## 3. 表單元件模式
-
-### 3.1 基本輸入框
-
-```tsx
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-<div className="space-y-2">
-  <Label htmlFor="title">標題</Label>
-  <Input
-    id="title"
-    value={title}
-    onChange={(e) => setTitle(e.target.value)}
-    placeholder="請輸入標題..."
-    aria-invalid={!!error}
-  />
-  {error && (
-    <p className="text-sm text-destructive" role="alert">
-      {error}
-    </p>
-  )}
-</div>
-```
-
-### 3.2 拖曳上傳區（Drop Zone）
-
-Drop Zone 的可近用性規格：
-
-```tsx
-<div
-  role="button"
-  tabIndex={0}
-  aria-label="點擊選擇檔案，或拖曳檔案至此上傳"
-  className={cn(
-    "rounded-lg border-2 border-dashed p-8 text-center transition-colors",
-    isDragOver && "border-primary bg-primary/5",
-    "focus:outline-none focus:ring-2 focus:ring-ring"
-  )}
-  onDragOver={handleDragOver}
-  onDragLeave={handleDragLeave}
-  onDrop={handleDrop}
-  onClick={handleClick}
-  onKeyDown={(e) => {
-    if (e.key === "Enter" || e.key === " ") handleClick();
-  }}
->
-  {isDragOver ? "放開以上傳" : "點擊或拖曳上傳"}
-</div>
-```
-
----
-
-## 4. 資料表格模式（Data Table Pattern）
-
-使用 TanStack Table（`@lib-tanstack`）實作資料表格：
-
-```tsx
-// 簡易表格（列表較短時）
-<Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>檔名</TableHead>
-      <TableHead>狀態</TableHead>
-      <TableHead>操作</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {documents.map((doc) => (
-      <TableRow key={doc.id}>
-        <TableCell>{doc.filename}</TableCell>
-        <TableCell><StatusBadge status={doc.status} /></TableCell>
-        <TableCell>
-          <ActionButton doc={doc} />
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-```
-
-**選用 TanStack Table 時機**：
-- 需要排序功能
-- 需要列選取（多選刪除）
-- 需要虛擬化（列數 > 100）
-
----
-
-## 5. 頁面組裝模式（Page Composition Pattern）
-
-`page.tsx` 應保持薄協調，只組裝元件：
-
-```tsx
-// ✅ 正確：薄協調層
-export default async function WikiDocumentsPage() {
-  return <WikiDocumentsView />;
-}
-
-// ✅ 正確：有少量 Server-side data fetch
-export default async function WorkspacePage({ params }: { params: { workspaceId: string } }) {
-  const workspace = await getWorkspaceById(params.workspaceId);
-  if (!workspace) notFound();
-  return <WorkspaceOverview workspace={workspace} />;
-}
-
-// ❌ 錯誤：page 內有業務邏輯
-export default async function DocumentsPage() {
-  const db = getFirestore();
-  const docs = await db.collection("documents").get(); // 直接在 page 呼叫 Firebase
-  return <div>{/* ... */}</div>;
+```typescript
+interface RagRetrievedChunk {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;           // 相關性分數（Reranker 輸出）
+  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
 }
 ```
 
----
+**RagCitation 值物件（引用系統，對應 Source Grounding）：**
 
-## 6. 常見反模式（Anti-patterns）
-
-| 反模式 | 問題 | 正確做法 |
-|---|---|---|
-| 直接在 page 使用 Firebase SDK | 違反 MDDD 分層 | 透過 use-case 或 Server Action |
-| 在元件內直接 `new FirebaseXxxRepository()` | 難以測試 | 由 use-case 透過 constructor injection |
-| 只用顏色區分狀態 | 色盲使用者無法識別 | 同時包含圖示與文字 |
-| Toast 成功但無失敗處理 | 靜默失敗 | try/catch 包覆，失敗也顯示 toast |
-| Disabled 按鈕無 Tooltip | 使用者不知為何不可用 | 加 `Tooltip` 說明原因 |
-| 空狀態顯示空白頁面 | 使用者困惑 | 實作 Empty State 元件 |
-| `'use client'` 加在 layout 或不必要的元件 | 阻止 Server Component 優化 | 只在必要的最小範圍加 `'use client'` |
-
----
-
-## 7. 元件命名規範
-
-| 元件類型 | 命名格式 | 範例 |
-|---|---|---|
-| Feature 元件 | `{Module}{Feature}View` | `WikiDocumentsView` |
-| 子元件（列表項） | `{Feature}Row` / `{Feature}Card` | `DocumentRow` |
-| 表單元件 | `{Action}{Resource}Form` | `UploadDocumentForm` |
-| Dialog 元件 | `{Action}{Resource}Dialog` | `CreateWorkspaceDialog` |
-| 頁面 Shell 元件 | `{Module}Shell` | `WikiShell` |
-
----
-
-## 8. 匯入規則
-
-```tsx
-// ✅ 正確
-import { Button } from "@ui-shadcn/ui/button";
-import { Card } from "@ui-shadcn/ui/card";
-import { cn } from "@shared-utils";
-import { Plus, Loader2 } from "lucide-react";
-
-// ❌ 錯誤：使用 legacy 路徑
-import { Button } from "@/ui/shadcn/ui/button";
-import { cn } from "@/shared/utils";
-```
-````
-
-## File: docs/guides/how-to/ui-ux/information-architecture.md
-````markdown
-# 資訊架構（Information Architecture）
-
-> **參考文件類型**：本文件定義 Xuanwu App 的全站資訊架構、導覽層級、路由地圖與頁面組織原則。
-> 實際路由以目前應用程式路由實作為準；本文件作為閱讀地圖與設計指引。
-
----
-
-## 1. 全站資訊架構圖
-
-```
-Xuanwu App
-├── (public)                          ← 未登入公開區域
-│   ├── /login                        ← 登入頁
-│   └── /register（planned）          ← 註冊頁
-│
-└── (shell)                           ← 已登入 Shell（三欄版型）
-    ├── /workspace                    ← 工作區中心
-    │   └── /workspace/[workspaceId]  ← 單一工作區
-    │
-    ├── /wiki                    ← 知識庫（Wiki）
-    │   ├── /wiki（知識總覽）
-    │   ├── /wiki/documents      ← 主操作頁
-    │   ├── /wiki/rag-query      ← AI 問答
-    │   ├── /wiki/rag-reindex    ← RAG 重整
-    │   ├── /wiki/pages          ← 頁面管理
-    │   └── /wiki/libraries      ← 資料庫管理
-    │
-    ├── /ai-chat                      ← AI 對話介面
-    │
-    ├── /organization                 ← 組織管理
-    │   ├── /organization/members     ← 成員管理
-    │   ├── /organization/teams       ← 團隊管理
-    │   ├── /organization/permissions ← 權限管理
-    │   ├── /organization/workspaces  ← 工作區管理
-    │   ├── /organization/schedule    ← 排程管理
-    │   ├── /organization/daily       ← 每日摘要
-    │   └── /organization/audit       ← 稽核記錄
-    │
-    ├── /dashboard                    ← 個人儀表板
-    │
-    └── /settings                     ← 設定
+```typescript
+interface RagCitation {
+  documentId: string;
+  documentTitle: string;
+  chunkId: string;
+  sectionPath: string;
+  pageNumber?: number;
+  confidenceScore: number;     // 引用可信度
+}
 ```
 
----
+**RagRetrievalSummary 值物件（完整回答結果）：**
 
-## 2. Shell 版型層級
-
-### 2.1 三欄結構
-
-```
-+--App Rail--+--Secondary Nav (Dashboard Sidebar)--+--Main Content--+
-|   48px     |           240px（可收合）              |   flex-1       |
-|            |                                       |                |
-| 圖示導覽   |  依所在區域顯示次要導覽                |  page.tsx      |
-|            |                                       |  協調層        |
-+------------+---------------------------------------+----------------+
+```typescript
+interface RagRetrievalSummary {
+  answer: string;              // LLM 生成的回答
+  citations: RagCitation[];    // 引用來源列表
+  faithfulnessScore?: number;  // Faithfulness 驗證分數
+  isGrounded: boolean;         // 是否通過 Grounding 驗證
+}
 ```
 
-### 2.2 App Rail（最左欄）
+### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
 
-App Rail 提供**跨功能區域**的頂層導覽，圖示帶 Tooltip。
+對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
 
-| 圖示 | 路由 | 標籤 |
-|---|---|---|
-| `Building2` | `/workspace` | 工作區中心 |
-| `BookOpen` | `/wiki` | Account Wiki |
-| `Bot` | `/ai-chat` | AI 對話 |
-| `Users` | `/organization` | 組織管理 |
-| `FlaskConical` | `/dev-tools`（開發環境） | 開發工具 |
-| `Settings` | `/settings` | 設定 |
-| `Plus` | — | 快速建立工作區 / 組織 |
+**實現位置：**
+- `modules/notebook/domain/entities/thread.ts`
+- `modules/notebook/domain/entities/message.ts`
 
-### 2.3 Dashboard Sidebar（次要側邊欄）
+**AgentThread 核心屬性：**
 
-次要側邊欄根據**目前所在的功能區域**動態顯示對應的子導覽。
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 對話 Thread ID |
+| `workspaceId` | `string` | 所屬工作區 |
+| `userId` | `string` | 發起用戶 |
+| `createdAt` | `Timestamp` | 建立時間 |
+| `updatedAt` | `Timestamp` | 最後更新時間 |
 
-**工作區（/workspace/[id]）子導覽**：
+**AgentMessage 核心屬性：**
 
-| 群組 | 項目 |
-|---|---|
-| Primary | Overview、Members |
-| Spaces | Spaces 列表 |
-| Databases | Databases 列表 |
-| Library | Files、Documents |
-| Modules | Issues、Tasks、Schedule、Daily |
-
-**Wiki（/wiki）子導覽**：
-
-| 項目 | 路由 | 狀態 |
-|---|---|---|
-| 知識總覽 | `/wiki` | ✅ 現有 |
-| RAG Query | `/wiki/rag-query` | ✅ 現有 |
-| RAG Reindex | `/wiki/rag-reindex` | ✅ 現有 |
-| Documents [+] | `/wiki/documents` | ✅ 現有 |
-| Pages | `/wiki/pages` | ✅ 現有 |
-| Libraries | `/wiki/libraries` | ✅ 現有 |
-| Workspaces | — | ✅ 現有（可摺疊） |
-
-**組織管理（/organization）子導覽**：
-
-| 項目 | 路由 | 說明 |
-|---|---|---|
-| 成員 | `/organization/members` | 組織成員管理 |
-| 團隊 | `/organization/teams` | 群組管理 |
-| 權限 | `/organization/permissions` | RBAC 角色與權限 |
-| 工作區 | `/organization/workspaces` | 組織下工作區管理 |
-| 排程 | `/organization/schedule` | 排程管理 |
-| 每日 | `/organization/daily` | 每日摘要 |
-| 稽核 | `/organization/audit` | 操作稽核記錄 |
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 訊息唯一 ID |
+| `threadId` | `string` | 所屬 Thread |
+| `role` | `"user" \| "assistant"` | 訊息角色 |
+| `content` | `string` | 訊息內容 |
+| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
+| `createdAt` | `Timestamp` | 建立時間 |
 
 ---
 
-## 3. 路由設計原則
+## 五、Platform Foundation Layer 的領域概念
 
-### 3.1 路由命名規則
+Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
 
-| 類型 | 格式 | 範例 |
-|---|---|---|
-| 資源列表 | `/resource` | `/wiki/documents` |
-| 資源詳情 | `/resource/[id]` | `/workspace/[workspaceId]` |
-| 功能子頁 | `/context/function` | `/wiki/rag-query` |
-| 設定頁 | `/resource/settings` | `/workspace/[id]/settings` |
+### 5.1 Identity（身份識別）
 
-### 3.2 路由群組（Route Groups）
+Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
 
-Next.js App Router 使用路由群組 `(name)` 來共用 layout 而不影響 URL：
+**實現位置：** `modules/identity/domain/entities/Identity.ts`
 
-| 群組 | 路徑 | 共用 layout |
-|---|---|---|
-| `(public)` | — | 未登入頁面 layout（無 Shell） |
-| `(shell)` | — | 已登入 Shell layout（三欄版型 + Auth guard） |
+**核心屬性：**
 
-### 3.3 URL 參數規範
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
+| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
+| `displayName` | `string \| null` | 顯示名稱 |
+| `photoURL` | `string \| null` | 大頭照 URL |
+| `isAnonymous` | `boolean` | 是否為匿名會話 |
+| `emailVerified` | `boolean` | 信箱是否已驗證 |
 
-| 參數 | 說明 | 範例 |
-|---|---|---|
-| `workspaceId` | workspace 篩選視角 | `?workspaceId=ws_123` |
-| `tab` | 功能頁籤切換 | `?tab=overview` |
-| `q` | 搜尋關鍵字 | `?q=keyword` |
+**值物件：**
+- `SignInCredentials`：`{ email: string; password: string }`
+- `RegistrationInput`：`{ email: string; password: string; name: string }`
+
+**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
+
+#### TokenRefreshSignal（Custom Claims 刷新訊號）
+
+當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
+
+```text
+Party 1（account / organization 模組）
+    → 角色或政策變更
+    → 呼叫 identityApi.emitTokenRefreshSignal()
+
+Party 2（identity 模組 TokenRefreshRepository）
+    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
+
+Party 3（前端 useTokenRefreshListener hook）
+    → 監聽 Firestore 該文件
+    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
+```
+
+**TokenRefreshSignal 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `accountId` | `string` | 觸發刷新的帳戶 ID |
+| `reason` | `TokenRefreshReason` | 觸發原因 |
+| `issuedAt` | `string` | ISO-8601 時間戳 |
+| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
+
+**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
 
 ---
 
-## 4. 資料範圍與 Scope 設計
+### 5.2 Account（帳戶聚合根）
 
-Xuanwu App 的資料圍繞三層結構：
+Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
 
+**實現位置：** `modules/account/domain/entities/Account.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
+| `name` | `string` | 帳戶顯示名稱 |
+| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
+| `email` | `string \| undefined` | 聯絡信箱 |
+| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
+| `bio` | `string \| undefined` | 個人簡介或組織描述 |
+| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
+| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
+| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
+| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
+| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
+| `createdAt` | `Timestamp \| undefined` | 建立時間 |
+
+**值物件：**
+- `AccountType`：`"user" | "organization"`
+- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
+- `Presence`：`"active" | "away" | "offline"`
+- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
+- `Wallet`：`{ balance: number }`（積分系統）
+
+**Team 嵌套物件（組織帳戶專屬）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 小組 ID |
+| `name` | `string` | 小組名稱 |
+| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
+| `memberIds` | `string[]` | 成員 ID 列表 |
+
+**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
+
+#### AccountPolicy（帳戶層 ABAC 政策）
+
+Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
+
+**AccountPolicy 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 政策唯一 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `name` | `string` | 政策名稱 |
+| `rules` | `PolicyRule[]` | 規則列表 |
+| `isActive` | `boolean` | 是否啟用 |
+| `createdAt` | `string` | ISO-8601 建立時間 |
+| `traceId` | `string \| undefined` | 審計追蹤 ID |
+
+**PolicyRule 值物件：**
+
+```typescript
+interface PolicyRule {
+  resource: string;                      // 受保護資源路徑
+  actions: string[];                     // 允許或拒絕的操作列表
+  effect: "allow" | "deny";             // 政策效果
+  conditions?: Record<string, string>;   // 條件約束（可選）
+}
 ```
-System
-└── Account（個人帳號 / 組織帳號）
-    └── Workspace（工作區）
-        └── Resources（Pages、Files、Documents...）
-```
 
-| 層次 | 說明 | 存取範圍 |
-|---|---|---|
-| **Account** | 資料主範圍。所有資料歸屬於帳號，不跨帳號共用。 | 帳號擁有者 + 邀請成員 |
-| **Workspace** | 帳號下的分組視角。workspace 是篩選，不是資料邊界。 | Workspace 成員 |
-| **Namespace** | 路由 slug 機制，背景能力，不在 UI 中獨立暴露。 | 系統內部 |
-
-**重要設計原則**：
-- 使用者的 **預設視角** 為帳號全覽（account scope）。
-- 切換 workspace 是「縮小視角」的操作，不是「換資料庫」的操作。
-- 跨 workspace 的資料彙總需在 account 層完成。
+政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
 
 ---
 
-## 5. 頁面類型分類
+### 5.3 Organization（組織聚合根）
 
-### 5.1 列表頁（List Page）
+Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
 
-顯示某類資源的清單，支援篩選、排序與操作。
+**實現位置：** `modules/organization/domain/entities/Organization.ts`
 
-**必要元素**：
-- 頁首標題 + 篩選狀態提示
-- 載入中骨架屏（Skeleton）
-- 空狀態（Empty State）+ 引導行動
-- 每列的操作按鈕
+**核心屬性：**
 
-**範例**：`/wiki/documents`、`/wiki/pages`
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 組織唯一 ID（聚合根） |
+| `name` | `string` | 組織名稱 |
+| `ownerId` | `string` | 擁有者 UID |
+| `email` | `string \| undefined` | 組織聯絡信箱 |
+| `description` | `string \| undefined` | 組織描述 |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
+| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
+| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
+| `teams` | `Team[]` | 小組列表 |
+| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
+| `createdAt` | `Timestamp` | 建立時間 |
 
-### 5.2 詳情頁（Detail Page）
+**PartnerInvite 值物件（合作夥伴邀請）：**
 
-顯示單一資源的完整資訊，支援編輯操作。
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邀請唯一 ID |
+| `email` | `string` | 被邀請方信箱 |
+| `teamId` | `string` | 加入的小組 |
+| `role` | `OrganizationRole` | 授予角色 |
+| `inviteState` | `InviteState` | 邀請狀態 |
+| `invitedAt` | `Timestamp` | 邀請時間 |
+| `protocol` | `string` | 協議說明（外部協作規範） |
 
-**必要元素**：
-- 返回連結（Back button）
-- 資源標題 + 元資料
-- 內容主體
-- 操作按鈕（Edit / Delete / Share）
+**InviteState 值物件：** `"pending" | "accepted" | "expired"`
 
-**範例**：`/workspace/[workspaceId]`
+#### OrgPolicy（組織層 ABAC 政策）
 
-### 5.3 功能操作頁（Functional Page）
+與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
 
-以特定功能為主（非 CRUD 列表），例如 RAG 查詢、上傳操作。
+**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
 
-**必要元素**：
-- 操作輸入區
-- 執行按鈕（含 loading 狀態）
-- 結果顯示區
-- 錯誤 / 空狀態處理
-
-**範例**：`/wiki/rag-query`、`/wiki/rag-reindex`
-
-### 5.4 總覽頁（Overview / Dashboard Page）
-
-提供某功能區域的整體摘要與入口。
-
-**必要元素**：
-- 快速操作入口（Quick Actions）
-- 統計摘要（Counters / Metrics）
-- 最近活動或重要提示
-
-**範例**：`/wiki`（知識總覽）
+**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
 
 ---
 
-## 6. 導覽自訂化
+### 5.4 Workspace（工作區聚合根）
 
-使用者可透過「自訂導覽」對話框（`CustomizeNavigationDialog`）調整側邊欄顯示的項目：
+Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
 
-- **偏好存儲**：`localStorage` key `xuanwu:nav-preferences`
-- **偏好格式**：pinnedItems（置頂項目）+ workspaceOrder（工作區排序）
-- **有效項目集合**：系統定義 `VALID_PINNED_ITEMS` 與 `VALID_WORKSPACE_ORDER_IDS`，確保偏好合法性
+**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 工作區唯一 ID（聚合根） |
+| `name` | `string` | 工作區名稱 |
+| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
+| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
+| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
+| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
+| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
+| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
+| `teamIds` | `string[]` | 關聯的組織小組 |
+| `address` | `Address \| undefined` | 實體地址（選填） |
+| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
+| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**WorkspaceLifecycleState 狀態機：**
+
+```text
+preparatory ──────────→ active ──────────→ stopped
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `preparatory` | 工作區準備中，正在初始化能力與設定 |
+| `active` | 工作區正常運作，可使用全部能力 |
+| `stopped` | 工作區已停用，保留資料但不可新增內容 |
+
+**Capability 值物件（能力模組）：**
+
+工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
+
+```typescript
+interface Capability {
+  id: string;
+  name: string;
+  type: "ui" | "api" | "data" | "governance" | "monitoring";
+  status: "stable" | "beta";
+  description: string;
+  config?: object;  // 各能力的自訂設定
+}
+```
+
+**WorkspaceGrant 值物件（存取授權）：**
+
+```typescript
+interface WorkspaceGrant {
+  userId?: string;   // 個人授權
+  teamId?: string;   // 小組授權
+  role: string;      // 授予的角色
+  protocol?: string; // 授權協議（外部合作適用）
+}
+```
+
+**不變式：**
+- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
+- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
+- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
+
+**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
+
+#### WorkspaceMemberView（工作區成員讀取模型）
+
+WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
+
+**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 成員 ID |
+| `displayName` | `string` | 顯示名稱 |
+| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
+| `isExternal` | `boolean` | 是否為外部合作成員 |
+| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
+
+**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
+
+#### WikiContentTree（側邊欄導覽樹聚合根）
+
+WikiContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
+
+**實現位置：** `modules/workspace/domain/entities/WikiContentTree.ts`
+
+**樹狀結構：**
+
+```text
+WikiAccountContentNode（帳戶節點）
+  ├── accountId, accountName, accountType（personal | organization）
+  ├── membersHref（組織帳戶限定）
+  ├── teamsHref（組織帳戶限定）
+  └── workspaces[]
+        └── WikiWorkspaceContentNode（工作區節點）
+              ├── workspaceId, workspaceName
+              └── contentBaseItems[]
+                    └── WikiContentItemNode（內容入口）
+                          ├── key（spaces | pages | libraries | rag | ai-tools …）
+                          ├── label, href
+                          └── enabled（是否啟用）
+```
+
+**不變式：**
+- Personal 帳戶節點排列在 Organization 帳戶節點之前。
+- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
 
 ---
 
-## 7. 搜尋與導覽輔助
+### 5.5 Platform Foundation 跨模組關係
 
-### 7.1 全站搜尋（planned）
+```text
+Identity ──→ Account ──→ Organization ──→ Workspace
+  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
+  │             │               │               │
+  │         AccountPolicy   OrgPolicy       Capability
+  │             │               │
+  └─────────────┴───────────────┘
+         [S6] Claims Refresh Protocol
+         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
+```
 
-- **入口**：Header 右側搜尋圖示（`/search`）
-- **範圍**：account 範圍內所有 Pages、Documents、Records
-- **鍵盤捷徑**：`Cmd/Ctrl + K`
+| 關係 | 說明 |
+| --- | --- |
+| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
+| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
+| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
+| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
+| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
 
-### 7.2 麵包屑（Breadcrumb）
+## 六、三層記憶架構的領域映射
 
-- 目前各頁面使用「← 返回」按鈕
-- 計畫在頁首加入麵包屑導覽（planned）
+架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
 
-### 7.3 語言切換
-
-- Header Controls 提供語言切換器（`translation-switcher.tsx`）
-- 支援語言：中文（繁體）、英文（計畫中）
-````
-
-## File: docs/guides/how-to/ui-ux/ux-principles.md
-````markdown
-# UX 原則與互動規範
-
-> **說明文件類型**：本文件說明 Xuanwu App 的使用者體驗設計哲學，定義互動模式、反饋機制與可近用性標準。
-> 設計決策均與 Diátaxis 的「說明」象限對應 — 著重「為什麼」而非「如何做」。
+| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
+| --- | --- | --- | --- |
+| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
+| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
+| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
 
 ---
 
-## 1. 核心 UX 原則
-
-### 1.1 UX1 — 操作可見（System Visibility）
-
-> _使用者在任何時刻都知道系統正在做什麼。_
-
-**來源**：Don Norman《The Design of Everyday Things》— 回饋原則。
-
-**實作規範**：
-- 所有非同步操作（上傳、查詢、刪除）必須有 loading 狀態指示。
-- loading 狀態使用 **spinner + 文字** 雙重提示（例如「上傳中...」），不只有 spinner。
-- 後台處理完成後（例如文件解析），以 **toast 通知** 明確告知結果。
-- 即時變動的資料（例如文件 `status`）盡量使用 **Firestore `onSnapshot`** 讓狀態自動更新，而非需要使用者手動刷新。
-
-### 1.2 UX2 — 降低認知負擔（Minimize Cognitive Load）
-
-> _核心操作集中在一個頁面完成，不強迫使用者在多頁面間跳轉。_
-
-**來源**：Steve Krug《Don't Make Me Think》— 最少點擊數。
-
-**實作規範**：
-- 每個主功能頁面（例如 `/wiki/documents`）自我完備 — 上傳、列表、操作三位一體。
-- 側邊欄導覽項目最多顯示 **7 個頂層項目**（米勒定律：工作記憶限制）。
-- 次要操作（例如快捷建立）使用 **hover 顯示** 的次要元素，不佔主要視覺空間。
-
-### 1.3 UX3 — 錯誤可修復（Error Recovery）
-
-> _出錯時顯示原因與建議的下一步行動。_
-
-**來源**：Don Norman《The Design of Everyday Things》— 錯誤設計原則。
-
-**實作規範**：
-- 所有錯誤 toast 包含 **原因 + 建議行動**（例如「上傳失敗，請確認網路連線後重試」）。
-- 格式驗證錯誤在使用者動作當下即時顯示，不等待 submit。
-- 禁用按鈕（disabled）必須搭配 **tooltip 說明不可用原因**，不可靜默。
-
-### 1.4 UX4 — 資料全覽預設（Default to Overview）
-
-> _預設顯示 account 全覽，不因工作區切換讓資料「消失」。_
-
-**來源**：Lean UX — 從使用者痛點出發的設計。
-
-**實作規範**：
-- 所有資料列表預設顯示 **account 範圍**，不以 workspace 為預設篩選。
-- workspace 篩選為選擇性操作，透過 URL 參數（`?workspaceId=<id>`）觸發。
-- 篩選啟動時，頁面需顯示明確的篩選提示（例如「workspace: {id} ×」）。
-
-### 1.5 UX5 — 鍵盤可近用性（Keyboard Accessibility）
-
-> _所有互動操作均可由鍵盤完整操作，不依賴滑鼠。_
-
-**來源**：WCAG 2.1 AA 標準。
-
-**實作規範**：
-- 所有可互動元素（按鈕、連結、輸入框）可 Tab 鍵聚焦。
-- Dropdown / Popover 支援 ↑↓ 導覽與 Enter 觸發、Esc 關閉。
-- 焦點管理：開啟 Modal/Dialog 後焦點移入；關閉後焦點回到觸發元素。
-- 焦點環（focus ring）在所有互動元素上清晰可見。
-
-### 1.6 UX6 — 一致性（Consistency）
-
-> _相同功能在全平台使用相同元件與文案模式。_
-
-**來源**：Jakob Nielsen《10 Usability Heuristics》— Consistency and Standards。
-
-**實作規範**：
-- 統一使用 shadcn/ui 元件庫，不自行實作已有的基礎元件。
-- 操作文案統一：「建立」（不混用「新增」和「新建」）、「刪除」（不混用「移除」）。
-- 狀態圖示統一：`✓ ready`、`⏳ processing`、`✗ error`。
-
----
-
-## 2. 互動模式規範
-
-### 2.1 Toast 通知規則
-
-Toast 是 Xuanwu App 的主要反饋機制，使用 **Sonner** 函式庫。
-
-| 情境 | Toast 類型 | 顯示時間 |
-|---|---|---|
-| 操作成功（建立、儲存、觸發） | `success` | 3 秒自動消失 |
-| 操作失敗（網路、驗證、權限） | `error` | 5 秒（或手動關閉） |
-| 背景處理中（可能需要等待） | `info` | 4 秒自動消失 |
-| 危險操作前的確認 | 不用 toast，用 Dialog | — |
-
-**格式規範**：
-```
-成功：「已{動作} {對象}」        例：「已建立 工作區 Marketing」
-失敗：「{動作}失敗：{原因}」     例：「上傳失敗：格式不支援」
-處理中：「{動作}中，請稍候…」   例：「重整中，請稍候…」
-```
-
-**實作位置**：`<Toaster />` 已掛載於全域 Provider。
-
-### 2.2 Loading 狀態規範
-
-| 情境 | Loading 模式 |
-|---|---|
-| 頁面初始載入 | Skeleton（骨架屏） — 整頁占位符 |
-| 列表資料載入 | Skeleton rows — 每列占位符 |
-| 按鈕觸發的操作 | Inline spinner + 文字 + disabled |
-| 單列操作（不影響其他列） | 僅該列顯示 spinner，其他列保持互動 |
-| 全頁阻斷操作 | 避免使用；若必要，使用半透明 overlay |
-
-### 2.3 空狀態設計
-
-每個列表頁面須定義 **空狀態（Empty State）**，避免空白頁面讓使用者困惑。
-
-| 場景 | 空狀態內容 |
-|---|---|
-| 無文件（Documents） | 說明文字 + 指向 Upload 卡的引導箭頭 |
-| 無頁面（Pages） | 說明文字 + 「建立第一個頁面」按鈕 |
-| 無查詢結果（RAG Query） | 說明文字 + 建議的下一步（確認文件已 indexed） |
-| 無工作區 | 說明文字 + 「建立工作區」按鈕 |
-
-**空狀態文案格式**：
-```
-「目前還沒有 {資源名稱}，{引導動作}。」
-例：「目前還沒有文件，試著上傳第一份檔案。」
-```
-
-### 2.4 確認對話框規則
-
-需要使用 Dialog 確認的操作：
-
-| 操作類型 | 是否需要確認 |
-|---|---|
-| 刪除永久性資源 | ✅ 必須 |
-| 批次刪除 | ✅ 必須 |
-| 清除資料 | ✅ 必須 |
-| 建立 | ❌ 不需要 |
-| 儲存 | ❌ 不需要 |
-| 觸發背景任務（例如 reindex） | ❌ 不需要（有 toast 反饋即可） |
-
----
-
-## 3. 表單設計規範
-
-### 3.1 輸入驗證時機
-
-| 驗證類型 | 觸發時機 |
-|---|---|
-| 格式驗證（日期、Email） | blur（失去焦點時） |
-| 必填欄位 | submit（提交時）；如果已 blur 過也可 blur 時顯示 |
-| 即時搜尋 | change（每次輸入後，加 debounce） |
-| 伺服器端驗證 | submit 後，以 toast 或 inline error 顯示 |
-
-### 3.2 按鈕狀態
-
-所有可提交的按鈕（Primary Button）遵循以下狀態：
-
-```
-idle → loading → success（toast） or error（toast）
-```
-
-- **idle**：正常可點擊狀態，顯示操作文字。
-- **loading**：顯示 spinner + 操作進行中文字，按鈕 disabled。
-- **success**：toast 顯示成功訊息，按鈕回到 idle（或 navigate）。
-- **error**：toast 顯示錯誤訊息，按鈕回到 idle（允許重試）。
-
----
-
-## 4. 導覽行為規範
-
-### 4.1 側邊欄展開 / 收合
-
-- **預設狀態**：展開。
-- **收合觸發**：使用者點擊 `PanelLeftClose` 圖示，偏好存於 `localStorage`（key: `xuanwu:nav-preferences`）。
-- **收合狀態**：僅顯示圖示，懸停（hover）顯示 Tooltip 提示完整名稱。
-
-### 4.2 Active 狀態顯示
-
-- 側邊欄以路由 prefix 判斷 active（`pathname.startsWith(href + "/")`）。
-- Active 項目：背景色 `bg-accent`，文字加粗。
-
-### 4.3 麵包屑（Breadcrumb）
-
-目前未實作全站麵包屑；各功能區頁首有「返回」按鈕（例如「← 返回 Wiki Beta」）。
-
----
-
-## 5. 可近用性完整清單
-
-### 5.1 必要實作（WCAG 2.1 AA）
-
-| 需求 | 實作細節 |
-|---|---|
-| 色彩對比 | 文字與背景對比 ≥ 4.5:1（一般文字）；≥ 3:1（大文字） |
-| 鍵盤可操作 | 所有功能可不依賴滑鼠完成 |
-| 螢幕閱讀器 | 圖示按鈕有 `aria-label`；狀態用 `aria-live` 或 `role="status"` |
-| 焦點管理 | 開啟 Dialog/Popover 後焦點移入，關閉後焦點回到觸發元素 |
-| 錯誤識別 | 錯誤訊息不僅依賴紅色，需有文字說明 |
-| 選單鍵盤操作 | Arrow 鍵導覽、Enter 觸發、Esc 關閉 |
-
-### 5.2 元件可近用性規格
-
-| 元件 | 鍵盤行為 | ARIA 需求 |
-|---|---|---|
-| Drop Zone | Tab 聚焦；Enter/Space 觸發選檔 | `role="button"`, `aria-label` |
-| Dropdown Menu | ↑↓ 導覽；Enter 選擇；Esc 關閉 | `role="menu"`, `role="menuitem"` |
-| Dialog | Esc 關閉；焦點陷阱 | `role="dialog"`, `aria-labelledby` |
-| Toast | 自動朗讀 | `role="alert"` 或 `aria-live="assertive"` |
-| Table | Tab 導覽至互動元素 | `<table>` 語意標籤 |
-| Badge / Status | — | 不可只用顏色；需有文字 |
-
----
-
-## 6. 回應式設計規範
-
-Xuanwu App 主要針對桌面（Desktop first），但核心頁面需支援平板與手機。
-
-| 斷點 | Tailwind Prefix | 說明 |
-|---|---|---|
-| 手機 | （預設） | 單欄版型；隱藏 Secondary Nav |
-| 平板 | `md:` | 可選性顯示 Secondary Nav |
-| 桌面 | `lg:` | 完整三欄版型 |
-
-**手機版規則**：
-- App Rail 收合為底部導覽列（planned）。
-- 資料列表改為卡片式呈現，取代桌面的表格。
-- 複雜操作（例如上傳）維持可用，但版型調整為全寬。
-````
-
-## File: docs/guides/how-to/ui-ux/wireframes.md
-````markdown
-# 線框圖（Wireframes）
-
-> **參考文件類型**：本文件包含 Xuanwu App 各主要功能區域的線框圖（Wireframe），以 ASCII 文字圖呈現布局結構與元件配置。
-> 詳細的個別功能 UI 規格，請參閱系統規格索引。
-
----
-
-## 1. Shell 版型（三欄結構）
-
-所有已登入頁面共用三欄 Shell 版型：
-
-```
-+--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
-|   48px       |    240px          |    flex-1         |
-|              |  （可收合）        |                   |
-| [Logo]       |  根據功能區域      |  page.tsx         |
-|              |  動態顯示子導覽    |  協調層           |
-| [Workspace]  |                   |                   |
-| [Wiki Beta]  |                   |                   |
-| [AI Chat]    |                   |                   |
-| [Org]        |                   |                   |
-|              |                   |                   |
-| ─────────── |                   |                   |
-| [Settings]   |                   |                   |
-| [User Avatar]|                   |                   |
-+--[App Rail]--+--[Secondary Nav]--+--[Main Content]--+
-```
-
-### Header（頁首）
-
-```
-+----------------------------------------------------------------+
-| Breadcrumb / Page Title        [Search] [Lang] [Theme] [User] |
-+----------------------------------------------------------------+
+## 七、Ingestion Pipeline 的領域事件
+
+完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
+
+| 領域事件 | 觸發時機 | 訂閱方 |
+| --- | --- | --- |
+| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
+| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
+| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
+| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
+| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
+| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
+
+**事件 DTO 結構慣例：**
+
+```typescript
+interface DomainEventDTO {
+  type: "knowledge.document_registered";  // 格式：module.event_name
+  payload: { documentId: string; workspaceId: string; };
+  occurredAtISO: string;                  // ISO 8601 時間戳
+}
 ```
 
 ---
 
-## 2. Wiki 功能區
+## 八、Query Understanding Layer 的領域服務
 
-### 2.1 `/wiki`（知識總覽）
+Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
 
-```
-+--App Rail--+--Wiki Nav--+------Main Content------+
-|            | 知識總覽 ●      | [← 返回]               |
-|            | RAG Query       |                        |
-|            | RAG Reindex     | Wiki Beta              |
-|            | Documents   [+] | ─────────────────────  |
-|            | Pages           |                        |
-|            | Libraries       | ┌─────────┐ ┌─────────┐|
-|            | ─────────────  | │ 文件上傳 │ │RAG Query│|
-|            | Workspaces ▼   | │  圖示+   │ │ 圖示+   │|
-|            |  > ws-1         | │  說明文字│ │ 說明文字│|
-|            |  > ws-2         | └─────────┘ └─────────┘|
-|            |                 |                        |
-|            |                 | 帳號統計               |
-|            |                 | 文件：N  Ready：M      |
-|            |                 | 工作區：K              |
-+--App Rail--+--Wiki Nav--+------Main Content------+
+**建議的領域服務介面（位於 `modules/search/domain/services/`）：**
+
+```typescript
+interface QueryPlannerService {
+  classifyIntent(query: string): Promise<QueryIntent>;
+  decomposeQuery(query: string): Promise<string[]>;
+  rewriteForRetrieval(query: string): Promise<string>;
+  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
+}
 ```
 
-### 2.2 `/wiki/documents`（主操作頁）
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Documents       |
-|            | RAG Query       | account 全覽 / ws: {id} ×  |
-|            | RAG Reindex     | ─────────────────────────── |
-|            | Documents ● [+] |                             |
-|            | Pages           | ┌── 上傳檔案 ─────────────┐|
-|            | Libraries       | │                           │|
-|            |                 | │  ╔═══════════════════╗   │|
-|            |                 | │  ║ 點擊或拖曳上傳     ║   │|
-|            |                 | │  ║ .pdf .tiff .png    ║   │|
-|            |                 | │  ╚═══════════════════╝   │|
-|            |                 | │                           │|
-|            |                 | │  [上傳並啟動解析 ↑] [✕]  │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Documents (帳號全覽) ───┐|
-|            |                 | │ filename │ status │ rag   │|
-|            |                 | │──────────│────────│───────│|
-|            |                 | │report.pdf│✓ ready │✓ idx  │|
-|            |                 | │scan.tiff │⏳ proc │⏳ pend│|
-|            |                 | │error.pdf │✗ error │ —    │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
-
-**Documents [+] 快捷選單（Popover）**：
-
-```
-Documents [+]
-          │
-          ▼
-     ┌─────────────────┐
-     │ ＋ 新增頁面      │
-     │ ＋ 新增資料庫    │
-     └─────────────────┘
-```
-
-### 2.3 `/wiki/rag-query`
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · RAG Query       |
-|            | RAG Query ●     | ─────────────────────────── |
-|            | RAG Reindex     |                             |
-|            | Documents   [+] | ┌── RAG Query ─────────────┐|
-|            | Pages           | │                           │|
-|            | Libraries       | │ ┌─────────────────────┐   │|
-|            |                 | │ │ 請輸入你的問題...     │   │|
-|            |                 | │ └─────────────────────┘   │|
-|            |                 | │ top_k: [5 ▼] [送出查詢]  │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Answer ────────────────┐|
-|            |                 | │ AI 回答文字...            │|
-|            |                 | │                           │|
-|            |                 | │ [cache:hit][scope:acct]  │|
-|            |                 | │ [vector:5][search:3]     │|
-|            |                 | └───────────────────────────┘|
-|            |                 |                             |
-|            |                 | ┌── Citations (3 筆) ──────┐|
-|            |                 | │ 1. report.pdf — 第5頁     │|
-|            |                 | │    "...引用片段..."        │|
-|            |                 | │ 2. scan.tiff — 第1頁      │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
-
-### 2.4 `/wiki/pages`（Pages 頁面管理）
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Pages           |
-|            | RAG Query       | ─────────────────────────── |
-|            | RAG Reindex     |                  [新增頁面]  |
-|            | Documents   [+] |                             |
-|            | Pages ●         | ┌── 頁面列表 ───────────────┐|
-|            | Libraries       | │ title     │ updatedAt │ → │|
-|            |                 | │───────────│───────────│───│|
-|            |                 | │ 專案概覽  │ 2026-03-20│ > │|
-|            |                 | │   > 里程碑│ 2026-03-21│ > │|
-|            |                 | │ 技術規格  │ 2026-03-22│ > │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
-
-### 2.5 `/wiki/libraries`（Libraries 資料庫管理）
-
-```
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-|            | 知識總覽        | Wiki Beta · Libraries       |
-|            | RAG Query       | ─────────────────────────── |
-|            | RAG Reindex     |              [新增資料庫]    |
-|            | Documents   [+] |                             |
-|            | Pages           | ┌── 資料庫列表 ─────────────┐|
-|            | Libraries ●     | │ name      │ fields │ rows │|
-|            |                 | │───────────│────────│──────│|
-|            |                 | │ 任務追蹤  │ 5欄位  │ 20列 │|
-|            |                 | │ 聯絡人    │ 3欄位  │ 8列  │|
-|            |                 | └───────────────────────────┘|
-+--App Rail--+--Wiki Nav--+--------Main Content---------+
-```
+**對應的 Genkit Flow（`modules/notebook/infrastructure/genkit/` 或 `modules/search/infrastructure/genkit/`）：**
+- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
+- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
+- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
 
 ---
 
-## 3. 工作區（Workspace）
+## 九、Schema + Ontology Layer 的領域概念
 
-### 3.1 `/workspace`（工作區中心）
+架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
 
+### Ontology 在 EdgeType 中的實現
+
+GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
+
+```text
+IS_A        → 類別繼承（OWL SubClassOf）
+PART_OF     → 組成關係（Mereology）
+RELATED_TO  → 通用相關（RDF関係）
+DEPENDS_ON  → 工程依賴
+CAUSES      → 因果推理
+CONTRADICTS → 知識矛盾偵測
 ```
-+--App Rail--+--Nav--+--------Main Content---------+
-|            |       | 工作區中心                  |
-|            |       | ─────────────────────────── |
-|            |       | [建立工作區]                 |
-|            |       |                             |
-|            |       | ┌── 我的工作區 ─────────────┐|
-|            |       | │ ┌─────────┐ ┌─────────┐  │|
-|            |       | │ │  工作區  │ │  工作區  │  │|
-|            |       | │ │  Marketing│ │ Product │  │|
-|            |       | │ │  →進入    │ │  →進入  │  │|
-|            |       | │ └─────────┘ └─────────┘  │|
-|            |       | └───────────────────────────┘|
-+--App Rail--+--Nav--+--------Main Content---------+
-```
+
+### 未來擴充：Entity Normalization（實體正規化）
+
+為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
+1. `WikiPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
+2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
+3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
 
 ---
 
-## 4. 組織管理（Organization）
+## 十、Hybrid Retrieval 的技術邊界說明
 
-### 4.1 `/organization/members`
+architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
 
-```
-+--App Rail--+--Org Nav--+--------Main Content---------+
-|            | 成員 ●    | 組織 · 成員管理             |
-|            | 團隊      | ─────────────────────────── |
-|            | 權限      |                 [邀請成員]   |
-|            | 工作區    |                             |
-|            | 排程      | ┌── 成員列表 ───────────────┐|
-|            | 每日      | │ 姓名  │ 角色   │ 狀態 │操作│|
-|            | 稽核      | │───────│────────│──────│────│|
-|            |           | │ Alice │ Admin  │ 活躍 │ … │|
-|            |           | │ Bob   │ Member │ 活躍 │ … │|
-|            |           | └───────────────────────────┘|
-+--App Rail--+--Org Nav--+--------Main Content---------+
-```
+| 元件 | 層級 | 位置 |
+| --- | --- | --- |
+| Dense Retrieval（Vector Search） | Infrastructure | `modules/search/infrastructure/firebase/` |
+| Sparse Retrieval（BM25） | Infrastructure | `modules/search/infrastructure/` |
+| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/wiki/infrastructure/` |
+| Reranker | Infrastructure / AI | `modules/search/infrastructure/genkit/` |
+| Fusion & Ranking | Application | `modules/search/application/use-cases/answer-rag-query.use-case.ts` |
+
+領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
 
 ---
 
-## 5. AI Chat
+## 十一、完整領域概念清單
 
-### 5.1 `/ai-chat`
-
-```
-+--App Rail--+--Nav--+--------Main Content---------+
-|            |       | AI 對話                     |
-|            |       | ─────────────────────────── |
-|            |       | ┌── 對話歷史 ───────────────┐|
-|            |       | │ 使用者: 這份文件說什麼?    │|
-|            |       | │                           │|
-|            |       | │ AI: 根據文件內容，...      │|
-|            |       | │                           │|
-|            |       | └───────────────────────────┘|
-|            |       |                             |
-|            |       | ┌── 輸入區 ─────────────────┐|
-|            |       | │ 請輸入問題...    [送出 →]  │|
-|            |       | └───────────────────────────┘|
-+--App Rail--+--Nav--+--------Main Content---------+
-```
-
----
-
-## 6. 手機版線框圖
-
-手機版（< 768px）調整三欄為單欄：
-
-### 6.1 手機版 Documents
-
-```
-+--[Header: Wiki Beta · Documents]--+
-| [← 返回]                [↺ 刷新] |
-+-------------------------------------+
-| ┌── 上傳檔案 ─────────────────────┐|
-| │  .pdf .tiff .png .jpg            │|
-| │  ╔═══════════════════╗           │|
-| │  ║   點擊或拖曳上傳   ║           │|
-| │  ╚═══════════════════╝           │|
-| │  [上傳並啟動解析] [清除]         │|
-| └─────────────────────────────────┘|
-|                                     |
-| ┌── Documents (N 筆) ──────────────┐|
-| │ report.pdf                        │|
-| │  ✓ ready · ✓ indexed · 12 頁    │|
-| │  [手動重整]                       │|
-| │─────────────────────────────────│|
-| │ scan.tiff                         │|
-| │  ⏳ processing · ⏳ pending      │|
-| │  [— 解析中 —]                   │|
-| └─────────────────────────────────┘|
-```
-
-### 6.2 手機版底部導覽（planned）
-
-```
-+─────────────────────────────────────+
-| [工作區] [Wiki] [AI] [組織] [設定]  |
-+─────────────────────────────────────+
-```
-
----
-
-## 7. 對話框（Dialog）設計
-
-### 7.1 建立工作區 Dialog
-
-```
-+─────────────────────────────────────────+
-│  建立工作區                          ✕  │
-│                                         │
-│  工作區名稱                             │
-│  ┌─────────────────────────────────┐   │
-│  │ 請輸入工作區名稱...              │   │
-│  └─────────────────────────────────┘   │
-│  {錯誤訊息（若有）}                    │
-│                                         │
-│                    [取消]  [建立工作區] │
-+─────────────────────────────────────────+
-```
-
-### 7.2 刪除確認 Dialog
-
-```
-+─────────────────────────────────────────+
-│  確認刪除                            ✕  │
-│                                         │
-│  您確定要刪除「{資源名稱}」嗎？         │
-│  此操作無法復原。                       │
-│                                         │
-│                       [取消]  [確認刪除]│
-+─────────────────────────────────────────+
-```
+| 領域概念 | 類型 | 模組 | 狀態 |
+| --- | --- | --- | --- |
+| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
+| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
+| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
+| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
+| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
+| `Account` | 聚合根 | `account` | ✅ 已實現 |
+| `AccountType` | 值物件 | `account` | ✅ 已實現 |
+| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
+| `Presence` | 值物件 | `account` | ✅ 已實現 |
+| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
+| `Wallet` | 值物件 | `account` | ✅ 已實現 |
+| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
+| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
+| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
+| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
+| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
+| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
+| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
+| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
+| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
+| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
+| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
+| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
+| `WikiContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
+| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
+| `BlockType` | 值物件 | `content` | ✅ 已實現 |
+| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
+| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
+| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
+| `WikiPage` | 投影實體 | `content` | ✅ 已實現 |
+| `WikiLibrary` | 聚合根 | `asset` | ✅ 已實現 |
+| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
+| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
+| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
+| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
+| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
+| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
+| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
+| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
+| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
+| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
+| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
 
 ---
 
-## 8. 狀態元件規格
-
-### 8.1 Status Badge
-
-```
-✓ ready         ← 綠色背景，白色文字
-⏳ processing   ← 藍/琥珀色背景，白色文字
-✗ error         ← 紅色背景，白色文字
-— pending       ← 灰色背景，灰色文字
-```
-
-### 8.2 Loading Skeleton 
-
-```
-Documents 列表載入中：
-+─────────────────────────────────────+
-│ ▓▓▓▓▓▓▓▓▓▓▓ │ ▓▓▓▓▓▓▓ │ ▓▓▓▓▓  │
-│ ▓▓▓▓▓▓▓▓    │ ▓▓▓▓▓▓▓ │ ▓▓▓    │
-│ ▓▓▓▓▓▓▓▓▓▓  │ ▓▓▓▓▓▓  │ ▓▓▓▓   │
-+─────────────────────────────────────+
-（▓ 代表 Skeleton 骨架屏 pulse 動畫區塊）
-```
-
----
-
-## 相關主題
-
-- 設計系統：色彩、字型規範
-- UX 原則：互動規則、可近用性
-- 資訊架構：全站路由地圖
-- 規格索引：Wiki 與其他功能規格入口
-````
-
-## File: docs/reference/specification/system-overview.md
-````markdown
-# 系統全局規格（System Overview Specification）
-
-> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
-
----
-
-## 1. 系統定位
-
-**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
-
-- 內容頁面與結構化資料庫體驗（Content / UI Layer）
-- 知識關聯與導航視角（Knowledge Graph Layer）
-- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
-- 多工作區協作與組織管理
-- 文件解析、向量化與智慧問答
-
-### 1.1 核心價值主張
-
-| 面向 | 價值 |
-|---|---|
-| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
-| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
-| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
-| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
-
----
-
-## 2. 目標用戶
-
-| 用戶類型 | 說明 | 核心需求 |
-|---|---|---|
-| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
-| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
-| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
-| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
-
----
-
-## 3. 核心功能規格
-
-### 3.1 Account 與 Workspace 管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 個人帳號 | 用戶可建立個人帳號 | `account` |
-| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
-| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
-| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
-| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
-
-### 3.2 知識庫功能
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
-| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
-| 文件解析 | Google Document AI 自動解析 | `py_fn` |
-| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
-| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
-| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
-| Pages | 區塊式頁面建立與管理 | `content` |
-| Libraries | 結構化資料庫管理 | `asset` |
-
-### 3.3 AI 功能
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| AI Chat | 通用 AI 對話介面 | `agent` |
-| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
-| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
-
-### 3.4 組織管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
-| 團隊管理 | 成員分組 | `organization` |
-| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
-| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
-| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
-
----
-
-## 4. 技術架構規格
-
-### 4.1 運行時邊界
-
-系統分為兩個主要運行時：
-
-| 運行時 | 職責 | 技術 |
-|---|---|---|
-| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
-| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
-
-**禁止跨越邊界**：
-- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
-- py_fn 不持有 UI 狀態或 session 邏輯。
-
-### 4.2 資料層架構
-
-```
-Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
-Firebase Storage      ← 檔案儲存（上傳文件）
-Upstash Vector        ← 向量索引（RAG）
-Upstash Redis         ← 快取（RAG query cache）
-```
-
-### 4.3 Firestore 資料模型（頂層）
-
-```
-accounts/{accountId}/
-├── documents/{documentId}     ← 文件（Wiki）
-├── pages/{pageId}             ← 頁面（Pages）
-├── databases/{databaseId}     ← 資料庫（Libraries）
-├── workspaces/{workspaceId}   ← 工作區（Workspace）
-└── members/{memberId}         ← 成員（Account）
-```
-
-> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
-
-### 4.4 認證與授權
-
-```
-Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
-```
-
-| 角色 | 說明 |
-|---|---|
-| `owner` | 帳號擁有者，全部權限 |
-| `admin` | 管理員，可管理成員與設定 |
-| `member` | 一般成員，可讀寫工作區資源 |
-| `viewer` | 唯讀成員，只能查看 |
-
----
-
-## 5. 模組責任邊界
-
-16 個 MDDD 業務模組的責任分配：
-
-| 模組 | 職責概要 |
-|---|---|
-| `account` | 用戶帳號、成員角色、帳號策略 |
-| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
-| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
-| `content` | Block 編輯器頁面、WikiPage、版本歷程 |
-| `identity` | 身份認證、Token 刷新 |
-| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
-| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
-| `notification` | 通知推送 |
-| `organization` | 組織（租戶）管理、策略 |
-| `retrieval` | RAG 查詢、Wiki RAG 類型、向量檢索 |
-| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
-| `workspace` | 工作區管理、成員管理、WikiContentTree |
-| `workspace-audit` | 不可變稽核記錄 |
-| `workspace-feed` | 工作區動態摘要 |
-| `workspace-flow` | 工作區任務與流程管理 |
-| `workspace-scheduling` | 雙向資源排程 |
-
----
-
-## 6. 整合點
-
-| 整合對象 | 用途 | SDK/協議 |
-|---|---|---|
-| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
-| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
-| Firebase Auth | 身份認證 | Firebase SDK v12 |
-| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
-| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
-| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
-| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
-| Upstash Vector | 向量搜尋 | Upstash SDK |
-| Upstash Redis | 快取 | Upstash SDK |
-| QStash | 非同步任務佇列 | Upstash QStash |
-
----
-
-## 7. 驗收標準（系統級別）
-
-| 代號 | 標準 |
-|---|---|
-| S1 | 使用者可登入並進入 Shell |
-| S2 | 使用者可建立組織與工作區 |
-| S3 | 使用者可上傳文件並在列表看到 |
-| S4 | 文件解析後 `status` 更新為 `ready` |
-| S5 | RAG 問答可回傳 answer 與 citations |
-| S6 | 管理員可管理組織成員與角色 |
-| S7 | Console 無初始化錯誤 |
-| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
+> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 ````
 
 ## File: modules/account/aggregates.md
@@ -72596,46 +75430,6 @@ interface Category {
 - `slug` 在同一 Workspace 下唯一。
 ````
 
-## File: modules/knowledge-base/api/index.ts
-````typescript
-/**
- * knowledge-base public API boundary
- *
- * Other modules MUST import knowledge-base resources from this file only.
- * Never import from domain/, application/, or infrastructure/ directly.
- */
-
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
-export type { Category } from "../domain/entities/category.entity";
-
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/knowledge-base.actions";
-
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export {
-  getArticles,
-  getArticle,
-  getCategories,
-} from "../interfaces/queries/knowledge-base.queries";
-````
-
 ## File: modules/knowledge-base/application-services.md
 ````markdown
 # Application Services — knowledge-base
@@ -72983,6 +75777,189 @@ export class CategoryDepthValidator {
 ```
 ````
 
+## File: modules/knowledge-base/interfaces/components/ArticleDialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { X } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@ui-shadcn/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import { createArticle, updateArticle } from "../_actions/knowledge-base.actions";
+import type { Article } from "../../domain/entities/article.entity";
+import type { Category } from "../../domain/entities/category.entity";
+
+interface ArticleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  categories: Category[];
+  /** Article to edit — omit for create mode */
+  article?: Article;
+  onSuccess?: (articleId?: string) => void;
+}
+
+export function ArticleDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  categories,
+  article,
+  onSuccess,
+}: ArticleDialogProps) {
+  const isEdit = !!article;
+  const [title, setTitle] = useState(article?.title ?? "");
+  const [content, setContent] = useState(article?.content ?? "");
+  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
+  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Reset when article changes
+  useEffect(() => {
+    setTitle(article?.title ?? "");
+    setContent(article?.content ?? "");
+    setCategoryId(article?.categoryId ?? "__none__");
+    setTags(article?.tags.join(", ") ?? "");
+    setError(null);
+  }, [article, open]);
+
+  function handleSubmit() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { setError("標題不可空白"); return; }
+    const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
+
+    startTransition(async () => {
+      setError(null);
+      if (isEdit) {
+        const result = await updateArticle({
+          id: article!.id,
+          accountId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+        });
+        if (!result.success) { setError(result.error.message ?? "更新失敗"); return; }
+        onSuccess?.();
+      } else {
+        const result = await createArticle({
+          accountId,
+          workspaceId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+          createdByUserId: currentUserId,
+        });
+        if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+        onSuccess?.(result.success ? result.aggregateId : undefined);
+      }
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <X className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-title">標題</Label>
+            <Input
+              id="kb-article-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="文章標題"
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-category">分類</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="kb-article-category">
+                <SelectValue placeholder="選擇分類（選填）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— 不指定 —</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-tags">標籤 <span className="text-muted-foreground text-xs">（以逗號分隔）</span></Label>
+            <Input
+              id="kb-article-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="標籤1, 標籤2"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-content">內容</Label>
+            <Textarea
+              id="kb-article-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="文章內容（支援 Markdown）"
+              rows={6}
+              className="resize-none font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
+            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/knowledge-base/README.md
 ````markdown
 # knowledge-base — 組織知識庫 / Wiki / SOP 管理
@@ -73288,52 +76265,6 @@ interface Version {
 - `label` 使版本成為「具名版本」（named version），系統不自動刪除。
 ````
 
-## File: modules/knowledge-collaboration/api/index.ts
-````typescript
-/**
- * knowledge-collaboration public API boundary
- *
- * Other modules MUST import knowledge-collaboration resources from this file only.
- */
-
-// ── Domain types ───────────────────────────────────────────────────────────────
-export type { Comment } from "../domain/entities/comment.entity";
-export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
-export type { Version } from "../domain/entities/version.entity";
-
-export type CommentId = string;
-export type PermissionId = string;
-export type VersionId = string;
-
-// ── DTOs ───────────────────────────────────────────────────────────────────────
-export type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-  CreateVersionDto,
-  DeleteVersionDto,
-  GrantPermissionDto,
-  RevokePermissionDto,
-} from "../application/dto/knowledge-collaboration.dto";
-
-// ── Server Actions (mutations) ─────────────────────────────────────────────────
-export {
-  createComment,
-  updateComment,
-  resolveComment,
-  deleteComment,
-  createVersion,
-  deleteVersion,
-} from "../interfaces/_actions/knowledge-collaboration.actions";
-
-// ── Queries (reads) ────────────────────────────────────────────────────────────
-export {
-  getComments,
-  getVersions,
-} from "../interfaces/queries/knowledge-collaboration.queries";
-````
-
 ## File: modules/knowledge-collaboration/application-services.md
 ````markdown
 # Application Services — knowledge-collaboration
@@ -73614,6 +76545,123 @@ export class VersionRetentionPolicy {
   }
 }
 ```
+````
+
+## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
+import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
+
+function makeCommentRepo() { return new FirebaseCommentRepository(); }
+function makeVersionRepo() { return new FirebaseVersionRepository(); }
+function makePermissionRepo() { return new FirebasePermissionRepository(); }
+
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
+  try {
+    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
+  try {
+    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
+  try {
+    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
+  try {
+    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/queries
+ */
+
+import type { Comment } from "../../domain/entities/comment.entity";
+import type { Version } from "../../domain/entities/version.entity";
+import type { Permission } from "../../domain/entities/permission.entity";
+import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
+import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
+import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+
+export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
+  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+}
+
+export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
+  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+}
+
+export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
+  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
+}
 ````
 
 ## File: modules/knowledge-collaboration/README.md
@@ -73925,47 +76973,6 @@ interface View {
   updatedAtISO: string;
 }
 ```
-````
-
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
 ````
 
 ## File: modules/knowledge-database/application-services.md
@@ -79666,6 +82673,99 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
 ````
 
+## File: modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
+````typescript
+/**
+ * @module workspace-flow/application/process-managers
+ * @file content-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `content.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `content` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ */
+
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+export class ContentToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `content.page_approved` event.
+   *
+   * @param event - The full event payload from the content module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
+    // ── Idempotency guard ──────────────────────────────────────────────────
+    if (this.processedCausationIds.has(event.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.pageId,
+      causationId: event.causationId,
+      correlationId: event.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromContentUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      contentPageId: event.pageId,
+      sourceReference,
+      extractedTasks: event.extractedTasks,
+      extractedInvoices: event.extractedInvoices,
+    });
+
+    if (result.success) {
+      // Mark as processed only after successful materialization
+      this.processedCausationIds.add(event.causationId);
+      return true;
+    }
+
+    return false;
+  }
+}
+````
+
 ## File: modules/workspace-flow/context-map.md
 ````markdown
 # Context Map — workspace-flow
@@ -79789,36 +82889,6 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 
 - `../../../modules/workspace-flow/domain-services.md`
 - `../../../docs/ddd/workspace-flow/aggregates.md`
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/sourceReference.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file sourceReference.converter.ts
- * @description Firestore document-to-value-object converter for SourceReference.
- * Shared by task.converter.ts and invoice.converter.ts.
- */
-
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-/**
- * Convert a raw Firestore field value to a typed SourceReference value object.
- * Returns `undefined` if the value is absent or does not conform to the expected shape.
- */
-export function toSourceReference(raw: unknown): SourceReference | undefined {
-  if (!raw || typeof raw !== "object") return undefined;
-  const r = raw as Record<string, unknown>;
-  if (r.type !== "KnowledgePage") return undefined;
-  if (
-    typeof r.id !== "string" ||
-    typeof r.causationId !== "string" ||
-    typeof r.correlationId !== "string"
-  ) {
-    return undefined;
-  }
-  return { type: "KnowledgePage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
-}
 ````
 
 ## File: modules/workspace-flow/repositories.md
@@ -80360,75 +83430,6 @@ Application layer 只負責：
 | `WorkspaceRepository` | `save()`, `findById()`, `findByAccountId()` |
 | `WorkspaceQueryRepository` | `listByAccountId()`, `findById()` |
 | `WikiWorkspaceRepository` | `getContentTree()`, `updateTree()` |
-````
-
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-  WorkspacePersonnel,
-} from "../domain/entities/Workspace";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../interfaces/queries/workspace.queries";
-
-// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
-
-// ─── Wiki content-tree use-case ────────────────────────────────────────────
-
-import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
-import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
-
-const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
-
-export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
-}
-
-// ─── Server actions (client-callable via Next.js action proxy) ──────────────
-
-export { createWorkspace } from "../interfaces/_actions/workspace.actions";
-
-// ─── UI components (cross-module public) ─────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
-
-// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
-
-export {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
 ````
 
 ## File: modules/workspace/application-services.md
@@ -82549,47 +85550,327 @@ venv/
 .beads-credential-key
 ````
 
-## File: app/(shell)/wiki/pages-dnd/page.tsx
-````typescript
-export default function WikiPagesDnDPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面拖曳</h1>
-        <p className="text-sm text-muted-foreground">此功能已移除，由 Knowledge Domain 的 KnowledgePage 統一管理。</p>
-      </header>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/rag-query/page.tsx
+## File: app/(shell)/wiki/documents/page.tsx
 ````typescript
 "use client";
 
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/search";
+import { SourceDocumentsView } from "@/modules/source/api";
 
-export default function WikiRagQueryPage() {
+export default function WikiDocumentsPage() {
   const searchParams = useSearchParams();
-  const { state: appState } = useApp();
+  const {
+    state: { workspaces, activeWorkspaceId },
+  } = useApp();
   const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
   const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
+    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
       ? requestedWorkspaceId
-      : appState.activeWorkspaceId || undefined;
+      : activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">
       <header className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
+        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
       </header>
 
-      <RagQueryView workspaceId={workspaceId} />
+      <SourceDocumentsView workspaceId={workspaceId} />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { buildWikiContentTree } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/wiki/pages",
+    title: "Pages",
+    description: "維持 account-level 的頁面樹與內容維運工具。",
+    icon: FileText,
+  },
+  {
+    href: "/wiki/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/wiki/documents",
+    title: "Documents",
+    description: "來源文件、upload 與 ingest 狀態檢視。",
+    icon: BookOpen,
+  },
+  {
+    href: "/wiki/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/wiki/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
+    href: "/wiki/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function WikiPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Workspace Bridge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki Bridge</h1>
+        <p className="text-sm text-muted-foreground">
+          這裡保留 account-level 工具，但真正的產品主流程已收斂成 Workspace → Knowledge / Wiki / Notebook。
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、Wiki、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開 Wiki 與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Wiki</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、Wiki 與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Wiki`}>Wiki</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          Knowledge
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -83134,935 +86415,6 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: docs/guides/explanation/architecture-domain.md
-````markdown
-# 領域概念模型：AI 知識平台架構實現指南
-
-基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
-
----
-
-## 一、四層架構與有界上下文對應
-
-architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
-
-```text
-┌─────────────────────────────────────────────────┐
-│              AI Layer（AI 層）                    │  ← modules/search, modules/notebook, modules/knowledge
-├─────────────────────────────────────────────────┤
-│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/wiki
-├─────────────────────────────────────────────────┤
-│         Content / UI Layer（內容層）               │  ← modules/knowledge, modules/source
-├─────────────────────────────────────────────────┤
-│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
-│                                                  │     modules/account, modules/identity, modules/shared
-└─────────────────────────────────────────────────┘
-```
-
-| 架構層 | 對應模組 | 核心職責 |
-| --- | --- | --- |
-| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
-| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
-| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
-| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
-
-**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
-
-```text
-依賴方向（箭頭表示「依賴」）：
-
-AI Layer
-  ↓ 依賴
-Knowledge Graph Layer
-  ↓ 依賴
-Content / UI Layer
-  ↓ 依賴
-Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
-```
-
----
-
-## 二、Content / UI Layer 的領域概念
-
-### 2.1 Page（頁面聚合根）
-
-Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
-
-**實現位置：** `modules/knowledge/domain/entities/content-page.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 唯一識別碼（聚合根 ID） |
-| `title` | `string` | 頁面標題（Graph Node 標籤） |
-| `slug` | `string` | URL 友好路徑（重定向的基礎） |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
-| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
-| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
-| `organizationId` | `string` | 所屬組織（多租戶） |
-
-**值物件：**
-- `PageStatus`：`"draft" | "published" | "archived"`
-- `PageSlug`：確保唯一且 URL-safe 的值物件
-
-**不變式（Invariants）：**
-- 一個 Page 必須屬於一個 Workspace。
-- `slug` 在同一 Workspace 中必須唯一。
-- 已 `archived` 的頁面不能再接受 Block 更新。
-
-### 2.2 Block（區塊聚合根）
-
-Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
-
-**實現位置：** `modules/knowledge/domain/entities/content-block.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Block 唯一識別碼 |
-| `pageId` | `string` | 所屬頁面（外鍵） |
-| `type` | `BlockType` | Block 類型（見下方） |
-| `content` | `BlockContent` | 具體內容（依 type 變化） |
-| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
-| `order` | `number` | 在頁面中的排列順序 |
-
-**BlockType 值物件（對應 Notion Block 類型）：**
-
-```typescript
-type BlockType =
-  | "text"
-  | "heading_1" | "heading_2" | "heading_3"
-  | "toggle"
-  | "callout"
-  | "code"
-  | "quote"
-  | "divider"
-  | "table"
-  | "image" | "video" | "file"
-  | "embed"
-  | "synced_block"
-  | "column_layout"
-  | "bulleted_list" | "numbered_list"
-  | "to_do"
-  | "page_link";
-```
-
-**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
-
-### 2.3 ContentVersion（版本快照）
-
-對應 Wiki 的 Edit History / Diff / Rollback 能力。
-
-**實現位置：** `modules/knowledge/domain/entities/content-version.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 版本 ID |
-| `pageId` | `string` | 所屬頁面 |
-| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
-| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
-| `authorId` | `string` | 作者 ID |
-| `createdAt` | `Timestamp` | 版本時間戳 |
-| `isMinorEdit` | `boolean` | 是否為小修改標記 |
-
----
-
-## 三、Knowledge Graph Layer 的領域概念
-
-### 3.1 GraphNode（知識圖節點）
-
-對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
-
-**實現位置：** `modules/wiki/domain/entities/graph-node.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
-| `label` | `string` | 顯示標籤 |
-| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
-| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
-
-**GraphNodeStatus 狀態機：**
-
-```text
-draft ──────────→ active ──────────→ archived
-  ↑                  │
-  └──────────────────┘ (reactivation)
-```
-
-**領域事件：**
-- `graph-node.activated`：節點從 draft 轉為 active 時觸發
-- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
-
-### 3.2 GraphEdge / Link（知識圖邊）
-
-對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
-
-**實現位置：** `modules/wiki/domain/entities/link.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邊唯一 ID |
-| `fromNodeId` | `string` | 來源節點（連結發起方） |
-| `toNodeId` | `string` | 目標節點（連結目標） |
-| `type` | `EdgeType` | 語意關係類型（見下方） |
-| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
-
-**EdgeType 值物件（對應 Schema + Ontology Layer）：**
-
-```typescript
-type EdgeType =
-  | "IS_A"        // 繼承關係（A 是 B 的一種）
-  | "PART_OF"     // 組成關係（A 是 B 的一部分）
-  | "RELATED_TO"  // 相關關係（通用）
-  | "DEPENDS_ON"  // 依賴關係
-  | "CAUSES"      // 因果關係
-  | "CONTRADICTS" // 矛盾關係
-  | "REDIRECT"    // 重定向（別名統一）
-  | "CATEGORY";   // 分類從屬
-```
-
-**不變式：**
-- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
-- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
-
-**Backlink 的領域含義：**  
-Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
-
-### 3.3 WikiPage（Wiki 頁面整合）
-
-輕量化的 Wiki 風格頁面實體，用於 wiki 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
-
-> **模組遷移說明：** `modules/wiki` 獨立模組已移除。WikiPage 概念已遷移至 `modules/knowledge`（頁面層）；WikiLibrary 概念遷移至 `modules/source`（結構化資料層）；WikiContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/search`。
-
-**實現位置：** `modules/knowledge/domain/entities/wiki-page.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 頁面唯一識別碼 |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL 友好路徑 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `order` | `number` | 在內容樹中的排列順序 |
-| `status` | `WikiPageStatus` | 頁面狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-### 3.4 WikiLibrary（Wiki 知識庫聚合根）
-
-WikiLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
-
-**實現位置：** `modules/source/domain/entities/wiki-library.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Library 唯一 ID（聚合根） |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `name` | `string` | Library 名稱（顯示於側邊欄） |
-| `slug` | `string` | URL 友好路徑 |
-| `status` | `WikiLibraryStatus` | 狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-**相關實體：**
-- `WikiLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
-- `WikiLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
-
-**與其他概念的關係：**
-- 一個 Workspace 可包含多個 WikiLibrary。
-- WikiContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
-
-### 3.5 Slug 工具（原 Namespace 模組）
-
-> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
-
-Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
-
-**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
-
-| 函式 | 說明 |
-| --- | --- |
-| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
-| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
-
-## 四、AI Layer 的領域概念
-
-### 4.1 IngestionDocument（攝入文件聚合根）
-
-文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 文件唯一 ID |
-| `organizationId` | `string` | 所屬組織（多租戶隔離） |
-| `workspaceId` | `string` | 所屬工作區 |
-| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
-| `title` | `string` | 文件標題 |
-| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
-| `status` | `IngestionStatus` | 攝入狀態（見下方） |
-
-**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
-
-```text
-                        ┌─────────────────────────────────────┐
-                        ↓                                     │
-uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
-    │          │          │           │                         │
-    └──────────┴──────────┴───────────┴─────────────────────────┘
-                                  failed（任一階段可轉入）
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `uploaded` | 檔案已上傳，等待處理 |
-| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
-| `chunking` | 正在分塊（Chunk 階段：語意分段） |
-| `embedding` | 正在向量化（Embedding 階段） |
-| `indexed` | 已完成索引，可供查詢 |
-| `stale` | 原始文件已更新，需重新索引 |
-| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
-| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
-
----
-
-### 4.2 IngestionJob（攝入作業）
-
-追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 作業唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `stage` | `PipelineStage` | 當前執行階段 |
-| `startedAt` | `Timestamp` | 開始時間 |
-| `completedAt` | `Timestamp \| null` | 完成時間 |
-| `error` | `string \| null` | 錯誤訊息（若 failed） |
-
-**PipelineStage 值物件：**
-
-```typescript
-type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
-```
-
-### 4.3 IngestionChunk（語意分塊）
-
-代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
-
-**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Chunk 唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `content` | `string` | Chunk 文字內容 |
-| `chunkIndex` | `number` | 在文件中的順序編號 |
-| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
-| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
-| `vector` | `number[]` | 向量表示（Embedding 結果） |
-| `tokenCount` | `number` | Token 數量（分塊品質指標） |
-
-**不變式：**
-- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
-- `content` 長度不得超過所選 Embedding Model 的 token 上限。
-
-### 4.4 RagQuery（RAG 查詢聚合根）
-
-代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
-
-**實現位置：** `modules/search/domain/entities/RagQuery.ts`
-
-**核心介面：**
-
-```typescript
-interface RagQuery {
-  id: string;
-  workspaceId: string;
-  input: string;               // 用戶原始輸入
-  intent?: QueryIntent;        // 分類後的查詢意圖
-  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
-  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
-}
-```
-
-**QueryIntent 值物件（對應 Query Understanding Layer）：**
-
-```typescript
-type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
-```
-
-**RagRetrievedChunk 值物件（檢索結果項目）：**
-
-```typescript
-interface RagRetrievedChunk {
-  chunkId: string;
-  documentId: string;
-  content: string;
-  score: number;           // 相關性分數（Reranker 輸出）
-  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
-}
-```
-
-**RagCitation 值物件（引用系統，對應 Source Grounding）：**
-
-```typescript
-interface RagCitation {
-  documentId: string;
-  documentTitle: string;
-  chunkId: string;
-  sectionPath: string;
-  pageNumber?: number;
-  confidenceScore: number;     // 引用可信度
-}
-```
-
-**RagRetrievalSummary 值物件（完整回答結果）：**
-
-```typescript
-interface RagRetrievalSummary {
-  answer: string;              // LLM 生成的回答
-  citations: RagCitation[];    // 引用來源列表
-  faithfulnessScore?: number;  // Faithfulness 驗證分數
-  isGrounded: boolean;         // 是否通過 Grounding 驗證
-}
-```
-
-### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
-
-對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
-
-**實現位置：**
-- `modules/notebook/domain/entities/thread.ts`
-- `modules/notebook/domain/entities/message.ts`
-
-**AgentThread 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 對話 Thread ID |
-| `workspaceId` | `string` | 所屬工作區 |
-| `userId` | `string` | 發起用戶 |
-| `createdAt` | `Timestamp` | 建立時間 |
-| `updatedAt` | `Timestamp` | 最後更新時間 |
-
-**AgentMessage 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 訊息唯一 ID |
-| `threadId` | `string` | 所屬 Thread |
-| `role` | `"user" \| "assistant"` | 訊息角色 |
-| `content` | `string` | 訊息內容 |
-| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
----
-
-## 五、Platform Foundation Layer 的領域概念
-
-Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
-
-### 5.1 Identity（身份識別）
-
-Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
-
-**實現位置：** `modules/identity/domain/entities/Identity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
-| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 大頭照 URL |
-| `isAnonymous` | `boolean` | 是否為匿名會話 |
-| `emailVerified` | `boolean` | 信箱是否已驗證 |
-
-**值物件：**
-- `SignInCredentials`：`{ email: string; password: string }`
-- `RegistrationInput`：`{ email: string; password: string; name: string }`
-
-**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
-
-#### TokenRefreshSignal（Custom Claims 刷新訊號）
-
-當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
-
-```text
-Party 1（account / organization 模組）
-    → 角色或政策變更
-    → 呼叫 identityApi.emitTokenRefreshSignal()
-
-Party 2（identity 模組 TokenRefreshRepository）
-    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
-
-Party 3（前端 useTokenRefreshListener hook）
-    → 監聽 Firestore 該文件
-    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
-```
-
-**TokenRefreshSignal 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `accountId` | `string` | 觸發刷新的帳戶 ID |
-| `reason` | `TokenRefreshReason` | 觸發原因 |
-| `issuedAt` | `string` | ISO-8601 時間戳 |
-| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
-
-**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
-
----
-
-### 5.2 Account（帳戶聚合根）
-
-Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
-
-**實現位置：** `modules/account/domain/entities/Account.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
-| `name` | `string` | 帳戶顯示名稱 |
-| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
-| `email` | `string \| undefined` | 聯絡信箱 |
-| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
-| `bio` | `string \| undefined` | 個人簡介或組織描述 |
-| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
-| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
-| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
-| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
-| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
-| `createdAt` | `Timestamp \| undefined` | 建立時間 |
-
-**值物件：**
-- `AccountType`：`"user" | "organization"`
-- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
-- `Presence`：`"active" | "away" | "offline"`
-- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
-- `Wallet`：`{ balance: number }`（積分系統）
-
-**Team 嵌套物件（組織帳戶專屬）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 小組 ID |
-| `name` | `string` | 小組名稱 |
-| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
-| `memberIds` | `string[]` | 成員 ID 列表 |
-
-**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
-
-#### AccountPolicy（帳戶層 ABAC 政策）
-
-Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
-
-**AccountPolicy 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 政策唯一 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `name` | `string` | 政策名稱 |
-| `rules` | `PolicyRule[]` | 規則列表 |
-| `isActive` | `boolean` | 是否啟用 |
-| `createdAt` | `string` | ISO-8601 建立時間 |
-| `traceId` | `string \| undefined` | 審計追蹤 ID |
-
-**PolicyRule 值物件：**
-
-```typescript
-interface PolicyRule {
-  resource: string;                      // 受保護資源路徑
-  actions: string[];                     // 允許或拒絕的操作列表
-  effect: "allow" | "deny";             // 政策效果
-  conditions?: Record<string, string>;   // 條件約束（可選）
-}
-```
-
-政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
-
----
-
-### 5.3 Organization（組織聚合根）
-
-Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
-
-**實現位置：** `modules/organization/domain/entities/Organization.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 組織唯一 ID（聚合根） |
-| `name` | `string` | 組織名稱 |
-| `ownerId` | `string` | 擁有者 UID |
-| `email` | `string \| undefined` | 組織聯絡信箱 |
-| `description` | `string \| undefined` | 組織描述 |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
-| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
-| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
-| `teams` | `Team[]` | 小組列表 |
-| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**PartnerInvite 值物件（合作夥伴邀請）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邀請唯一 ID |
-| `email` | `string` | 被邀請方信箱 |
-| `teamId` | `string` | 加入的小組 |
-| `role` | `OrganizationRole` | 授予角色 |
-| `inviteState` | `InviteState` | 邀請狀態 |
-| `invitedAt` | `Timestamp` | 邀請時間 |
-| `protocol` | `string` | 協議說明（外部協作規範） |
-
-**InviteState 值物件：** `"pending" | "accepted" | "expired"`
-
-#### OrgPolicy（組織層 ABAC 政策）
-
-與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
-
-**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
-
-**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
-
----
-
-### 5.4 Workspace（工作區聚合根）
-
-Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
-
-**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 工作區唯一 ID（聚合根） |
-| `name` | `string` | 工作區名稱 |
-| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
-| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
-| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
-| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
-| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
-| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
-| `teamIds` | `string[]` | 關聯的組織小組 |
-| `address` | `Address \| undefined` | 實體地址（選填） |
-| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
-| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**WorkspaceLifecycleState 狀態機：**
-
-```text
-preparatory ──────────→ active ──────────→ stopped
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `preparatory` | 工作區準備中，正在初始化能力與設定 |
-| `active` | 工作區正常運作，可使用全部能力 |
-| `stopped` | 工作區已停用，保留資料但不可新增內容 |
-
-**Capability 值物件（能力模組）：**
-
-工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
-
-```typescript
-interface Capability {
-  id: string;
-  name: string;
-  type: "ui" | "api" | "data" | "governance" | "monitoring";
-  status: "stable" | "beta";
-  description: string;
-  config?: object;  // 各能力的自訂設定
-}
-```
-
-**WorkspaceGrant 值物件（存取授權）：**
-
-```typescript
-interface WorkspaceGrant {
-  userId?: string;   // 個人授權
-  teamId?: string;   // 小組授權
-  role: string;      // 授予的角色
-  protocol?: string; // 授權協議（外部合作適用）
-}
-```
-
-**不變式：**
-- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
-- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
-- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
-
-**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
-
-#### WorkspaceMemberView（工作區成員讀取模型）
-
-WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
-
-**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 成員 ID |
-| `displayName` | `string` | 顯示名稱 |
-| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
-| `isExternal` | `boolean` | 是否為外部合作成員 |
-| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
-
-**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
-
-#### WikiContentTree（側邊欄導覽樹聚合根）
-
-WikiContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
-
-**實現位置：** `modules/workspace/domain/entities/WikiContentTree.ts`
-
-**樹狀結構：**
-
-```text
-WikiAccountContentNode（帳戶節點）
-  ├── accountId, accountName, accountType（personal | organization）
-  ├── membersHref（組織帳戶限定）
-  ├── teamsHref（組織帳戶限定）
-  └── workspaces[]
-        └── WikiWorkspaceContentNode（工作區節點）
-              ├── workspaceId, workspaceName
-              └── contentBaseItems[]
-                    └── WikiContentItemNode（內容入口）
-                          ├── key（spaces | pages | libraries | rag | ai-tools …）
-                          ├── label, href
-                          └── enabled（是否啟用）
-```
-
-**不變式：**
-- Personal 帳戶節點排列在 Organization 帳戶節點之前。
-- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
-
----
-
-### 5.5 Platform Foundation 跨模組關係
-
-```text
-Identity ──→ Account ──→ Organization ──→ Workspace
-  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
-  │             │               │               │
-  │         AccountPolicy   OrgPolicy       Capability
-  │             │               │
-  └─────────────┴───────────────┘
-         [S6] Claims Refresh Protocol
-         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
-```
-
-| 關係 | 說明 |
-| --- | --- |
-| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
-| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
-| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
-| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
-| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
-
-## 六、三層記憶架構的領域映射
-
-架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
-
-| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
-| --- | --- | --- | --- |
-| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
-| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
-| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
-
----
-
-## 七、Ingestion Pipeline 的領域事件
-
-完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
-
-| 領域事件 | 觸發時機 | 訂閱方 |
-| --- | --- | --- |
-| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
-| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
-| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
-| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
-| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
-| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
-
-**事件 DTO 結構慣例：**
-
-```typescript
-interface DomainEventDTO {
-  type: "knowledge.document_registered";  // 格式：module.event_name
-  payload: { documentId: string; workspaceId: string; };
-  occurredAtISO: string;                  // ISO 8601 時間戳
-}
-```
-
----
-
-## 八、Query Understanding Layer 的領域服務
-
-Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
-
-**建議的領域服務介面（位於 `modules/search/domain/services/`）：**
-
-```typescript
-interface QueryPlannerService {
-  classifyIntent(query: string): Promise<QueryIntent>;
-  decomposeQuery(query: string): Promise<string[]>;
-  rewriteForRetrieval(query: string): Promise<string>;
-  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
-}
-```
-
-**對應的 Genkit Flow（`modules/notebook/infrastructure/genkit/` 或 `modules/search/infrastructure/genkit/`）：**
-- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
-- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
-- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
-
----
-
-## 九、Schema + Ontology Layer 的領域概念
-
-架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
-
-### Ontology 在 EdgeType 中的實現
-
-GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
-
-```text
-IS_A        → 類別繼承（OWL SubClassOf）
-PART_OF     → 組成關係（Mereology）
-RELATED_TO  → 通用相關（RDF関係）
-DEPENDS_ON  → 工程依賴
-CAUSES      → 因果推理
-CONTRADICTS → 知識矛盾偵測
-```
-
-### 未來擴充：Entity Normalization（實體正規化）
-
-為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
-1. `WikiPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
-2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
-3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
-
----
-
-## 十、Hybrid Retrieval 的技術邊界說明
-
-architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
-
-| 元件 | 層級 | 位置 |
-| --- | --- | --- |
-| Dense Retrieval（Vector Search） | Infrastructure | `modules/search/infrastructure/firebase/` |
-| Sparse Retrieval（BM25） | Infrastructure | `modules/search/infrastructure/` |
-| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/wiki/infrastructure/` |
-| Reranker | Infrastructure / AI | `modules/search/infrastructure/genkit/` |
-| Fusion & Ranking | Application | `modules/search/application/use-cases/answer-rag-query.use-case.ts` |
-
-領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
-
----
-
-## 十一、完整領域概念清單
-
-| 領域概念 | 類型 | 模組 | 狀態 |
-| --- | --- | --- | --- |
-| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
-| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
-| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
-| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
-| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
-| `Account` | 聚合根 | `account` | ✅ 已實現 |
-| `AccountType` | 值物件 | `account` | ✅ 已實現 |
-| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
-| `Presence` | 值物件 | `account` | ✅ 已實現 |
-| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
-| `Wallet` | 值物件 | `account` | ✅ 已實現 |
-| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
-| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
-| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
-| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
-| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
-| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
-| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
-| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
-| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
-| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
-| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
-| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
-| `WikiContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
-| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
-| `BlockType` | 值物件 | `content` | ✅ 已實現 |
-| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
-| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
-| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
-| `WikiPage` | 投影實體 | `content` | ✅ 已實現 |
-| `WikiLibrary` | 聚合根 | `asset` | ✅ 已實現 |
-| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
-| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
-| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
-| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
-| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
-| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
-| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
-| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
-| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
-| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
-| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
-
----
-
-> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
-````
-
 ## File: modules/account/AGENT.md
 ````markdown
 # AGENT.md — account BC
@@ -84206,6 +86558,49 @@ npm run build
 ```
 ````
 
+## File: modules/knowledge-base/api/index.ts
+````typescript
+/**
+ * knowledge-base public API boundary
+ *
+ * Other modules MUST import knowledge-base resources from this file only.
+ * Never import from domain/, application/, or infrastructure/ directly.
+ */
+
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
+export type { Category } from "../domain/entities/category.entity";
+
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
+
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/knowledge-base.actions";
+
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export {
+  getArticles,
+  getArticle,
+  getCategories,
+} from "../interfaces/queries/knowledge-base.queries";
+
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+````
+
 ## File: modules/knowledge-base/index.ts
 ````typescript
 /**
@@ -84218,6 +86613,104 @@ npm run build
  */
 
 export * from "./api";
+````
+
+## File: modules/knowledge-collaboration/api/index.ts
+````typescript
+/**
+ * knowledge-collaboration public API boundary
+ *
+ * Other modules MUST import knowledge-collaboration resources from this file only.
+ */
+
+// ── Domain types ───────────────────────────────────────────────────────────────
+export type { Comment } from "../domain/entities/comment.entity";
+export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
+export type { Version } from "../domain/entities/version.entity";
+
+export type CommentId = string;
+export type PermissionId = string;
+export type VersionId = string;
+
+// ── DTOs ───────────────────────────────────────────────────────────────────────
+export type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+  CreateVersionDto,
+  DeleteVersionDto,
+  GrantPermissionDto,
+  RevokePermissionDto,
+} from "../application/dto/knowledge-collaboration.dto";
+
+// ── Server Actions (mutations) ─────────────────────────────────────────────────
+export {
+  createComment,
+  updateComment,
+  resolveComment,
+  deleteComment,
+  createVersion,
+  deleteVersion,
+  grantPermission,
+  revokePermission,
+} from "../interfaces/_actions/knowledge-collaboration.actions";
+
+// ── Queries (reads) ────────────────────────────────────────────────────────────
+export {
+  getComments,
+  getVersions,
+  getPermissions,
+} from "../interfaces/queries/knowledge-collaboration.queries";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+````
+
+## File: modules/knowledge-database/api/index.ts
+````typescript
+/**
+ * knowledge-database public API boundary
+ */
+
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
+
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
+
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/knowledge-database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
+
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
 ````
 
 ## File: modules/knowledge/application/dto/knowledge.dto.ts
@@ -86441,99 +88934,6 @@ npm run build
 ```
 ````
 
-## File: modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file content-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `content.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `content` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
- */
-
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export class ContentToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `content.page_approved` event.
-   *
-   * @param event - The full event payload from the content module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
-    // ── Idempotency guard ──────────────────────────────────────────────────
-    if (this.processedCausationIds.has(event.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.pageId,
-      causationId: event.causationId,
-      correlationId: event.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromContentUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      contentPageId: event.pageId,
-      sourceReference,
-      extractedTasks: event.extractedTasks,
-      extractedInvoices: event.extractedInvoices,
-    });
-
-    if (result.success) {
-      // Mark as processed only after successful materialization
-      this.processedCausationIds.add(event.causationId);
-      return true;
-    }
-
-    return false;
-  }
-}
-````
-
 ## File: modules/workspace-flow/README.md
 ````markdown
 # workspace-flow — 工作流程上下文
@@ -87489,341 +89889,91 @@ export async function sendChatMessage(
 }
 ````
 
-## File: app/(shell)/wiki/documents/page.tsx
+## File: app/(shell)/wiki/pages/page.tsx
 ````typescript
 "use client";
 
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { SourceDocumentsView } from "@/modules/source/api";
-
-export default function WikiDocumentsPage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { workspaces, activeWorkspaceId },
-  } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : activeWorkspaceId || undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
-      </header>
-
-      <SourceDocumentsView workspaceId={workspaceId} />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { getKnowledgePageTree, PageTreeView } from "@/modules/knowledge/api";
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
-const QUICK_ACCESS = [
-  {
-    href: "/wiki/pages",
-    title: "Pages",
-    description: "維持 account-level 的頁面樹與內容維運工具。",
-    icon: FileText,
-  },
-  {
-    href: "/wiki/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/wiki/documents",
-    title: "Documents",
-    description: "來源文件、upload 與 ingest 狀態檢視。",
-    icon: BookOpen,
-  },
-  {
-    href: "/wiki/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/wiki/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/wiki/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function WikiPage() {
+export default function WikiPagesPage() {
+  const router = useRouter();
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
+  const load = useCallback(async () => {
+    if (!accountId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const tree = await getKnowledgePageTree(accountId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
     }
+  }, [accountId]);
 
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
+  useEffect(() => { load(); }, [load]);
 
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Workspace Bridge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki Bridge</h1>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
         <p className="text-sm text-muted-foreground">
-          這裡保留 account-level 工具，但真正的產品主流程已收斂成 Workspace → Knowledge / Wiki / Notebook。
+          知識頁面階層樹。建立頁面後可於區塊編輯器中編輯內容。
         </p>
       </header>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、Wiki、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/wiki")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Account Wiki
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/wiki/block-editor")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground ml-auto"
+        >
+          區塊編輯器
+        </button>
+      </div>
 
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開 Wiki 與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Wiki</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、Wiki 與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Wiki`}>Wiki</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          Knowledge
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/pages/page.tsx
-````typescript
-export default function WikiPagesPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <p className="text-sm text-muted-foreground">此功能已移除，由 Knowledge Domain 的 KnowledgePage 統一管理。</p>
-      </header>
+      {!accountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          onPageClick={(pageId) => router.push(`/wiki/block-editor?pageId=${pageId}`)}
+          onCreated={() => load()}
+        />
+      )}
     </div>
   );
 }
@@ -88727,108 +90877,6 @@ export type {
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `PageRepository`（原 KnowledgePageRepository）
-  - `BlockRepository`（原 KnowledgeBlockRepository）
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-
-## PageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排 Block |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## BlockRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `add()` | 新增 Block |
-| `update()` | 更新 Block 內容 |
-| `delete()` | 刪除 Block |
-| `reorder()` | 重排 Block 順序 |
-| `findById()` | 取得單一 Block |
-| `listByPageId()` | 列出頁面所有 Block |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports
-````
-
-## File: modules/notebook/infrastructure/genkit/index.ts
-````typescript
-/**
- * @module modules/notebook/infrastructure/genkit
- */
-
-export {
-  agentClient,
-  createGenkitClient,
-  getConfiguredGenkitModel,
-  type GenkitClientOptions,
-} from "./client";
-export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
-export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
-````
-
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
 ## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
 ````typescript
 "use client";
@@ -88988,436 +91036,106 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
 }
 ````
 
-## File: AGENTS.md
+## File: modules/knowledge/repositories.md
 ````markdown
-# Agent Guide — Xuanwu App
+# knowledge — Repositories
 
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+## Domain Repository Ports
 
-## Development Status Workflow
+- `domain/repositories/knowledge.repositories.ts`
+  - `PageRepository`（原 KnowledgePageRepository）
+  - `BlockRepository`（原 KnowledgeBlockRepository）
 
-Use the following status flow for issues, tasks, and features:
+## Infrastructure Implementations
 
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
 
-## Quick Start
+## PageRepository 方法對照
 
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
+| 方法 | 說明 |
 |------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排 Block |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
 
-### DDD Prompt 模板
+## BlockRepository 方法對照
 
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+| 方法 | 說明 |
+|------|------|
+| `add()` | 新增 Block |
+| `update()` | 更新 Block 內容 |
+| `delete()` | 刪除 Block |
+| `reorder()` | 重排 Block 順序 |
+| `findById()` | 取得單一 Block |
+| `listByPageId()` | 列出頁面所有 Block |
 
-### DDD 術語表
+## 設計規則
 
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports
 ````
 
-## File: docs/ddd/bounded-contexts.md
-````markdown
-# Bounded Contexts — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
-> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
-
-本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
-Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
-
-- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
-- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
-- **NotebookLM-like 層**：檢索、摘要、問答、推理
-
----
-
-## 系統層級映射
-
-| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
-|---|---|---|---|
-| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
-| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
-| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
-| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
-| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
-| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
-
----
-
-## 子域分類摘要
-
-| 分類 | Bounded Context |
-|---|---|
-| **Core Domain** | `knowledge`, `knowledge-base` |
-| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
-| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
-
----
-
-## Bounded Context Catalog
-
-| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
-|---|---|---|---|---|
-| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
-| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
-| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
-| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
-| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
-| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
-| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
-| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
-| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
-| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
-| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
-| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
-| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
-| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
-| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
-| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
-| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
-| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
-
----
-
-## 典型依賴與協作方式
-
-```text
-Identity → Account → Organization → Workspace
-                              ├─→ Knowledge ─────────────────────┐
-                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
-                              ├─→ Knowledge Collab / Database ───┘
-                              ├─→ Source ───→ AI ────────────────────────────┘
-                              └─→ Workspace Operations
-                                   ├─ workspace-flow
-                                   ├─ workspace-scheduling
-                                   ├─ workspace-audit
-                                   └─ workspace-feed
-```
-
----
-
-## 整合原則
-
-1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
-2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
-3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
-4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
-5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
-
----
-
-## 詳細文件
-
-- 子域分類：[`subdomains.md`](./subdomains.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
-````
-
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：Page（KnowledgePage）
-
-### 職責
-個人筆記頁面的聚合根。管理頁面標題、父子層級（parentPageId）、Block 引用列表（blockIds）。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 Block ID 列表（有序） |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `PageStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 Block
-
----
-
-## 實體：Block（ContentBlock）
-
-### 職責
-頁面內的原子內容單位，依序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Block 主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType`） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-### BlockType
-
-`text | heading-1 | heading-2 | heading-3 | image | code | bullet-list | numbered-list | divider | quote | todo`
-
-代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `PageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `BlockRepository` | `add()`, `update()`, `delete()`, `reorder()`, `findById()`, `listByPageId()` |
-````
-
-## File: modules/notebook/api/index.ts
+## File: modules/notebook/infrastructure/genkit/index.ts
 ````typescript
 /**
- * modules/notebook — public API barrel.
+ * @module modules/notebook/infrastructure/genkit
  */
 
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../domain/entities/AgentGeneration";
-
-export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
-
-export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";
-````
-
-## File: modules/source/api/index.ts
-````typescript
-/**
- * Module: source
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the source domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// --- Core entity types -------------------------------------------------------
-
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
-
-// --- Wiki library entity types (owned by source domain) -------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/wiki-library.types";
-
-// --- Wiki library use-cases ------------------------------------------------
-
-import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
-import {
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibrary as _createWikiLibrary,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-  listWikiLibraries as _listWikiLibraries,
-} from "../application/use-cases/wiki-libraries.use-case";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../domain/entities/wiki-library.types";
-import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
-
-export type { WikiLibrarySnapshot };
-
-const _defaultLibraryRepository = new InMemoryWikiLibraryRepository();
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, _defaultLibraryRepository);
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
-}
-
-// --- Document snapshot types --------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
 export {
-  useDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
+  agentClient,
+  createGenkitClient,
+  getConfiguredGenkitModel,
+  type GenkitClientOptions,
+} from "./client";
+export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
+export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
+````
 
-// --- Query functions ---------------------------------------------------------
+## File: modules/notebook/repositories.md
+````markdown
+# notebook — Repositories
 
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
 
-// --- UI components (cross-module public) -------------------------------------
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
 
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -90473,113 +92191,436 @@ export function WorkspaceDetailScreen({
 }
 ````
 
-## File: modules/knowledge/api/index.ts
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
+## File: docs/ddd/bounded-contexts.md
+````markdown
+# Bounded Contexts — Xuanwu App
+
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
+> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
+
+本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
+Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
+
+- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
+- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
+- **NotebookLM-like 層**：檢索、摘要、問答、推理
+
+---
+
+## 系統層級映射
+
+| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
+|---|---|---|---|
+| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
+| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
+| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
+| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
+| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
+| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
+
+---
+
+## 子域分類摘要
+
+| 分類 | Bounded Context |
+|---|---|
+| **Core Domain** | `knowledge`, `knowledge-base` |
+| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
+| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
+
+---
+
+## Bounded Context Catalog
+
+| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
+|---|---|---|---|---|
+| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
+| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
+| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
+| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
+| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
+| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
+| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
+| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
+| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
+| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
+| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
+| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
+| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
+| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
+| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
+| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
+| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
+| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
+
+---
+
+## 典型依賴與協作方式
+
+```text
+Identity → Account → Organization → Workspace
+                              ├─→ Knowledge ─────────────────────┐
+                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
+                              ├─→ Knowledge Collab / Database ───┘
+                              ├─→ Source ───→ AI ────────────────────────────┘
+                              └─→ Workspace Operations
+                                   ├─ workspace-flow
+                                   ├─ workspace-scheduling
+                                   ├─ workspace-audit
+                                   └─ workspace-feed
+```
+
+---
+
+## 整合原則
+
+1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
+2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
+3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
+4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
+5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
+
+---
+
+## 詳細文件
+
+- 子域分類：[`subdomains.md`](./subdomains.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：Page（KnowledgePage）
+
+### 職責
+個人筆記頁面的聚合根。管理頁面標題、父子層級（parentPageId）、Block 引用列表（blockIds）。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 Block ID 列表（有序） |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `PageStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 Block
+
+---
+
+## 實體：Block（ContentBlock）
+
+### 職責
+頁面內的原子內容單位，依序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Block 主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType`） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+### BlockType
+
+`text | heading-1 | heading-2 | heading-3 | image | code | bullet-list | numbered-list | divider | quote | todo`
+
+代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `PageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `BlockRepository` | `add()`, `update()`, `delete()`, `reorder()`, `findById()`, `listByPageId()` |
+````
+
+## File: modules/notebook/api/index.ts
 ````typescript
 /**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
+ * modules/notebook — public API barrel.
  */
 
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+
 export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../domain/entities/AgentGeneration";
 
-export { KnowledgeApi } from "./knowledge-api";
+export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
 
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
+export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";
+````
 
-// ── Server Actions (write-side) ───────────────────────────────────────────────
+## File: modules/source/api/index.ts
+````typescript
+/**
+ * Module: source
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the source domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
 
+// --- Core entity types -------------------------------------------------------
+
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+
+// --- Wiki library entity types (owned by source domain) -------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/wiki-library.types";
+
+// --- Wiki library use-cases ------------------------------------------------
+
+import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
+import {
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
+
+export type { WikiLibrarySnapshot };
+
+const _defaultLibraryRepository = new InMemoryWikiLibraryRepository();
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, _defaultLibraryRepository);
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
+}
+
+// --- Document snapshot types --------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
 export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "../interfaces/_actions/knowledge.actions";
+  useDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
 
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+// --- Query functions ---------------------------------------------------------
 
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
 
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
+// --- UI components (cross-module public) -------------------------------------
 
-// ── Collection types ──────────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
-
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-
-// ── Queries (read-side) ──────────────────────────────────────────────
-
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
-
-export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -90890,4 +92931,118 @@ export default function AiChatPage() {
     </div>
   );
 }
+````
+
+## File: modules/knowledge/api/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+export type { KnowledgePage } from "../domain/entities/content-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
 ````
