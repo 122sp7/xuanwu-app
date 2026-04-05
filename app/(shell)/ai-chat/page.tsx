@@ -108,7 +108,7 @@ export default function AiChatPage() {
                 Notebook / AI
               </CardTitle>
               <CardDescription>
-                將工作區知識、Wiki 與查詢消費層收斂成單一 notebook shell，而不是獨立聊天產品。
+                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
               </CardDescription>
             </CardHeader>
           </Card>
@@ -225,7 +225,7 @@ export default function AiChatPage() {
                 <Bot className="size-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook thread</p>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
                 <p className="mt-1 max-w-xs text-xs text-muted-foreground">
                   先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
                 </p>

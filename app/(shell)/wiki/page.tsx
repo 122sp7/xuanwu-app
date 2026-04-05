@@ -109,7 +109,7 @@ export default function WikiPage() {
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Workspace bridge</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Workspace Bridge</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki Bridge</h1>
         <p className="text-sm text-muted-foreground">
           這裡保留 account-level 工具，但真正的產品主流程已收斂成 Workspace → Knowledge / Wiki / Notebook。
