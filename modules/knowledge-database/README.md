@@ -1,35 +1,51 @@
-# knowledge-database — 結構化資料庫與視圖管理
+# knowledge-collaboration — DDD Reference
 
-> **Domain Type:** **Supporting Subdomain**（支撐域）
-> **模組路徑:** `modules/knowledge-database/`
-> **開發狀態:** 📅 Planned — 設計階段
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
 
-## 在 Knowledge Platform 中的角色
+## 戰略定位
 
-`knowledge-database` 對應 Notion Database 概念，提供結構化資料儲存與多視圖展示能力。使用者可定義欄位 Schema，以 Table / Board / Calendar / Timeline / Gallery / List 等視圖檢視資料。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Database Schema 管理 | 定義欄位類型（text/number/select/date/relation 等） |
-| Record 資料管理 | 建立、更新、刪除結構化資料行 |
-| View 視圖配置 | 每個 Database 可有多個視圖，各有自己的 filter/sort/groupBy |
-| Relation 欄位 | Record 間的跨 Database 關聯（Relation 欄位類型） |
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
 
 ## 核心聚合
 
-- **`Database`**（資料庫容器 + 欄位 Schema）
-- **`Record`**（資料行）
-- **`View`**（視圖配置）
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
 
-## 詳細文件
+## 視圖類型
 
-| 文件 | 說明 |
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
+| 協作 | `knowledge`, `knowledge-base` | Open Host Service |

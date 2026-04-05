@@ -1,35 +1,41 @@
-# knowledge-collaboration — 知識協作、版本、權限管理
+# knowledge-collaboration — DDD Reference
 
-> **Domain Type:** **Supporting Subdomain + Generic Subdomain**（支撐域 + 泛用域）
-> **模組路徑:** `modules/knowledge-collaboration/`
-> **開發狀態:** 📅 Planned — 設計階段
+> **Domain Type:** Supporting Subdomain + Generic Subdomain
+> **Module:** `modules/knowledge-collaboration/`
+> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
 
-## 在 Knowledge Platform 中的角色
+## 戰略定位
 
-`knowledge-collaboration` 負責知識協作的基礎設施：留言討論、存取權限管理、頁面版本快照。它不擁有知識內容本身，而是為 `knowledge`、`knowledge-base` 等內容 BC 提供協作能力。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Comment 留言 | 針對 Page / Article 的線程式留言討論 |
-| Permission 權限 | 細粒度的內容存取控制（View/Comment/Edit/Full） |
-| Version 版本快照 | Page / Article 的版本歷史（Block 快照） |
-| 頁面鎖定 | 防止並發編輯的樂觀鎖機制 |
+`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
 
 ## 核心聚合
 
-- **`Comment`**（留言）
-- **`Permission`**（存取權限）
-- **`Version`**（版本快照）
+- **Comment** — 線程式留言，透過 `contentId` 引用內容
+- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
+- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
 
-## 詳細文件
+## 主要領域事件
 
-| 文件 | 說明 |
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+## 通用語言
+
+| 術語 | 定義 |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+| **Comment** | 針對 contentId 的留言（root 或 reply） |
+| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
+| **Version** | immutable Block 快照 |
+| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
+| **contentId** | opaque reference 到任意知識內容 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity` | Conformist |
+| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |

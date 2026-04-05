@@ -1,9 +1,9 @@
 # Aggregates — knowledge
 
-## 聚合根：Page（KnowledgePage）
+## 聚合根：KnowledgePage（ContentPage）
 
 ### 職責
-個人筆記頁面的聚合根。管理頁面標題、父子層級（parentPageId）、Block 引用列表（blockIds），以及目前暫留在本模組的 approval / verification / owner metadata。
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
 
 ### 關鍵屬性
 
@@ -13,70 +13,103 @@
 | `title` | `string` | 頁面標題 |
 | `slug` | `string` | URL-safe 識別符 |
 | `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 Block ID 列表（有序） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
 | `accountId` | `string` | 所屬帳戶 |
 | `workspaceId` | `string?` | 所屬工作區（可選） |
-| `order` | `number` | 同層級排序 |
-| `status` | `PageStatus` | `active \| archived` |
-| `approvalState` | `pending \| approved` | AI / ingestion page 的核准狀態（可選） |
-| `approvedAtISO` | `string?` | 核准時間 |
-| `approvedByUserId` | `string?` | 核准者 |
-| `verificationState` | `verified \| needs_review` | wiki 型頁面驗證狀態（可選） |
-| `ownerId` | `string?` | wiki 型頁面維護者 |
-| `verifiedByUserId` | `string?` | 最後驗證者 |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間 |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
 | `createdByUserId` | `string` | 建立者 ID |
 | `createdAtISO` | `string` | ISO 8601 建立時間 |
 | `updatedAtISO` | `string` | ISO 8601 更新時間 |
 
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- `archived` 頁面不應再進入正常編輯流程
-- `pageId === targetParentPageId` 的 move 屬非法
-
----
-
-## 實體：Block（ContentBlock）
-
-### 職責
-頁面內的原子內容單位，依序排列形成頁面內容。
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
 
 | 屬性 | 型別 | 說明 |
 |------|------|------|
-| `id` | `string` | Block 主鍵 |
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
 | `pageId` | `string` | 所屬頁面 ID |
 | `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType`） |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
 | `order` | `number` | 排列順序 |
 | `createdAtISO` | `string` | ISO 8601 |
 | `updatedAtISO` | `string` | ISO 8601 |
 
-### BlockType
-
-`text | heading-1 | heading-2 | heading-3 | image | code | bullet-list | numbered-list | divider | quote`
-
-代碼位置：`domain/value-objects/block-content.ts`
-
-> `todo` 目前不在實作中的 `BlockType` union 內，若要加入需同步更新 value object、DTO schema 與 editor UI。
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
 
 ---
 
-## 過渡聚合：KnowledgeCollection
+## 實體：ContentVersion（KnowledgeVersion）
 
-目前 `knowledge` 仍保有 `KnowledgeCollection` 聚合，用於把 `Page` 聚成結構化空間。
+### 職責
+頁面的歷史版本快照，append-only。
 
 | 屬性 | 型別 | 說明 |
 |------|------|------|
-| `id` | `string` | Collection 主鍵 |
-| `name` | `string` | 空間名稱 |
-| `columns` | `CollectionColumn[]` | schema 欄位定義 |
-| `pageIds` | `string[]` | 關聯的 Page IDs |
-| `spaceType` | `database \| wiki` | 空間型態 |
-| `status` | `active \| archived` | 狀態 |
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
 
-這塊是目前最需要和 `knowledge-database` 重新釐清的邊界。
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
 
 ---
 
@@ -84,6 +117,7 @@
 
 | 介面 | 主要方法 |
 |------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |

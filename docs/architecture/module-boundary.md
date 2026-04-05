@@ -286,7 +286,7 @@ export const WORKSPACE_FLOW_EVENT_LISTENERS = [
 - [ ] 建立 `infrastructure/`（Firebase 實作）
 - [ ] 建立 `interfaces/`（queries、hooks、components、actions）
 - [ ] 建立 `README.md`（職責說明）
-- [ ] 更新 `docs/architecture/bounded-contexts.md`
-- [ ] 更新 `docs/architecture/ubiquitous-language.md`
+- [ ] 更新 `docs/ddd/bounded-contexts.md`（Canonical）
+- [ ] 更新 `.github/terminology-glossary.md` 與 `docs/ddd/<context>/ubiquitous-language.md`（Canonical）
 - [ ] 更新 `docs/architecture/domain-implementation-target.md`
 - [ ] 更新 `agents/knowledge-base.md`

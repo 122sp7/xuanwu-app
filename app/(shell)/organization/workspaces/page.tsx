@@ -94,7 +94,7 @@ export default function OrganizationWorkspacesPage() {
       setNewName("");
       void loadWorkspaces(activeOrganizationId);
     } else {
-      setCreateError(result.error.message.message.message ?? "建立失敗，請稍後再試。");
+      setCreateError(result.error.message ?? "建立失敗，請稍後再試。");
     }
   }
 

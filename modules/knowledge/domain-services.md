@@ -1,40 +1,22 @@
-# Domain Services — knowledge
+# knowledge — Domain Services
 
-> `knowledge` BC 目前沒有獨立的 domain service class；多數規則分散在 repository、application use cases 與 editor store，而不是封裝在 aggregate methods 中。
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
 
----
+本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
 
-## 現況
+## Domain Services 檔案
 
-此 BC（個人筆記 Page + Block）的主流程仍以 CRUD 與簡單 workflow 為主，目前尚未抽出獨立 service class。
+- 目前沒有獨立的 `domain/services/*` 檔案。
 
-邏輯由以下層次處理：
+## 設計規則
 
-| 層次 | 負責內容 |
-|---|---|
-| Page repository | slugify、Firestore path、approval / verify / assign owner persistence |
-| Use Cases | DTO 驗證、move guard、approve event publish |
-| Editor store | 本地 block editor 狀態（Zustand） |
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
 
----
+## 模組內對應文件
 
-## 潛在未來 Domain Services（待需求出現再提取）
-
-| 候選 Service | 觸發條件 |
-|---|---|
-| `PageApprovalService` | 若 approval 流程複雜化（多步驟審批、代理審批） |
-| `BlockOrderService` | 若 Block 排序規則複雜化（fractional indexing） |
-| `PageDuplicatorService` | 若 Page 複製需要深度 Block 複製邏輯 |
-| `PageVerificationPolicyService` | 若 verification expiry / owner reassignment 規則複雜化 |
-| `CollectionBoundaryService` | 若 `KnowledgeCollection` 抽離到 `knowledge-database` 需要對應轉譯 |
-
----
-
-## 跨 BC Domain Services（不在此 BC）
-
-| Service | 所屬 BC |
-|---|---|
-| `BacklinkExtractorService` | `knowledge-base` |
-| `PermissionLevelComparator` | `knowledge-collaboration` |
-| `FieldValueValidator` | `knowledge-database` |
-| `ViewQueryBuilder` | `knowledge-database` |
+- `../../../modules/knowledge/domain-services.md`
+- `../../../docs/ddd/knowledge/aggregates.md`

@@ -1,45 +1,57 @@
 # knowledge — Application Services
 
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
+
 ## Application Layer 職責
 
-管理頁面（Page）、內容區塊（Block）與過渡中的 `KnowledgeCollection` 的 CRUD、排序與 workflow orchestration。
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
 
 ## 實際檔案
 
+- `application/block-service.ts`
 - `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
 - `application/use-cases/knowledge-block.use-cases.ts`
 - `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
 
 ## Use Cases 清單
 
-| Use Case 類別 | 操作 |
-|---|---|
-| `CreateKnowledgePageUseCase` | 建立頁面 |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面 Block IDs |
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
 | `GetKnowledgePageUseCase` | 取得單頁 |
 | `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 建立頁面樹狀結構 |
-| `ApproveKnowledgePageUseCase` | 核准頁面並 publish `knowledge.page_approved` |
-| `VerifyKnowledgePageUseCase` | 設為 verified |
-| `RequestPageReviewUseCase` | 設為 needs_review |
-| `AssignPageOwnerUseCase` | 指派 page owner |
-| `AddKnowledgeBlockUseCase` | 新增 Block |
-| `UpdateKnowledgeBlockUseCase` | 更新 Block 內容 |
-| `DeleteKnowledgeBlockUseCase` | 刪除 Block |
-| `ListKnowledgeBlocksUseCase` | 取得頁面所有 Block |
-| `CreateKnowledgeCollectionUseCase` | 建立 collection |
-| `RenameKnowledgeCollectionUseCase` | 重新命名 collection |
-| `AddPageToCollectionUseCase` | 把 page 加入 collection |
-| `RemovePageFromCollectionUseCase` | 從 collection 移除 page |
-| `AddCollectionColumnUseCase` | 新增 collection column |
-| `ArchiveKnowledgeCollectionUseCase` | 封存 collection |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
 
-## 已知差距
+## 設計對齊
 
-- `publishKnowledgeVersion` 目前回傳 not implemented
-- `getKnowledgeVersions` 目前回傳空陣列
-- approval / verify / owner workflow 已有 use case，但對應 UI 與完整 downstream materialization 尚未補齊
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`

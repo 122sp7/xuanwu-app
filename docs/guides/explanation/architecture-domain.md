@@ -787,7 +787,7 @@ Identity ──→ Account ──→ Organization ──→ Workspace
 interface DomainEventDTO {
   type: "knowledge.document_registered";  // 格式：module.event_name
   payload: { documentId: string; workspaceId: string; };
-  occurredAtISO: string;                  // ISO 8601 時間戳
+  occurredAt: string;                     // ISO 8601 時間戳
 }
 ```
 

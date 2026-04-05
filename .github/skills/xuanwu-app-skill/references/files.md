@@ -6173,4594 +6173,6 @@ The framework enforces these across all commands. Claude will use the technologi
 [← Back to README](../README.md)
 ````
 
-## File: docs/ddd/account/AGENT.md
-````markdown
-# AGENT.md — account BC
-
-## 模組定位
-
-`account` 是 Xuanwu 平台的**帳戶管理**有界上下文，負責用戶 profile 與存取控制政策。在伺服器端消費 `identity/api`。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Account` | User、Profile、Member（在此 BC 內） |
-| `AccountPolicy` | Permission、AccessRule、Role（作為存取控制） |
-| `customClaims` | Claims、FirebaseClaims |
-| `accountId` | userId、uid（在此 BC 之外的引用應使用 accountId） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { accountApi } from "@/modules/account/api";
-import type { AccountDTO, AccountPolicyDTO } from "@/modules/account/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Account } from "@/modules/account/domain/entities/Account";
-// account use-cases 在 server 端 — 不要在 use-cases 中 import React/client hooks
-```
-
-## 關鍵依賴規則
-
-- `modules/account/application/use-cases/account.use-cases.ts` 與 `modules/account/application/use-cases/account-policy.use-cases.ts` 在 server 端執行，可 import `identity/api`
-- 不要在 application 層 import 任何含 `"use client"` 的模組
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/account/aggregates.md
-````markdown
-# Aggregates — account
-
-## 聚合根：Account
-
-### 職責
-代表使用者在 Xuanwu 平台的業務身份記錄。管理 profile 資訊與帳戶狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 帳戶主鍵（對應 Firebase uid） |
-| `displayName` | `string` | 顯示名稱 |
-| `email` | `string` | Email |
-| `avatarUrl` | `string \| null` | 頭像 URL |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-### 不變數
-
-- 每個 Account 對應唯一一個 Firebase uid
-- Account 建立後 id 不可變更
-
----
-
-## 聚合根：AccountPolicy
-
-### 職責
-代表附加到帳戶的存取控制政策，定義哪些資源可存取、哪些動作被允許，並映射到 Firebase custom claims。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Policy 主鍵 |
-| `accountId` | `string` | 關聯的 Account ID |
-| `rules` | `PolicyRule[]` | 存取控制規則列表 |
-| `effect` | `"allow" \| "deny"` | 規則效果 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `AccountRepository` | `save()`, `findById()`, `delete()` |
-| `AccountQueryRepository` | `findById()`, `findByEmail()` |
-| `AccountPolicyRepository` | `save()`, `findByAccountId()` |
-````
-
-## File: docs/ddd/account/application-services.md
-````markdown
-# account — Application Services
-
-> **Canonical bounded context:** `account`
-> **模組路徑:** `modules/account/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `account` 的 application layer 服務與 use cases。內容與 `modules/account/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理帳戶資料、偏好設定與帳戶政策，並在 server 端透過 identity/api 取得已驗證身份。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/account-policy.use-cases.ts`
-- `application/use-cases/account.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/account/README.md`
-- 模組 AGENT：`../../../modules/account/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/account/application-services.md`
-````
-
-## File: docs/ddd/account/context-map.md
-````markdown
-# Context Map — account
-
-## 上游（依賴）
-
-### identity → account（Customer/Supplier）
-
-- `account` 依賴 `identity/api` 取得 uid 與 TokenRefreshSignal
-- `modules/account/application/use-cases/account.use-cases.ts` 在 server 端 import `identity/api`
-
-```
-identity/api ──► account/application (server-side use-cases)
-```
-
----
-
-## 下游（被依賴）
-
-### account → organization（Customer/Supplier）
-
-- `organization` 的 `MemberReference` 使用 `accountId` 參照 Account
-- Organization 成員列表以 `accountId` 為主鍵
-
-### account → workspace（Customer/Supplier）
-
-- `Workspace.accountId` 關聯帳戶或組織
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| account → organization | account | organization | Customer/Supplier |
-| account → workspace | account | workspace | Customer/Supplier |
-````
-
-## File: docs/ddd/account/domain-events.md
-````markdown
-# Domain Events — account
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `account.created` | 新帳戶建立時 | `accountId`, `email`, `occurredAt` |
-| `account.policy_updated` | AccountPolicy 更新時，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 事件 | 行動 |
-|---------|------|------|
-| `identity` | `TokenRefreshSignal` | 觸發 custom claims 重新計算與 Firebase token 更新 |
-
-## 事件格式
-
-```typescript
-interface AccountCreatedEvent {
-  readonly type: "account.created";
-  readonly accountId: string;
-  readonly email: string;
-  readonly occurredAt: string;  // ISO 8601
-}
-
-interface AccountPolicyUpdatedEvent {
-  readonly type: "account.policy_updated";
-  readonly accountId: string;
-  readonly policyId: string;
-  readonly occurredAt: string;
-}
-```
-````
-
-## File: docs/ddd/account/domain-services.md
-````markdown
-# account — Domain Services
-
-> **Canonical bounded context:** `account`
-> **模組路徑:** `modules/account/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `account` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/account/domain-services.md`
-- `../../../docs/ddd/account/aggregates.md`
-````
-
-## File: docs/ddd/account/README.md
-````markdown
-# account — 帳戶上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/account/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
-| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
-| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
-
-## 與其他 Bounded Context 協作
-
-- `identity` 提供身份與 token 上下文。
-- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
-
-## 核心聚合 / 核心概念
-
-- **`Account`**
-- **`AccountPolicy`**
-- **`AccountProfile`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/account/repositories.md
-````markdown
-# account — Repositories
-
-> **Canonical bounded context:** `account`
-> **模組路徑:** `modules/account/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `account` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/AccountPolicyRepository.ts`
-- `domain/repositories/AccountQueryRepository.ts`
-- `domain/repositories/AccountRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseAccountPolicyRepository.ts`
-- `infrastructure/firebase/FirebaseAccountQueryRepository.ts`
-- `infrastructure/firebase/FirebaseAccountRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/account/repositories.md`
-- `../../../docs/ddd/account/aggregates.md`
-````
-
-## File: docs/ddd/account/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — account
-
-> **範圍：** 僅限 `modules/account/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 帳戶 | Account | 使用者在平台的業務記錄，含 profile 資訊與狀態 | `modules/account/domain/entities/Account.ts` |
-| 帳戶政策 | AccountPolicy | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 | `modules/account/domain/entities/AccountPolicy.ts` |
-| 帳戶 ID | accountId | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） | `Account.id` |
-| 自訂宣告 | customClaims | Firebase ID token 中的自訂 claims，由 AccountPolicy 決定 | `Account.customClaims` |
-| 帳戶查詢庫 | AccountQueryRepository | CQRS 讀取側 Repository port | `domain/repositories/AccountQueryRepository.ts` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Account` | `User`, `Profile` |
-| `AccountPolicy` | `Permission`, `Role`, `AccessRule` |
-| `accountId` | `userId`（帳戶層應使用 accountId） |
-````
-
-## File: docs/ddd/ai/aggregates.md
-````markdown
-# Aggregates — ai
-
-## 聚合根：IngestionJob
-
-### 職責
-管理 RAG 攝入管線的單一工作記錄。追蹤從上傳到 indexed 的完整狀態機。
-
-### 生命週期狀態機
-```
-uploaded ──► parsing ──► embedding ──► indexed
-                │                         │
-                └──────► failed ◄─────────┘
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Job 主鍵 |
-| `documentId` | `string` | 關聯 SourceDocument ID |
-| `organizationId` | `string` | 所屬組織 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `status` | `IngestionStatus` | 當前狀態 |
-| `startedAt` | `string \| null` | ISO 8601 開始時間 |
-| `completedAt` | `string \| null` | ISO 8601 完成時間 |
-| `errorMessage` | `string \| null` | 失敗原因 |
-
-### 不變數
-
-- `indexed` 狀態後不可再轉換回其他狀態
-- `failed` 狀態的 errorMessage 不可為空
-
----
-
-## 實體：IngestionDocument
-
-### 職責
-交付給攝入管線的文件元資料，提供 `py_fn/` worker 所需的來源資訊。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 文件主鍵 |
-| `sourceFileId` | `string` | 關聯 SourceDocument ID |
-| `mimeType` | `string` | 檔案 MIME type |
-| `storageUrl` | `string` | Firebase Storage URL |
-
----
-
-## 值物件：IngestionChunk
-
-### 職責
-文件切分後的向量化 chunk，由 `py_fn/` 生成後寫入 Firestore。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Chunk 主鍵 |
-| `documentId` | `string` | 所屬文件 ID |
-| `chunkIndex` | `number` | Chunk 在文件中的序號 |
-| `content` | `string` | Chunk 文字內容 |
-| `embedding` | `number[]` | 向量嵌入（由 py_fn/ 寫入） |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `IngestionJobRepository` | `save()`, `findByDocumentId()`, `listByWorkspace()`, `updateStatus()` |
-````
-
-## File: docs/ddd/ai/application-services.md
-````markdown
-# ai — Application Services
-
-> **Canonical bounded context:** `ai`
-> **模組路徑:** `modules/ai/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `ai` 的 application layer 服務與 use cases。內容與 `modules/ai/application/` 實作保持一致。
-
-## Application Layer 職責
-
-協調 RAG ingestion job 的生命週期，將重型 parse/chunk/embed 工作交給 py_fn/ 執行。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/link-extractor.service.ts`
-- `application/use-cases/advance-ingestion-stage.use-case.ts`
-- `application/use-cases/register-ingestion-document.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/ai/README.md`
-- 模組 AGENT：`../../../modules/ai/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/ai/application-services.md`
-````
-
-## File: docs/ddd/ai/context-map.md
-````markdown
-# Context Map — ai
-
-## 上游（依賴）
-
-### source → ai（Customer/Supplier）
-
-- `source.upload_completed` 觸發 `ai` 建立 IngestionJob
-- `ai` 依賴 `source/api` 取得 SourceDocument 元資料（storageUrl、mimeType）
-
----
-
-## 下游（被依賴）
-
-### ai → search（Customer/Supplier）
-
-- `ai.ingestion_completed` 通知 `search` 更新向量索引
-- `search` 的 RAG 查詢依賴 `ai` 生成的 IngestionChunk
-
-### ai → py_fn（Runtime Boundary）
-
-**這不是 BC 間的 DDD 整合，而是 runtime 邊界分割：**
-
-```
-Next.js ai module ──[Firestore Job Record]──► py_fn/ worker
-                   ──[Firebase Storage URL]──► py_fn/ worker
-py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
-```
-
-- Next.js 端：Job 建立、狀態查詢、API
-- `py_fn/`：parse / chunk / embed 實際執行
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| source → ai | source | ai | Published Language (Events) |
-| ai → search | ai | search | Published Language (Events) |
-| ai → py_fn | Next.js | py_fn | Runtime Boundary（非 DDD 邊界） |
-````
-
-## File: docs/ddd/ai/domain-events.md
-````markdown
-# Domain Events — ai
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `ai.ingestion_job_created` | 新 IngestionJob 建立 | `jobId`, `documentId`, `workspaceId`, `occurredAt` |
-| `ai.ingestion_completed` | Job 狀態達到 `indexed` | `jobId`, `documentId`, `chunkCount`, `occurredAt` |
-| `ai.ingestion_failed` | Job 狀態轉為 `failed` | `jobId`, `documentId`, `errorMessage`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `source` | `source.upload_completed` | 建立 IngestionJob，啟動攝入管線 |
-
-## 消費 ai 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `search` | `ai.ingestion_completed` | 更新向量索引，RagDocument 標記為可查詢 |
-| `source` | `ai.ingestion_completed` | 更新 SourceDocument 狀態為 ready |
-| `workspace-audit` | `ai.ingestion_completed / failed` | 記錄攝入稽核軌跡 |
-````
-
-## File: docs/ddd/ai/domain-services.md
-````markdown
-# ai — Domain Services
-
-> **Canonical bounded context:** `ai`
-> **模組路徑:** `modules/ai/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `ai` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/ai/domain-services.md`
-- `../../../docs/ddd/ai/aggregates.md`
-````
-
-## File: docs/ddd/ai/README.md
-````markdown
-# ai — AI 攝入上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/ai/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
-| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
-| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
-
-## 與其他 Bounded Context 協作
-
-- `source` 是上游，提供來源文件與交接事件。
-- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
-
-## 核心聚合 / 核心概念
-
-- **`IngestionJob`**
-- **`IngestionDocument`**
-- **`IngestionChunk`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/ai/repositories.md
-````markdown
-# ai — Repositories
-
-> **Canonical bounded context:** `ai`
-> **模組路徑:** `modules/ai/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `ai` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/GraphRepository.ts`
-- `domain/repositories/IngestionJobRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/InMemoryGraphRepository.ts`
-- `infrastructure/InMemoryIngestionJobRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/ai/repositories.md`
-- `../../../docs/ddd/ai/aggregates.md`
-````
-
-## File: docs/ddd/ai/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — ai
-
-> **範圍：** 僅限 `modules/ai/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 攝入工作 | IngestionJob | RAG 攝入管線的單一工作記錄，追蹤 parse/chunk/embed 的執行狀態 |
-| 攝入文件 | IngestionDocument | 交付給攝入管線的文件元資料記錄 |
-| 攝入 Chunk | IngestionChunk | 文件切分後的向量化單元（由 py_fn/ 生成） |
-| 攝入狀態 | IngestionStatus | Job 的生命週期狀態：`uploaded \| parsing \| embedding \| indexed \| failed` |
-| 文件 ID | documentId | 關聯的 source 模組 SourceDocument ID |
-| 工作區 ID | workspaceId | Job 所屬的工作區 |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `IngestionJob` | `Job`, `ParseJob`, `EmbedTask` |
-| `IngestionDocument` | `Document`, `File`（在 ai BC 內） |
-| `IngestionChunk` | `Chunk`, `VectorEntry` |
-| `IngestionStatus` | `JobStatus`, `State` |
-````
-
-## File: docs/ddd/identity/AGENT.md
-````markdown
-# AGENT.md — identity BC
-
-## 模組定位
-
-`identity` 是 Firebase Authentication 的 domain 薄層封裝。無業務邏輯，只有驗證基礎設施抽象。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Identity` | User、CurrentUser、AuthUser |
-| `TokenRefreshSignal` | TokenEvent、RefreshToken |
-| `signIn` | login、authenticate |
-| `signOut` | logout |
-| `uid` | userId、id（在此 BC 內） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { identityApi } from "@/modules/identity/api";
-import type { IdentityDTO } from "@/modules/identity/api";
-```
-
-### ❌ 禁止
-```typescript
-import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/useTokenRefreshListener";
-// ❌ api/ 不能含 "use client" 匯出 — account use-cases 在 server 端 import api/
-```
-
-## 關鍵守衛
-
-- `modules/identity/api/index.ts` 不得 re-export 任何含 `"use client"` 的檔案
-- hooks（`useTokenRefreshListener`）只能從 interfaces 層使用，不可進入 api barrel
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/identity/aggregates.md
-````markdown
-# Aggregates — identity
-
-## 聚合根：Identity
-
-### 職責
-代表一個已通過 Firebase Authentication 驗證的使用者。提供讀取身份資訊的能力。
-
-### 屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `uid` | `string` | Firebase UID（主鍵） |
-| `email` | `string \| null` | 使用者 Email |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 頭像 URL |
-
-### 不變數
-
-- `uid` 永遠不為空（由 Firebase 保證）
-- `Identity` 物件是唯讀的（由 Firebase Auth SDK 產生）
-
----
-
-## 值物件：TokenRefreshSignal
-
-### 職責
-代表「token 需要刷新」的事件訊號，觸發 `account` 域更新 custom claims。
-
-### 屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `uid` | `string` | 需要刷新 token 的使用者 UID |
-| `occurredAt` | `string` | ISO 8601 時間戳 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 | 說明 |
-|------|---------|------|
-| `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作 |
-| `TokenRefreshRepository` | `listenToTokenRefresh()` | 監聽 token 刷新事件 |
-````
-
-## File: docs/ddd/identity/application-services.md
-````markdown
-# identity — Application Services
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `identity` 的 application layer 服務與 use cases。內容與 `modules/identity/application/` 實作保持一致。
-
-## Application Layer 職責
-
-封裝 Firebase Authentication，提供登入、登出與 token refresh 能力。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/identity-error-message.ts`
-- `application/use-cases/identity.use-cases.ts`
-- `application/use-cases/token-refresh.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/identity/README.md`
-- 模組 AGENT：`../../../modules/identity/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/identity/application-services.md`
-````
-
-## File: docs/ddd/identity/context-map.md
-````markdown
-# Context Map — identity
-
-## 此 BC 的整合模式
-
-### 上游（依賴）
-
-`identity` 是最基礎的 Generic Subdomain，不依賴任何其他業務 BC。
-
-**外部依賴：** Firebase Authentication SDK（第三方服務，Anti-Corruption Layer 在 infrastructure 層）
-
----
-
-### 下游（被依賴）
-
-#### `account` ← identity（Customer/Supplier）
-
-- **模式：** Customer/Supplier
-- **方向：** `identity` 是 Supplier（上游），`account` 是 Customer（下游）
-- **整合方式：** `account` application use-cases 在 server 端 import `identity/api` 取得身份上下文
-- **關鍵規則：** `identity/api` 不得含任何 `"use client"` 匯出
-
-```
-identity/api ──import──► account/application/use-cases/*.ts（server-side）
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| Firebase Auth → identity | Firebase | identity | Anti-Corruption Layer |
-````
-
-## File: docs/ddd/identity/domain-events.md
-````markdown
-# Domain Events — identity
-
-## 發出事件
-
-`identity` 域目前不發出 DomainEvent（Firebase Auth 事件由 SDK 直接處理，不經過領域事件匯流排）。
-
-未來如需追蹤登入稽核，可考慮加入：
-
-| 潛在事件 | 觸發條件 | 說明 |
-|---------|---------|------|
-| `identity.signed_in` | 使用者成功登入 | 供 `workspace-audit` 消費 |
-| `identity.signed_out` | 使用者登出 | 供稽核紀錄消費 |
-
-## 訂閱事件
-
-`identity` 不訂閱其他 BC 的事件。
-
-## TokenRefreshSignal（非正式事件）
-
-`TokenRefreshSignal` 是透過 `TokenRefreshRepository.listenToTokenRefresh()` 的 Observable 訊號，不是正式的 DomainEvent，但語意上扮演事件角色：
-
-```typescript
-// account use-case 消費此訊號
-identityApi.listenToTokenRefresh()
-  .subscribe(() => accountApi.refreshCustomClaims(uid));
-```
-````
-
-## File: docs/ddd/identity/domain-services.md
-````markdown
-# identity — Domain Services
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `identity` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/identity/domain-services.md`
-- `../../../docs/ddd/identity/aggregates.md`
-````
-
-## File: docs/ddd/identity/README.md
-````markdown
-# identity — 身份驗證上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
-
-## 核心聚合 / 核心概念
-
-- **`Identity`**
-- **`AuthenticatedUser`**
-- **`TokenRefreshSignal`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/identity/repositories.md
-````markdown
-# identity — Repositories
-
-> **Canonical bounded context:** `identity`
-> **模組路徑:** `modules/identity/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `identity` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/IdentityRepository.ts`
-- `domain/repositories/TokenRefreshRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseIdentityRepository.ts`
-- `infrastructure/firebase/FirebaseTokenRefreshRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/identity/repositories.md`
-- `../../../docs/ddd/identity/aggregates.md`
-````
-
-## File: docs/ddd/identity/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — identity
-
-> **範圍：** 僅限 `modules/identity/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 身份 | Identity | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼 | `modules/identity/domain/entities/` |
-| 唯一身份碼 | uid | Firebase Authentication 產生的使用者全域唯一 ID | `Identity.uid` |
-| Token 刷新訊號 | TokenRefreshSignal | 代表 Firebase ID token 需要更新的訊號物件 | `domain/entities/` |
-| 登入 | signIn | 透過 Email 或 OAuth 建立 Firebase Auth session | `IdentityRepository.signIn()` |
-| 登出 | signOut | 終止 Firebase Auth session | `IdentityRepository.signOut()` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Identity` | `User`, `AuthUser`, `CurrentUser` |
-| `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
-| `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
-````
-
-## File: docs/ddd/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
-```
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-````
-
-## File: docs/ddd/knowledge/domain-services.md
-````markdown
-# knowledge — Domain Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/domain-services.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
-````
-
-## File: docs/ddd/notebook/AGENT.md
-````markdown
-# AGENT.md — notebook BC
-
-## 模組定位
-
-`notebook` 是 AI 對話的支援域，管理 Thread/Message 生命週期並封裝 Genkit 呼叫。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Thread` | Conversation、Chat、Session |
-| `Message` | ChatMessage、Msg |
-| `MessageRole` | Role（單獨使用）、Speaker |
-| `NotebookResponse` | AIResponse、GeneratedText |
-| `NotebookRepository` | AIRepository、ChatRepository |
-
-## 最重要規則：Server Action 隔離
-
-```typescript
-// ✅ 正確：在 app/(shell)/ai-chat/_actions.ts 中建立本地 action
-"use server";
-import { notebookApi } from "@/modules/notebook/api";
-export async function generateResponse(input) {
-  return notebookApi.generateResponse(input);
-}
-
-// ❌ 禁止：在 Client Component 直接 import notebook/api
-// Genkit/gRPC 是 server-only，會導致打包失敗
-import { notebookApi } from "@/modules/notebook/api"; // 在 "use client" 檔案中
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-// Server-side context only
-import { notebookApi } from "@/modules/notebook/api";
-import type { ThreadDTO, MessageDTO } from "@/modules/notebook/api";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/notebook/aggregates.md
-````markdown
-# Aggregates — notebook
-
-## 聚合根：Thread
-
-### 職責
-代表一個 AI 對話串。持有有序的 Message 列表，管理對話歷史。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `ID` | Thread 主鍵 |
-| `messages` | `Message[]` | 有序訊息列表 |
-| `createdAt` | `string` | ISO 8601 |
-| `updatedAt` | `string` | ISO 8601 |
-
-### 不變數
-
-- messages 列表維持追加順序，不可重新排序
-- Thread 不可刪除 Message（只能追加）
-
----
-
-## 值物件：Message
-
-### 職責
-Thread 中的單則訊息，不可變（immutable）。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `ID` | 訊息主鍵 |
-| `role` | `MessageRole` | `"user" \| "assistant" \| "system"` |
-| `content` | `string` | 訊息內容文字 |
-| `createdAt` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 說明 |
-|------|------|
-| `NotebookRepository` | 封裝 Genkit AI 呼叫：`generateResponse(input)` |
-
-### GenerateNotebookResponseInput
-
-```typescript
-interface GenerateNotebookResponseInput {
-  readonly prompt: string;
-  readonly model?: string;    // 預設 Gemini 2.0 flash
-  readonly system?: string;   // System prompt
-}
-```
-
-### GenerateNotebookResponseResult
-
-```typescript
-type GenerateNotebookResponseResult =
-  | { ok: true; data: NotebookResponse }
-  | { ok: false; error: DomainError };
-
-interface NotebookResponse {
-  readonly text: string;
-  readonly model: string;
-  readonly finishReason?: string;
-}
-```
-````
-
-## File: docs/ddd/notebook/application-services.md
-````markdown
-# notebook — Application Services
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `notebook` 的 application layer 服務與 use cases。內容與 `modules/notebook/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 AI 對話 Thread/Message，並封裝模型生成回應。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/index.ts`
-- `application/use-cases/answer-rag-query.use-case.ts`
-- `application/use-cases/generate-agent-response.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/notebook/README.md`
-- 模組 AGENT：`../../../modules/notebook/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/notebook/application-services.md`
-````
-
-## File: docs/ddd/notebook/context-map.md
-````markdown
-# Context Map — notebook
-
-## 上游（依賴）
-
-### search → notebook（Customer/Supplier）
-
-- `notebook` 呼叫 `search/api` 取得語意相關 chunks（RAG retrieval）
-- 用於 RAG-augmented 對話生成
-
-### wiki → notebook（Customer/Supplier）
-
-- `notebook` 可查詢 `wiki/api` 取得知識圖譜上下文（未來支援圖譜推理）
-
----
-
-## 下游（被依賴）
-
-### notebook → app/(shell)/ai-chat（Interfaces）
-
-- AI Chat 頁面透過本地 `app/(shell)/ai-chat/_actions.ts` 呼叫 `notebook/api`
-- **注意**：`notebook/api` barrel 不得在 Client Component 中直接 import（Genkit server-only）
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| search → notebook | search | notebook | Customer/Supplier（同步查詢） |
-| wiki → notebook | wiki | notebook | Customer/Supplier（同步查詢） |
-| notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（`app/(shell)/ai-chat/_actions.ts`） |
-````
-
-## File: docs/ddd/notebook/domain-events.md
-````markdown
-# Domain Events — notebook
-
-## 發出事件
-
-`notebook` 域目前不發出 DomainEvent。AI 對話是使用者互動的即時回應，不需要下游事件消費。
-
-未來可考慮：
-
-| 潛在事件 | 觸發條件 | 說明 |
-|---------|---------|------|
-| `notebook.thread_created` | 新 Thread 建立 | 供 workspace-audit 記錄 |
-| `notebook.response_generated` | AI 回應完成 | 供 token 使用量追蹤 |
-
-## 訂閱事件
-
-`notebook` 不訂閱其他 BC 的事件。
-
-## 整合說明
-
-`notebook` 透過**同步查詢**（非事件）消費其他 BC 的能力：
-
-- **`search`**：呼叫 `search/api.answerRagQuery()` 取得語意相關 chunks（用於 RAG-augmented 對話）
-- **`wiki`**：可查詢 wiki 圖譜以取得知識上下文（未來）
-````
-
-## File: docs/ddd/notebook/domain-services.md
-````markdown
-# notebook — Domain Services
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/notebook/domain-services.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: docs/ddd/notebook/README.md
-````markdown
-# notebook — Notebook 對話上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/notebook/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 對話 Thread 管理 | 維護對話串與訊息歷史 |
-| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
-| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
-
-## 與其他 Bounded Context 協作
-
-- `search` 是主要上游，提供語意檢索與引用資料。
-- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
-
-## 核心聚合 / 核心概念
-
-- **`Thread`**
-- **`Message`**
-- **`Summary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: docs/ddd/notebook/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — notebook
-
-> **範圍：** 僅限 `modules/notebook/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 對話串 | Thread | 一組有序的對話訊息集合，是 AI 對話的持久化單元 |
-| 訊息 | Message | Thread 中的單則訊息（含 role 和 content） |
-| 訊息角色 | MessageRole | 訊息發出者的角色：`"user" \| "assistant" \| "system"` |
-| 筆記本回應 | NotebookResponse | AI 模型對一次 prompt 的回應結果（含 text、model） |
-| 生成輸入 | GenerateNotebookResponseInput | 呼叫 AI 生成的輸入（prompt、model?、system?） |
-| 筆記本庫 | NotebookRepository | 封裝 Genkit AI 呼叫的 Repository port |
-
-## 棄用術語（已移至 search）
-
-| 棄用術語 | 新位置 |
-|----------|--------|
-| `RagQuery` / `RagCitation` | `modules/search/domain/entities/RagQuery.ts` |
-| `RagGenerationRepository` | `modules/search/domain/repositories/RagGenerationRepository.ts` |
-| `RagRetrievalRepository` | `modules/search/domain/repositories/RagRetrievalRepository.ts` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Thread` | `Conversation`, `Chat`, `Session` |
-| `Message` | `ChatMessage`, `Turn` |
-| `NotebookResponse` | `AIResponse`, `LLMOutput` |
-````
-
-## File: docs/ddd/notification/AGENT.md
-````markdown
-# AGENT.md — notification BC
-
-## 模組定位
-
-`notification` 是通知分發的通用子域，負責系統通知的建立、發送與讀取。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `NotificationEntity` | Notification（作為 class 名），Alert, Message（作為通知） |
-| `recipientId` | userId, receiverId |
-| `NotificationType` | Type, AlertLevel |
-| `DispatchNotificationInput` | CreateNotification, SendNotification |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { notificationApi } from "@/modules/notification/api";
-import type { NotificationDTO } from "@/modules/notification/api";
-```
-
-### ❌ 禁止
-```typescript
-import { NotificationEntity } from "@/modules/notification/domain/entities/Notification";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/notification/aggregates.md
-````markdown
-# Aggregates — notification
-
-## 聚合根：NotificationEntity
-
-### 職責
-代表一則系統通知記錄。管理通知的發送與讀取狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 通知主鍵 |
-| `recipientId` | `string` | 接收者帳戶 ID |
-| `title` | `string` | 通知標題 |
-| `message` | `string` | 通知內容 |
-| `type` | `NotificationType` | `info \| alert \| success \| warning` |
-| `read` | `boolean` | 是否已讀 |
-| `timestamp` | `number` | Unix timestamp（毫秒） |
-| `sourceEventType` | `string?` | 觸發此通知的事件類型 |
-| `metadata` | `Record<string, unknown>?` | 附加元資料 |
-
-### 不變數
-
-- `recipientId` 不可為空
-- `title` 不可為空
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `NotificationRepository` | `save()`, `findByRecipient()`, `markAsRead()` |
-````
-
-## File: docs/ddd/notification/application-services.md
-````markdown
-# notification — Application Services
-
-> **Canonical bounded context:** `notification`
-> **模組路徑:** `modules/notification/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `notification` 的 application layer 服務與 use cases。內容與 `modules/notification/application/` 實作保持一致。
-
-## Application Layer 職責
-
-負責系統通知分發與通知讀取狀態管理。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/notification.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/notification/README.md`
-- 模組 AGENT：`../../../modules/notification/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/notification/application-services.md`
-````
-
-## File: docs/ddd/notification/context-map.md
-````markdown
-# Context Map — notification
-
-## 上游（依賴）
-
-### 所有業務 BC → notification（Published Language）
-
-`notification` 訂閱各 BC 的業務事件，轉換為使用者通知。不直接依賴任何 BC 的 api。
-
----
-
-## 下游（被依賴）
-
-`notification` 不被其他 BC 依賴（通知是終端輸出，無下游）。
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → notification | workspace | notification | Published Language (Events) |
-| workspace-flow → notification | workspace-flow | notification | Published Language (Events) |
-| 其他 BC → notification | 各 BC | notification | Published Language (Events) |
-````
-
-## File: docs/ddd/notification/domain-events.md
-````markdown
-# Domain Events — notification
-
-## 發出事件
-
-`notification` 域不發出 DomainEvent（通知本身是事件的結果，而非事件的來源）。
-
-## 訂閱事件
-
-`notification` 是各 BC 事件的**消費端**，訂閱業務事件並轉換為使用者通知：
-
-| 來源 BC | 訂閱事件 | 通知內容 |
-|---------|---------|---------|
-| `workspace` | `workspace.member_joined` | 新成員加入通知 |
-| `workspace-flow` | `workspace-flow.task_status_changed` | 任務狀態變更通知 |
-| `workspace-audit` | 稽核紀錄變化 | 重要稽核事件通知（未來） |
-
-## 說明
-
-通知系統的角色是「事件翻譯器」：
-1. 其他 BC 發出領域事件
-2. notification 訂閱並翻譯為使用者可讀的通知
-3. 通知推送給對應的 recipientId
-
-這是典型的 **Published Language** 模式，notification 作為 Conformist 消費者。
-````
-
-## File: docs/ddd/notification/domain-services.md
-````markdown
-# notification — Domain Services
-
-> **Canonical bounded context:** `notification`
-> **模組路徑:** `modules/notification/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `notification` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/notification/domain-services.md`
-- `../../../docs/ddd/notification/aggregates.md`
-````
-
-## File: docs/ddd/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/notification/repositories.md
-````markdown
-# notification — Repositories
-
-> **Canonical bounded context:** `notification`
-> **模組路徑:** `modules/notification/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `notification` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotificationRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseNotificationRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notification/repositories.md`
-- `../../../docs/ddd/notification/aggregates.md`
-````
-
-## File: docs/ddd/notification/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — notification
-
-> **範圍：** 僅限 `modules/notification/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 通知 | NotificationEntity | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
-| 接收者 ID | recipientId | 接收此通知的帳戶 ID |
-| 通知類型 | NotificationType | `"info" \| "alert" \| "success" \| "warning"` |
-| 分發通知輸入 | DispatchNotificationInput | 建立並發送通知的輸入物件 |
-| 來源事件類型 | sourceEventType | 觸發此通知的業務事件類型（可選，用於追蹤） |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `NotificationEntity` | `Notification`（避免與 JS Notification API 衝突） |
-| `recipientId` | `userId`, `receiverId` |
-````
-
-## File: docs/ddd/organization/AGENT.md
-````markdown
-# AGENT.md — organization BC
-
-## 模組定位
-
-`organization` 是 Xuanwu 的多租戶管理有界上下文，管理 Organization 聚合根、成員、隊伍與邀請流程。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Organization` | Company、Tenant、Team（作為頂層組織）、Client |
-| `MemberReference` | Member、User（在組織上下文中）|
-| `Team` | Group、Squad（作為組織子群組） |
-| `PartnerInvite` | Invitation、InviteLink |
-| `OrganizationRole` | Role、Permission（作為組織角色） |
-| `Presence` | Status、OnlineStatus |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { organizationApi } from "@/modules/organization/api";
-import type { OrganizationDTO, MemberReferenceDTO } from "@/modules/organization/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Organization } from "@/modules/organization/domain/entities/Organization";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/organization/aggregates.md
-````markdown
-# Aggregates — organization
-
-## 聚合根：Organization
-
-### 職責
-代表一個企業或團隊租戶。管理所有成員、隊伍與合作夥伴邀請的生命週期。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 組織主鍵 |
-| `name` | `string` | 組織名稱 |
-| `members` | `MemberReference[]` | 成員列表（含 role） |
-| `teams` | `Team[]` | 子隊伍列表 |
-| `partnerInvites` | `PartnerInvite[]` | 未完成的邀請列表 |
-
-### 不變數
-
-- 同一 accountId 在同一 Organization 中只能有一個 MemberReference
-- `Owner` 角色至少需要一位（不可移除最後一個 Owner）
-- 過期的 PartnerInvite（`expired`）不能再被接受
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `MemberReference` | 成員快照（id, name, email, role, presence） |
-| `Team` | 子群組（id, name, type, memberIds） |
-| `PartnerInvite` | 邀請記錄（email, role, inviteState, invitedAt） |
-| `OrganizationRole` | `"Owner" \| "Admin" \| "Member" \| "Guest"` |
-| `Presence` | `"active" \| "away" \| "offline"` |
-| `InviteState` | `"pending" \| "accepted" \| "expired"` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `OrganizationRepository` | `save()`, `findById()`, `findByMemberId()` |
-````
-
-## File: docs/ddd/organization/application-services.md
-````markdown
-# organization — Application Services
-
-> **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `organization` 的 application layer 服務與 use cases。內容與 `modules/organization/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理多租戶組織、成員、隊伍與邀請流程。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/organization-policy.use-cases.ts`
-- `application/use-cases/organization.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/organization/README.md`
-- 模組 AGENT：`../../../modules/organization/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/organization/application-services.md`
-````
-
-## File: docs/ddd/organization/context-map.md
-````markdown
-# Context Map — organization
-
-## 上游（依賴）
-
-### account → organization（Customer/Supplier）
-
-- `organization.members[]` 中的 `MemberReference.id` 參照 `account` 的 accountId
-- 查詢成員 profile 時呼叫 `account/api`
-
----
-
-## 下游（被依賴）
-
-### organization → workspace（Customer/Supplier）
-
-- `Workspace.accountId + accountType="organization"` 關聯至 Organization
-- 工作區列表依 organizationId 篩選
-
-### organization → workspace-audit（Published Language）
-
-- 成員加入/移除事件供 `workspace-audit` 消費（未來事件 sink 完成後）
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| account → organization | account | organization | Customer/Supplier |
-| organization → workspace | organization | workspace | Customer/Supplier |
-| organization → workspace-audit | organization | workspace-audit | Published Language (Events) |
-````
-
-## File: docs/ddd/organization/domain-events.md
-````markdown
-# Domain Events — organization
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
-| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
-| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
-| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
-| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
-
-## 訂閱事件
-
-`organization` 不訂閱其他 BC 的事件（被動，等待 account 操作觸發）。
-
-## 事件格式範例
-
-```typescript
-interface OrganizationMemberJoinedEvent {
-  readonly type: "organization.member_joined";
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly role: OrganizationRole;
-  readonly occurredAt: string;  // ISO 8601
-}
-```
-````
-
-## File: docs/ddd/organization/domain-services.md
-````markdown
-# organization — Domain Services
-
-> **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `organization` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/organization/domain-services.md`
-- `../../../docs/ddd/organization/aggregates.md`
-````
-
-## File: docs/ddd/organization/README.md
-````markdown
-# organization — 組織上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/organization/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 組織管理 | 建立與維護 Organization 聚合 |
-| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
-| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
-- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
-
-## 核心聚合 / 核心概念
-
-- **`Organization`**
-- **`MemberReference`**
-- **`Team`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/organization/repositories.md
-````markdown
-# organization — Repositories
-
-> **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `organization` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/OrganizationRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseOrganizationRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/organization/repositories.md`
-- `../../../docs/ddd/organization/aggregates.md`
-````
-
-## File: docs/ddd/organization/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — organization
-
-> **範圍：** 僅限 `modules/organization/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 組織 | Organization | 頂層多租戶單元，代表一個企業或團隊 |
-| 成員參照 | MemberReference | 組織成員的輕量參照（含 accountId、role、presence） |
-| 隊伍 | Team | 組織內的子群組（internal / external 類型） |
-| 合作夥伴邀請 | PartnerInvite | 邀請外部合作夥伴加入隊伍的邀請記錄 |
-| 組織角色 | OrganizationRole | 成員在組織中的角色：`Owner \| Admin \| Member \| Guest` |
-| 在線狀態 | Presence | 成員的當前狀態：`active \| away \| offline` |
-| 邀請狀態 | InviteState | 邀請的當前狀態：`pending \| accepted \| expired` |
-| 政策效果 | PolicyEffect | 組織政策的效果：`allow \| deny` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Organization` | `Company`, `Tenant`, `Client` |
-| `MemberReference` | `Member`, `OrgUser` |
-| `OrganizationRole` | `Role`, `Permission` |
-````
-
-## File: docs/ddd/search/AGENT.md
-````markdown
-# AGENT.md — search BC
-
-## 模組定位
-
-`search` 是 RAG 語意檢索的支援域，提供向量搜尋、RAG answer 生成與查詢反饋收集。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `RagQuery` | Query、SearchQuery、VectorQuery |
-| `RagQueryFeedback` | Feedback、Rating |
-| `RagRetrievedChunk` | Chunk、SearchResult |
-| `RagCitation` | Citation、Source、Reference |
-| `VectorStore` | VectorDB、EmbeddingStore |
-| `RagRetrievalRepository` | RetrievalRepo、SearchRepo |
-| `RagGenerationRepository` | GenerationRepo、AIRepo |
-
-## 最重要邊界規則：Server vs Client Import
-
-```typescript
-// ✅ server code（Server Action、API route）
-import { searchApi } from "@/modules/search/api";
-
-// ✅ client code（React Component）
-import { RagView } from "@/modules/search"; // root barrel
-
-// ❌ 禁止：在 /api barrel 匯出 "use client" UI 元件
-// RagView, RagQueryView 只能從 root barrel 匯出
-```
-
-## 邊界規則
-
-### ❌ 禁止
-```typescript
-// api/index.ts 不得 re-export "use client" 元件
-export { RagView } from "./interfaces/components/RagView"; // 禁止在 api/
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/search/aggregates.md
-````markdown
-# Aggregates — search
-
-## 聚合根：RagQueryFeedback
-
-### 職責
-收集並持久化使用者對 RAG 查詢答案品質的反饋。支援持續改善 RAG 品質。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `feedbackId` | `string` | 反饋主鍵 |
-| `queryId` | `string` | 關聯的查詢 ID |
-| `helpful` | `boolean` | 是否有用 |
-| `comment` | `string \| null` | 文字評論（可選） |
-| `submittedAt` | `string` | ISO 8601 |
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `RagRetrievedChunk` | 檢索到的 chunk（chunkId, docId, chunkIndex, text, score, taxonomy） |
-| `RagCitation` | 引用資訊（chunkId, docId, text, score） |
-| `VectorDocument` | 向量索引文件（id, content, metadata, embedding） |
-| `WikiCitation` | Wiki RAG 引用（pageId, pageTitle, text, score） |
-
----
-
-## Ports（Hexagonal Architecture）
-
-| Port | 說明 |
-|------|------|
-| `IVectorStore` | 向量資料庫抽象（`index()`, `search()`, `deleteByDocId()`） |
-| `RagRetrievalRepository` | Chunk 向量搜尋操作 |
-| `RagGenerationRepository` | AI 答案生成（組合 chunks + Genkit 呼叫） |
-| `RagQueryFeedbackRepository` | 反饋持久化 |
-| `WikiContentRepository` | Wiki 整合 RAG 查詢（`queryWikiRag()`, `reindexWikiDocument()`） |
-````
-
-## File: docs/ddd/search/application-services.md
-````markdown
-# search — Application Services
-
-> **Canonical bounded context:** `search`
-> **模組路徑:** `modules/search/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `search` 的 application layer 服務與 use cases。內容與 `modules/search/application/` 實作保持一致。
-
-## Application Layer 職責
-
-提供向量檢索、RAG answer 生成與查詢反饋收集。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/answer-rag-query.use-case.ts`
-- `application/use-cases/submit-rag-feedback.use-case.ts`
-- `application/use-cases/wiki-rag.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/search/README.md`
-- 模組 AGENT：`../../../modules/search/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/search/application-services.md`
-````
-
-## File: docs/ddd/search/context-map.md
-````markdown
-# Context Map — search
-
-## 上游（依賴）
-
-### ai → search（Customer/Supplier）
-
-- `ai.ingestion_completed` 通知 `search` 更新向量索引
-- `search` 依賴 `ai` 生成的 IngestionChunk（embedding 向量）
-
-### wiki → search（Customer/Supplier）
-
-- `wiki.node_activated` 觸發 `search` 更新節點向量表示
-
----
-
-## 下游（被依賴）
-
-### search → notebook（Customer/Supplier）
-
-- `notebook` 呼叫 `search/api.answerRagQuery()` 取得 RAG chunks 與答案
-- 這是同步查詢，不是事件
-
-### search → Wiki UI（Interfaces）
-
-- `RagView`, `RagQueryView` 從 `modules/search` root barrel 匯出（非 /api）
-- Wiki 頁面直接呼叫 `search/api` Server Actions
-
----
-
-## Import 路由
-
-```
-server code (Server Action, API route) → import from @/modules/search/api
-client code (React Component)          → import from @/modules/search (root barrel)
-```
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| ai → search | ai | search | Published Language (Events) |
-| wiki → search | wiki | search | Published Language (Events) |
-| search → notebook | search | notebook | Customer/Supplier（同步） |
-| search → Wiki UI | search | app/ | Conformist |
-````
-
-## File: docs/ddd/search/domain-events.md
-````markdown
-# Domain Events — search
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `search.feedback_submitted` | 使用者提交 RagQueryFeedback | `feedbackId`, `queryId`, `helpful`, `occurredAt` |
-| `search.index_updated` | 向量索引更新完成（文件重新索引） | `documentId`, `chunkCount`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `ai` | `ai.ingestion_completed` | 新 chunks 的 embedding 已就緒，觸發向量索引更新 |
-| `wiki` | `wiki.node_activated` | 同步更新節點內容到向量索引 |
-
-## 消費 search 事件的其他 BC
-
-`search` 主要提供**同步查詢服務**（非事件），被 `notebook` 和 wiki RAG UI 直接呼叫：
-
-```typescript
-// notebook 呼叫 search 的同步查詢
-const result = await searchApi.answerRagQuery({
-  organizationId,
-  userQuery,
-  topK: 5,
-});
-```
-````
-
-## File: docs/ddd/search/domain-services.md
-````markdown
-# search — Domain Services
-
-> **Canonical bounded context:** `search`
-> **模組路徑:** `modules/search/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `search` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/search/domain-services.md`
-- `../../../docs/ddd/search/aggregates.md`
-````
-
-## File: docs/ddd/search/repositories.md
-````markdown
-# search — Repositories
-
-> **Canonical bounded context:** `search`
-> **模組路徑:** `modules/search/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `search` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/RagGenerationRepository.ts`
-- `domain/repositories/RagQueryFeedbackRepository.ts`
-- `domain/repositories/RagRetrievalRepository.ts`
-- `domain/repositories/WikiContentRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseRagQueryFeedbackRepository.ts`
-- `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
-- `infrastructure/firebase/FirebaseWikiContentRepository.ts`
-- `infrastructure/genkit/GenkitRagGenerationRepository.ts`
-- `infrastructure/genkit/client.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/search/repositories.md`
-- `../../../docs/ddd/search/aggregates.md`
-````
-
-## File: docs/ddd/search/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — search
-
-> **範圍：** 僅限 `modules/search/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| RAG 查詢 | RagQuery | 一次 Retrieval-Augmented Generation 查詢請求 |
-| RAG 已檢索 Chunk | RagRetrievedChunk | 向量搜尋返回的單一相關文件片段（含相似度分數） |
-| RAG 引用 | RagCitation | AI 答案引用的 chunk 來源資訊 |
-| RAG 答案輸出 | AnswerRagQueryOutput | 包含生成答案文字與引用列表的輸出 |
-| 查詢反饋 | RagQueryFeedback | 使用者對 RAG 答案品質的評分記錄 |
-| 向量存儲 | VectorStore | 向量資料庫的 Hexagonal Port（IVectorStore 介面） |
-| Wiki 引用 | WikiCitation | Wiki 整合 RAG 的引用格式（含 pageId、pageTitle） |
-| 向量文件 | VectorDocument | 要索引至向量資料庫的文件記錄 |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `RagQuery` | `SearchQuery`, `Query` |
-| `RagRetrievedChunk` | `SearchResult`, `Chunk` |
-| `RagCitation` | `Citation`, `Source` |
-| `VectorStore` | `VectorDB`, `EmbeddingDB` |
-````
-
-## File: docs/ddd/shared/AGENT.md
-````markdown
-# AGENT.md — shared BC
-
-## 模組定位
-
-`shared` 是 Shared Kernel，提供所有 BC 共同依賴的最小基礎型別集。修改任何 shared/ 型別前，需確認所有消費方的影響。
-
-## 最重要規則：DomainEvent 欄位名稱
-
-```typescript
-// ✅ 正確：occurredAt（ISO string）
-interface MyEvent {
-  readonly type: "module.action";
-  readonly occurredAt: string;  // ISO 8601
-}
-
-// ❌ 錯誤：不存在 occurredAtISO 欄位
-interface WrongEvent {
-  readonly occurredAtISO: string;  // 不正確
-}
-```
-
-## 通用語言
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `DomainEvent` | BaseEvent, Event |
-| `occurredAt` | occurredAtISO, timestamp（作為 DomainEvent 欄位） |
-| `EventRecord` | AuditRecord（在此 BC 內） |
-
-## 邊界規則
-
-- `shared/` 內不放業務邏輯
-- 只放多個 BC 都需要的最小型別
-- 任何新增需要全域共識
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/shared/aggregates.md
-````markdown
-# Aggregates — shared
-
-## 注意
-
-`shared` 是 Shared Kernel，不包含業務聚合根。它只提供基礎型別定義。
-
----
-
-## 基礎介面：DomainEvent
-
-```typescript
-// modules/shared/domain/events.ts
-interface DomainEvent {
-  readonly type: string;       // discriminant: "module.action"
-  readonly occurredAt: string; // ISO 8601 — 不是 Date，不是 occurredAtISO
-}
-```
-
-**所有模組的領域事件介面都繼承此基礎介面。**
-
----
-
-## 基礎介面：EventRecord
-
-```typescript
-// modules/shared/domain/event-record.ts
-interface EventRecord {
-  readonly eventId: string;    // UUID v4
-  readonly occurredAt: string; // ISO 8601
-  readonly actorId?: string;   // 操作者 ID（可選）
-  readonly correlationId?: string;
-  readonly causationId?: string;
-}
-```
-
----
-
-## 工具型別
-
-| 型別 / 工具 | 說明 |
-|------------|------|
-| `ID` | string alias，用於所有業務 ID |
-| `Timestamp` | Firebase Timestamp 型別別名 |
-| `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
-````
-
-## File: docs/ddd/shared/application-services.md
-````markdown
-# shared — Application Services
-
-> **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
-> **Domain Type:** Shared Kernel
-
-本文件記錄 `shared` 的 application layer 服務與 use cases。內容與 `modules/shared/application/` 實作保持一致。
-
-## Application Layer 職責
-
-提供所有 bounded contexts 共用的最小型別與事件合約，是 Shared Kernel。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/publish-domain-event.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/shared/README.md`
-- 模組 AGENT：`../../../modules/shared/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/shared/application-services.md`
-````
-
-## File: docs/ddd/shared/context-map.md
-````markdown
-# Context Map — shared
-
-## Shared Kernel 的特殊地位
-
-`shared` 不是普通的 Customer/Supplier 關係。它是 **Shared Kernel** 模式：
-
-> 「兩個 Team 共同擁有一個小型共享模型，任何一方的修改都需要另一方的協調。」
-> — Vaughn Vernon, IDDD
-
-## 關係
-
-所有 16 個 BC 都依賴 `shared/`，但這不是普通的依賴關係——它是**共同擁有的合約**：
-
-```
-modules/shared/
-  ↑ import by all 16 BCs
-```
-
-## 規則
-
-1. `shared/` 的任何變更（特別是 `DomainEvent` 介面）都必須同步更新所有消費方
-2. 不允許任何 BC 反向依賴（shared/ 不 import 任何 BC）
-3. `shared/` 只包含所有 BC 都認可的最小公共型別
-
-## IDDD 整合模式
-
-| 關係 | 模式 |
-|------|------|
-| shared ← 所有 BC | Shared Kernel |
-````
-
-## File: docs/ddd/shared/domain-events.md
-````markdown
-# Domain Events — shared
-
-## 說明
-
-`shared` 是 Shared Kernel，本身不發出或訂閱業務領域事件。
-
-它提供的是**所有 BC 發出事件所需的基礎介面**：
-
-```typescript
-// 所有模組的領域事件都遵循此結構
-interface DomainEvent {
-  readonly type: string;        // "module.entity.action" 格式
-  readonly occurredAt: string;  // ISO 8601
-}
-```
-
-## 事件命名規範（全域）
-
-| 規則 | 範例 |
-|------|------|
-| 格式 | `<module>.<entity>.<action>` 或 `<module>.<action>` |
-| 大小寫 | 全小寫，底線分隔 |
-| 時態 | **過去式**（代表已發生的事實） |
-
-```typescript
-// ✅ 正確命名
-"knowledge.page_created"
-"workspace.member_joined"
-"workspace-flow.task_status_changed"
-
-// ❌ 錯誤命名
-"CreatePage"         // 現在式、大寫
-"PageCreatedEvent"   // 有 Event 後綴
-```
-````
-
-## File: docs/ddd/shared/domain-services.md
-````markdown
-# shared — Domain Services
-
-> **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
-> **Domain Type:** Shared Kernel
-
-本文件整理 `shared` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/shared/domain-services.md`
-- `../../../docs/ddd/shared/aggregates.md`
-````
-
-## File: docs/ddd/shared/README.md
-````markdown
-# shared — 共享核心上下文
-
-> **Domain Type:** Shared Kernel  
-> **模組路徑:** `modules/shared/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`shared` 不是獨立業務能力，而是多個 bounded context 共同依賴的 Shared Kernel。它提供穩定共享的事件、值物件與工具型別，目標是減少重複而不形成隱性大泥球。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 共享型別 | 提供跨模組穩定共用的事件與值物件基礎型別 |
-| 事件基礎語意 | 維持 `DomainEvent`、`EventRecord` 等跨域契約一致 |
-| 工具與通用值物件 | 提供 slug、識別碼與其他低變動共享能力 |
-
-## 與其他 Bounded Context 協作
-
-- 所有上下文都可能依賴 `shared`，但只能消費穩定共享核心，不能把業務邏輯堆入此模組。
-- `shared` 的變更需視為跨域契約變更處理。
-
-## 核心聚合 / 核心概念
-
-- **`DomainEvent`**
-- **`EventRecord`**
-- **`SlugUtils`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/shared/repositories.md
-````markdown
-# shared — Repositories
-
-> **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
-> **Domain Type:** Shared Kernel
-
-本文件整理 `shared` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- 目前沒有對應檔案。
-
-## Infrastructure Implementations
-
-- `infrastructure/InMemoryEventStoreRepository.ts`
-- `infrastructure/NoopEventBusRepository.ts`
-- `infrastructure/SimpleEventBus.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/shared/repositories.md`
-- `../../../docs/ddd/shared/aggregates.md`
-````
-
-## File: docs/ddd/shared/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — shared
-
-> **範圍：** 跨所有 BC 的共享基礎術語（Shared Kernel）
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 領域事件 | DomainEvent | 所有領域事件的基礎介面，含 `type` 和 `occurredAt` | `modules/shared/domain/events.ts` |
-| 事件記錄 | EventRecord | 稽核/追蹤用的事件記錄（`eventId`, `occurredAt`, `actorId`） | `modules/shared/domain/event-record.ts` |
-| 發生時間 | occurredAt | 事件發生時間，**ISO 8601 字串**格式（非 Date 物件） | `DomainEvent.occurredAt` |
-| Slug | Slug | URL-safe 的識別符字串 | `modules/shared/domain/slug-utils.ts` |
-
-## 關鍵規則
-
-`occurredAt` 必須是 **ISO 8601 字串**（`string`），不是 `Date`、`Timestamp` 或數字。所有繼承 `DomainEvent` 的事件介面都必須遵守此規範。
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `occurredAt` | `occurredAtISO`, `timestamp`, `createdAt`（作為事件時間戳） |
-| `DomainEvent` | `BaseEvent`, `Event` |
-````
-
-## File: docs/ddd/source/AGENT.md
-````markdown
-# AGENT.md — source BC
-
-## 模組定位
-
-`source` 是文件來源的支援域，負責上傳生命週期、版本快照與 RAG 文件登記。是 RAG ingestion pipeline 的業務入口。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `SourceDocument` | File、Document、Asset、Attachment |
-| `WikiLibrary` | Library、Folder、Collection |
-| `FileVersion` | Version、Snapshot、Revision |
-| `RagDocument` | RagFile、IngestionDoc |
-| `RetentionPolicy` | Policy、ExpiryRule |
-| `AuditRecord` | Log、Event、History |
-| `ActorContext` | User、CurrentUser |
-| `IngestionHandoff` | Trigger、Signal |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { sourceApi } from "@/modules/source/api";
-import type { SourceDocumentDTO, WikiLibraryDTO } from "@/modules/source/api";
-```
-
-### ❌ 禁止
-```typescript
-import { File } from "@/modules/source/domain/entities/File";
-```
-
-## Firestore Timestamp 規則
-
-```typescript
-// ✅ 安全的調用方式
-const date = (value.toDate as () => unknown)() as Date;
-
-// ❌ 禁止解構賦值
-const { toDate } = value; toDate(); // 'this' binding 失效
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/source/aggregates.md
-````markdown
-# Aggregates — source
-
-## 聚合根：SourceDocument（File.ts）
-
-### 職責
-管理文件的上傳生命週期，從上傳初始化到完成確認，以及版本快照與保留政策。
-
-### 生命週期狀態機
-```
-pending_upload ──[upload_complete]──► uploaded ──[archive]──► archived
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 文件主鍵 |
-| `name` | `string` | 檔案名稱 |
-| `organizationId` | `string` | 所屬組織 |
-| `workspaceId` | `string \| null` | 所屬工作區 |
-| `status` | `FileStatus` | `pending_upload \| uploaded \| archived` |
-| `versions` | `FileVersion[]` | 版本列表 |
-| `retentionPolicy` | `RetentionPolicy \| null` | 保留政策 |
-| `permissionSnapshot` | `PermissionSnapshot` | 上傳時授權快照 |
-
----
-
-## 聚合根：WikiLibrary
-
-### 職責
-RAG 文件的邏輯集合容器，對應使用者在 UI 看到的「知識庫」概念。
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `FileVersion` | 版本快照（versionId, fileUrl, createdAt） |
-| `RetentionPolicy` | 保留規則（retainDays, deleteAfterExpiry） |
-| `PermissionSnapshot` | 上傳時的授權快照（不可變） |
-| `AuditRecord` | 操作稽核記錄（append-only） |
-
----
-
-## Ports（Hexagonal Architecture）
-
-| Port | 說明 |
-|------|------|
-| `ActorContextPort` | 解析操作者身分與授權 |
-| `OrganizationPolicyPort` | 查詢組織層級政策 |
-| `WorkspaceGrantPort` | 驗證工作區授權 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `FileRepository` | `save()`, `findById()`, `listByWorkspace()` |
-| `RagDocumentRepository` | `save()`, `findByDocumentId()` |
-| `WikiLibraryRepository` | `save()`, `findByWorkspaceId()` |
-````
-
-## File: docs/ddd/source/application-services.md
-````markdown
-# source — Application Services
-
-> **Canonical bounded context:** `source`
-> **模組路徑:** `modules/source/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `source` 的 application layer 服務與 use cases。內容與 `modules/source/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理文件上傳生命週期、版本快照與 RAG 文件登記。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/file.dto.ts`
-- `application/dto/rag-document.dto.ts`
-- `application/index.ts`
-- `application/use-cases/list-workspace-files.use-case.ts`
-- `application/use-cases/register-uploaded-rag-document.use-case.ts`
-- `application/use-cases/upload-complete-file.use-case.ts`
-- `application/use-cases/upload-init-file.use-case.ts`
-- `application/use-cases/wiki-libraries.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/source/README.md`
-- 模組 AGENT：`../../../modules/source/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/source/application-services.md`
-````
-
-## File: docs/ddd/source/context-map.md
-````markdown
-# Context Map — source
-
-## 上游（依賴）
-
-### identity → source（Customer/Supplier）
-- `ActorContextPort` 透過 `identity/api` 驗證上傳者身分
-
-### workspace → source（Customer/Supplier）
-- 文件隸屬 `workspaceId`，需透過 `WorkspaceGrantPort` 驗證授權
-
-### organization → source（Customer/Supplier）
-- `OrganizationPolicyPort` 解算組織層級保留政策
-
----
-
-## 下游（被依賴）
-
-### source → ai（Customer/Supplier）
-
-- `source.upload_completed` 觸發 `ai` 域建立 IngestionJob
-- **Runtime 邊界**：Next.js 端執行 upload-init/complete；`py_fn/` 執行 Embedding
-
-### source → knowledge（Published Language）
-
-- 文件關聯知識頁面時通知 `knowledge` 域
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → source | identity | source | Customer/Supplier（Port） |
-| workspace → source | workspace | source | Customer/Supplier（Port） |
-| organization → source | organization | source | Customer/Supplier（Port） |
-| source → ai | source | ai | Published Language (Events) |
-| source → knowledge | source | knowledge | Published Language (Events) |
-````
-
-## File: docs/ddd/source/domain-events.md
-````markdown
-# Domain Events — source
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `source.upload_initiated` | upload-init 完成、簽名 URL 已產生 | `documentId`, `workspaceId`, `actorId`, `occurredAt` |
-| `source.upload_completed` | upload-complete 確認完成 | `documentId`, `workspaceId`, `occurredAt` |
-| `source.rag_document_registered` | RagDocument 成功登記進入攝入管線 | `documentId`, `ragDocumentId`, `occurredAt` |
-| `source.file_archived` | 文件被封存 | `documentId`, `actorId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `workspace` | `workspace.created` | 初始化工作區的 WikiLibrary |
-| `identity` | `TokenRefreshSignal` | 更新 ActorContext 授權快照 |
-
-## 消費 source 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `ai` | `source.upload_completed` | 建立 IngestionJob，啟動 RAG 攝入管線 |
-| `knowledge` | `source.upload_completed` | 文件關聯知識頁面通知（可選） |
-````
-
-## File: docs/ddd/source/domain-services.md
-````markdown
-# source — Domain Services
-
-> **Canonical bounded context:** `source`
-> **模組路徑:** `modules/source/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `source` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- `domain/services/complete-upload-file.ts`
-- `domain/services/resolve-file-organization-id.ts`
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/source/domain-services.md`
-- `../../../docs/ddd/source/aggregates.md`
-````
-
-## File: docs/ddd/source/repositories.md
-````markdown
-# source — Repositories
-
-> **Canonical bounded context:** `source`
-> **模組路徑:** `modules/source/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `source` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/FileRepository.ts`
-- `domain/repositories/RagDocumentRepository.ts`
-- `domain/repositories/WikiLibraryRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseFileRepository.ts`
-- `infrastructure/firebase/FirebaseRagDocumentRepository.ts`
-- `infrastructure/index.ts`
-- `infrastructure/repositories/in-memory-wiki-library.repository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/source/repositories.md`
-- `../../../docs/ddd/source/aggregates.md`
-````
-
-## File: docs/ddd/source/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — source
-
-> **範圍：** 僅限 `modules/source/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 來源文件 | SourceDocument | 上傳的原始文件聚合根（對應 File.ts） |
-| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
-| 檔案版本 | FileVersion | SourceDocument 的版本快照 |
-| RAG 文件 | RagDocument | 已登記進入 RAG 管線的文件記錄 |
-| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照（不可變） |
-| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
-| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
-| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
-| 演員上下文 | ActorContext | 操作者身分與授權上下文（透過 ActorContextPort） |
-| 工作區授權 | WorkspaceGrant | 工作區層級的授權快照（透過 WorkspaceGrantPort） |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `SourceDocument` | `File`, `Document`, `Asset` |
-| `WikiLibrary` | `Library`, `Folder`, `Collection` |
-| `RetentionPolicy` | `Policy`, `LifecycleRule` |
-````
-
-## File: docs/ddd/workspace-audit/AGENT.md
-````markdown
-# AGENT.md — workspace-audit BC
-
-## 模組定位
-
-`workspace-audit` 是稽核紀錄支援域，維護 Append-Only 的 AuditLog，查詢工作區與組織稽核軌跡。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `AuditLog` | Log、Record、History、ActivityLog |
-| `auditEventType` | EventType、ActionType |
-| `actorId` | UserId、PerformerId |
-| `workspaceId` / `organizationId` | Scope（作為稽核範圍） |
-
-## 最重要規則：Append-Only
-
-```typescript
-// ✅ 只允許追加新記錄
-await auditRepository.append(newAuditLog);
-
-// ❌ 禁止修改或刪除
-await auditRepository.update(id, changes);  // 違反 Append-Only
-await auditRepository.delete(id);           // 違反 Append-Only
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceAuditApi } from "@/modules/workspace-audit/api";
-import type { AuditLogDTO } from "@/modules/workspace-audit/api";
-```
-
-### ❌ 禁止
-```typescript
-import { AuditLog } from "@/modules/workspace-audit/domain/entities/AuditLog";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/workspace-audit/aggregates.md
-````markdown
-# Aggregates — workspace-audit
-
-## 聚合根：AuditLog（Append-Only）
-
-### 職責
-記錄工作區或組織範圍內重要操作的不可變稽核軌跡。一旦寫入，永不修改或刪除。
-
-### Append-Only 約束
-
-> **核心不變數：** AuditLog 只能被建立，不能被更新或刪除。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 記錄主鍵（UUID） |
-| `workspaceId` | `string \| null` | 所屬工作區（可選，組織級記錄可能無 workspaceId） |
-| `organizationId` | `string` | 所屬組織 |
-| `actorId` | `string` | 操作者帳戶 ID |
-| `auditEventType` | `string` | 操作類型（如 `workspace.member_joined`） |
-| `targetId` | `string \| null` | 操作對象 ID（可選） |
-| `targetType` | `string \| null` | 操作對象類型（可選） |
-| `metadata` | `Record<string, unknown>` | 附加資訊 |
-| `auditedAt` | `string` | ISO 8601 操作時間 |
-
-### 不變數
-
-- `id` 建立後不可變
-- `auditedAt` 使用記錄建立時的系統時間，不可後期修改
-- 所有欄位建立後均不可修改（immutable record）
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `AuditLogRepository` | `append()`, `listByWorkspace()`, `listByOrganization()` |
-
-**注意：** `AuditLogRepository` 不提供 `update()` 或 `delete()` 方法，強制執行 Append-Only。
-````
-
-## File: docs/ddd/workspace-audit/application-services.md
-````markdown
-# workspace-audit — Application Services
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-audit` 的 application layer 服務與 use cases。內容與 `modules/workspace-audit/application/` 實作保持一致。
-
-## Application Layer 職責
-
-以 append-only 模式記錄工作區與組織範圍內的重要稽核軌跡。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/.gitkeep`
-- `application/use-cases/audit.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-audit/README.md`
-- 模組 AGENT：`../../../modules/workspace-audit/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-audit/application-services.md`
-````
-
-## File: docs/ddd/workspace-audit/context-map.md
-````markdown
-# Context Map — workspace-audit
-
-## 上游（依賴）
-
-`workspace-audit` 訂閱所有業務 BC 的事件，但**不依賴**任何 BC 的 api。它是純事件消費者。
-
-```
-所有業務 BC ──[Domain Events]──► workspace-audit（Terminal Sink）
-```
-
-### 主要事件來源
-
-| 來源 BC | 整合模式 |
-|---------|---------|
-| `workspace` | Published Language（被動消費） |
-| `organization` | Published Language（被動消費） |
-| `workspace-flow` | Published Language（被動消費） |
-| `workspace-scheduling` | Published Language（被動消費） |
-| `source` | Published Language（被動消費） |
-| `ai` | Published Language（被動消費） |
-
----
-
-## 下游（被依賴）
-
-### workspace-audit → WorkspaceDetailScreen（Interfaces）
-
-- `workspace-audit/api` 提供稽核查詢 API 給 `workspace` 的 WorkspaceDetailScreen tab
-
----
-
-## Terminal Sink 原則
-
-`workspace-audit` 是事件消費的**終點**，不向其他 BC 發出事件。業務流程不應等待或依賴稽核記錄的完成。
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| 所有 BC → workspace-audit | 各 BC | workspace-audit | Published Language (Terminal Sink) |
-| workspace-audit → workspace UI | workspace-audit | app/ | Customer/Supplier（查詢） |
-````
-
-## File: docs/ddd/workspace-audit/domain-events.md
-````markdown
-# Domain Events — workspace-audit
-
-## 發出事件
-
-`workspace-audit` 不發出 DomainEvent。它是事件的**最終消費者（Terminal Sink）**，不產生進一步的業務事件。
-
-## 訂閱事件（消費端）
-
-`workspace-audit` 訂閱所有需要留下稽核軌跡的業務事件：
-
-| 來源 BC | 訂閱事件 | AuditLog.auditEventType |
-|---------|---------|------------------------|
-| `workspace` | `workspace.created` | `workspace.created` |
-| `workspace` | `workspace.member_joined` | `workspace.member_joined` |
-| `workspace` | `workspace.archived` | `workspace.archived` |
-| `organization` | `organization.member_joined` | `organization.member_joined` |
-| `organization` | `organization.member_removed` | `organization.member_removed` |
-| `workspace-flow` | `workspace-flow.task_status_changed` | `task.status_changed` |
-| `workspace-flow` | `workspace-flow.invoice_paid` | `invoice.paid` |
-| `workspace-scheduling` | `workspace-scheduling.demand_status_changed` | `demand.status_changed` |
-| `source` | `source.upload_completed` | `document.uploaded` |
-| `ai` | `ai.ingestion_completed / failed` | `ingestion.completed / failed` |
-
-## 說明
-
-稽核模組是事件消費的「終點站」。業務 BC 不應依賴稽核模組的狀態，稽核只做記錄，不影響業務流程。
-````
-
-## File: docs/ddd/workspace-audit/domain-services.md
-````markdown
-# workspace-audit — Domain Services
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-audit` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-audit/domain-services.md`
-- `../../../docs/ddd/workspace-audit/aggregates.md`
-````
-
-## File: docs/ddd/workspace-audit/README.md
-````markdown
-# workspace-audit — 工作區稽核上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
-
-## 核心聚合 / 核心概念
-
-- **`AuditLog`**
-- **`AuditActor`**
-- **`AuditScope`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/workspace-audit/repositories.md
-````markdown
-# workspace-audit — Repositories
-
-> **Canonical bounded context:** `workspace-audit`
-> **模組路徑:** `modules/workspace-audit/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-audit` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/AuditRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/.gitkeep`
-- `infrastructure/firebase/FirebaseAuditRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-audit/repositories.md`
-- `../../../docs/ddd/workspace-audit/aggregates.md`
-````
-
-## File: docs/ddd/workspace-audit/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-audit
-
-> **範圍：** 僅限 `modules/workspace-audit/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 稽核記錄 | AuditLog | 一條不可變的操作紀錄（Append-Only，永不修改） |
-| 稽核事件類型 | auditEventType | 記錄的操作類型字串（如 `workspace.member_joined`） |
-| 操作者 ID | actorId | 執行此操作的帳戶 ID |
-| 稽核範圍 | auditScope | 此記錄的範圍（workspace 或 organization） |
-| 稽核時間 | auditedAt | 操作發生時間，ISO 8601 |
-| 元資料 | metadata | 操作的附加資訊（JSON，可選） |
-
-## Append-Only 原則
-
-`AuditLog` 一旦寫入即不可更改。任何試圖修改或刪除 AuditLog 的操作都違反此域的核心不變數。
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `AuditLog` | `Log`, `Record`, `History` |
-| `actorId` | `userId`, `performerId` |
-| `auditedAt` | `timestamp`, `createdAt`（在稽核上下文中） |
-````
-
-## File: docs/ddd/workspace-feed/AGENT.md
-````markdown
-# AGENT.md — workspace-feed BC
-
-## 通用語言
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `WorkspaceFeedPost` | Post、Tweet、Message |
-| `WorkspaceFeedPostType` | Type、PostType |
-| `authorAccountId` | authorId、userId |
-
-## 邊界規則
-
-```typescript
-// ✅
-import { workspaceFeedApi } from "@/modules/workspace-feed/api";
-// ❌
-import { WorkspaceFeedPost } from "@/modules/workspace-feed/domain/entities/WorkspaceFeedPost";
-```
-````
-
-## File: docs/ddd/workspace-feed/aggregates.md
-````markdown
-# Aggregates — workspace-feed
-
-## 聚合根：WorkspaceFeedPost
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 貼文主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `authorAccountId` | `string` | 作者帳戶 ID |
-| `type` | `WorkspaceFeedPostType` | `post \| reply \| repost` |
-| `content` | `string` | 貼文內容 |
-| `replyToPostId` | `string \| null` | 回覆目標 |
-| `repostOfPostId` | `string \| null` | 轉貼目標 |
-| `likeCount` | `number` | 按讚數 |
-| `viewCount` | `number` | 瀏覽數 |
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `WorkspaceFeedRepository` | `save()`, `findById()`, `listByWorkspace()` |
-````
-
-## File: docs/ddd/workspace-feed/application-services.md
-````markdown
-# workspace-feed — Application Services
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-feed` 的 application layer 服務與 use cases。內容與 `modules/workspace-feed/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理工作區的社交動態貼文與互動事件。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/workspace-feed.dto.ts`
-- `application/use-cases/workspace-feed.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-feed/README.md`
-- 模組 AGENT：`../../../modules/workspace-feed/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-feed/application-services.md`
-````
-
-## File: docs/ddd/workspace-feed/context-map.md
-````markdown
-# Context Map — workspace-feed
-
-## 上游（依賴）
-
-### workspace → workspace-feed（Conformist）
-
-- `WorkspaceFeedPost.workspaceId` 隸屬工作區
-
-## 下游（被依賴）
-
-### workspace-feed → notification（Published Language）
-
-- `WorkspaceFeedPostCreated` 可觸發通知
-
-### workspace-feed → workspace-audit（Published Language）
-
-- 貼文操作記錄稽核軌跡
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → workspace-feed | workspace | workspace-feed | Conformist |
-| workspace-feed → notification | workspace-feed | notification | Published Language |
-| workspace-feed → workspace-audit | workspace-feed | workspace-audit | Published Language |
-````
-
-## File: docs/ddd/workspace-feed/domain-events.md
-````markdown
-# Domain Events — workspace-feed
-
-## 發出事件
-
-| 事件 | 觸發條件 |
-|------|---------|
-| `WorkspaceFeedPostCreated` | 新貼文發布 |
-| `WorkspaceFeedReplyCreated` | 回覆發布 |
-| `WorkspaceFeedRepostCreated` | 轉貼發布 |
-| `WorkspaceFeedPostLiked` | 按讚 |
-| `WorkspaceFeedPostViewed` | 瀏覽 |
-| `WorkspaceFeedPostBookmarked` | 收藏 |
-| `WorkspaceFeedPostShared` | 分享 |
-
-所有事件繼承 `WorkspaceFeedBaseEvent`（`accountId`, `workspaceId`, `postId`, `actorAccountId`, `occurredAtISO`）。
-
-## 訂閱事件
-
-`workspace-feed` 不訂閱其他 BC 的事件。
-````
-
-## File: docs/ddd/workspace-feed/domain-services.md
-````markdown
-# workspace-feed — Domain Services
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-feed` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-feed/domain-services.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
-````
-
-## File: docs/ddd/workspace-feed/README.md
-````markdown
-# workspace-feed — 工作區動態上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
-
-## 核心聚合 / 核心概念
-
-- **`WorkspaceFeedPost`**
-- **`FeedReaction`**
-- **`FeedThread`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/workspace-feed/repositories.md
-````markdown
-# workspace-feed — Repositories
-
-> **Canonical bounded context:** `workspace-feed`
-> **模組路徑:** `modules/workspace-feed/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-feed` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/workspace-feed.repositories.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseWorkspaceFeedInteractionRepository.ts`
-- `infrastructure/firebase/FirebaseWorkspaceFeedPostRepository.ts`
-- `infrastructure/index.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-feed/repositories.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
-````
-
-## File: docs/ddd/workspace-feed/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-feed
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 動態貼文 | WorkspaceFeedPost | 工作區社交動態貼文（post / reply / repost） |
-| 貼文類型 | WorkspaceFeedPostType | `"post" \| "reply" \| "repost"` |
-| 作者帳戶 ID | authorAccountId | 發文者帳戶 ID |
-| 回覆目標 | replyToPostId | 此貼文回覆的原貼文 ID |
-| 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |
-````
-
-## File: docs/ddd/workspace-flow/AGENT.md
-````markdown
-# AGENT.md — workspace-flow BC
-
-## 模組定位
-
-`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 ContentToWorkflowMaterializer 訂閱 knowledge 事件。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Task` | TodoItem、WorkItem |
-| `TaskStatus` | Status（單獨使用）、State |
-| `Issue` | Bug、Ticket、Problem |
-| `IssueStatus` | Status（單獨使用） |
-| `Invoice` | Bill、Receipt、Payment |
-| `InvoiceStatus` | Status（單獨使用） |
-| `MaterializedTask` | ConvertedTask、AutoTask |
-| `sourceReference` | Origin、Source（作為物化來源） |
-| `ContentToWorkflowMaterializer` | ContentProcessor、PageConverter |
-
-## 狀態機（必須嚴格遵守）
-
-```
-TaskStatus:    draft → in_progress → qa → acceptance → accepted → archived
-IssueStatus:   open → investigating → fixing → retest → resolved → closed
-InvoiceStatus: draft → submitted → finance_review → approved → paid → closed
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceFlowApi } from "@/modules/workspace-flow/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Task } from "@/modules/workspace-flow/domain/entities/Task";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/workspace-flow/aggregates.md
-````markdown
-# Aggregates — workspace-flow
-
-## 聚合根：Task
-
-### 職責
-可追蹤的工作單元，管理完整的任務生命週期狀態機。
-
-### 生命週期狀態機
-```
-draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Task 主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `title` | `string` | 任務標題 |
-| `status` | `TaskStatus` | 當前狀態 |
-| `assigneeId` | `string \| null` | 負責人帳戶 ID |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
-| `currentUserId` | `string` | 當前操作者 ID |
-
----
-
-## 聚合根：Issue
-
-### 生命週期狀態機
-```
-open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
-```
-
-### 關鍵屬性
-
-| 屬性 | 說明 |
-|------|------|
-| `id`, `workspaceId`, `title` | 基本屬性 |
-| `status` | `IssueStatus` |
-| `severity` | `IssueStatus` 嚴重程度 |
-| `reporterId` | 報告者帳戶 ID |
-| `assigneeId` | 負責人帳戶 ID（可選） |
-
----
-
-## 聚合根：Invoice
-
-### 生命週期狀態機
-```
-draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
-```
-
-### 關鍵屬性
-
-| 屬性 | 說明 |
-|------|------|
-| `id`, `workspaceId` | 基本屬性 |
-| `status` | `InvoiceStatus` |
-| `amount` | `number` |
-| `currency` | `string`（預設 "TWD"） |
-| `sourceReference` | 物化來源（可選） |
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
-| `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
-| `InvoiceStatus` | `"draft" \| "submitted" \| "finance_review" \| "approved" \| "paid" \| "closed"` |
-| `SourceReference` | `{ pageId: string, causationId: string }` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 說明 |
-|------|------|
-| `TaskRepository` | Task CRUD + 狀態查詢 |
-| `IssueRepository` | Issue CRUD + 狀態查詢 |
-| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
-
----
-
-## Domain Services
-
-| 服務 | 說明 |
-|------|------|
-| `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
-````
-
-## File: docs/ddd/workspace-flow/application-services.md
-````markdown
-# workspace-flow — Application Services
-
-> **Canonical bounded context:** `workspace-flow`
-> **模組路徑:** `modules/workspace-flow/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-flow` 的 application layer 服務與 use cases。內容與 `modules/workspace-flow/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 Task / Issue / Invoice 三條工作流程狀態機與流程物化。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/add-invoice-item.dto.ts`
-- `application/dto/create-task.dto.ts`
-- `application/dto/invoice-query.dto.ts`
-- `application/dto/issue-query.dto.ts`
-- `application/dto/materialize-from-content.dto.ts`
-- `application/dto/open-issue.dto.ts`
-- `application/dto/pagination.dto.ts`
-- `application/dto/remove-invoice-item.dto.ts`
-- `application/dto/resolve-issue.dto.ts`
-- `application/dto/task-query.dto.ts`
-- `application/dto/update-invoice-item.dto.ts`
-- `application/dto/update-task.dto.ts`
-- `application/ports/InvoiceService.ts`
-- `application/ports/IssueService.ts`
-- `application/ports/TaskService.ts`
-- `application/process-managers/content-to-workflow-materializer.ts`
-- `application/use-cases/add-invoice-item.use-case.ts`
-- `application/use-cases/approve-invoice.use-case.ts`
-- `application/use-cases/approve-task-acceptance.use-case.ts`
-- `application/use-cases/archive-task.use-case.ts`
-- `application/use-cases/assign-task.use-case.ts`
-- `application/use-cases/close-invoice.use-case.ts`
-- `application/use-cases/close-issue.use-case.ts`
-- `application/use-cases/create-invoice.use-case.ts`
-- `application/use-cases/create-task.use-case.ts`
-- `application/use-cases/fail-issue-retest.use-case.ts`
-- `application/use-cases/fix-issue.use-case.ts`
-- `application/use-cases/materialize-tasks-from-content.use-case.ts`
-- `application/use-cases/open-issue.use-case.ts`
-- `application/use-cases/pass-issue-retest.use-case.ts`
-- `application/use-cases/pass-task-qa.use-case.ts`
-- `application/use-cases/pay-invoice.use-case.ts`
-- `application/use-cases/reject-invoice.use-case.ts`
-- `application/use-cases/remove-invoice-item.use-case.ts`
-- `application/use-cases/resolve-issue.use-case.ts`
-- `application/use-cases/review-invoice.use-case.ts`
-- `application/use-cases/start-issue.use-case.ts`
-- `application/use-cases/submit-invoice.use-case.ts`
-- `application/use-cases/submit-issue-retest.use-case.ts`
-- `application/use-cases/submit-task-to-qa.use-case.ts`
-- `application/use-cases/update-invoice-item.use-case.ts`
-- `application/use-cases/update-task.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-flow/README.md`
-- 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
-````
-
-## File: docs/ddd/workspace-flow/context-map.md
-````markdown
-# Context Map — workspace-flow
-
-## 上游（依賴）
-
-### knowledge → workspace-flow（Published Language）
-
-**這是 workspace-flow 最重要的上游整合。**
-
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
-- 從 `extractedTasks[]` 建立 MaterializedTask
-- 從 `extractedInvoices[]` 建立 Invoice
-- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
-
-```
-knowledge.page_approved ──► ContentToWorkflowMaterializer
-                            ├─► Task.create（extractedTask）
-                            └─► Invoice.create（extractedInvoice）
-```
-
-### workspace → workspace-flow（Conformist）
-
-- Task/Issue/Invoice 都隸屬 `workspaceId`
-- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
-
----
-
-## 下游（被依賴）
-
-### workspace-flow → notification（Published Language）
-
-- 狀態變更事件觸發通知（如 task_assigned）
-
-### workspace-flow → workspace-audit（Published Language）
-
-- 狀態轉換事件供稽核紀錄消費
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| workspace → workspace-flow | workspace | workspace-flow | Conformist |
-| workspace-flow → notification | workspace-flow | notification | Published Language |
-| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |
-````
-
-## File: docs/ddd/workspace-flow/domain-events.md
-````markdown
-# Domain Events — workspace-flow
-
-## 發出事件
-
-### Task 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.task_created` | Task 建立 | `taskId`, `workspaceId`, `title`, `createdByUserId`, `occurredAt` |
-| `workspace-flow.task_status_changed` | Task 狀態變更 | `taskId`, `workspaceId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.task_assigned` | Task 指派負責人 | `taskId`, `workspaceId`, `assigneeId`, `occurredAt` |
-| `workspace-flow.task_materialized` | Task 由 ContentToWorkflowMaterializer 物化 | `taskId`, `workspaceId`, `sourceReference`, `occurredAt` |
-
-### Issue 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.issue_opened` | Issue 開啟 | `issueId`, `workspaceId`, `title`, `reporterId`, `occurredAt` |
-| `workspace-flow.issue_status_changed` | Issue 狀態變更 | `issueId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.issue_resolved` | Issue 解決 | `issueId`, `workspaceId`, `occurredAt` |
-
-### Invoice 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.invoice_created` | Invoice 建立 | `invoiceId`, `workspaceId`, `amount`, `currency`, `occurredAt` |
-| `workspace-flow.invoice_status_changed` | Invoice 狀態變更 | `invoiceId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.invoice_paid` | Invoice 標記已付款 | `invoiceId`, `workspaceId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 MaterializedTask 與 Invoice |
-
-## 消費 workspace-flow 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `notification` | `workspace-flow.task_assigned` | 通知被指派者 |
-| `workspace-audit` | 所有狀態變更事件 | 記錄稽核軌跡 |
-````
-
-## File: docs/ddd/workspace-flow/domain-services.md
-````markdown
-# workspace-flow — Domain Services
-
-> **Canonical bounded context:** `workspace-flow`
-> **模組路徑:** `modules/workspace-flow/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-flow` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- `domain/services/invoice-guards.ts`
-- `domain/services/invoice-transition-policy.ts`
-- `domain/services/issue-transition-policy.ts`
-- `domain/services/task-guards.ts`
-- `domain/services/task-transition-policy.ts`
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-flow/domain-services.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
-````
-
-## File: docs/ddd/workspace-flow/README.md
-````markdown
-# workspace-flow — 工作流程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-flow/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-flow` 把知識內容轉成可執行的業務流程，負責 Task、Issue、Invoice 三條工作線的狀態機與政策。它是知識平台從「記錄知識」走向「驅動執行」的主要協作引擎。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Task / Issue / Invoice 狀態機 | 管理主要工作流程聚合與轉換規則 |
-| 物化流程 | 消費 `knowledge.page_approved` 等事件建立可執行項目 |
-| 業務守衛 | 封裝狀態轉換、角色限制與流程政策 |
-
-## 與其他 Bounded Context 協作
-
-- `knowledge` 是最重要上游，提供審批後的內容事件。
-- `workspace` 提供流程歸屬；`workspace-audit` 與 `workspace-feed` 消費流程結果或事件。
-
-## 核心聚合 / 核心概念
-
-- **`Task`**
-- **`Issue`**
-- **`Invoice`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/workspace-flow/repositories.md
-````markdown
-# workspace-flow — Repositories
-
-> **Canonical bounded context:** `workspace-flow`
-> **模組路徑:** `modules/workspace-flow/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-flow` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/InvoiceRepository.ts`
-- `domain/repositories/IssueRepository.ts`
-- `domain/repositories/TaskRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/invoice-item.converter.ts`
-- `infrastructure/firebase/invoice.converter.ts`
-- `infrastructure/firebase/issue.converter.ts`
-- `infrastructure/firebase/sourceReference.converter.ts`
-- `infrastructure/firebase/task.converter.ts`
-- `infrastructure/firebase/workspace-flow.collections.ts`
-- `infrastructure/repositories/FirebaseInvoiceItemRepository.ts`
-- `infrastructure/repositories/FirebaseInvoiceRepository.ts`
-- `infrastructure/repositories/FirebaseIssueRepository.ts`
-- `infrastructure/repositories/FirebaseTaskRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-flow/repositories.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
-````
-
-## File: docs/ddd/workspace-flow/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-flow
-
-> **範圍：** 僅限 `modules/workspace-flow/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 任務 | Task | 可追蹤的工作單元，有狀態機與負責人 |
-| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
-| 問題 | Issue | 問題追蹤記錄（Bug / 需求問題） |
-| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
-| 發票 | Invoice | 財務發票記錄 |
-| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
-| 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
-| 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
-| 工作流程物化器 | ContentToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Task` | `TodoItem`, `WorkItem`, `Job` |
-| `Issue` | `Bug`, `Ticket`, `Problem` |
-| `Invoice` | `Bill`, `Receipt` |
-| `MaterializedTask` | `ConvertedTask`, `AutoTask` |
-````
-
-## File: docs/ddd/workspace-scheduling/AGENT.md
-````markdown
-# AGENT.md — workspace-scheduling BC
-
-## 模組定位
-
-`workspace-scheduling` 是工作需求排程支援域，管理 WorkDemand 生命週期與日曆視圖。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `WorkDemand` | Demand、Request、Ticket、Requirement |
-| `DemandStatus` | Status（單獨使用）、State |
-| `DemandPriority` | Priority（單獨使用）、Urgency |
-| `CalendarWidget` | Calendar、Scheduler |
-
-## 狀態機（必須遵守）
-
-```
-DemandStatus: draft → open → in_progress → completed
-DemandPriority: low | medium | high
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceSchedulingApi } from "@/modules/workspace-scheduling/api";
-import type { WorkDemandDTO } from "@/modules/workspace-scheduling/api";
-```
-
-### ❌ 禁止
-```typescript
-import { WorkDemand } from "@/modules/workspace-scheduling/domain/types";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/workspace-scheduling/aggregates.md
-````markdown
-# Aggregates — workspace-scheduling
-
-## 聚合根：WorkDemand
-
-### 職責
-代表一個工作需求記錄。管理需求的排程生命週期（draft → completed）。
-
-### 生命週期狀態機
-```
-draft ──► open ──► in_progress ──► completed
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 需求主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `accountId` | `string` | 所屬帳戶 |
-| `title` | `string` | 需求標題 |
-| `description` | `string \| null` | 描述（可選） |
-| `status` | `DemandStatus` | `draft \| open \| in_progress \| completed` |
-| `priority` | `DemandPriority` | `low \| medium \| high` |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `createdAt` | `string` | ISO 8601 |
-| `updatedAt` | `string` | ISO 8601 |
-
-### 不變數
-
-- `title` 不可為空
-- `completed` 狀態不可逆回 `draft`
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `DemandStatus` | `"draft" \| "open" \| "in_progress" \| "completed"` |
-| `DemandPriority` | `"low" \| "medium" \| "high"` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `DemandRepository` | `save()`, `findById()`, `listByWorkspace()`, `updateStatus()` |
-````
-
-## File: docs/ddd/workspace-scheduling/application-services.md
-````markdown
-# workspace-scheduling — Application Services
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-scheduling` 的 application layer 服務與 use cases。內容與 `modules/workspace-scheduling/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 WorkDemand 的排程生命週期、優先級與日曆視圖。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/work-demand.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-scheduling/README.md`
-- 模組 AGENT：`../../../modules/workspace-scheduling/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-scheduling/application-services.md`
-````
-
-## File: docs/ddd/workspace-scheduling/context-map.md
-````markdown
-# Context Map — workspace-scheduling
-
-## 上游（依賴）
-
-### workspace → workspace-scheduling（Conformist）
-
-- WorkDemand 隸屬 `workspaceId`
-- `WorkspaceSchedulingTab` 接收 `workspaceId` 作為 props
-
-### account → workspace-scheduling（Customer/Supplier）
-
-- `AccountSchedulingView` 按 `accountId` 聚合跨工作區排程視圖
-
----
-
-## 下游（被依賴）
-
-### workspace-scheduling → notification（Published Language）
-
-- 需求建立/狀態變更事件觸發通知
-
-### workspace-scheduling → workspace-audit（Published Language）
-
-- 排程操作供稽核紀錄消費
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
-| account → workspace-scheduling | account | workspace-scheduling | Customer/Supplier |
-| workspace-scheduling → notification | workspace-scheduling | notification | Published Language |
-| workspace-scheduling → workspace-audit | workspace-scheduling | workspace-audit | Published Language |
-````
-
-## File: docs/ddd/workspace-scheduling/domain-events.md
-````markdown
-# Domain Events — workspace-scheduling
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-scheduling.demand_created` | WorkDemand 建立 | `demandId`, `workspaceId`, `title`, `priority`, `occurredAt` |
-| `workspace-scheduling.demand_status_changed` | 狀態轉換 | `demandId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-scheduling.demand_completed` | WorkDemand 完成 | `demandId`, `workspaceId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `workspace-flow` | `workspace-flow.task_created` | 同步相關 WorkDemand 的排程狀態（可選） |
-
-## 消費 workspace-scheduling 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `notification` | `workspace-scheduling.demand_created` | 通知相關成員 |
-| `workspace-audit` | 所有狀態變更事件 | 記錄排程稽核軌跡 |
-````
-
-## File: docs/ddd/workspace-scheduling/domain-services.md
-````markdown
-# workspace-scheduling — Domain Services
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-scheduling` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace-scheduling/domain-services.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
-````
-
-## File: docs/ddd/workspace-scheduling/README.md
-````markdown
-# workspace-scheduling — 工作區排程上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
-
-## 核心聚合 / 核心概念
-
-- **`WorkDemand`**
-- **`ScheduleWindow`**
-- **`CapacityAllocation`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/workspace-scheduling/repositories.md
-````markdown
-# workspace-scheduling — Repositories
-
-> **Canonical bounded context:** `workspace-scheduling`
-> **模組路徑:** `modules/workspace-scheduling/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `workspace-scheduling` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- 目前沒有對應檔案。
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseDemandRepository.ts`
-- `infrastructure/mock-demand-repository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace-scheduling/repositories.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
-````
-
-## File: docs/ddd/workspace-scheduling/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-scheduling
-
-> **範圍：** 僅限 `modules/workspace-scheduling/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作需求 | WorkDemand | 一個已排程或待排程的工作請求，含標題、截止日期與優先級 |
-| 需求狀態 | DemandStatus | WorkDemand 的生命週期狀態：`draft \| open \| in_progress \| completed` |
-| 需求優先級 | DemandPriority | 工作緊急程度：`low \| medium \| high` |
-| 日曆控件 | CalendarWidget | 顯示工作需求排程的日曆 UI 元件 |
-| 帳戶排程視圖 | AccountSchedulingView | 跨工作區的帳戶級別排程總覽頁面 |
-
-## 狀態標籤（顯示文字）
-
-| 狀態 | 中文標籤 |
-|------|---------|
-| `draft` | 草稿 |
-| `open` | 待處理 |
-| `in_progress` | 進行中 |
-| `completed` | 已完成 |
-| `low` | 低 |
-| `medium` | 中 |
-| `high` | 高 |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `WorkDemand` | `Demand`, `Request`, `Ticket` |
-| `DemandStatus` | `Status`, `WorkStatus` |
-````
-
-## File: docs/ddd/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-## 模組定位
-
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceApi } from "@/modules/workspace/api";
-import type { WorkspaceDTO } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
-```
-
-## 循環依賴守衛
-
-`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/workspace/aggregates.md
-````markdown
-# Aggregates — workspace
-
-## 聚合根：Workspace
-
-### 職責
-代表一個協作容器。管理工作區的生命週期（active → archived）與成員關係。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 工作區主鍵 |
-| `name` | `string` | 工作區名稱 |
-| `accountId` | `string` | 擁有者帳戶或組織 ID |
-| `status` | `WorkspaceStatus` | `active \| archived` |
-| `members` | `WorkspaceMember[]` | 成員列表 |
-
-### 不變數
-
-- archived 狀態的工作區不可新增成員
-- workspaceId 建立後不可變更
-
----
-
-## 聚合根：WikiContentTree
-
-### 職責
-維護工作區內 Wiki 頁面的樹狀層級結構，提供父子頁面關係的查詢能力。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `workspaceId` | `string` | 所屬工作區 |
-| `nodes` | `WikiTreeNode[]` | 樹狀節點列表 |
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `WorkspaceMember` | 成員在工作區中的角色與狀態 |
-| `WorkspaceStatus` | `"active" \| "archived"` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `WorkspaceRepository` | `save()`, `findById()`, `findByAccountId()` |
-| `WorkspaceQueryRepository` | `listByAccountId()`, `findById()` |
-| `WikiWorkspaceRepository` | `getContentTree()`, `updateTree()` |
-````
-
-## File: docs/ddd/workspace/application-services.md
-````markdown
-# workspace — Application Services
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `workspace` 的 application layer 服務與 use cases。內容與 `modules/workspace/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理工作區容器、成員與內容樹，並組合多個 workspace-* 子域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/wiki-content-tree.use-case.ts`
-- `application/use-cases/workspace-member.use-cases.ts`
-- `application/use-cases/workspace.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace/README.md`
-- 模組 AGENT：`../../../modules/workspace/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace/application-services.md`
-````
-
-## File: docs/ddd/workspace/context-map.md
-````markdown
-# Context Map — workspace
-
-## 上游（依賴）
-
-### account / organization → workspace（Customer/Supplier）
-
-- `workspace.accountId` 關聯 account 或 organization
-- workspace 查詢時驗證 accountId 歸屬
-
----
-
-## 下游（被依賴）
-
-`workspace` 是多個 workspace-* 子模組的**組合宿主**：
-
-### workspace → workspace-flow（Conformist）
-- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`（Tasks tab）
-- 傳入 `workspaceId`, `currentUserId`
-
-### workspace → workspace-scheduling（Conformist）
-- `WorkspaceDetailScreen` 組合 `WorkspaceSchedulingTab`
-
-### workspace → workspace-audit（Conformist）
-- `WorkspaceDetailScreen` 組合 `WorkspaceAuditTab`
-
-### workspace → workspace-feed（Conformist）
-- `WorkspaceDetailScreen` 組合 feed 動態牆 tab
-
-### workspace → knowledge（Customer/Supplier）
-- 知識頁面（WikiPage）隸屬於 workspaceId
-- Wiki 內容樹（WikiContentTree）按工作區組織
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| account → workspace | account | workspace | Customer/Supplier |
-| organization → workspace | organization | workspace | Customer/Supplier |
-| workspace → workspace-flow | workspace | workspace-flow | Conformist（workspaceId） |
-| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
-| workspace → workspace-audit | workspace | workspace-audit | Conformist |
-| workspace → workspace-feed | workspace | workspace-feed | Conformist |
-````
-
-## File: docs/ddd/workspace/domain-events.md
-````markdown
-# Domain Events — workspace
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace.created` | 新工作區建立時 | `workspaceId`, `accountId`, `name`, `occurredAt` |
-| `workspace.archived` | 工作區歸檔時 | `workspaceId`, `accountId`, `occurredAt` |
-| `workspace.member_joined` | 成員加入工作區 | `workspaceId`, `accountId`, `role`, `occurredAt` |
-| `workspace.member_removed` | 成員被移除 | `workspaceId`, `accountId`, `occurredAt` |
-
-## 訂閱事件
-
-`workspace` 不直接訂閱其他 BC 的事件，由 app/ 路由層協調各 tab 組合。
-
-## 事件格式範例
-
-```typescript
-interface WorkspaceCreatedEvent {
-  readonly type: "workspace.created";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly occurredAt: string;  // ISO 8601
-}
-```
-````
-
-## File: docs/ddd/workspace/domain-services.md
-````markdown
-# workspace — Domain Services
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `workspace` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/workspace/domain-services.md`
-- `../../../docs/ddd/workspace/aggregates.md`
-````
-
-## File: docs/ddd/workspace/README.md
-````markdown
-# workspace — 工作區上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Workspace 容器管理 | 建立、更新、歸檔工作區 |
-| 成員與角色 | 管理工作區成員、角色與協作可見性 |
-| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
-
-## 與其他 Bounded Context 協作
-
-- `organization` 是主要上游，提供多租戶歸屬。
-- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
-
-## 核心聚合 / 核心概念
-
-- **`Workspace`**
-- **`WorkspaceMember`**
-- **`WikiContentTree`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/workspace/repositories.md
-````markdown
-# workspace — Repositories
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `workspace` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/WikiWorkspaceRepository.ts`
-- `domain/repositories/WorkspaceQueryRepository.ts`
-- `domain/repositories/WorkspaceRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts`
-- `infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts`
-- `infrastructure/firebase/FirebaseWorkspaceRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/workspace/repositories.md`
-- `../../../docs/ddd/workspace/aggregates.md`
-````
-
-## File: docs/ddd/workspace/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace
-
-> **範圍：** 僅限 `modules/workspace/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區 | Workspace | 協作容器，所有知識、任務、討論歸屬於此 |
-| 工作區成員 | WorkspaceMember | 帳戶在工作區中的參與記錄（含角色） |
-| Wiki 內容樹 | WikiContentTree | 工作區內 Wiki 頁面的樹狀層級結構 |
-| 工作區 ID | workspaceId | Workspace 的業務主鍵 |
-| 帳戶 ID | accountId | 擁有此工作區的帳戶或組織 ID |
-| 工作區狀態 | WorkspaceStatus | `active \| archived` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Workspace` | `Project`, `Space` |
-| `WorkspaceMember` | `Member`, `Participant` |
-| `WikiContentTree` | `PageTree`, `Tree`, `Hierarchy` |
-````
-
 ## File: docs/development/modules-implementation-guide.md
 ````markdown
 # Modules Implementation Guide
@@ -16554,57 +11966,6 @@ export function subscribeToAccountsForUser(
 
 ````
 
-## File: modules/ai/AGENT.md
-````markdown
-# AGENT.md — ai BC
-
-## 模組定位
-
-`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
-| `IngestionDocument` | Document、File（在此 BC 內）|
-| `IngestionChunk` | Chunk、VectorChunk |
-| `IngestionStatus` | Status, JobStatus |
-
-## 棄用檔案守衛
-
-以下檔案都是 `@deprecated` stubs，已移至其他模組，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 移至 `modules/wiki/`
-- `modules/ai/domain/entities/link.ts` → 移至 `modules/wiki/`
-- `modules/ai/domain/repositories/GraphRepository.ts` → 移至 `modules/wiki/`
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { aiApi } from "@/modules/ai/api";
-import type { IngestionJobDTO } from "@/modules/ai/api";
-```
-
-### ❌ 禁止
-```typescript
-import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
-import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
-```
-
-## Runtime 邊界規則
-
-- `ai` 模組只在 Next.js 端做 Job 協調
-- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: modules/ai/aggregates.md
 ````markdown
 # Aggregates — ai
@@ -18674,6 +14035,242 @@ export class BlockService {
 export { KNOWLEDGE_UPDATED_EVENT_TYPE };
 ````
 
+## File: modules/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for Content use cases.
+ */
+
+import { z } from "@lib-zod";
+import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
+import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/content-page.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const BlockTypeSchema = z.enum(BLOCK_TYPES);
+
+export const BlockContentSchema = z.object({
+  type: BlockTypeSchema,
+  text: z.string(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type BlockContentDto = z.infer<typeof BlockContentSchema>;
+
+export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  title: z.string().min(1).max(300),
+  parentPageId: z.string().min(1).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
+
+export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  title: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
+
+export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  targetParentPageId: z.string().min(1).nullable(),
+});
+
+export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
+
+export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+});
+
+export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
+
+export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  blockIds: z.array(z.string().min(1)),
+});
+
+export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
+
+export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  content: BlockContentSchema,
+  index: z.number().int().nonnegative().optional(),
+});
+
+export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
+
+export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+  content: BlockContentSchema,
+});
+
+export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
+
+export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+});
+
+export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
+
+export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  label: z.string().max(100).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+
+export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
+
+// ── Approve content page ──────────────────────────────────────────────────────
+
+export const ExtractedTaskSchema = z.object({
+  title: z.string().min(1).max(300),
+  dueDate: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const ExtractedInvoiceSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+  currency: z.string().optional(),
+});
+
+export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  actorId: z.string().min(1),
+  /**
+   * causationId identifies the command (use-case invocation) that caused the
+   * resulting event.  Generated by the Server Action layer if not provided by
+   * the caller, so that command-event causality is correctly traceable.
+   */
+  causationId: z.string().min(1).optional(),
+  /** Optional: external tasks extracted by AI from this page. */
+  extractedTasks: z.array(ExtractedTaskSchema).default([]),
+  /** Optional: external invoices extracted by AI from this page. */
+  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
+  /**
+   * Correlation ID tracing the entire ingestion → approval → materialization flow.
+   * Generated by the caller if not provided (e.g. first action in the flow).
+   */
+  correlationId: z.string().optional(),
+  /** Optional: workspaceId to include in the published event. */
+  workspaceId: z.string().optional(),
+});
+
+export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
+
+// ── Collection DTOs ───────────────────────────────────────────────────────────
+
+export const CollectionColumnTypeSchema = z.enum([
+  "text",
+  "number",
+  "select",
+  "multi-select",
+  "date",
+  "checkbox",
+  "url",
+  "relation",
+]);
+
+export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
+
+export const CollectionColumnInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: CollectionColumnTypeSchema,
+  options: z.array(z.string()).optional(),
+});
+
+export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
+
+export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  columns: z.array(CollectionColumnInputSchema).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
+
+export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  name: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
+
+export const AddPageToCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
+
+export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
+
+export const AddCollectionColumnSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  column: CollectionColumnInputSchema,
+});
+
+export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
+
+export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+});
+
+export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
+
+// ── Wiki / Knowledge Base DTOs ────────────────────────────────────────────────
+
+export const PageVerificationStateSchema = z.enum(PAGE_VERIFICATION_STATES);
+
+export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  /** ISO 8601 — if set, page auto-transitions to "needs_review" after this date. */
+  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
+});
+
+export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
+
+export const RequestPageReviewSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  requestedByUserId: z.string().min(1),
+});
+
+export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
+
+export const AssignPageOwnerSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  ownerId: z.string().min(1),
+  assignedByUserId: z.string().min(1),
+});
+
+export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
+
+export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
+````
+
 ## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
 ````typescript
 /**
@@ -18747,6 +14344,487 @@ export class ListKnowledgeBlocksUseCase {
   async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
     if (!accountId.trim() || !pageId.trim()) return [];
     return this.repo.listByPageId(accountId, pageId);
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-collection.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: KnowledgeCollection use cases — create, rename, add/remove page, add column, archive, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
+import type { KnowledgeCollectionRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  CreateKnowledgeCollectionSchema,
+  type CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionSchema,
+  type RenameKnowledgeCollectionDto,
+  AddPageToCollectionSchema,
+  type AddPageToCollectionDto,
+  RemovePageFromCollectionSchema,
+  type RemovePageFromCollectionDto,
+  AddCollectionColumnSchema,
+  type AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionSchema,
+  type ArchiveKnowledgeCollectionDto,
+} from "../dto/knowledge.dto";
+
+export class CreateKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, workspaceId, name, description, columns, createdByUserId } = parsed.data;
+
+    const collection = await this.repo.create({
+      accountId,
+      workspaceId,
+      name: name.trim(),
+      description,
+      columns: columns?.map((c) => ({ name: c.name, type: c.type, options: c.options })),
+      createdByUserId,
+    });
+
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class RenameKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, name } = parsed.data;
+    const result = await this.repo.rename({ accountId, collectionId, name: name.trim() });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AddPageToCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
+    const parsed = AddPageToCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, pageId } = parsed.data;
+    const result = await this.repo.addPage({ accountId, collectionId, pageId });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RemovePageFromCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
+    const parsed = RemovePageFromCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, pageId } = parsed.data;
+    const result = await this.repo.removePage({ accountId, collectionId, pageId });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AddCollectionColumnUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
+    const parsed = AddCollectionColumnSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, column } = parsed.data;
+    const result = await this.repo.addColumn({
+      accountId,
+      collectionId,
+      column,
+    });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId } = parsed.data;
+    const result = await this.repo.archive({ accountId, collectionId });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class GetKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    return this.repo.findById(accountId, collectionId);
+  }
+}
+
+export class ListKnowledgeCollectionsByAccountUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgeCollection[]> {
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class ListKnowledgeCollectionsByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    return this.repo.listByWorkspaceId(accountId, workspaceId);
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Page use cases — create, rename, move, reorder blocks, archive, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import {
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/knowledge.dto";
+
+export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
+
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
+
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
+  };
+  sortByOrder(roots);
+
+  return roots;
+}
+
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+
+    const page = await this.repo.create({
+      accountId,
+      workspaceId,
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
+    });
+
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, title } = parsed.data;
+    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, targetParentPageId } = parsed.data;
+
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+    }
+
+    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId } = parsed.data;
+    const updated = await this.repo.archive(accountId, pageId);
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: KnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    // causationId is set by the Server Action layer; generateId() is a safe fallback.
+    const causationId = inputCausationId ?? generateId();
+
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) {
+      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    }
+    if (page.status === "archived") {
+      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    }
+    if (page.approvalState === "approved") {
+      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+    }
+
+    const nowISO = new Date().toISOString();
+    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
+    if (!approved) {
+      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
+    }
+
+    const correlationId = inputCorrelationId ?? generateId();
+
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
   }
 }
 ````
@@ -18837,6 +14915,122 @@ export interface DeleteKnowledgeBlockInput {
 }
 ````
 
+## File: modules/knowledge/domain/entities/content-page.entity.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/entity
+ * Purpose: Page aggregate root — the central document unit in the Content domain.
+ */
+
+export type KnowledgePageStatus = "active" | "archived";
+export type KnowledgePageApprovalState = "pending" | "approved";
+/** Notion Wiki page verification state */
+export type PageVerificationState = "verified" | "needs_review";
+
+export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
+export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
+export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
+
+export interface KnowledgePage {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: KnowledgePageStatus;
+  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
+  readonly approvalState?: KnowledgePageApprovalState;
+  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
+  readonly approvedAtISO?: string;
+  /** Actor who approved the page. */
+  readonly approvedByUserId?: string;
+  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
+  /**
+   * Verification state for Wiki (Knowledge Base) pages.
+   * undefined = page is not in wiki verification mode.
+   * "verified" = marked as up-to-date by a verifier.
+   * "needs_review" = flagged for review (may be stale).
+   */
+  readonly verificationState?: PageVerificationState;
+  /** User responsible for keeping this page accurate. */
+  readonly ownerId?: string;
+  /** User who last set verificationState to "verified". */
+  readonly verifiedByUserId?: string;
+  /** ISO timestamp when the page was last verified. */
+  readonly verifiedAtISO?: string;
+  /** ISO timestamp after which the page auto-transitions to "needs_review". */
+  readonly verificationExpiresAtISO?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+export interface KnowledgePageTreeNode extends KnowledgePage {
+  readonly children: readonly KnowledgePageTreeNode[];
+}
+
+export interface CreateKnowledgePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly parentPageId?: string | null;
+  readonly createdByUserId: string;
+}
+
+export interface RenameKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly title: string;
+}
+
+export interface MoveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly targetParentPageId: string | null;
+}
+
+export interface ReorderKnowledgePageBlocksInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly blockIds: readonly string[];
+}
+
+export interface ArchiveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+}
+
+export interface ApproveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly approvedByUserId: string;
+  readonly approvedAtISO: string;
+}
+
+export interface VerifyKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly verifiedByUserId: string;
+  readonly verificationExpiresAtISO?: string;
+}
+
+export interface RequestPageReviewInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly requestedByUserId: string;
+}
+
+export interface AssignPageOwnerInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly ownerId: string;
+}
+````
+
 ## File: modules/knowledge/domain/entities/content-version.entity.ts
 ````typescript
 /**
@@ -18869,6 +15063,438 @@ export interface CreateKnowledgeVersionInput {
   readonly accountId: string;
   readonly label?: string;
   readonly createdByUserId: string;
+}
+````
+
+## File: modules/knowledge/domain/entities/knowledge-collection.entity.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/entity
+ * Purpose: KnowledgeCollection — a named grouping / database-view of KnowledgePages.
+ *
+ * A Collection is the "Notion Database" equivalent: it holds a set of page IDs
+ * and an ordered schema of columns that define how those pages are displayed
+ * as a structured table or board.
+ *
+ * Lifecycle:
+ *   active → archived
+ */
+
+// ── Column (schema field) ─────────────────────────────────────────────────────
+
+export type CollectionColumnType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "date"
+  | "checkbox"
+  | "url"
+  | "relation";
+
+export interface CollectionColumn {
+  readonly id: string;
+  readonly name: string;
+  readonly type: CollectionColumnType;
+  /** Options for select / multi-select columns */
+  readonly options?: readonly string[];
+}
+
+// ── Aggregate Root ────────────────────────────────────────────────────────────
+
+export type CollectionStatus = "active" | "archived";
+/**
+ * "database" = Notion-style Database (table / board / gallery with column schema).
+ * "wiki"     = Knowledge Base space — pages carry verification + ownership metadata.
+ */
+export type CollectionSpaceType = "database" | "wiki";
+
+export interface KnowledgeCollection {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  /** Ordered list of column schema definitions */
+  readonly columns: readonly CollectionColumn[];
+  /** IDs of KnowledgePages that belong to this collection */
+  readonly pageIds: readonly string[];
+  readonly status: CollectionStatus;
+  /**
+   * "database" = structured table/board with column schema (Notion Database).
+   * "wiki"     = Knowledge Base space — enables page verification & ownership.
+   */
+  readonly spaceType: CollectionSpaceType;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Input types ───────────────────────────────────────────────────────────────
+
+export interface CreateKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly columns?: readonly Omit<CollectionColumn, "id">[];
+  readonly createdByUserId: string;
+  /** Defaults to "database" if omitted. */
+  readonly spaceType?: CollectionSpaceType;
+}
+
+export interface RenameKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly name: string;
+}
+
+export interface AddPageToCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly pageId: string;
+}
+
+export interface RemovePageFromCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly pageId: string;
+}
+
+export interface AddCollectionColumnInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly column: Omit<CollectionColumn, "id">;
+}
+
+export interface ArchiveKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+}
+````
+
+## File: modules/knowledge/domain/events/knowledge.events.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/event
+ * Purpose: Discriminated-union event types emitted by the Content domain.
+ */
+
+export interface KnowledgePageCreatedEvent {
+  readonly type: "knowledge.page_created";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly createdByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgePageRenamedEvent {
+  readonly type: "knowledge.page_renamed";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly previousTitle: string;
+  readonly newTitle: string;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgePageMovedEvent {
+  readonly type: "knowledge.page_moved";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly previousParentPageId: string | null;
+  readonly newParentPageId: string | null;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgePageArchivedEvent {
+  readonly type: "knowledge.page_archived";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly occurredAtISO: string;
+}
+
+// ── Extracted-task shape (used inside KnowledgePageApprovedEvent) ───────────────
+
+export interface ExtractedTask {
+  readonly title: string;
+  readonly dueDate?: string;
+  readonly description?: string;
+}
+
+export interface ExtractedInvoice {
+  readonly amount: number;
+  readonly description: string;
+  readonly currency?: string;
+}
+
+export interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  /** KnowledgePage aggregate ID (also the Firestore document id). */
+  readonly aggregateId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly extractedTasks: ReadonlyArray<ExtractedTask>;
+  readonly extractedInvoices: ReadonlyArray<ExtractedInvoice>;
+  /** Actor who triggered the approval. */
+  readonly actorId: string;
+  /** ID of the command (ApproveKnowledgePageUseCase execution) that caused this event. */
+  readonly causationId: string;
+  /** Business-process correlation ID tracing the whole ingestion → approval → materialization flow. */
+  readonly correlationId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgeBlockAddedEvent {
+  readonly type: "knowledge.block_added";
+  readonly blockId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly contentText: string;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgeBlockUpdatedEvent {
+  readonly type: "knowledge.block_updated";
+  readonly blockId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly contentText: string;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgeBlockDeletedEvent {
+  readonly type: "knowledge.block_deleted";
+  readonly blockId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface KnowledgeVersionPublishedEvent {
+  readonly type: "knowledge.version_published";
+  readonly versionId: string;
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly label: string;
+  readonly createdByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+// ── Wiki / Knowledge Base events ──────────────────────────────────────────────
+
+/** Emitted when a wiki page is marked "verified" (up-to-date). */
+export interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  /** Optional expiry — after this ISO timestamp the page auto-transitions to "needs_review". */
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAtISO: string;
+}
+
+/** Emitted when a wiki page is flagged for review (verification expired or manually requested). */
+export interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+/** Emitted when a wiki page owner is assigned or changed. */
+export interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly assignedByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+export type KnowledgeDomainEvent =
+  | KnowledgePageCreatedEvent
+  | KnowledgePageRenamedEvent
+  | KnowledgePageMovedEvent
+  | KnowledgePageArchivedEvent
+  | KnowledgePageApprovedEvent
+  | KnowledgeBlockAddedEvent
+  | KnowledgeBlockUpdatedEvent
+  | KnowledgeBlockDeletedEvent
+  | KnowledgeVersionPublishedEvent
+  | KnowledgePageVerifiedEvent
+  | KnowledgePageReviewRequestedEvent
+  | KnowledgePageOwnerAssignedEvent;
+````
+
+## File: modules/knowledge/domain/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/barrel
+ */
+
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ArchiveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "./entities/content-page.entity";
+
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/content-page.entity";
+export type { PageVerificationState } from "./entities/content-page.entity";
+
+export type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  DeleteKnowledgeBlockInput,
+} from "./entities/content-block.entity";
+
+export type {
+  KnowledgeVersion,
+  KnowledgeVersionBlock,
+  CreateKnowledgeVersionInput,
+} from "./entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./value-objects/block-content";
+export {
+  BLOCK_TYPES,
+  blockContentEquals,
+  emptyTextBlockContent,
+} from "./value-objects/block-content";
+
+export type {
+  KnowledgeDomainEvent,
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+  KnowledgePageVerifiedEvent,
+  KnowledgePageReviewRequestedEvent,
+  KnowledgePageOwnerAssignedEvent,
+} from "./events/knowledge.events";
+
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
+
+export type {
+  KnowledgePageRepository,
+  KnowledgeBlockRepository,
+  KnowledgeVersionRepository,
+} from "./repositories/knowledge.repositories";
+````
+
+## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/repositories
+ * Purpose: Repository port interfaces for Content domain persistence.
+ */
+
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../entities/content-page.entity";
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+} from "../entities/content-block.entity";
+import type {
+  KnowledgeVersion,
+  CreateKnowledgeVersionInput,
+} from "../entities/content-version.entity";
+import type {
+  KnowledgeCollection,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../entities/knowledge-collection.entity";
+
+export interface KnowledgePageRepository {
+  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
+  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
+  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
+  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
+  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
+  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Mark a wiki page as verified (verificationState = "verified"). */
+  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Flag a wiki page for review (verificationState = "needs_review"). */
+  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
+  /** Assign or change the owner of a wiki page. */
+  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
+  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
+}
+
+export interface KnowledgeBlockRepository {
+  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
+  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  delete(accountId: string, blockId: string): Promise<void>;
+  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
+}
+
+export interface KnowledgeVersionRepository {
+  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
+  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
+}
+
+export interface KnowledgeCollectionRepository {
+  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
+  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
+  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
+  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
+  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
+  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
 }
 ````
 
@@ -19077,6 +15703,536 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
+## File: modules/knowledge/infrastructure/firebase/FirebaseContentCollectionRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase Firestore implementation of KnowledgeCollectionRepository.
+ *
+ * Firestore collection: accounts/{accountId}/knowledgeCollections/{collectionId}
+ */
+
+import {
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionStatus,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../../domain/entities/knowledge-collection.entity";
+import type { KnowledgeCollectionRepository } from "../../domain/repositories/knowledge.repositories";
+
+function collectionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "knowledgeCollections");
+}
+
+function collectionDoc(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  collectionId: string,
+) {
+  return doc(db, "accounts", accountId, "knowledgeCollections", collectionId);
+}
+
+function toKnowledgeCollection(id: string, data: Record<string, unknown>): KnowledgeCollection {
+  const columns: CollectionColumn[] = Array.isArray(data.columns)
+    ? (data.columns as unknown[]).filter(
+        (c): c is Record<string, unknown> => typeof c === "object" && c !== null,
+      ).map((c) => ({
+        id: typeof c.id === "string" ? c.id : generateId(),
+        name: typeof c.name === "string" ? c.name : "",
+        type: (c.type as CollectionColumn["type"]) ?? "text",
+        options: Array.isArray(c.options)
+          ? (c.options as unknown[]).filter((v): v is string => typeof v === "string")
+          : undefined,
+      }))
+    : [];
+
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : undefined,
+    columns,
+    pageIds: Array.isArray(data.pageIds)
+      ? (data.pageIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    status: (data.status as CollectionStatus) === "archived" ? "archived" : "active",
+    spaceType: data.spaceType === "wiki" ? "wiki" : "database",
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectionRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection> {
+    const nowISO = new Date().toISOString();
+    const id = generateId();
+
+    const columns: CollectionColumn[] = (input.columns ?? []).map((c) => ({
+      id: generateId(),
+      name: c.name,
+      type: c.type,
+      options: c.options,
+    }));
+
+    const docRef = collectionDoc(this.db, input.accountId, id);
+    const data: Record<string, unknown> = {
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description ?? null,
+      columns,
+      pageIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      _serverTimestamp: serverTimestamp(),
+    };
+
+    if (input.workspaceId) {
+      data.workspaceId = input.workspaceId;
+    }
+
+    await setDoc(docRef, data);
+
+    return toKnowledgeCollection(id, { ...data, createdAtISO: nowISO, updatedAtISO: nowISO });
+  }
+
+  async rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { name: input.name, updatedAtISO: nowISO });
+
+    return toKnowledgeCollection(input.collectionId, {
+      ...snap.data(),
+      name: input.name,
+      updatedAtISO: nowISO,
+    });
+  }
+
+  async addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { pageIds: arrayUnion(input.pageId), updatedAtISO: nowISO });
+
+    const data = snap.data() as Record<string, unknown>;
+    const pageIds = Array.isArray(data.pageIds)
+      ? [...(data.pageIds as string[]), input.pageId]
+      : [input.pageId];
+
+    return toKnowledgeCollection(input.collectionId, { ...data, pageIds, updatedAtISO: nowISO });
+  }
+
+  async removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { pageIds: arrayRemove(input.pageId), updatedAtISO: nowISO });
+
+    const data = snap.data() as Record<string, unknown>;
+    const pageIds = Array.isArray(data.pageIds)
+      ? (data.pageIds as string[]).filter((id) => id !== input.pageId)
+      : [];
+
+    return toKnowledgeCollection(input.collectionId, { ...data, pageIds, updatedAtISO: nowISO });
+  }
+
+  async addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    const newColumn: CollectionColumn = {
+      id: generateId(),
+      name: input.column.name,
+      type: input.column.type,
+      options: input.column.options,
+    };
+
+    await updateDoc(docRef, { columns: arrayUnion(newColumn), updatedAtISO: nowISO });
+
+    const data = snap.data() as Record<string, unknown>;
+    const columns = Array.isArray(data.columns)
+      ? [...(data.columns as CollectionColumn[]), newColumn]
+      : [newColumn];
+
+    return toKnowledgeCollection(input.collectionId, { ...data, columns, updatedAtISO: nowISO });
+  }
+
+  async archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { status: "archived", updatedAtISO: nowISO });
+
+    return toKnowledgeCollection(input.collectionId, {
+      ...snap.data(),
+      status: "archived",
+      updatedAtISO: nowISO,
+    });
+  }
+
+  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    const snap = await getDoc(collectionDoc(this.db, accountId, collectionId));
+    if (!snap.exists()) return null;
+    return toKnowledgeCollection(collectionId, snap.data() as Record<string, unknown>);
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
+    const snaps = await getDocs(collectionsCol(this.db, accountId));
+    return snaps.docs.map((d) =>
+      toKnowledgeCollection(d.id, d.data() as Record<string, unknown>),
+    );
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    const q = query(collectionsCol(this.db, accountId), where("workspaceId", "==", workspaceId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) =>
+      toKnowledgeCollection(d.id, d.data() as Record<string, unknown>),
+    );
+  }
+}
+````
+
+## File: modules/knowledge/infrastructure/firebase/FirebaseContentPageRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
+ *
+ * Firestore collection: accounts/{accountId}/contentPages/{pageId}
+ */
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../../domain/entities/content-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+
+function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentPages");
+}
+
+function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
+  return doc(db, "accounts", accountId, "contentPages", pageId);
+}
+
+function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    title: typeof data.title === "string" ? data.title : "",
+    slug: typeof data.slug === "string" ? data.slug : "",
+    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
+    order: typeof data.order === "number" ? data.order : 0,
+    blockIds: Array.isArray(data.blockIds)
+      ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    status: data.status === "archived" ? "archived" : "active",
+    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
+    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
+    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+function slugify(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "page";
+}
+
+export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
+    const nowISO = new Date().toISOString();
+    const slug = slugify(input.title);
+    const id = generateId();
+
+    const existing = await getDocs(
+      query(pagesCol(this.db, input.accountId), where("parentPageId", "==", input.parentPageId ?? null)),
+    );
+    const order = existing.size;
+
+    const docRef = doc(pagesCol(this.db, input.accountId), id);
+    const data: Record<string, unknown> = {
+      accountId: input.accountId,
+      title: input.title,
+      slug,
+      parentPageId: input.parentPageId ?? null,
+      order,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.workspaceId) data.workspaceId = input.workspaceId;
+
+    await setDoc(docRef, data);
+
+    return toKnowledgePage(id, { ...data, id });
+  }
+
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      title: input.title,
+      slug: slugify(input.title),
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      parentPageId: input.targetParentPageId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      blockIds: [...input.blockIds],
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, accountId, pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      status: "archived",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    if (data.status === "archived") return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
+    if (!snap.exists()) return null;
+    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(
+        pagesCol(this.db, accountId),
+        where("status", "==", "active"),
+        orderBy("order", "asc"),
+      ),
+    );
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(
+        pagesCol(this.db, accountId),
+        where("workspaceId", "==", workspaceId),
+        where("status", "==", "active"),
+        orderBy("order", "asc"),
+      ),
+    );
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "verified",
+      verifiedByUserId: input.verifiedByUserId,
+      verifiedAtISO: nowISO,
+      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "needs_review",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      ownerId: input.ownerId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
 ## File: modules/knowledge/infrastructure/index.ts
 ````typescript
 /**
@@ -19086,6 +16242,318 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
 
 export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseContentPageRepository";
 export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
+````
+
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge
+ * Layer: interfaces/_actions
+ * Purpose: Next.js Server Actions for Content domain mutations.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+  ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import {
+  AddKnowledgeBlockUseCase,
+  UpdateKnowledgeBlockUseCase,
+  DeleteKnowledgeBlockUseCase,
+} from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  AddCollectionColumnUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockDto,
+  CreateKnowledgeVersionDto,
+  ApproveKnowledgePageDto,
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+} from "../../application/dto/knowledge.dto";
+
+function makePageRepo() {
+  return new FirebaseKnowledgePageRepository();
+}
+
+function makeBlockRepo() {
+  return new FirebaseKnowledgeBlockRepository();
+}
+
+function makeCollectionRepo() {
+  return new FirebaseKnowledgeCollectionRepository();
+}
+
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_MOVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function reorderKnowledgePageBlocks(
+  input: ReorderKnowledgePageBlocksDto,
+): Promise<CommandResult> {
+  try {
+    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_REORDER_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_ADD_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_UPDATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_DELETE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function publishKnowledgeVersion(
+  _input: CreateKnowledgeVersionDto,
+): Promise<CommandResult> {
+  return commandFailureFrom(
+    "CONTENT_VERSION_NOT_IMPLEMENTED",
+    "Version persistence is not yet implemented.",
+  );
+}
+
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    // causationId is generated at the action layer (command origin) to ensure
+    // proper command-event causality tracing as described in ADR-001.
+    const causationId = input.causationId ?? generateId();
+    return await new ApproveKnowledgePageUseCase(
+      makePageRepo(),
+      new InMemoryEventStoreRepository(),
+      new NoopEventBusRepository(),
+    ).execute({ ...input, causationId });
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_APPROVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+// ── Collection actions ────────────────────────────────────────────────────────
+
+export async function createKnowledgeCollection(
+  input: CreateKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function renameKnowledgeCollection(
+  input: RenameKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addPageToCollection(
+  input: AddPageToCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function removePageFromCollection(
+  input: RemovePageFromCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_REMOVE_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addCollectionColumn(
+  input: AddCollectionColumnDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_COLUMN_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function archiveKnowledgeCollection(
+  input: ArchiveKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+// ── Wiki / Knowledge Base verification actions ────────────────────────────────
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_VERIFY_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function requestKnowledgePageReview(
+  input: RequestPageReviewDto,
+): Promise<CommandResult> {
+  try {
+    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_REVIEW_REQUEST_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function assignKnowledgePageOwner(
+  input: AssignPageOwnerDto,
+): Promise<CommandResult> {
+  try {
+    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ASSIGN_OWNER_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
 ````
 
 ## File: modules/knowledge/interfaces/index.ts
@@ -19116,6 +16584,88 @@ export {
 } from "./queries/knowledge.queries";
 
 export { BlockEditorView } from "./components/BlockEditorView";
+````
+
+## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side query helpers for reading Content domain data.
+ */
+
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  GetKnowledgePageTreeUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsByAccountUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+
+export async function getKnowledgePage(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePage | null> {
+  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
+  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
+  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgeBlocks(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgeBlock[]> {
+  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgeVersions(
+  _accountId: string,
+  _pageId: string,
+): Promise<KnowledgeVersion[]> {
+  return [];
+}
+
+// ── Collection queries ────────────────────────────────────────────────────────
+
+export async function getKnowledgeCollection(
+  accountId: string,
+  collectionId: string,
+): Promise<KnowledgeCollection | null> {
+  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+    collectionId,
+  );
+}
+
+export async function getKnowledgeCollections(
+  accountId: string,
+): Promise<KnowledgeCollection[]> {
+  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+  );
+}
 ````
 
 ## File: modules/notebook/.gitkeep
@@ -24428,47 +21978,6 @@ export function RagView({
 }
 ````
 
-## File: modules/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/search/repositories.md
 ````markdown
 # search — Repositories
@@ -28996,47 +26505,6 @@ export async function getWorkspaceRagDocuments(
     workspaceId: workspace.id,
   });
 }
-````
-
-## File: modules/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/source/repositories.md
@@ -58726,1018 +56194,6 @@ export function useAuth() {
 }
 ````
 
-## File: docs/ddd/ai/AGENT.md
-````markdown
-# AGENT.md — ai BC
-
-## 模組定位
-
-`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
-| `IngestionDocument` | Document、File（在此 BC 內）|
-| `IngestionChunk` | Chunk、VectorChunk |
-| `IngestionStatus` | Status, JobStatus |
-
-## 棄用檔案守衛
-
-以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { aiApi } from "@/modules/ai/api";
-import type { IngestionJobDTO } from "@/modules/ai/api";
-```
-
-### ❌ 禁止
-```typescript
-import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
-import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
-```
-
-## Runtime 邊界規則
-
-- `ai` 模組只在 Next.js 端做 Job 協調
-- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/knowledge-base/AGENT.md
-````markdown
-# knowledge-base — DDD Agent
-
-## 戰略分類
-
-| 屬性 | 值 |
-|---|---|
-| **Domain Type** | **Core Domain** — 產品差異化核心 |
-| **Module** | `modules/knowledge-base/` |
-| **Aggregates** | Article, Category |
-| **Key Events** | article_created / published / verified, category_created |
-
-## 為何是 Core Domain
-
-組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
-
-## 關鍵設計決策
-
-1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
-2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
-3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
-4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
-
-## 詳細實作文件
-
-→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
-````
-
-## File: docs/ddd/knowledge-base/aggregates.md
-````markdown
-# knowledge-base — 聚合根摘要
-
-> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
-
-## Article（聚合根）
-
-| 欄位 | 說明 |
-|---|---|
-| `id` | 唯一識別碼 |
-| `title`, `content` | 文章標題與主體 |
-| `status` | `draft` / `published` / `archived` |
-| `verificationState` | `verified` / `needs_review` / `unverified` |
-| `ownerId` | 文章負責人（ArticleOwner） |
-| `linkedArticleIds` | Backlink 引用列表 |
-| `categoryId` | 所屬分類 |
-| `tags` | 標籤列表 |
-
-## Category（聚合根）
-
-| 欄位 | 說明 |
-|---|---|
-| `id` | 唯一識別碼 |
-| `name`, `slug` | 分類名稱與 URL 識別碼 |  
-| `parentCategoryId` | 父分類（null = 根節點） |
-| `depth` | 層級深度（最大 5）|
-| `articleIds` | 直屬文章 ID 列表 |
-````
-
-## File: docs/ddd/knowledge-base/application-services.md
-````markdown
-# knowledge-base — Application Services
-
-> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
-
-**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks
-
-**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
-````
-
-## File: docs/ddd/knowledge-base/context-map.md
-````markdown
-# knowledge-base — Context Map
-
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
-
-## 上游
-
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
-
-## 下游
-
-- `knowledge` — 頁面可提升（Promote）為 Article
-- `knowledge-database` — Article 可與 Record 連結（ACL）
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
-````
-
-## File: docs/ddd/knowledge-base/domain-events.md
-````markdown
-# knowledge-base — 領域事件
-
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
-
-## 事件清單
-
-| 事件 | 觸發條件 |
-|---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft） |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
-````
-
-## File: docs/ddd/knowledge-base/domain-services.md
-````markdown
-# knowledge-base — Domain Services
-
-> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
-
-- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
-- `ArticleSlugService` — title → URL-safe slug 轉換
-- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
-````
-
-## File: docs/ddd/knowledge-base/README.md
-````markdown
-# knowledge-base — DDD Reference
-
-> **Domain Type:** Core Domain
-> **Module:** `modules/knowledge-base/`
-> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
-
-## 戰略定位
-
-`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
-
-## Bounded Context 邊界
-
-- **擁有：** Article（文章）、Category（分類）
-- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
-
-## 核心聚合
-
-詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
-
-- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
-- **Category** — 層級分類目錄（最多 5 層）
-
-## 主要領域事件
-
-詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
-
-- `knowledge-base.article_created`
-- `knowledge-base.article_published`
-- `knowledge-base.article_verified`
-- `knowledge-base.article_review_requested`
-- `knowledge-base.category_created`
-
-## 通用語言
-
-詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
-
-- **Article** ≠ Page（個人筆記）≠ Document（泛型）
-- **VerificationState** ≠ ApprovalState（knowledge 的審核）
-- **Backlink** = `[[Article Title]]` wikilink 解析結果
-
-## 上下文關係
-
-詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 下游 | `knowledge` (promote) | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
-## File: docs/ddd/knowledge-base/repositories.md
-````markdown
-# knowledge-base — Repositories
-
-> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
-
-- `IArticleRepository` — CRUD + search + backlink 反查
-- `ICategoryRepository` — 層級樹操作 + articleIds 管理
-
-**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
-````
-
-## File: docs/ddd/knowledge-base/ubiquitous-language.md
-````markdown
-# knowledge-base — 通用語言
-
-> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
-
-## 核心術語速查
-
-| 術語 | 定義 |
-|---|---|
-| **Article** | 組織級知識文章（SOP / Wiki） |
-| **Category** | 層級分類目錄（max 5 層） |
-| **VerificationState** | `verified` / `needs_review` / `unverified` |
-| **ArticleOwner** | 負責維護文章準確性的使用者 |
-| **Backlink** | `[[Article Title]]` 解析的反向引用 |
-| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
-````
-
-## File: docs/ddd/knowledge-collaboration/AGENT.md
-````markdown
-# knowledge-collaboration — DDD Agent
-
-**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
-
-為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
-
-→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-````
-
-## File: docs/ddd/knowledge-collaboration/aggregates.md
-````markdown
-**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
-**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
-**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
-
-→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
-````
-
-## File: docs/ddd/knowledge-collaboration/application-services.md
-````markdown
-Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
-Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
-Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
-
-→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
-````
-
-## File: docs/ddd/knowledge-collaboration/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
-下游消費者: `notification`, `workspace-feed`, `workspace-audit`
-
-→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
-````
-
-## File: docs/ddd/knowledge-collaboration/domain-events.md
-````markdown
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
-````
-
-## File: docs/ddd/knowledge-collaboration/domain-services.md
-````markdown
-- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
-- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
-
-→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
-````
-
-## File: docs/ddd/knowledge-collaboration/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
-
-> **Domain Type:** Supporting Subdomain + Generic Subdomain
-> **Module:** `modules/knowledge-collaboration/`
-> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-
-## 戰略定位
-
-`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
-
-## 核心聚合
-
-- **Comment** — 線程式留言，透過 `contentId` 引用內容
-- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
-- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
-
-## 主要領域事件
-
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Comment** | 針對 contentId 的留言（root 或 reply） |
-| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
-| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
-| **Version** | immutable Block 快照 |
-| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
-| **contentId** | opaque reference 到任意知識內容 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity` | Conformist |
-| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
-````
-
-## File: docs/ddd/knowledge-collaboration/repositories.md
-````markdown
-ICommentRepository, IPermissionRepository, IVersionRepository
-
-Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
-
-→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
-````
-
-## File: docs/ddd/knowledge-collaboration/ubiquitous-language.md
-````markdown
-| Comment | 留言（≠ Note, Message） |
-| Permission | 存取授權（≠ Role） |
-| PermissionLevel | view < comment < edit < full |
-| Version | Block 快照（≠ Revision, History） |
-| NamedVersion | 附標籤的具名版本（不自動刪除） |
-| contentId | opaque ID 跨 BC 引用 |
-| PageLock | 防並發的暫時鎖定 |
-
-→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
-````
-
-## File: docs/ddd/knowledge-database/AGENT.md
-````markdown
-# knowledge-database — DDD Agent
-
-**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
-
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
-
-→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
-````
-
-## File: docs/ddd/knowledge-database/aggregates.md
-````markdown
-**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
-**Record** — databaseId + properties(Map<fieldId, value>) + order
-**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
-
-→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
-````
-
-## File: docs/ddd/knowledge-database/application-services.md
-````markdown
-Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
-View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
-Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
-
-→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
-````
-
-## File: docs/ddd/knowledge-database/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge-collaboration`(Permission)
-下游: `knowledge`(inline db), `knowledge-base`(article-record link), `workspace-feed`, `notification`
-
-→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
-````
-
-## File: docs/ddd/knowledge-database/domain-events.md
-````markdown
-- `knowledge-database.database_created` / `database_renamed`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
-````
-
-## File: docs/ddd/knowledge-database/domain-services.md
-````markdown
-- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
-- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
-
-→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
-````
-
-## File: docs/ddd/knowledge-database/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
-
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
-
-## 戰略定位
-
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
-
-## 核心聚合
-
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
-
-## 視圖類型
-
-`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
-
-## 欄位類型
-
-`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
-
-## 主要領域事件
-
-- `knowledge-database.database_created`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
-| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
-````
-
-## File: docs/ddd/knowledge-database/repositories.md
-````markdown
-IDatabaseRepository, IRecordRepository, IViewRepository
-
-Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
-
-→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
-````
-
-## File: docs/ddd/knowledge-database/ubiquitous-language.md
-````markdown
-| Database | 結構化資料容器（≠ KnowledgeCollection） |
-| Field | 欄位定義（≠ Column）|
-| Record | 資料行（≠ Row, Item, Entry）|
-| Property | 某 Field 的具體值（Map） |
-| View | 視圖配置 — 不持有資料 |
-| ViewType | table/board/list/calendar/timeline/gallery |
-| Relation | 跨 Database 的 Record 連結欄位 |
-
-→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
-````
-
-## File: docs/ddd/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
-
-## 模組定位
-
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { WikiPage } from "@/modules/wiki/domain/entities/...";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAtISO` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAtISO` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## Wiki/Knowledge Base 驗證事件
-
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAtISO: string;
-}
-
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAtISO: string;
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-````
-
-## File: docs/ddd/knowledge/README.md
-````markdown
-# knowledge — 知識內容上下文
-
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
-
-## 核心聚合 / 核心概念
-
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
-
-## KnowledgePageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
-````
-
-## File: docs/ddd/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/subdomains.md
-````markdown
-# Subdomains — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
-> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
-
-本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
-
----
-
-## 分類原則
-
-| 分類 | 定義 | 投資策略 |
-|---|---|---|
-| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
-| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
-| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
-| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
-
----
-
-## Core Domain
-
-### `knowledge` — 知識內容管理
-
-Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
-
-**為何是核心域：**
-- 承載 Knowledge Page / Block Editor 的主體體驗
-- 決定知識如何被保存、版本化、審批與再利用
-- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
-
-### `knowledge-base` — 組織知識庫 / Wiki / SOP
-
-Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管理，支援層級分類、Backlink、SOP 文件與頁面驗證機制。
-
-**為何是核心域：**
-- 承載組織知識的可信度、可發現性與共享體驗
-- `VerificationState` 機制讓知識庫保持準確性品質
-- 與 `knowledge`（個人筆記）共同構成平台的知識差異化壁壘
-
----
-
-## Supporting Subdomains
-
-### `knowledge-collaboration`
-負責知識協作基礎設施：留言討論（Comment）、細粒度存取控制（Permission）、版本快照（Version）。不擁有知識內容，透過 `contentId` 與內容 BC 協作。
-
-### `knowledge-database`
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database，支援 Table / Board / Calendar / Timeline / Gallery 等多視圖展示，並透過 Relation 欄位建立資料關聯。
-
-### `source`
-負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
-
-### `ai`
-負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
-
-### `search`
-負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
-
-### `notebook`
-負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
-
-### `workspace-flow`
-負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
-
-### `workspace-scheduling`
-負責工作需求與排程，將協作項目放入時間與容量視角管理。
-
-### `workspace-audit`
-負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
-
-### `workspace-feed`
-負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
-
----
-
-## Generic Subdomains / Shared Kernel
-
-### `identity`
-封裝身份驗證與 session 起點，屬於標準平台能力。
-
-### `account`
-承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
-
-### `organization`
-提供多租戶組織、成員與團隊治理，是平台級協作基礎。
-
-### `workspace`
-提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
-
-### `notification`
-負責通知與提醒分發，屬典型平台配套能力。
-
-### `shared`
-作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
-
----
-
-## 子域分類總表
-
-| Context | 分類 | 主要價值 |
-|---|---|---|
-| `knowledge` | **Core** | 個人筆記 Page + Block 生命週期 |
-| `knowledge-base` | **Core** | 組織知識庫 Article + Category + 驗證機制 |
-| `knowledge-collaboration` | Supporting | Comment / Permission / Version 協作基礎 |
-| `knowledge-database` | Supporting | Database / Record / View 結構化資料 |
-| `source` | Supporting | 文件接入與來源治理 |
-| `ai` | Supporting | 攝入管線協調與 worker handoff |
-| `search` | Supporting | 語意檢索與 RAG |
-| `notebook` | Supporting | 摘要、問答、洞察互動 |
-| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
-| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
-| `workspace-audit` | Supporting | 稽核與追溯 |
-| `workspace-feed` | Supporting | 工作區動態與互動 |
-| `identity` | Generic | 身份驗證 |
-| `account` | Generic | 個人帳戶與偏好 |
-| `organization` | Generic | 多租戶治理 |
-| `workspace` | Generic | 協作容器 |
-| `notification` | Generic | 通知分發 |
-| `shared` | Shared Kernel | 穩定共享核心 |
-
----
-
-## 架構參考
-
-- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
-````
-
 ## File: docs/getting-started.md
 ````markdown
 # Getting Started
@@ -60537,103 +56993,55 @@ If a question is broad, inspect summaries and README indexes before opening deta
 If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
 ````
 
-## File: modules/bounded-contexts.md
+## File: modules/ai/AGENT.md
 ````markdown
-# Bounded Contexts — Xuanwu App
+# AGENT.md — ai BC
 
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
-> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
+## 模組定位
 
-本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
-Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
+`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
 
-- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
-- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
-- **NotebookLM-like 層**：檢索、摘要、問答、推理
+## 通用語言（Ubiquitous Language）
 
----
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
+| `IngestionDocument` | Document、File（在此 BC 內）|
+| `IngestionChunk` | Chunk、VectorChunk |
+| `IngestionStatus` | Status, JobStatus |
 
-## 系統層級映射
+## 棄用檔案守衛
 
-| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
-|---|---|---|---|
-| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
-| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
-| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
-| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
-| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
-| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
+以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
+- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
 
----
+## 邊界規則
 
-## 子域分類摘要
-
-| 分類 | Bounded Context |
-|---|---|
-| **Core Domain** | `knowledge`, `knowledge-base` |
-| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
-| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
-
----
-
-## Bounded Context Catalog
-
-| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
-|---|---|---|---|---|
-| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
-| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
-| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
-| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
-| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
-| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
-| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
-| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
-| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
-| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
-| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
-| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
-| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
-| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
-| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
-| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
-| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
-| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
-
----
-
-## 典型依賴與協作方式
-
-```text
-Identity → Account → Organization → Workspace
-                              ├─→ Knowledge ─────────────────────┐
-                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
-                              ├─→ Knowledge Collab / Database ───┘
-                              ├─→ Source ───→ AI ────────────────────────────┘
-                              └─→ Workspace Operations
-                                   ├─ workspace-flow
-                                   ├─ workspace-scheduling
-                                   ├─ workspace-audit
-                                   └─ workspace-feed
+### ✅ 允許
+```typescript
+import { aiApi } from "@/modules/ai/api";
+import type { IngestionJobDTO } from "@/modules/ai/api";
 ```
 
----
+### ❌ 禁止
+```typescript
+import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
+import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
+```
 
-## 整合原則
+## Runtime 邊界規則
 
-1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
-2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
-3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
-4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
-5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
+- `ai` 模組只在 Next.js 端做 Job 協調
+- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
 
----
+## 驗證命令
 
-## 詳細文件
-
-- 子域分類：[`subdomains.md`](./subdomains.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/knowledge-base/application/dto/knowledge-base.dto.ts
@@ -62653,1249 +59061,99 @@ export async function getViews(accountId: string, databaseId: string): Promise<V
 }
 ````
 
-## File: modules/knowledge/application/use-cases/knowledge-collection.use-cases.ts
+## File: modules/knowledge/index.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: application/use-cases
- * Purpose: KnowledgeCollection use cases — create, rename, add/remove page, add column, archive, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
-import type { KnowledgeCollectionRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  CreateKnowledgeCollectionSchema,
-  type CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionSchema,
-  type RenameKnowledgeCollectionDto,
-  AddPageToCollectionSchema,
-  type AddPageToCollectionDto,
-  RemovePageFromCollectionSchema,
-  type RemovePageFromCollectionDto,
-  AddCollectionColumnSchema,
-  type AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionSchema,
-  type ArchiveKnowledgeCollectionDto,
-} from "../dto/knowledge.dto";
-
-export class CreateKnowledgeCollectionUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, workspaceId, name, description, columns, createdByUserId } = parsed.data;
-
-    const collection = await this.repo.create({
-      accountId,
-      workspaceId,
-      name: name.trim(),
-      description,
-      columns: columns?.map((c) => ({ name: c.name, type: c.type, options: c.options })),
-      createdByUserId,
-    });
-
-    return commandSuccess(collection.id, Date.now());
-  }
-}
-
-export class RenameKnowledgeCollectionUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, collectionId, name } = parsed.data;
-    const result = await this.repo.rename({ accountId, collectionId, name: name.trim() });
-
-    if (!result) {
-      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
-    }
-
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AddPageToCollectionUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
-    const parsed = AddPageToCollectionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, collectionId, pageId } = parsed.data;
-    const result = await this.repo.addPage({ accountId, collectionId, pageId });
-
-    if (!result) {
-      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
-    }
-
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class RemovePageFromCollectionUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
-    const parsed = RemovePageFromCollectionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, collectionId, pageId } = parsed.data;
-    const result = await this.repo.removePage({ accountId, collectionId, pageId });
-
-    if (!result) {
-      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
-    }
-
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AddCollectionColumnUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
-    const parsed = AddCollectionColumnSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, collectionId, column } = parsed.data;
-    const result = await this.repo.addColumn({
-      accountId,
-      collectionId,
-      column,
-    });
-
-    if (!result) {
-      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
-    }
-
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgeCollectionUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, collectionId } = parsed.data;
-    const result = await this.repo.archive({ accountId, collectionId });
-
-    if (!result) {
-      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
-    }
-
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class GetKnowledgeCollectionUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
-    return this.repo.findById(accountId, collectionId);
-  }
-}
-
-export class ListKnowledgeCollectionsByAccountUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgeCollection[]> {
-    return this.repo.listByAccountId(accountId);
-  }
-}
-
-export class ListKnowledgeCollectionsByWorkspaceUseCase {
-  constructor(private readonly repo: KnowledgeCollectionRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
-    return this.repo.listByWorkspaceId(accountId, workspaceId);
-  }
-}
-````
-
-## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Page use cases — create, rename, move, reorder blocks, archive, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import {
-  CreateKnowledgePageSchema,
-  type CreateKnowledgePageDto,
-  RenameKnowledgePageSchema,
-  type RenameKnowledgePageDto,
-  MoveKnowledgePageSchema,
-  type MoveKnowledgePageDto,
-  ArchiveKnowledgePageSchema,
-  type ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksSchema,
-  type ReorderKnowledgePageBlocksDto,
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/knowledge.dto";
-
-export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
-  const map = new Map<string, KnowledgePageTreeNode>();
-  for (const page of pages) {
-    map.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: KnowledgePageTreeNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentPageId === null || !map.has(node.parentPageId)) {
-      roots.push(node);
-    } else {
-      const parent = map.get(node.parentPageId)!;
-      (parent.children as KnowledgePageTreeNode[]).push(node);
-    }
-  }
-
-  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
-    nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
-  };
-  sortByOrder(roots);
-
-  return roots;
-}
-
-export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
-
-    const page = await this.repo.create({
-      accountId,
-      workspaceId,
-      title: title.trim(),
-      parentPageId: parentPageId ?? null,
-      createdByUserId,
-    });
-
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, title } = parsed.data;
-    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = MoveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, targetParentPageId } = parsed.data;
-
-    if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
-    }
-
-    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId } = parsed.data;
-    const updated = await this.repo.archive(accountId, pageId);
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, blockIds } = parsed.data;
-    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    if (!accountId.trim() || !pageId.trim()) return null;
-    return this.repo.findById(accountId, pageId);
-  }
-}
-
-export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim()) return [];
-    return this.repo.listByAccountId(accountId);
-  }
-}
-
-export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim()) return [];
-    const pages = await this.repo.listByAccountId(accountId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: KnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    // causationId is set by the Server Action layer; generateId() is a safe fallback.
-    const causationId = inputCausationId ?? generateId();
-
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) {
-      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    }
-    if (page.status === "archived") {
-      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    }
-    if (page.approvalState === "approved") {
-      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-    }
-
-    const nowISO = new Date().toISOString();
-    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
-    if (!approved) {
-      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
-    }
-
-    const correlationId = inputCorrelationId ?? generateId();
-
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-````
-
-## File: modules/knowledge/domain/entities/content-page.entity.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/entity
- * Purpose: Page aggregate root — the central document unit in the Content domain.
- */
-
-export type KnowledgePageStatus = "active" | "archived";
-export type KnowledgePageApprovalState = "pending" | "approved";
-/** Notion Wiki page verification state */
-export type PageVerificationState = "verified" | "needs_review";
-
-export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
-export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
-export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
-
-export interface KnowledgePage {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: KnowledgePageStatus;
-  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
-  readonly approvalState?: KnowledgePageApprovalState;
-  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
-  readonly approvedAtISO?: string;
-  /** Actor who approved the page. */
-  readonly approvedByUserId?: string;
-  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
-  /**
-   * Verification state for Wiki (Knowledge Base) pages.
-   * undefined = page is not in wiki verification mode.
-   * "verified" = marked as up-to-date by a verifier.
-   * "needs_review" = flagged for review (may be stale).
-   */
-  readonly verificationState?: PageVerificationState;
-  /** User responsible for keeping this page accurate. */
-  readonly ownerId?: string;
-  /** User who last set verificationState to "verified". */
-  readonly verifiedByUserId?: string;
-  /** ISO timestamp when the page was last verified. */
-  readonly verifiedAtISO?: string;
-  /** ISO timestamp after which the page auto-transitions to "needs_review". */
-  readonly verificationExpiresAtISO?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface KnowledgePageTreeNode extends KnowledgePage {
-  readonly children: readonly KnowledgePageTreeNode[];
-}
-
-export interface CreateKnowledgePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-}
-
-export interface RenameKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly title: string;
-}
-
-export interface MoveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly targetParentPageId: string | null;
-}
-
-export interface ReorderKnowledgePageBlocksInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly blockIds: readonly string[];
-}
-
-export interface ArchiveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-}
-
-export interface ApproveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly approvedByUserId: string;
-  readonly approvedAtISO: string;
-}
-
-export interface VerifyKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly verifiedByUserId: string;
-  readonly verificationExpiresAtISO?: string;
-}
-
-export interface RequestPageReviewInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly requestedByUserId: string;
-}
-
-export interface AssignPageOwnerInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly ownerId: string;
-}
-````
-
-## File: modules/knowledge/domain/entities/knowledge-collection.entity.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/entity
- * Purpose: KnowledgeCollection — a named grouping / database-view of KnowledgePages.
+ * Layer: module/barrel (public API)
  *
- * A Collection is the "Notion Database" equivalent: it holds a set of page IDs
- * and an ordered schema of columns that define how those pages are displayed
- * as a structured table or board.
+ * This is the ONLY file that external modules should import from.
+ * All internal implementation details (domain, application, infrastructure)
+ * are NOT importable from outside — use the exports listed here.
  *
- * Lifecycle:
- *   active → archived
+ * Boundary rule: other modules import via `@/modules/knowledge`, never from
+ * `@/modules/knowledge/domain/...` or deeper paths.
+ *
+ * Access pattern:
+ *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
+ *   - UI mutations                    → Server Actions below
+ *   - UI reads                        → Query functions below
+ *
+ * Current boundary note:
+ *   - `Page` / `Block` are owned by this module.
+ *   - `KnowledgeCollection` is still exported here as a transitional surface.
+ *   - `Article` / `Category` belong to `knowledge-base`.
  */
 
-// ── Column (schema field) ─────────────────────────────────────────────────────
+// ── API: Facade (cross-domain entry point) ────────────────────────────────────
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";
 
-export type CollectionColumnType =
-  | "text"
-  | "number"
-  | "select"
-  | "multi-select"
-  | "date"
-  | "checkbox"
-  | "url"
-  | "relation";
-
-export interface CollectionColumn {
-  readonly id: string;
-  readonly name: string;
-  readonly type: CollectionColumnType;
-  /** Options for select / multi-select columns */
-  readonly options?: readonly string[];
-}
-
-// ── Aggregate Root ────────────────────────────────────────────────────────────
-
-export type CollectionStatus = "active" | "archived";
-/**
- * "database" = Notion-style Database (table / board / gallery with column schema).
- * "wiki"     = Knowledge Base space — pages carry verification + ownership metadata.
- */
-export type CollectionSpaceType = "database" | "wiki";
-
-export interface KnowledgeCollection {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly name: string;
-  readonly description?: string;
-  /** Ordered list of column schema definitions */
-  readonly columns: readonly CollectionColumn[];
-  /** IDs of KnowledgePages that belong to this collection */
-  readonly pageIds: readonly string[];
-  readonly status: CollectionStatus;
-  /**
-   * "database" = structured table/board with column schema (Notion Database).
-   * "wiki"     = Knowledge Base space — enables page verification & ownership.
-   */
-  readonly spaceType: CollectionSpaceType;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Input types ───────────────────────────────────────────────────────────────
-
-export interface CreateKnowledgeCollectionInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly name: string;
-  readonly description?: string;
-  readonly columns?: readonly Omit<CollectionColumn, "id">[];
-  readonly createdByUserId: string;
-  /** Defaults to "database" if omitted. */
-  readonly spaceType?: CollectionSpaceType;
-}
-
-export interface RenameKnowledgeCollectionInput {
-  readonly accountId: string;
-  readonly collectionId: string;
-  readonly name: string;
-}
-
-export interface AddPageToCollectionInput {
-  readonly accountId: string;
-  readonly collectionId: string;
-  readonly pageId: string;
-}
-
-export interface RemovePageFromCollectionInput {
-  readonly accountId: string;
-  readonly collectionId: string;
-  readonly pageId: string;
-}
-
-export interface AddCollectionColumnInput {
-  readonly accountId: string;
-  readonly collectionId: string;
-  readonly column: Omit<CollectionColumn, "id">;
-}
-
-export interface ArchiveKnowledgeCollectionInput {
-  readonly accountId: string;
-  readonly collectionId: string;
-}
-````
-
-## File: modules/knowledge/domain/events/knowledge.events.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/event
- * Purpose: Discriminated-union event types emitted by the Content domain.
- */
-
-export interface KnowledgePageCreatedEvent {
-  readonly type: "knowledge.page_created";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly createdByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgePageRenamedEvent {
-  readonly type: "knowledge.page_renamed";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly previousTitle: string;
-  readonly newTitle: string;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgePageMovedEvent {
-  readonly type: "knowledge.page_moved";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly previousParentPageId: string | null;
-  readonly newParentPageId: string | null;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgePageArchivedEvent {
-  readonly type: "knowledge.page_archived";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly occurredAtISO: string;
-}
-
-// ── Extracted-task shape (used inside KnowledgePageApprovedEvent) ───────────────
-
-export interface ExtractedTask {
-  readonly title: string;
-  readonly dueDate?: string;
-  readonly description?: string;
-}
-
-export interface ExtractedInvoice {
-  readonly amount: number;
-  readonly description: string;
-  readonly currency?: string;
-}
-
-export interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  /** KnowledgePage aggregate ID (also the Firestore document id). */
-  readonly aggregateId: string;
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly extractedTasks: ReadonlyArray<ExtractedTask>;
-  readonly extractedInvoices: ReadonlyArray<ExtractedInvoice>;
-  /** Actor who triggered the approval. */
-  readonly actorId: string;
-  /** ID of the command (ApproveKnowledgePageUseCase execution) that caused this event. */
-  readonly causationId: string;
-  /** Business-process correlation ID tracing the whole ingestion → approval → materialization flow. */
-  readonly correlationId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgeBlockAddedEvent {
-  readonly type: "knowledge.block_added";
-  readonly blockId: string;
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly contentText: string;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgeBlockUpdatedEvent {
-  readonly type: "knowledge.block_updated";
-  readonly blockId: string;
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly contentText: string;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgeBlockDeletedEvent {
-  readonly type: "knowledge.block_deleted";
-  readonly blockId: string;
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface KnowledgeVersionPublishedEvent {
-  readonly type: "knowledge.version_published";
-  readonly versionId: string;
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly label: string;
-  readonly createdByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-// ── Wiki / Knowledge Base events ──────────────────────────────────────────────
-
-/** Emitted when a wiki page is marked "verified" (up-to-date). */
-export interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  /** Optional expiry — after this ISO timestamp the page auto-transitions to "needs_review". */
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAtISO: string;
-}
-
-/** Emitted when a wiki page is flagged for review (verification expired or manually requested). */
-export interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-/** Emitted when a wiki page owner is assigned or changed. */
-export interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly assignedByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-export type KnowledgeDomainEvent =
-  | KnowledgePageCreatedEvent
-  | KnowledgePageRenamedEvent
-  | KnowledgePageMovedEvent
-  | KnowledgePageArchivedEvent
-  | KnowledgePageApprovedEvent
-  | KnowledgeBlockAddedEvent
-  | KnowledgeBlockUpdatedEvent
-  | KnowledgeBlockDeletedEvent
-  | KnowledgeVersionPublishedEvent
-  | KnowledgePageVerifiedEvent
-  | KnowledgePageReviewRequestedEvent
-  | KnowledgePageOwnerAssignedEvent;
-````
-
-## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/repositories
- * Purpose: Repository port interfaces for Content domain persistence.
- */
-
-import type {
+// ── Domain: entity types ──────────────────────────────────────────────────────
+export type {
   KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "../entities/content-page.entity";
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-} from "../entities/content-block.entity";
-import type {
-  KnowledgeVersion,
-  CreateKnowledgeVersionInput,
-} from "../entities/content-version.entity";
-import type {
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+} from "./domain/entities/content-page.entity";
+
+export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
+
+export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./interfaces/_actions/knowledge.actions";
+
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "./interfaces/queries/knowledge.queries";
+
+// ── Domain: Collection + Wiki types ──────────────────────────────────────────
+export type {
   KnowledgeCollection,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "../entities/knowledge-collection.entity";
+  CollectionSpaceType,
+} from "./domain/entities/knowledge-collection.entity";
 
-export interface KnowledgePageRepository {
-  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
-  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
-  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
-  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
-  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
-  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
-  /** Mark a wiki page as verified (verificationState = "verified"). */
-  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
-  /** Flag a wiki page for review (verificationState = "needs_review"). */
-  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
-  /** Assign or change the owner of a wiki page. */
-  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
-  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
-}
+export type { PageVerificationState } from "./domain/entities/content-page.entity";
 
-export interface KnowledgeBlockRepository {
-  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
-  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-  delete(accountId: string, blockId: string): Promise<void>;
-  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
-}
-
-export interface KnowledgeVersionRepository {
-  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
-  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
-}
-
-export interface KnowledgeCollectionRepository {
-  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
-  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
-  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
-  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
-  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
-  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
-  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
-  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
-}
-````
-
-## File: modules/knowledge/infrastructure/firebase/FirebaseContentPageRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
- *
- * Firestore collection: accounts/{accountId}/contentPages/{pageId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "../../domain/entities/content-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-
-function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentPages");
-}
-
-function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
-  return doc(db, "accounts", accountId, "contentPages", pageId);
-}
-
-function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-    title: typeof data.title === "string" ? data.title : "",
-    slug: typeof data.slug === "string" ? data.slug : "",
-    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
-    order: typeof data.order === "number" ? data.order : 0,
-    blockIds: Array.isArray(data.blockIds)
-      ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
-      : [],
-    status: data.status === "archived" ? "archived" : "active",
-    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
-    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
-    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
-    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
-    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
-    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
-    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-function slugify(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100) || "page";
-}
-
-export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
-    const nowISO = new Date().toISOString();
-    const slug = slugify(input.title);
-    const id = generateId();
-
-    const existing = await getDocs(
-      query(pagesCol(this.db, input.accountId), where("parentPageId", "==", input.parentPageId ?? null)),
-    );
-    const order = existing.size;
-
-    const docRef = doc(pagesCol(this.db, input.accountId), id);
-    const data: Record<string, unknown> = {
-      accountId: input.accountId,
-      title: input.title,
-      slug,
-      parentPageId: input.parentPageId ?? null,
-      order,
-      blockIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.workspaceId) data.workspaceId = input.workspaceId;
-
-    await setDoc(docRef, data);
-
-    return toKnowledgePage(id, { ...data, id });
-  }
-
-  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      title: input.title,
-      slug: slugify(input.title),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      parentPageId: input.targetParentPageId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      blockIds: [...input.blockIds],
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, accountId, pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      status: "archived",
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    if (data.status === "archived") return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      approvalState: "approved",
-      approvedAtISO: input.approvedAtISO,
-      approvedByUserId: input.approvedByUserId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
-    if (!snap.exists()) return null;
-    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(
-        pagesCol(this.db, accountId),
-        where("status", "==", "active"),
-        orderBy("order", "asc"),
-      ),
-    );
-    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(
-        pagesCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        where("status", "==", "active"),
-        orderBy("order", "asc"),
-      ),
-    );
-    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      verificationState: "verified",
-      verifiedByUserId: input.verifiedByUserId,
-      verifiedAtISO: nowISO,
-      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      verificationState: "needs_review",
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      ownerId: input.ownerId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
+// ── Interfaces: Components ────────────────────────────────────────────────────
+export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PageTreeView } from "./interfaces/components/PageTreeView";
+export { PageDialog } from "./interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
@@ -64763,88 +60021,6 @@ export function PageTreeView({
 }
 ````
 
-## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side query helpers for reading Content domain data.
- */
-
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
-import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  GetKnowledgePageTreeUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsByAccountUseCase,
-} from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
-
-export async function getKnowledgePage(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgePage | null> {
-  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
-    accountId,
-    pageId,
-  );
-}
-
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
-  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
-
-export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
-  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
-
-export async function getKnowledgeBlocks(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgeBlock[]> {
-  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
-    accountId,
-    pageId,
-  );
-}
-
-export async function getKnowledgeVersions(
-  _accountId: string,
-  _pageId: string,
-): Promise<KnowledgeVersion[]> {
-  return [];
-}
-
-// ── Collection queries ────────────────────────────────────────────────────────
-
-export async function getKnowledgeCollection(
-  accountId: string,
-  collectionId: string,
-): Promise<KnowledgeCollection | null> {
-  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
-    collectionId,
-  );
-}
-
-export async function getKnowledgeCollections(
-  accountId: string,
-): Promise<KnowledgeCollection[]> {
-  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
-  );
-}
-````
-
 ## File: modules/knowledge/interfaces/store/block-editor.store.ts
 ````typescript
 "use client";
@@ -65375,36 +60551,36 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
 export { NotificationBell } from "./components/NotificationBell";
 ````
 
-## File: modules/notification/README.md
+## File: modules/search/README.md
 ````markdown
-# notification — 通知上下文
+# search — 語意檢索上下文
 
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** ✅ Done
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/search/`  
+> **開發狀態:** 🏗️ Midway
 
 ## 在 Knowledge Platform / Second Brain 中的角色
 
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
 
 ## 主要職責
 
 | 能力 | 說明 |
 |---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
 
 ## 與其他 Bounded Context 協作
 
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
 
 ## 核心聚合 / 核心概念
 
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
 
 ## 詳細文件
 
@@ -65740,137 +60916,45 @@ export class FirebaseWikiLibraryRepository implements WikiLibraryRepository {
 }
 ````
 
-## File: modules/subdomains.md
+## File: modules/source/README.md
 ````markdown
-# Subdomains — Xuanwu App
+# source — 文件來源上下文
 
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
-> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
 
-本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
+## 在 Knowledge Platform / Second Brain 中的角色
 
----
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
 
-## 分類原則
+## 主要職責
 
-| 分類 | 定義 | 投資策略 |
-|---|---|---|
-| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
-| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
-| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
-| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
+| 能力 | 說明 |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
 
----
+## 與其他 Bounded Context 協作
 
-## Core Domain
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
 
-### `knowledge` — 知識內容管理
+## 核心聚合 / 核心概念
 
-Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
 
-**為何是核心域：**
-- 承載 Knowledge Page / Block Editor 的主體體驗
-- 決定知識如何被保存、版本化、審批與再利用
-- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
+## 詳細文件
 
-### `knowledge-base` — 組織知識庫 / Wiki / SOP
-
-Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管理，支援層級分類、Backlink、SOP 文件與頁面驗證機制。
-
-**為何是核心域：**
-- 承載組織知識的可信度、可發現性與共享體驗
-- `VerificationState` 機制讓知識庫保持準確性品質
-- 與 `knowledge`（個人筆記）共同構成平台的知識差異化壁壘
-
----
-
-## Supporting Subdomains
-
-### `knowledge-collaboration`
-負責知識協作基礎設施：留言討論（Comment）、細粒度存取控制（Permission）、版本快照（Version）。不擁有知識內容，透過 `contentId` 與內容 BC 協作。
-
-### `knowledge-database`
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database，支援 Table / Board / Calendar / Timeline / Gallery 等多視圖展示，並透過 Relation 欄位建立資料關聯。
-
-### `source`
-負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
-
-### `ai`
-負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
-
-### `search`
-負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
-
-### `notebook`
-負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
-
-### `workspace-flow`
-負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
-
-### `workspace-scheduling`
-負責工作需求與排程，將協作項目放入時間與容量視角管理。
-
-### `workspace-audit`
-負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
-
-### `workspace-feed`
-負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
-
----
-
-## Generic Subdomains / Shared Kernel
-
-### `identity`
-封裝身份驗證與 session 起點，屬於標準平台能力。
-
-### `account`
-承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
-
-### `organization`
-提供多租戶組織、成員與團隊治理，是平台級協作基礎。
-
-### `workspace`
-提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
-
-### `notification`
-負責通知與提醒分發，屬典型平台配套能力。
-
-### `shared`
-作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
-
----
-
-## 子域分類總表
-
-| Context | 分類 | 主要價值 |
-|---|---|---|
-| `knowledge` | **Core** | 個人筆記 Page + Block 生命週期 |
-| `knowledge-base` | **Core** | 組織知識庫 Article + Category + 驗證機制 |
-| `knowledge-collaboration` | Supporting | Comment / Permission / Version 協作基礎 |
-| `knowledge-database` | Supporting | Database / Record / View 結構化資料 |
-| `source` | Supporting | 文件接入與來源治理 |
-| `ai` | Supporting | 攝入管線協調與 worker handoff |
-| `search` | Supporting | 語意檢索與 RAG |
-| `notebook` | Supporting | 摘要、問答、洞察互動 |
-| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
-| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
-| `workspace-audit` | Supporting | 稽核與追溯 |
-| `workspace-feed` | Supporting | 工作區動態與互動 |
-| `identity` | Generic | 身份驗證 |
-| `account` | Generic | 個人帳戶與偏好 |
-| `organization` | Generic | 多租戶治理 |
-| `workspace` | Generic | 協作容器 |
-| `notification` | Generic | 通知分發 |
-| `shared` | Shared Kernel | 穩定共享核心 |
-
----
-
-## 架構參考
-
-- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/system.ts
@@ -68100,269 +63184,6 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 }
 ````
 
-## File: docs/ddd/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
-## File: docs/ddd/knowledge/application-services.md
-````markdown
-# knowledge — Application Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-
-## Use Cases 清單
-
-| Use Case 類別 | 操作 | UI 入口 |
-|---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
-
-## 設計對齊
-
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
-````
-
-## File: docs/ddd/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-
-## 頁面生命周期操作（Page Lifecycle Actions）
-
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
-
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
-
-## 頁面操作選單（PageContextMenu）
-
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
-
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
-
-## 頁面樹狀視圖（PageTreeView）
-
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
-
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
-
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
 ## File: firestore.indexes.json
 ````json
 {
@@ -68782,494 +63603,149 @@ Application layer 只負責：
 }
 ````
 
+## File: modules/bounded-contexts.md
+````markdown
+# Modules Bounded Contexts（Canonical Link）
+
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+
+- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
+- 若需調整界限上下文內容，請只編輯 canonical 檔案。
+````
+
 ## File: modules/knowledge-base/AGENT.md
 ````markdown
-# AGENT.md — knowledge-base BC
+# knowledge-base — DDD Agent
 
-## 模組定位
+## 戰略分類
 
-`knowledge-base` 是 **Core Domain**，負責組織級知識管理，對應 Notion 的 **Wiki / Knowledge Base** 功能。管理公司或團隊的知識文章（Article）與分類（Category）。
+| 屬性 | 值 |
+|---|---|
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
 
-**這個 BC 負責：**
-- Article（知識文章）的建立、編輯、審批、歸檔
-- Category（分類目錄）的層級管理
-- 知識文章的 Backlink、標籤（Tag）、版本管理
-- SOP 流程文件、共享知識參考手冊
-- 頁面驗證狀態（verified / needs_review）與頁面負責人（Owner）
+## 為何是 Core Domain
 
-**不歸屬這個 BC：**
-- 個人筆記（Page + Block） → `knowledge`
-- 留言與協作 → `knowledge-collaboration`
-- 表格 / 資料庫 View → `knowledge-database`
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
 
-## 通用語言（Ubiquitous Language）
+## 關鍵設計決策
 
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Article` | Page、Document（在此 BC 中） |
-| `Category` | Folder、Tag（作為分類時） |
-| `ArticleStatus` | Status |
-| `VerificationState` | State |
-| `ArticleOwner` | Owner |
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
 
-## 邊界規則
+## 詳細實作文件
 
-### ✅ 允許
-```typescript
-import { createArticle } from "@/modules/knowledge-base/api";
-```
-
-### ❌ 禁止
-```typescript
-import anything from "@/modules/knowledge-base/domain/..."; // 走 api/ 邊界
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
 ````
 
 ## File: modules/knowledge-base/aggregates.md
 ````markdown
-# Aggregates — knowledge-base
+# knowledge-base — 聚合根摘要
 
-> 聚合根設計遵循 IDDD 規範：清晰邊界、一致性、最小耦合。
+> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
 
----
+## Article（聚合根）
 
-## Article（文章）— 聚合根
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `title`, `content` | 文章標題與主體 |
+| `status` | `draft` / `published` / `archived` |
+| `verificationState` | `verified` / `needs_review` / `unverified` |
+| `ownerId` | 文章負責人（ArticleOwner） |
+| `linkedArticleIds` | Backlink 引用列表 |
+| `categoryId` | 所屬分類 |
+| `tags` | 標籤列表 |
 
-Article 是組織知識文章的主要聚合根，代表一篇完整的公開或內部知識文章、SOP 或 Wiki 頁面。
+## Category（聚合根）
 
-```typescript
-type ArticleStatus = "draft" | "published" | "archived";
-type VerificationState = "verified" | "needs_review" | "unverified";
-
-interface Article {
-  // Identity
-  id: string;                           // Unique Article ID
-  accountId: string;                    // Tenant (organization)
-  workspaceId: string;                  // Workspace container
-  categoryId: string | null;            // Parent Category (optional)
-
-  // Content
-  title: string;
-  content: string;                      // Rich text / Markdown body
-  tags: string[];                       // Classification labels
-
-  // Lifecycle
-  status: ArticleStatus;               // draft → published → archived
-  version: number;                      // Optimistic locking version
-
-  // Verification
-  verificationState: VerificationState; // verified | needs_review | unverified
-  ownerId: string | null;               // Article owner (responsible user)
-  verifiedByUserId: string | null;
-  verifiedAtISO: string | null;
-  verificationExpiresAtISO: string | null;
-
-  // Backlinks
-  linkedArticleIds: string[];           // Outgoing [[wikilink]] references
-
-  // Audit
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-```
-
-### Article 業務規則
-
-- Article 發布後（published），`content` 與 `title` 變更必須觸發 `knowledge-base.article_updated` 事件。
-- `verificationState` 轉為 `verified` 需提供 `verifiedByUserId` 與 `verifiedAtISO`。
-- 刪除改為 `archived`，不實際移除資料。
-- `linkedArticleIds` 由 `BacklinkExtractorService` 從 `content` 自動解析。
-
----
-
-## Category（分類目錄）— 聚合根
-
-Category 是文章的層級分類容器，支援巢狀結構（最多 5 層）。
-
-```typescript
-interface Category {
-  // Identity
-  id: string;
-  accountId: string;
-  workspaceId: string;
-
-  // Hierarchy
-  name: string;
-  slug: string;                         // URL-safe identifier
-  parentCategoryId: string | null;      // null = root category
-  depth: number;                        // 0 = root
-
-  // Content
-  articleIds: string[];                 // Articles directly under this category
-  description: string | null;
-
-  // Audit
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-```
-
-### Category 業務規則
-
-- `depth` 不可超過 5。
-- 刪除 Category 前，所有子 Category 與 Article 必須先搬遷或刪除。
-- `slug` 在同一 Workspace 下唯一。
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `name`, `slug` | 分類名稱與 URL 識別碼 |  
+| `parentCategoryId` | 父分類（null = 根節點） |
+| `depth` | 層級深度（最大 5）|
+| `articleIds` | 直屬文章 ID 列表 |
 ````
 
 ## File: modules/knowledge-base/application-services.md
 ````markdown
-# Application Services — knowledge-base
+# knowledge-base — Application Services
 
-> Use Case 一個檔案一個操作，呼叫 Domain Services / Repository 介面，回傳 `CommandResult`。
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
 
----
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks
 
-## Article Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `CreateArticleUseCase` | title, content, categoryId, tags, workspaceId | `CommandResult<ArticleId>` | 建立草稿文章 |
-| `UpdateArticleUseCase` | articleId, title?, content?, tags? | `CommandResult` | 更新文章內容，version bump |
-| `PublishArticleUseCase` | articleId | `CommandResult` | 將草稿轉為已發布 |
-| `ArchiveArticleUseCase` | articleId | `CommandResult` | 封存文章（軟刪除） |
-| `VerifyArticleUseCase` | articleId, verifiedByUserId, expiresAtISO? | `CommandResult` | 設定文章為已驗證 |
-| `RequestArticleReviewUseCase` | articleId, requestedByUserId | `CommandResult` | 標記文章需要複核 |
-| `AssignArticleOwnerUseCase` | articleId, ownerId | `CommandResult` | 指派文章負責人 |
-| `TransferArticleCategoryUseCase` | articleId, targetCategoryId | `CommandResult` | 移動文章到另一分類 |
-| `ExtractArticleBacklinksUseCase` | articleId | `CommandResult` | 從 content 解析並更新 linkedArticleIds |
-
-## Category Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `CreateCategoryUseCase` | name, parentCategoryId?, workspaceId | `CommandResult<CategoryId>` | 建立分類目錄 |
-| `RenameCategoryUseCase` | categoryId, name | `CommandResult` | 重新命名分類 |
-| `MoveCategoryUseCase` | categoryId, targetParentId | `CommandResult` | 移動分類到新父節點（深度驗證） |
-| `DeleteCategoryUseCase` | categoryId | `CommandResult` | 刪除空白分類 |
-
----
-
-## 範例 — CreateArticleUseCase
-
-```typescript
-// modules/knowledge-base/application/use-cases/create-article.use-case.ts
-import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
-import type { CommandResult } from "@shared-types";
-import { generateId } from "@shared-utils";
-
-export class CreateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: CreateArticleInput): Promise<CommandResult<{ articleId: string }>> {
-    const articleId = generateId();
-    const now = new Date().toISOString();
-
-    await this.repo.save({
-      id: articleId,
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      categoryId: input.categoryId ?? null,
-      title: input.title,
-      content: input.content ?? "",
-      tags: input.tags ?? [],
-      status: "draft",
-      version: 1,
-      verificationState: "unverified",
-      ownerId: null,
-      verifiedByUserId: null,
-      verifiedAtISO: null,
-      verificationExpiresAtISO: null,
-      linkedArticleIds: [],
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    });
-
-    return { success: true, data: { articleId } };
-  }
-}
-```
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
 ````
 
 ## File: modules/knowledge-base/context-map.md
 ````markdown
-# Context Map — knowledge-base
+# knowledge-base — Context Map
 
-> 描述此 Bounded Context 與其他 BC 的關係類型與整合模式，遵循 IDDD 戰略設計。
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
 
----
+## 上游
 
-## 上游依賴（knowledge-base 依賴）
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
 
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `workspace` | **Conformist** | Article 與 Category 必須屬於 Workspace |
-| `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
-| `identity` | **Conformist** | 驗證 ownerId / verifiedByUserId 是否存在 |
-| `knowledge-collaboration` | **Customer / Supplier** | 從 collaboration 接收 Permission 資訊（查看/編輯權限） |
+## 下游
 
----
-
-## 下游影響（downstream BCs 依賴 knowledge-base）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `knowledge` | **Customer / Supplier** | Knowledge Page 可提升（promote）為 knowledge-base Article |
-| `knowledge-collaboration` | **Customer / Supplier** | Collaboration 使用 articleId 關聯 Comment / Version |
-| `knowledge-database` | **Anti-Corruption Layer** | Database Record 可 link 到 Article（不反向依賴） |
-| `notification` | **Published Language** | `knowledge-base.article_verified` 事件觸發通知 |
-| `workspace-feed` | **Published Language** | `knowledge-base.article_published` 事件推送工作區動態 |
-
----
-
-## 整合事件流
-
-```
-knowledge.page_approved
-  → (human or automation) promotes to knowledge-base article
-  → knowledge-base.article_created
-
-knowledge-base.article_verified
-  → notification (verified owner notified)
-  → workspace-feed (article verified appears in feed)
-
-knowledge-base.article_review_requested
-  → notification (article owner notified to review)
-```
-
----
-
-## 邊界規則
-
-- `knowledge-base` **不得**直接 import `knowledge` 的 domain 層。
-- `knowledge-base` 只能透過 `modules/knowledge/api` 取得 page 資訊。
-- `knowledge-collaboration` 透過 `modules/knowledge-base/api` 取得 articleId，不讀取 Article 內部細節。
+- `knowledge` — 頁面可提升（Promote）為 Article
+- `knowledge-database` — Article 可與 Record 連結（ACL）
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
 ````
 
 ## File: modules/knowledge-base/domain-events.md
 ````markdown
-# Domain Events — knowledge-base
+# knowledge-base — 領域事件
 
-> 所有事件採用 discriminated-union pattern：`type: "knowledge-base.<event>"` 頂層欄位，`occurredAtISO: string`，無 `payload` wrapper。
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
 
----
+## 事件清單
 
-## Article 事件
-
-### knowledge-base.article_created
-
-```typescript
-interface ArticleCreatedEvent {
-  type: "knowledge-base.article_created";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  title: string;
-  categoryId: string | null;
-  createdByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.article_updated
-
-```typescript
-interface ArticleUpdatedEvent {
-  type: "knowledge-base.article_updated";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  changedFields: string[];              // e.g. ["title", "content", "tags"]
-  updatedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.article_published
-
-```typescript
-interface ArticlePublishedEvent {
-  type: "knowledge-base.article_published";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  publishedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.article_archived
-
-```typescript
-interface ArticleArchivedEvent {
-  type: "knowledge-base.article_archived";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  archivedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.article_verified
-
-```typescript
-interface ArticleVerifiedEvent {
-  type: "knowledge-base.article_verified";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  verifiedByUserId: string;
-  verificationExpiresAtISO: string | null;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.article_review_requested
-
-```typescript
-interface ArticleReviewRequestedEvent {
-  type: "knowledge-base.article_review_requested";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  requestedByUserId: string;
-  ownerId: string | null;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.article_owner_assigned
-
-```typescript
-interface ArticleOwnerAssignedEvent {
-  type: "knowledge-base.article_owner_assigned";
-  articleId: string;
-  workspaceId: string;
-  accountId: string;
-  ownerId: string;
-  assignedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
----
-
-## Category 事件
-
-### knowledge-base.category_created
-
-```typescript
-interface CategoryCreatedEvent {
-  type: "knowledge-base.category_created";
-  categoryId: string;
-  workspaceId: string;
-  accountId: string;
-  name: string;
-  parentCategoryId: string | null;
-  createdByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-base.category_moved
-
-```typescript
-interface CategoryMovedEvent {
-  type: "knowledge-base.category_moved";
-  categoryId: string;
-  workspaceId: string;
-  accountId: string;
-  fromParentCategoryId: string | null;
-  toParentCategoryId: string | null;
-  movedByUserId: string;
-  occurredAtISO: string;
-}
-```
+| 事件 | 觸發條件 |
+|---|---|
+| `knowledge-base.article_created` | 文章建立（狀態 draft） |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
 ````
 
 ## File: modules/knowledge-base/domain-services.md
 ````markdown
-# Domain Services — knowledge-base
+# knowledge-base — Domain Services
 
-> Domain Service 是無狀態的純商業邏輯，不依賴外部 SDK，不操作 Repository。
+> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
 
----
+- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
+- `ArticleSlugService` — title → URL-safe slug 轉換
+- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+````
 
-## BacklinkExtractorService
+## File: modules/knowledge-base/index.ts
+````typescript
+/**
+ * knowledge-base module — public barrel export
+ *
+ * Cross-module access: only import from this file.
+ * Internal layers (domain/, application/, infrastructure/) are NOT exported here.
+ *
+ * @module knowledge-base
+ */
 
-從 Article `content`（Markdown / rich-text）中解析所有 `[[Article Title]]` 格式的 wikilink，並轉換為 `linkedArticleIds`。
-
-```typescript
-// modules/knowledge-base/domain/services/BacklinkExtractorService.ts
-
-export class BacklinkExtractorService {
-  /**
-   * 從 content 字串中提取所有 [[title]] wikilinks。
-   * 返回去重後的標題陣列，由 Repository 負責解析為 ID。
-   */
-  extractWikilinkTitles(content: string): string[] {
-    const regex = /\[\[([^\]]+)\]\]/g;
-    const titles = new Set<string>();
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
-      titles.add(match[1].trim());
-    }
-    return Array.from(titles);
-  }
-}
-```
-
----
-
-## ArticleSlugService
-
-將 Article title 轉換為 URL-safe slug，確保在同一 Workspace 下的唯一性規則。
-
-```typescript
-// modules/knowledge-base/domain/services/ArticleSlugService.ts
-
-export class ArticleSlugService {
-  generateSlug(title: string): string {
-    return title
-      .toLowerCase()
-      .replace(/[^a-z0-9\u4e00-\u9fff\s-]/g, "")
-      .replace(/\s+/g, "-")
-      .slice(0, 100);
-  }
-}
-```
-
----
-
-## CategoryDepthValidator
-
-驗證 Category 層級不超過最大深度（5 層），防止過深的巢狀結構。
-
-```typescript
-// modules/knowledge-base/domain/services/CategoryDepthValidator.ts
-
-export class CategoryDepthValidator {
-  private static readonly MAX_DEPTH = 5;
-
-  validateMove(currentDepth: number, targetParentDepth: number): void {
-    if (targetParentDepth + 1 > CategoryDepthValidator.MAX_DEPTH) {
-      throw new Error(
-        `Category depth cannot exceed ${CategoryDepthValidator.MAX_DEPTH}`
-      );
-    }
-  }
-}
-```
+export * from "./api";
 ````
 
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseArticleRepository.ts
@@ -69450,589 +63926,141 @@ export async function getBacklinks(accountId: string, articleId: string): Promis
 
 ## File: modules/knowledge-base/README.md
 ````markdown
-# knowledge-base — 組織知識庫 / Wiki / SOP 管理
+# knowledge-base — DDD Reference
 
-> **Domain Type:** **Core Domain**（核心域）
-> **模組路徑:** `modules/knowledge-base/`
-> **開發狀態:** 📅 Planned — 設計階段
+> **Domain Type:** Core Domain
+> **Module:** `modules/knowledge-base/`
+> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
 
-## 在 Knowledge Platform 中的角色
+## 戰略定位
 
-`knowledge-base` 是 Xuanwu 的 Notion Wiki / Knowledge Base 對應模組，負責組織或團隊級別的知識文章管理，支援層級分類、標籤、Backlink、SOP 流程文件與頁面驗證機制。
+`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
 
-## 主要職責
+## Bounded Context 邊界
 
-| 能力 | 說明 |
-|---|---|
-| Article 文章管理 | 建立、編輯、版本化、歸檔組織知識文章 |
-| Category 分類管理 | 層級化分類目錄，管理文章組織結構 |
-| 頁面驗證 | verified / needs_review 狀態，支援知識準確性管理 |
-| 頁面負責人 | 指定 ArticleOwner，負責維護文章內容 |
-| Backlink / Tag | 文章間相互引用與標籤分類 |
+- **擁有：** Article（文章）、Category（分類）
+- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
 
 ## 核心聚合
 
-- **`Article`**（知識文章）
-- **`Category`**（分類目錄）
+詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
 
-## 詳細文件
+- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
+- **Category** — 層級分類目錄（最多 5 層）
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面與實作 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+## 主要領域事件
+
+詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
+
+- `knowledge-base.article_created`
+- `knowledge-base.article_published`
+- `knowledge-base.article_verified`
+- `knowledge-base.article_review_requested`
+- `knowledge-base.category_created`
+
+## 通用語言
+
+詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+
+- **Article** ≠ Page（個人筆記）≠ Document（泛型）
+- **VerificationState** ≠ ApprovalState（knowledge 的審核）
+- **Backlink** = `[[Article Title]]` wikilink 解析結果
+
+## 上下文關係
+
+詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier |
+| 下游 | `knowledge` (promote) | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed` | Published Language |
 ````
 
 ## File: modules/knowledge-base/repositories.md
 ````markdown
-# Repositories — knowledge-base
+# knowledge-base — Repositories
 
-> Repository 介面定義於 `domain/repositories/`，實作置於 `infrastructure/firebase/`。
+> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
 
----
+- `IArticleRepository` — CRUD + search + backlink 反查
+- `ICategoryRepository` — 層級樹操作 + articleIds 管理
 
-## IArticleRepository
-
-```typescript
-// modules/knowledge-base/domain/repositories/ArticleRepository.ts
-
-export interface IArticleRepository {
-  /** 取得單篇文章（不存在時 throw domain error） */
-  getById(articleId: string): Promise<Article>;
-
-  /** 列出 Workspace 下的文章（可依 categoryId / status 過濾） */
-  list(params: {
-    workspaceId: string;
-    accountId: string;
-    categoryId?: string;
-    status?: ArticleStatus;
-    limit?: number;
-    cursor?: string;
-  }): Promise<Article[]>;
-
-  /** 全文搜尋（基本實作，詳細 RAG 搜尋由 search BC 處理） */
-  search(params: {
-    workspaceId: string;
-    query: string;
-    limit?: number;
-  }): Promise<Article[]>;
-
-  /** 儲存（建立或更新） */
-  save(article: Article): Promise<void>;
-
-  /** 批次取得（backlink 查詢用） */
-  getByIds(articleIds: string[]): Promise<Article[]>;
-
-  /** 查找引用特定 articleId 的所有文章（反向 backlink） */
-  findByLinkedArticleId(articleId: string): Promise<Article[]>;
-
-  /** 刪除（Firestore 物理刪除，通常用於測試） */
-  delete(articleId: string): Promise<void>;
-}
-```
-
----
-
-## ICategoryRepository
-
-```typescript
-// modules/knowledge-base/domain/repositories/CategoryRepository.ts
-
-export interface ICategoryRepository {
-  /** 取得單一分類 */
-  getById(categoryId: string): Promise<Category>;
-
-  /** 列出 Workspace 下的所有分類（樹狀） */
-  listByWorkspace(workspaceId: string, accountId: string): Promise<Category[]>;
-
-  /** 取得特定父節點的子分類 */
-  listChildren(parentCategoryId: string): Promise<Category[]>;
-
-  /** 儲存 */
-  save(category: Category): Promise<void>;
-
-  /** 刪除（前提：無子分類且無文章） */
-  delete(categoryId: string): Promise<void>;
-
-  /** 批次更新 articleIds（文章搬移時） */
-  updateArticleIds(categoryId: string, articleIds: string[]): Promise<void>;
-}
-```
-
----
-
-## Firestore Collection 設計
-
-| Collection | Document ID | 說明 |
-|---|---|---|
-| `knowledge_base_articles` | `{articleId}` | Article documents |
-| `knowledge_base_categories` | `{categoryId}` | Category documents |
-
-### Index 需求（預計）
-
-| Collection | Fields | Purpose |
-|---|---|---|
-| `knowledge_base_articles` | `workspaceId`, `status`, `categoryId` | Category article list |
-| `knowledge_base_articles` | `workspaceId`, `status`, `verificationState` | Verification dashboard |
-| `knowledge_base_articles` | `workspaceId`, `ownerId` | My articles |
+**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
 ````
 
 ## File: modules/knowledge-base/ubiquitous-language.md
 ````markdown
-# Ubiquitous Language — knowledge-base
+# knowledge-base — 通用語言
 
-> 此 BC 的通用語言定義，確保 domain / application / UI 使用一致術語。
+> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
 
----
+## 核心術語速查
 
-## 核心術語
-
-| 術語 | 定義 | 禁止使用的錯誤術語 |
-|---|---|---|
-| **Article**（文章） | 組織級公開知識文章、SOP 或 Wiki 頁面，具備版本與驗證機制 | Document, KnowledgePage, WikiPage |
-| **Category**（分類） | 文章的層級分類容器（樹狀結構，最多 5 層） | Folder, Namespace, Group |
-| **ArticleStatus**（文章狀態） | `draft` / `published` / `archived` 三態 | Active, Live, Deleted |
-| **VerificationState**（驗證狀態） | `verified` / `needs_review` / `unverified` — 知識準確性狀態 | Approved, Checked, Valid |
-| **ArticleOwner**（文章負責人） | 負責維護特定文章內容準確性的使用者 | Author, Creator, Editor |
-| **Backlink**（反向連結） | 引用此 Article 的其他 Article — `[[Article Title]]` wikilink 語法 | Reference, Link, Mention |
-| **Tag**（標籤） | 文章的關鍵詞分類標籤，用於過濾與搜尋 | Label, Keyword, Topic |
-| **Wikilink**（Wiki 連結） | `[[Article Title]]` 格式的內部文章引用語法 | Link, Anchor, Mention |
-| **Promote**（提升） | 將 `knowledge` BC 的 Page 轉換為此 BC 的 Article — 跨 BC 協議 | Convert, Transform, Import |
-
----
-
-## 邊界詞彙對照表
-
-| 術語 | 此 BC 的含義 | 其他 BC 中的對應 |
-|---|---|---|
-| `Article` | 組織知識文章 | `knowledge` 的 `Page`（個人筆記） |
-| `Category` | 文章分類目錄 | `workspace` 的 Collection / Folder |
-| `VerificationState` | knowledge-base 文章的驗證狀態 | `knowledge-collaboration` 的 `Version`（歷史版本） |
-| `content` | Article 的主體文字（Markdown/rich-text） | `knowledge` Block 的 content field |
-
----
-
-## 事件語言
-
-| 事件名稱 | 語意 |
+| 術語 | 定義 |
 |---|---|
-| `knowledge-base.article_created` | 使用者建立了一篇新文章（狀態為 draft） |
-| `knowledge-base.article_published` | 文章從 draft 轉為公開 published |
-| `knowledge-base.article_archived` | 文章被封存，不再對外顯示 |
-| `knowledge-base.article_verified` | 知識管理員驗證了文章內容的準確性 |
-| `knowledge-base.article_review_requested` | 文章被標記為需要重新複核（verificationState = needs_review） |
-| `knowledge-base.category_created` | 新分類目錄被建立 |
-| `knowledge-base.category_moved` | 分類被移動到新的父分類下 |
+| **Article** | 組織級知識文章（SOP / Wiki） |
+| **Category** | 層級分類目錄（max 5 層） |
+| **VerificationState** | `verified` / `needs_review` / `unverified` |
+| **ArticleOwner** | 負責維護文章準確性的使用者 |
+| **Backlink** | `[[Article Title]]` 解析的反向引用 |
+| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
 ````
 
 ## File: modules/knowledge-collaboration/AGENT.md
 ````markdown
-# knowledge-collaboration BC Agent
+# knowledge-collaboration — DDD Agent
 
-## 模組職責
+**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
 
-此 BC 負責知識協作能力：Comment（留言）、Permission（存取權限）、Version（版本快照）。
+為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
 
-- **不擁有** 知識內容（Page / Article）。
-- 透過 `contentId` 引用內容，而非持有內容聚合。
-- 跨 BC 協作必須透過 `modules/knowledge/api` 與 `modules/knowledge-base/api`。
-
-## 核心聚合
-
-| 聚合 | 職責 |
-|---|---|
-| `Comment` | 針對 contentId 的線程式留言 |
-| `Permission` | contentId + principalId 的存取層級 |
-| `Version` | contentId 的 Block 快照版本 |
-
-## 邊界規則
-
-- 此 BC **不得**直接 import `knowledge` 或 `knowledge-base` 內部層。
-- `contentId` 可以是 pageId 或 articleId，由上層呼叫者決定語境。
-- Permission 級別：`view` < `comment` < `edit` < `full`。
-
-## 開發狀態
-
-📅 Planned — 設計階段。代碼實作待後續 PR。
+→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
 ````
 
 ## File: modules/knowledge-collaboration/aggregates.md
 ````markdown
-# Aggregates — knowledge-collaboration
+**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
+**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
+**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
 
----
-
-## Comment（留言）— 聚合根
-
-```typescript
-interface Comment {
-  id: string;
-  contentId: string;                    // pageId or articleId (cross-BC reference)
-  contentType: "page" | "article";      // which BC owns the content
-  workspaceId: string;
-  accountId: string;
-
-  authorId: string;
-  body: string;                         // Plain text or Markdown
-  parentCommentId: string | null;       // null = root comment (thread start)
-
-  resolvedAt: string | null;            // ISO — null = unresolved
-  resolvedByUserId: string | null;
-
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-```
-
-### Comment 業務規則
-
-- `parentCommentId` 只允許一層深度（回覆只在 root comment 下）。
-- 刪除留言只清空 `body`（設為 `[deleted]`），不實際移除 ID。
-- `resolvedAt` 設定後不可撤銷（由新留言繼續討論）。
-
----
-
-## Permission（存取權限）— 聚合根
-
-```typescript
-type PermissionLevel = "view" | "comment" | "edit" | "full";
-type PermissionSubjectType = "page" | "article" | "database";
-
-interface Permission {
-  id: string;
-  subjectId: string;                    // contentId (pageId / articleId / databaseId)
-  subjectType: PermissionSubjectType;
-  workspaceId: string;
-  accountId: string;
-
-  principalId: string;                  // userId or teamId
-  principalType: "user" | "team";
-  level: PermissionLevel;               // view < comment < edit < full
-
-  grantedByUserId: string;
-  grantedAtISO: string;
-  expiresAtISO: string | null;          // null = permanent
-}
-```
-
-### Permission 業務規則
-
-- 一個 (subjectId, principalId) 對只能有一個 Permission 記錄（upsert）。
-- `full` 級別的使用者可以授予他人最多 `edit` 級別（不可超過自身）。
-- 繼承：Workspace 級別的 Permission 可視為所有內容的隱式 Permission。
-
----
-
-## Version（版本快照）— 聚合根
-
-```typescript
-interface Version {
-  id: string;
-  contentId: string;                    // pageId or articleId
-  contentType: "page" | "article";
-  workspaceId: string;
-  accountId: string;
-
-  snapshotBlocks: unknown[];            // JSON snapshot of all blocks at this point
-  label: string | null;                 // Optional human-readable label ("v1.0", "Before redesign")
-  description: string | null;
-
-  createdByUserId: string;
-  createdAtISO: string;
-}
-```
-
-### Version 業務規則
-
-- Version 建立後為 immutable（不可修改快照）。
-- 最多保留 100 個版本，超出時 FIFO 刪除最舊版本。
-- `label` 使版本成為「具名版本」（named version），系統不自動刪除。
+→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
 ````
 
 ## File: modules/knowledge-collaboration/application-services.md
 ````markdown
-# Application Services — knowledge-collaboration
+Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
+Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
+Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
 
----
-
-## Comment Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `CreateCommentUseCase` | contentId, contentType, authorId, body, parentCommentId? | `CommandResult<CommentId>` | 建立留言或回覆 |
-| `UpdateCommentUseCase` | commentId, body | `CommandResult` | 編輯留言內容 |
-| `DeleteCommentUseCase` | commentId, deletedByUserId | `CommandResult` | 軟刪除（清空 body） |
-| `ResolveCommentUseCase` | commentId, resolvedByUserId | `CommandResult` | 標記留言為已解決 |
-| `ListCommentsUseCase` | contentId, contentType | `CommandResult<Comment[]>` | 取得內容的所有留言 |
-
-## Permission Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `GrantPermissionUseCase` | subjectId, subjectType, principalId, principalType, level | `CommandResult` | 授予或更新存取權限 |
-| `RevokePermissionUseCase` | subjectId, principalId | `CommandResult` | 移除存取權限 |
-| `CheckPermissionUseCase` | subjectId, userId | `CommandResult<PermissionLevel>` | 查詢使用者對某內容的最高權限 |
-| `ListPermissionsUseCase` | subjectId, subjectType | `CommandResult<Permission[]>` | 列出某內容的所有授權 |
-
-## Version Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `CreateVersionUseCase` | contentId, contentType, snapshotBlocks, label? | `CommandResult<VersionId>` | 建立版本快照 |
-| `RestoreVersionUseCase` | versionId, restoredByUserId | `CommandResult` | 還原到特定版本（觸發 version_restored 事件） |
-| `ListVersionsUseCase` | contentId, contentType | `CommandResult<Version[]>` | 列出版本歷史 |
-| `LabelVersionUseCase` | versionId, label | `CommandResult` | 為版本設定具名標籤 |
+→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
 ````
 
 ## File: modules/knowledge-collaboration/context-map.md
 ````markdown
-# Context Map — knowledge-collaboration
+上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
+下游消費者: `notification`, `workspace-feed`, `workspace-audit`
 
----
-
-## 上游依賴（knowledge-collaboration 依賴）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `workspace` | **Conformist** | contentId 必須屬於某 Workspace |
-| `identity` | **Conformist** | 驗證 authorId / principalId 是否存在 |
-| `knowledge` | **Customer / Supplier** | 使用 pageId 作為 contentId 引用來源 |
-| `knowledge-base` | **Customer / Supplier** | 使用 articleId 作為 contentId 引用來源 |
-| `knowledge-database` | **Customer / Supplier** | 使用 databaseId 作為 subjectId（Permission） |
-
----
-
-## 下游影響（downstream BCs 依賴 knowledge-collaboration）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `notification` | **Published Language** | `comment_created`、`page_locked` 等事件觸發通知 |
-| `workspace-feed` | **Published Language** | `version_published` 推送工作區動態 |
-| `workspace-audit` | **Published Language** | `permission_changed` 寫入稽核紀錄 |
-
----
-
-## 整合事件流
-
-```
-knowledge.page_updated
-  → (application layer) CreateVersionUseCase
-  → knowledge-collaboration.version_created
-
-knowledge-collaboration.permission_changed
-  → workspace-audit (append-only log)
-  → notification (if permission revoked, user notified)
-
-knowledge-collaboration.comment_created
-  → notification (content owner notified)
-  → workspace-feed (activity feed)
-```
-
----
-
-## 邊界規則
-
-- 此 BC 使用 `contentId` 作為 opaque reference，不 import 其他 BC 的 domain 層。
-- Version 快照中的 `snapshotBlocks` 是 `unknown[]`（不依賴 `knowledge` Block 型別）。
-- Permission 授予不超過授予者自身的 Permission 級別。
+→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
 ````
 
 ## File: modules/knowledge-collaboration/domain-events.md
 ````markdown
-# Domain Events — knowledge-collaboration
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
 
-> 事件採用 discriminated-union pattern，頂層欄位，無 payload wrapper。
-
----
-
-## Comment 事件
-
-### knowledge-collaboration.comment_created
-
-```typescript
-interface CommentCreatedEvent {
-  type: "knowledge-collaboration.comment_created";
-  commentId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  workspaceId: string;
-  accountId: string;
-  authorId: string;
-  parentCommentId: string | null;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-collaboration.comment_resolved
-
-```typescript
-interface CommentResolvedEvent {
-  type: "knowledge-collaboration.comment_resolved";
-  commentId: string;
-  contentId: string;
-  workspaceId: string;
-  resolvedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
----
-
-## Permission 事件
-
-### knowledge-collaboration.permission_granted
-
-```typescript
-interface PermissionGrantedEvent {
-  type: "knowledge-collaboration.permission_granted";
-  permissionId: string;
-  subjectId: string;
-  subjectType: string;
-  workspaceId: string;
-  accountId: string;
-  principalId: string;
-  principalType: "user" | "team";
-  level: "view" | "comment" | "edit" | "full";
-  grantedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-collaboration.permission_revoked
-
-```typescript
-interface PermissionRevokedEvent {
-  type: "knowledge-collaboration.permission_revoked";
-  subjectId: string;
-  workspaceId: string;
-  principalId: string;
-  revokedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
----
-
-## Version 事件
-
-### knowledge-collaboration.version_created
-
-```typescript
-interface VersionCreatedEvent {
-  type: "knowledge-collaboration.version_created";
-  versionId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  workspaceId: string;
-  accountId: string;
-  label: string | null;
-  createdByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-collaboration.version_restored
-
-```typescript
-interface VersionRestoredEvent {
-  type: "knowledge-collaboration.version_restored";
-  versionId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  workspaceId: string;
-  restoredByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-collaboration.page_locked
-
-```typescript
-interface PageLockedEvent {
-  type: "knowledge-collaboration.page_locked";
-  contentId: string;
-  contentType: "page" | "article";
-  workspaceId: string;
-  lockedByUserId: string;
-  lockExpiresAtISO: string;
-  occurredAtISO: string;
-}
-```
+→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
 ````
 
 ## File: modules/knowledge-collaboration/domain-services.md
 ````markdown
-# Domain Services — knowledge-collaboration
+- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
+- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
 
----
-
-## PermissionLevelComparator
-
-比較 Permission 級別的大小，用於驗證授予者不可超過自身權限。
-
-```typescript
-// modules/knowledge-collaboration/domain/services/PermissionLevelComparator.ts
-
-export type PermissionLevel = "view" | "comment" | "edit" | "full";
-
-const LEVEL_RANK: Record<PermissionLevel, number> = {
-  view: 1,
-  comment: 2,
-  edit: 3,
-  full: 4,
-};
-
-export class PermissionLevelComparator {
-  isHigherOrEqual(a: PermissionLevel, b: PermissionLevel): boolean {
-    return LEVEL_RANK[a] >= LEVEL_RANK[b];
-  }
-
-  validateGrant(granterLevel: PermissionLevel, targetLevel: PermissionLevel): void {
-    if (!this.isHigherOrEqual(granterLevel, targetLevel)) {
-      throw new Error(
-        `Cannot grant ${targetLevel} permission: granter only has ${granterLevel}`
-      );
-    }
-  }
-
-  highest(levels: PermissionLevel[]): PermissionLevel {
-    return levels.reduce((best, cur) =>
-      LEVEL_RANK[cur] > LEVEL_RANK[best] ? cur : best
-    );
-  }
-}
-```
-
----
-
-## VersionRetentionPolicy
-
-管理版本保留策略，自動清理超出限制的舊版本（具名版本除外）。
-
-```typescript
-// modules/knowledge-collaboration/domain/services/VersionRetentionPolicy.ts
-
-export class VersionRetentionPolicy {
-  private static readonly MAX_VERSIONS = 100;
-
-  /**
-   * 返回應被刪除的版本 ID（不含具名版本）。
-   * @param versions 依 createdAtISO 升序排列的版本列表
-   */
-  getVersionsToDelete(
-    versions: Array<{ id: string; label: string | null }>
-  ): string[] {
-    const unnamed = versions.filter((v) => v.label === null);
-    const excess = unnamed.length - VersionRetentionPolicy.MAX_VERSIONS;
-    if (excess <= 0) return [];
-    return unnamed.slice(0, excess).map((v) => v.id);
-  }
-}
-```
+→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
 ````
 
 ## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
@@ -70356,652 +64384,125 @@ export async function getPermissions(accountId: string, subjectId: string): Prom
 
 ## File: modules/knowledge-collaboration/README.md
 ````markdown
-# knowledge-collaboration — 知識協作、版本、權限管理
+# knowledge-collaboration — DDD Reference
 
-> **Domain Type:** **Supporting Subdomain + Generic Subdomain**（支撐域 + 泛用域）
-> **模組路徑:** `modules/knowledge-collaboration/`
-> **開發狀態:** 📅 Planned — 設計階段
+> **Domain Type:** Supporting Subdomain + Generic Subdomain
+> **Module:** `modules/knowledge-collaboration/`
+> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
 
-## 在 Knowledge Platform 中的角色
+## 戰略定位
 
-`knowledge-collaboration` 負責知識協作的基礎設施：留言討論、存取權限管理、頁面版本快照。它不擁有知識內容本身，而是為 `knowledge`、`knowledge-base` 等內容 BC 提供協作能力。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Comment 留言 | 針對 Page / Article 的線程式留言討論 |
-| Permission 權限 | 細粒度的內容存取控制（View/Comment/Edit/Full） |
-| Version 版本快照 | Page / Article 的版本歷史（Block 快照） |
-| 頁面鎖定 | 防止並發編輯的樂觀鎖機制 |
+`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
 
 ## 核心聚合
 
-- **`Comment`**（留言）
-- **`Permission`**（存取權限）
-- **`Version`**（版本快照）
+- **Comment** — 線程式留言，透過 `contentId` 引用內容
+- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
+- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
 
-## 詳細文件
+## 主要領域事件
 
-| 文件 | 說明 |
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+## 通用語言
+
+| 術語 | 定義 |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+| **Comment** | 針對 contentId 的留言（root 或 reply） |
+| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
+| **Version** | immutable Block 快照 |
+| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
+| **contentId** | opaque reference 到任意知識內容 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity` | Conformist |
+| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
 ````
 
 ## File: modules/knowledge-collaboration/repositories.md
 ````markdown
-# Repositories — knowledge-collaboration
+ICommentRepository, IPermissionRepository, IVersionRepository
 
----
+Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
 
-## ICommentRepository
-
-```typescript
-export interface ICommentRepository {
-  getById(commentId: string): Promise<Comment>;
-  listByContent(contentId: string, contentType: "page" | "article"): Promise<Comment[]>;
-  save(comment: Comment): Promise<void>;
-  softDelete(commentId: string): Promise<void>;
-}
-```
-
----
-
-## IPermissionRepository
-
-```typescript
-export interface IPermissionRepository {
-  get(subjectId: string, principalId: string): Promise<Permission | null>;
-  listBySubject(subjectId: string, subjectType: string): Promise<Permission[]>;
-  listByPrincipal(principalId: string, workspaceId: string): Promise<Permission[]>;
-  save(permission: Permission): Promise<void>;
-  revoke(subjectId: string, principalId: string): Promise<void>;
-}
-```
-
----
-
-## IVersionRepository
-
-```typescript
-export interface IVersionRepository {
-  getById(versionId: string): Promise<Version>;
-  listByContent(
-    contentId: string,
-    contentType: "page" | "article",
-    limit?: number
-  ): Promise<Version[]>;
-  save(version: Version): Promise<void>;
-  deleteById(versionId: string): Promise<void>;
-}
-```
-
----
-
-## Firestore Collection 設計
-
-| Collection | Document ID | 說明 |
-|---|---|---|
-| `knowledge_comments` | `{commentId}` | Comment documents |
-| `knowledge_permissions` | `{subjectId}_{principalId}` | Permission documents |
-| `knowledge_versions` | `{versionId}` | Version snapshot documents |
-
-### Index 需求（預計）
-
-| Collection | Fields | Purpose |
-|---|---|---|
-| `knowledge_comments` | `contentId`, `contentType`, `createdAtISO` | Thread listing |
-| `knowledge_permissions` | `subjectId`, `subjectType` | Permission dashboard |
-| `knowledge_versions` | `contentId`, `contentType`, `createdAtISO` | Version history |
+→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
 ````
 
 ## File: modules/knowledge-collaboration/ubiquitous-language.md
 ````markdown
-# Ubiquitous Language — knowledge-collaboration
+| Comment | 留言（≠ Note, Message） |
+| Permission | 存取授權（≠ Role） |
+| PermissionLevel | view < comment < edit < full |
+| Version | Block 快照（≠ Revision, History） |
+| NamedVersion | 附標籤的具名版本（不自動刪除） |
+| contentId | opaque ID 跨 BC 引用 |
+| PageLock | 防並發的暫時鎖定 |
 
----
-
-## 核心術語
-
-| 術語 | 定義 | 禁止混用 |
-|---|---|---|
-| **Comment**（留言） | 針對特定內容（Page/Article）的線程式留言或回覆 | Note, Message, Reply（Reply 是 Comment 的子集，不另外命名） |
-| **Thread**（討論串） | 一個 root Comment 與其所有 Reply 組成的討論串 | Conversation, Discussion |
-| **Permission**（權限） | 特定使用者或團隊對特定內容的存取授權記錄 | Role, Access, Right |
-| **PermissionLevel**（權限級別） | `view` / `comment` / `edit` / `full` — 由低到高 | ReadOnly, Write, Admin |
-| **Version**（版本快照） | 內容在某一時間點的完整 Block 快照 | Snapshot, Revision, Backup |
-| **NamedVersion**（具名版本） | 附帶人工可讀標籤的版本，不被自動保留策略刪除 | Milestone, Tag |
-| **contentId**（內容 ID） | 跨 BC 引用的 opaque ID，可為 pageId 或 articleId | ResourceId |
-| **PageLock**（頁面鎖定） | 防止並發編輯的暫時性鎖定，有過期時間 | Lock, Mutex |
-
----
-
-## 邊界詞彙對照
-
-| 術語 | 此 BC 的含義 | 其他 BC 中的對應 |
-|---|---|---|
-| `Version` | Block 快照版本（點在時間線上的記錄） | `knowledge-base` 的 `version` number（樂觀鎖） |
-| `Permission` | 存取授權記錄（誰可以對內容做什麼） | `workspace` 的 Membership（工作區成員身份） |
-| `contentId` | 任意知識內容的 opaque ID（page/article/db） | `knowledge` 的 `pageId`、`knowledge-base` 的 `articleId` |
-
----
-
-## 事件語言
-
-| 事件 | 語意 |
-|---|---|
-| `knowledge-collaboration.comment_created` | 使用者在某內容上留下留言 |
-| `knowledge-collaboration.comment_resolved` | 留言討論串被標記為已解決 |
-| `knowledge-collaboration.permission_granted` | 使用者被授予某內容的存取權限 |
-| `knowledge-collaboration.permission_revoked` | 使用者的存取權限被移除 |
-| `knowledge-collaboration.version_created` | 系統或使用者建立了內容的版本快照 |
-| `knowledge-collaboration.version_restored` | 內容被還原到特定版本 |
-| `knowledge-collaboration.page_locked` | 內容被鎖定，防止並發編輯 |
+→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
 ````
 
 ## File: modules/knowledge-database/AGENT.md
 ````markdown
-# knowledge-database BC Agent
+# knowledge-database — DDD Agent
 
-## 模組職責
+**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
 
-此 BC 提供結構化資料庫能力：Database（欄位 Schema + 視圖容器）、Record（資料行）、View（視圖配置）。
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
 
-對應概念：Notion Database、Airtable、Coda 的 Table 能力。
-
-## 核心聚合
-
-| 聚合 | 職責 |
-|---|---|
-| `Database` | 持有欄位 Schema 與視圖清單；整個 Database 的 invariant 邊界 |
-| `Record` | 單行資料，持有各欄位的值（properties Map） |
-| `View` | 視圖配置：type / filters / sorts / groupBy / visibleFields |
-
-## 欄位類型（Field Types）
-
-`text`, `number`, `select`, `multi_select`, `date`, `checkbox`, `url`, `email`, `relation`, `formula`, `rollup`
-
-## 視圖類型（View Types）
-
-`table`, `board`, `list`, `calendar`, `timeline`, `gallery`
-
-## 邊界規則
-
-- 此 BC **不得**直接 import `knowledge` / `knowledge-base` 的 domain 層。
-- `Record` 的 `relation` 欄位儲存對方 Record 的 opaque ID（跨 Database）。
-- View 的 filter/sort 操作在 application 層組裝查詢，不在 domain 層。
-
-## 開發狀態
-
-📅 Planned — 設計階段。代碼實作待後續 PR。
+→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
 ````
 
 ## File: modules/knowledge-database/aggregates.md
 ````markdown
-# Aggregates — knowledge-database
+**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
+**Record** — databaseId + properties(Map<fieldId, value>) + order
+**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
 
----
-
-## Database（資料庫）— 聚合根
-
-Database 持有欄位 Schema 定義與視圖清單，是整個 Database 一致性的邊界。
-
-```typescript
-type FieldType =
-  | "text" | "number" | "select" | "multi_select"
-  | "date" | "checkbox" | "url" | "email"
-  | "relation" | "formula" | "rollup";
-
-interface Field {
-  id: string;
-  name: string;
-  type: FieldType;
-  config: Record<string, unknown>;      // per-type config (e.g. select options)
-  required: boolean;
-  order: number;
-}
-
-interface Database {
-  id: string;
-  workspaceId: string;
-  accountId: string;
-  name: string;
-  description: string | null;
-  fields: Field[];                       // Schema definition
-  viewIds: string[];                     // Ordered list of View IDs
-  icon: string | null;
-  coverImageUrl: string | null;
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-```
-
-### Database 業務規則
-
-- `fields` 至少一個欄位（預設 "Title" text 欄位）。
-- 刪除 Field 前，所有 Record 的對應 `properties` 值需清除。
-- `viewIds` 順序決定 UI 中的視圖顯示順序。
-
----
-
-## Record（資料行）— 聚合根
-
-```typescript
-interface Record {
-  id: string;
-  databaseId: string;
-  workspaceId: string;
-  accountId: string;
-
-  properties: Map<string, unknown>;     // fieldId → value (typed by Field.type)
-  order: number;                        // display sort order
-
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-```
-
-### Record 業務規則
-
-- `properties` 的 key 必須是 Database.fields 中存在的 fieldId。
-- `relation` 類型的 field value 是 `string[]`（關聯的 Record IDs）。
-- Record 刪除（軟刪除）需保留 30 天供 Undo 操作。
-
----
-
-## View（視圖）— 聚合根
-
-```typescript
-type ViewType = "table" | "board" | "list" | "calendar" | "timeline" | "gallery";
-
-interface FilterRule {
-  fieldId: string;
-  operator: "eq" | "neq" | "contains" | "not_contains" | "is_empty" | "is_not_empty" | "gt" | "lt";
-  value: unknown;
-}
-
-interface SortRule {
-  fieldId: string;
-  direction: "asc" | "desc";
-}
-
-interface GroupByConfig {
-  fieldId: string;
-  direction: "asc" | "desc";
-}
-
-interface View {
-  id: string;
-  databaseId: string;
-  workspaceId: string;
-  accountId: string;
-
-  name: string;
-  type: ViewType;
-
-  filters: FilterRule[];
-  sorts: SortRule[];
-  groupBy: GroupByConfig | null;
-
-  visibleFieldIds: string[];            // Which fields to show (all = empty array)
-  hiddenFieldIds: string[];             // Explicitly hidden fields
-
-  boardGroupFieldId: string | null;     // For board view: which select field to group by
-  calendarDateFieldId: string | null;   // For calendar view: which date field is the X-axis
-  timelineStartFieldId: string | null;  // For timeline: start date field
-  timelineEndFieldId: string | null;    // For timeline: end date field
-
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-```
+→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
 ````
 
 ## File: modules/knowledge-database/application-services.md
 ````markdown
-# Application Services — knowledge-database
+Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
+View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
+Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
 
----
-
-## Database Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `CreateDatabaseUseCase` | name, workspaceId, accountId, fields? | `CommandResult<DatabaseId>` | 建立新 Database（含預設 Title 欄位） |
-| `RenameDatabaseUseCase` | databaseId, name | `CommandResult` | 重新命名 |
-| `AddFieldUseCase` | databaseId, fieldConfig | `CommandResult<FieldId>` | 新增欄位到 Schema |
-| `UpdateFieldUseCase` | databaseId, fieldId, fieldConfig | `CommandResult` | 更新欄位設定 |
-| `DeleteFieldUseCase` | databaseId, fieldId | `CommandResult` | 刪除欄位（同步清除 Record 值） |
-| `ReorderFieldsUseCase` | databaseId, fieldIds | `CommandResult` | 重新排列欄位順序 |
-
-## View Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `CreateViewUseCase` | databaseId, name, type | `CommandResult<ViewId>` | 新增視圖 |
-| `UpdateViewFiltersUseCase` | viewId, filters | `CommandResult` | 更新過濾條件 |
-| `UpdateViewSortsUseCase` | viewId, sorts | `CommandResult` | 更新排序規則 |
-| `UpdateViewGroupByUseCase` | viewId, groupBy | `CommandResult` | 更新分組設定 |
-| `HideFieldsInViewUseCase` | viewId, fieldIds | `CommandResult` | 隱藏特定欄位 |
-| `DeleteViewUseCase` | viewId | `CommandResult` | 刪除視圖（至少保留 1 個視圖） |
-
-## Record Use Cases
-
-| Use Case | 輸入 | 輸出 | 說明 |
-|---|---|---|---|
-| `AddRecordUseCase` | databaseId, properties | `CommandResult<RecordId>` | 新增資料行 |
-| `UpdateRecordUseCase` | recordId, properties | `CommandResult` | 更新欄位值（partial update） |
-| `DeleteRecordUseCase` | recordId | `CommandResult` | 軟刪除資料行 |
-| `LinkRecordsUseCase` | recordId, fieldId, targetRecordId | `CommandResult` | 建立 Relation 連結 |
-| `UnlinkRecordsUseCase` | recordId, fieldId, targetRecordId | `CommandResult` | 移除 Relation 連結 |
-| `QueryRecordsUseCase` | databaseId, viewId | `CommandResult<Record[]>` | 依視圖 filter/sort/groupBy 查詢 |
+→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
 ````
 
 ## File: modules/knowledge-database/context-map.md
 ````markdown
-# Context Map — knowledge-database
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission)
+下游: `knowledge`(inline db), `knowledge-base`(article-record link), `workspace-feed`, `notification`
 
----
-
-## 上游依賴（knowledge-database 依賴）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `workspace` | **Conformist** | Database 必須屬於 Workspace |
-| `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
-| `identity` | **Conformist** | 驗證操作者身份 |
-| `knowledge-collaboration` | **Customer / Supplier** | Permission 控制 Database/Record 存取權限 |
-
----
-
-## 下游影響（downstream BCs 依賴 knowledge-database）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `knowledge-base` | **Open Host Service** | Article 可透過 Relation 欄位 link 到 Database Record |
-| `knowledge` | **Open Host Service** | Page 中可嵌入 Database（inline database） |
-| `workspace-feed` | **Published Language** | `record_added` 等事件推送工作區動態 |
-| `workspace-flow` | **Anti-Corruption Layer** | Task 可 link 到 Database Record（ACL 保護） |
-| `notification` | **Published Language** | Record 更新可觸發通知 |
-
----
-
-## 整合事件流
-
-```
-knowledge-database.database_created
-  → workspace (register database in workspace content tree)
-
-knowledge-database.record_linked
-  → (if linked to article) knowledge-base (update backlink index)
-  → workspace-feed (activity)
-
-knowledge-collaboration.permission_granted (subjectType="database")
-  → knowledge-database (check permission on record access)
-```
-
----
-
-## 邊界規則
-
-- `Relation` 欄位的 targetRecordId 是 opaque reference — 不 import 目標的 domain 型別。
-- Database Schema 變更（刪除 Field）必須同步更新所有 Record（由 application 層協調）。
-- View 不擁有資料，只持有展示配置。
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
 ````
 
 ## File: modules/knowledge-database/domain-events.md
 ````markdown
-# Domain Events — knowledge-database
+- `knowledge-database.database_created` / `database_renamed`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
 
----
-
-## Database 事件
-
-### knowledge-database.database_created
-
-```typescript
-interface DatabaseCreatedEvent {
-  type: "knowledge-database.database_created";
-  databaseId: string;
-  workspaceId: string;
-  accountId: string;
-  name: string;
-  createdByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.database_renamed
-
-```typescript
-interface DatabaseRenamedEvent {
-  type: "knowledge-database.database_renamed";
-  databaseId: string;
-  workspaceId: string;
-  name: string;
-  renamedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.field_added
-
-```typescript
-interface FieldAddedEvent {
-  type: "knowledge-database.field_added";
-  databaseId: string;
-  fieldId: string;
-  fieldName: string;
-  fieldType: string;
-  addedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.field_deleted
-
-```typescript
-interface FieldDeletedEvent {
-  type: "knowledge-database.field_deleted";
-  databaseId: string;
-  fieldId: string;
-  deletedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
----
-
-## Record 事件
-
-### knowledge-database.record_added
-
-```typescript
-interface RecordAddedEvent {
-  type: "knowledge-database.record_added";
-  recordId: string;
-  databaseId: string;
-  workspaceId: string;
-  accountId: string;
-  addedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.record_updated
-
-```typescript
-interface RecordUpdatedEvent {
-  type: "knowledge-database.record_updated";
-  recordId: string;
-  databaseId: string;
-  workspaceId: string;
-  updatedFields: string[];              // fieldIds that changed
-  updatedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.record_deleted
-
-```typescript
-interface RecordDeletedEvent {
-  type: "knowledge-database.record_deleted";
-  recordId: string;
-  databaseId: string;
-  workspaceId: string;
-  deletedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.record_linked
-
-```typescript
-interface RecordLinkedEvent {
-  type: "knowledge-database.record_linked";
-  recordId: string;
-  fieldId: string;
-  targetRecordId: string;
-  databaseId: string;
-  workspaceId: string;
-  linkedByUserId: string;
-  occurredAtISO: string;
-}
-```
-
----
-
-## View 事件
-
-### knowledge-database.view_created
-
-```typescript
-interface ViewCreatedEvent {
-  type: "knowledge-database.view_created";
-  viewId: string;
-  databaseId: string;
-  workspaceId: string;
-  viewName: string;
-  viewType: string;
-  createdByUserId: string;
-  occurredAtISO: string;
-}
-```
-
-### knowledge-database.view_updated
-
-```typescript
-interface ViewUpdatedEvent {
-  type: "knowledge-database.view_updated";
-  viewId: string;
-  databaseId: string;
-  workspaceId: string;
-  changedSettings: string[];            // e.g. ["filters", "sorts", "groupBy"]
-  updatedByUserId: string;
-  occurredAtISO: string;
-}
-```
+→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
 ````
 
 ## File: modules/knowledge-database/domain-services.md
 ````markdown
-# Domain Services — knowledge-database
+- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
+- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
 
----
-
-## FieldValueValidator
-
-驗證 Record 的 properties 值是否符合 Field 的類型規範。
-
-```typescript
-// modules/knowledge-database/domain/services/FieldValueValidator.ts
-
-export class FieldValueValidator {
-  validate(field: Field, value: unknown): void {
-    switch (field.type) {
-      case "number":
-        if (value !== null && typeof value !== "number") {
-          throw new Error(`Field "${field.name}" expects a number`);
-        }
-        break;
-      case "checkbox":
-        if (typeof value !== "boolean") {
-          throw new Error(`Field "${field.name}" expects a boolean`);
-        }
-        break;
-      case "date":
-        if (value !== null && typeof value !== "string") {
-          throw new Error(`Field "${field.name}" expects an ISO date string`);
-        }
-        break;
-      case "select":
-        const options: string[] = (field.config.options as string[]) ?? [];
-        if (value !== null && !options.includes(value as string)) {
-          throw new Error(`"${value}" is not a valid option for field "${field.name}"`);
-        }
-        break;
-      default:
-        // text, url, email, multi_select, relation, formula, rollup — validated at boundary
-        break;
-    }
-  }
-}
-```
-
----
-
-## ViewQueryBuilder
-
-將 View 的 filter / sort / groupBy 配置轉換為查詢參數，供 Repository 執行。
-
-```typescript
-// modules/knowledge-database/domain/services/ViewQueryBuilder.ts
-
-export class ViewQueryBuilder {
-  buildQuery(view: View, records: DatabaseRecord[]): DatabaseRecord[] {
-    let result = [...records];
-
-    // Apply filters
-    for (const filter of view.filters) {
-      result = result.filter((record) =>
-        this.applyFilter(record, filter)
-      );
-    }
-
-    // Apply sorts
-    for (const sort of [...view.sorts].reverse()) {
-      result.sort((a, b) => {
-        const aVal = a.properties.get(sort.fieldId);
-        const bVal = b.properties.get(sort.fieldId);
-        const cmp = String(aVal ?? "").localeCompare(String(bVal ?? ""));
-        return sort.direction === "asc" ? cmp : -cmp;
-      });
-    }
-
-    return result;
-  }
-
-  private applyFilter(record: DatabaseRecord, filter: FilterRule): boolean {
-    const value = record.properties.get(filter.fieldId);
-    switch (filter.operator) {
-      case "eq": return value === filter.value;
-      case "neq": return value !== filter.value;
-      case "is_empty": return value === null || value === undefined || value === "";
-      case "is_not_empty": return value !== null && value !== undefined && value !== "";
-      default: return true;
-    }
-  }
-}
-```
+→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
@@ -71151,643 +64652,107 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
 
 ## File: modules/knowledge-database/README.md
 ````markdown
-# knowledge-database — 結構化資料庫與視圖管理
+# knowledge-collaboration — DDD Reference
 
-> **Domain Type:** **Supporting Subdomain**（支撐域）
-> **模組路徑:** `modules/knowledge-database/`
-> **開發狀態:** 📅 Planned — 設計階段
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
 
-## 在 Knowledge Platform 中的角色
+## 戰略定位
 
-`knowledge-database` 對應 Notion Database 概念，提供結構化資料儲存與多視圖展示能力。使用者可定義欄位 Schema，以 Table / Board / Calendar / Timeline / Gallery / List 等視圖檢視資料。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Database Schema 管理 | 定義欄位類型（text/number/select/date/relation 等） |
-| Record 資料管理 | 建立、更新、刪除結構化資料行 |
-| View 視圖配置 | 每個 Database 可有多個視圖，各有自己的 filter/sort/groupBy |
-| Relation 欄位 | Record 間的跨 Database 關聯（Relation 欄位類型） |
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
 
 ## 核心聚合
 
-- **`Database`**（資料庫容器 + 欄位 Schema）
-- **`Record`**（資料行）
-- **`View`**（視圖配置）
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
 
-## 詳細文件
+## 視圖類型
 
-| 文件 | 說明 |
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
+| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
 ````
 
 ## File: modules/knowledge-database/repositories.md
 ````markdown
-# Repositories — knowledge-database
+IDatabaseRepository, IRecordRepository, IViewRepository
 
----
+Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
 
-## IDatabaseRepository
-
-```typescript
-export interface IDatabaseRepository {
-  getById(databaseId: string): Promise<Database>;
-  listByWorkspace(workspaceId: string, accountId: string): Promise<Database[]>;
-  save(database: Database): Promise<void>;
-  delete(databaseId: string): Promise<void>;
-}
-```
-
----
-
-## IRecordRepository
-
-```typescript
-export interface IRecordRepository {
-  getById(recordId: string): Promise<DatabaseRecord>;
-  listByDatabase(params: {
-    databaseId: string;
-    filters?: FilterRule[];
-    sorts?: SortRule[];
-    limit?: number;
-    cursor?: string;
-  }): Promise<DatabaseRecord[]>;
-  save(record: DatabaseRecord): Promise<void>;
-  softDelete(recordId: string): Promise<void>;
-  getByIds(recordIds: string[]): Promise<DatabaseRecord[]>;
-}
-```
-
----
-
-## IViewRepository
-
-```typescript
-export interface IViewRepository {
-  getById(viewId: string): Promise<View>;
-  listByDatabase(databaseId: string): Promise<View[]>;
-  save(view: View): Promise<void>;
-  delete(viewId: string): Promise<void>;
-}
-```
-
----
-
-## Firestore Collection 設計
-
-| Collection | Document ID | 說明 |
-|---|---|---|
-| `knowledge_databases` | `{databaseId}` | Database documents（含 fields schema） |
-| `knowledge_db_records` | `{recordId}` | Record documents |
-| `knowledge_db_views` | `{viewId}` | View configuration documents |
-
-### Index 需求（預計）
-
-| Collection | Fields | Purpose |
-|---|---|---|
-| `knowledge_databases` | `workspaceId`, `createdAtISO` | Workspace database list |
-| `knowledge_db_records` | `databaseId`, `order` | Default record ordering |
-| `knowledge_db_views` | `databaseId` | Views per database |
+→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
 ````
 
 ## File: modules/knowledge-database/ubiquitous-language.md
 ````markdown
-# Ubiquitous Language — knowledge-database
+| Database | 結構化資料容器（≠ KnowledgeCollection） |
+| Field | 欄位定義（≠ Column）|
+| Record | 資料行（≠ Row, Item, Entry）|
+| Property | 某 Field 的具體值（Map） |
+| View | 視圖配置 — 不持有資料 |
+| ViewType | table/board/list/calendar/timeline/gallery |
+| Relation | 跨 Database 的 Record 連結欄位 |
 
----
-
-## 核心術語
-
-| 術語 | 定義 | 禁止混用 |
-|---|---|---|
-| **Database**（資料庫） | 結構化資料容器，持有 Field Schema 與 View 清單 | Collection, Table, Spreadsheet |
-| **Field**（欄位） | Database Schema 中的單一欄位定義（含類型與設定） | Column, Attribute, Property |
-| **FieldType**（欄位類型） | `text`/`number`/`select`/`date`/`checkbox`/`url`/`email`/`relation`/`formula`/`rollup` | DataType |
-| **Record**（資料行） | Database 中的單一資料條目，持有各欄位的值（properties） | Row, Entry, Item |
-| **Property**（屬性值） | Record 中某 Field 的具體值（Map fieldId → value） | Cell, Value, Data |
-| **View**（視圖） | Database 的展示配置：type + filters + sorts + groupBy | Tab, Screen, Layout |
-| **ViewType**（視圖類型） | `table`/`board`/`list`/`calendar`/`timeline`/`gallery` | Format, Mode |
-| **Filter**（過濾條件） | 視圖中的資料篩選規則（fieldId + operator + value） | Query, Where |
-| **Sort**（排序規則） | 視圖中的排序設定（fieldId + direction） | Order, OrderBy |
-| **GroupBy**（分組依據） | 視圖中的分組設定（通常用於 board 視圖的 select 欄位） | Cluster, Group |
-| **Relation**（關聯） | Field 類型之一，連結另一個 Database 的 Record | ForeignKey, Link |
-| **BoardGroupField**（看板分組欄位） | Board 視圖中作為列（Column）依據的 select 欄位 | KanbanField |
-
----
-
-## 邊界詞彙對照
-
-| 術語 | 此 BC 的含義 | 其他 BC 中的對應 |
-|---|---|---|
-| `Database` | 結構化資料容器 | 舊版 `KnowledgeCollection`（spaceType="database"）|
-| `Record` | 資料行 | --- |
-| `View` | 視圖配置 | --- |
-| `properties` | Record 的欄位值 Map | `knowledge` Block 的 `content` 欄位 |
-
----
-
-## 事件語言
-
-| 事件 | 語意 |
-|---|---|
-| `knowledge-database.database_created` | 使用者建立新的 Database |
-| `knowledge-database.field_added` | Database Schema 新增欄位 |
-| `knowledge-database.record_added` | 新增一行資料 |
-| `knowledge-database.record_updated` | 資料行的欄位值更新 |
-| `knowledge-database.record_linked` | 資料行透過 Relation 欄位連結到另一 Record |
-| `knowledge-database.view_created` | 新增一個 Database 視圖 |
-| `knowledge-database.view_updated` | 視圖的 filter/sort/groupBy 設定變更 |
+→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
 ````
 
-## File: modules/knowledge/application/dto/knowledge.dto.ts
+## File: modules/knowledge/api/index.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: application/dto
- * Purpose: Zod-validated input schemas for Content use cases.
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
  */
 
-import { z } from "@lib-zod";
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/content-page.entity";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-export const BlockTypeSchema = z.enum(BLOCK_TYPES);
-
-export const BlockContentSchema = z.object({
-  type: BlockTypeSchema,
-  text: z.string(),
-  properties: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type BlockContentDto = z.infer<typeof BlockContentSchema>;
-
-export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  title: z.string().min(1).max(300),
-  parentPageId: z.string().min(1).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
-
-export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  title: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
-
-export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  targetParentPageId: z.string().min(1).nullable(),
-});
-
-export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
-
-export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-});
-
-export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
-
-export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  blockIds: z.array(z.string().min(1)),
-});
-
-export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
-
-export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  content: BlockContentSchema,
-  index: z.number().int().nonnegative().optional(),
-});
-
-export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
-
-export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-  content: BlockContentSchema,
-});
-
-export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
-
-export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-});
-
-export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
-
-export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  label: z.string().max(100).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
-
-export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
-
-// ── Approve content page ──────────────────────────────────────────────────────
-
-export const ExtractedTaskSchema = z.object({
-  title: z.string().min(1).max(300),
-  dueDate: z.string().optional(),
-  description: z.string().optional(),
-});
-
-export const ExtractedInvoiceSchema = z.object({
-  amount: z.number().positive(),
-  description: z.string().min(1),
-  currency: z.string().optional(),
-});
-
-export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  actorId: z.string().min(1),
-  /**
-   * causationId identifies the command (use-case invocation) that caused the
-   * resulting event.  Generated by the Server Action layer if not provided by
-   * the caller, so that command-event causality is correctly traceable.
-   */
-  causationId: z.string().min(1).optional(),
-  /** Optional: external tasks extracted by AI from this page. */
-  extractedTasks: z.array(ExtractedTaskSchema).default([]),
-  /** Optional: external invoices extracted by AI from this page. */
-  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
-  /**
-   * Correlation ID tracing the entire ingestion → approval → materialization flow.
-   * Generated by the caller if not provided (e.g. first action in the flow).
-   */
-  correlationId: z.string().optional(),
-  /** Optional: workspaceId to include in the published event. */
-  workspaceId: z.string().optional(),
-});
-
-export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
-
-// ── Collection DTOs ───────────────────────────────────────────────────────────
-
-export const CollectionColumnTypeSchema = z.enum([
-  "text",
-  "number",
-  "select",
-  "multi-select",
-  "date",
-  "checkbox",
-  "url",
-  "relation",
-]);
-
-export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
-
-export const CollectionColumnInputSchema = z.object({
-  name: z.string().min(1).max(100),
-  type: CollectionColumnTypeSchema,
-  options: z.array(z.string()).optional(),
-});
-
-export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
-
-export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  columns: z.array(CollectionColumnInputSchema).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
-
-export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  name: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
-
-export const AddPageToCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  pageId: z.string().min(1),
-});
-
-export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
-
-export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  pageId: z.string().min(1),
-});
-
-export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
-
-export const AddCollectionColumnSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  column: CollectionColumnInputSchema,
-});
-
-export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
-
-export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-});
-
-export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
-
-// ── Wiki / Knowledge Base DTOs ────────────────────────────────────────────────
-
-export const PageVerificationStateSchema = z.enum(PAGE_VERIFICATION_STATES);
-
-export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  verifiedByUserId: z.string().min(1),
-  /** ISO 8601 — if set, page auto-transitions to "needs_review" after this date. */
-  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
-});
-
-export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
-
-export const RequestPageReviewSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  requestedByUserId: z.string().min(1),
-});
-
-export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
-
-export const AssignPageOwnerSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  ownerId: z.string().min(1),
-  assignedByUserId: z.string().min(1),
-});
-
-export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
-
-export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
-````
-
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-> `knowledge` BC 僅負責個人筆記的 Page 與 Block 管理。組織知識、版本協作、結構化資料庫由三個姊妹 BC 負責。
-
----
-
-## 上游依賴（knowledge 依賴）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `workspace` | **Conformist** | Page 必須屬於 Workspace |
-| `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
-| `identity` | **Conformist** | 驗證 createdByUserId 是否存在 |
-| `shared` | **Shared Kernel** | `CommandResult`、事件發佈基礎型別 |
-
----
-
-## 下游影響（downstream BCs 依賴 knowledge）
-
-| BC | 關係類型 | 說明 |
-|---|---|---|
-| `knowledge-base` | **Customer / Supplier** | Page 可透過 Promote 流程成為 Article（跨 BC 操作） |
-| `knowledge-collaboration` | **Customer / Supplier** | 使用 pageId 作為 contentId，提供 Comment / Version / Permission |
-| `knowledge-database` | **Split / Transitional Boundary** | `KnowledgeCollection` 仍在本模組，最終 database 能力應收斂到此 BC |
-| `workspace-audit` | **Published Language** | `knowledge.page_approved` 可被稽核流程消費 |
-| `notification` | **Published Language** | 審核或複核事件未來可觸發通知 |
-| `workspace-feed` | **Published Language** | 目前尚未看到 `knowledge.page_published` 的實際 publish |
-
----
-
-## 姊妹 BC 邊界說明（Knowledge Family）
-
-| BC | 職責邊界 |
-|---|---|
-| `knowledge` | **個人筆記** - Page + Block（草稿、私人頁面） |
-| `knowledge-base` | **組織知識庫** - Article + Category（公開 Wiki / SOP） |
-| `knowledge-collaboration` | **協作基礎設施** - Comment / Permission / Version |
-| `knowledge-database` | **結構化資料** - Database / Record / View |
-
-> 目前 code 上 `KnowledgeCollection` 仍在 `knowledge`，這是過渡狀態，不表示最終 ownership 已經定案。
-
----
-
-## 整合事件流
-
-```
-knowledge.page_created
-  → (planned) knowledge-collaboration.version_created (initial snapshot)
-
-knowledge.page_approved
-  → (contract-ready) workspace-audit
-  → (contract-ready) notification
-
-knowledge.page_verified / knowledge.page_review_requested / knowledge.page_owner_assigned
-  → (planned) wiki governance / notification flows
-
-user action: Promote Page → Article
-  → knowledge-base.article_created (new article with page content)
-  (knowledge 本身不發出跨 BC 事件，由 application 層協調)
-```
-
----
-
-## 邊界規則
-
-- `knowledge` **不得** import `knowledge-base`、`knowledge-collaboration`、`knowledge-database` 的 domain 層。
-- `knowledge-collaboration` 透過 `modules/knowledge/api` 取得 pageId，不讀取 Page 內部。
-- `approvalState`、`verificationState`、`ownerId` 目前仍保留在 `Page`；若日後重新切分 ownership，必須連同 API contract 一起搬移。
-````
-
-## File: modules/knowledge/domain-services.md
-````markdown
-# Domain Services — knowledge
-
-> `knowledge` BC 目前沒有獨立的 domain service class；多數規則分散在 repository、application use cases 與 editor store，而不是封裝在 aggregate methods 中。
-
----
-
-## 現況
-
-此 BC（個人筆記 Page + Block）的主流程仍以 CRUD 與簡單 workflow 為主，目前尚未抽出獨立 service class。
-
-邏輯由以下層次處理：
-
-| 層次 | 負責內容 |
-|---|---|
-| Page repository | slugify、Firestore path、approval / verify / assign owner persistence |
-| Use Cases | DTO 驗證、move guard、approve event publish |
-| Editor store | 本地 block editor 狀態（Zustand） |
-
----
-
-## 潛在未來 Domain Services（待需求出現再提取）
-
-| 候選 Service | 觸發條件 |
-|---|---|
-| `PageApprovalService` | 若 approval 流程複雜化（多步驟審批、代理審批） |
-| `BlockOrderService` | 若 Block 排序規則複雜化（fractional indexing） |
-| `PageDuplicatorService` | 若 Page 複製需要深度 Block 複製邏輯 |
-| `PageVerificationPolicyService` | 若 verification expiry / owner reassignment 規則複雜化 |
-| `CollectionBoundaryService` | 若 `KnowledgeCollection` 抽離到 `knowledge-database` 需要對應轉譯 |
-
----
-
-## 跨 BC Domain Services（不在此 BC）
-
-| Service | 所屬 BC |
-|---|---|
-| `BacklinkExtractorService` | `knowledge-base` |
-| `PermissionLevelComparator` | `knowledge-collaboration` |
-| `FieldValueValidator` | `knowledge-database` |
-| `ViewQueryBuilder` | `knowledge-database` |
-````
-
-## File: modules/knowledge/domain/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/barrel
- */
-
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ArchiveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "./entities/content-page.entity";
-
-export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/content-page.entity";
-export type { PageVerificationState } from "./entities/content-page.entity";
-
-export type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  DeleteKnowledgeBlockInput,
-} from "./entities/content-block.entity";
-
-export type {
-  KnowledgeVersion,
-  KnowledgeVersionBlock,
-  CreateKnowledgeVersionInput,
-} from "./entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./value-objects/block-content";
-export {
-  BLOCK_TYPES,
-  blockContentEquals,
-  emptyTextBlockContent,
-} from "./value-objects/block-content";
-
-export type {
-  KnowledgeDomainEvent,
-  KnowledgePageCreatedEvent,
-  KnowledgePageRenamedEvent,
-  KnowledgePageMovedEvent,
-  KnowledgePageArchivedEvent,
-  KnowledgeBlockAddedEvent,
-  KnowledgeBlockUpdatedEvent,
-  KnowledgeBlockDeletedEvent,
-  KnowledgeVersionPublishedEvent,
-  KnowledgePageVerifiedEvent,
-  KnowledgePageReviewRequestedEvent,
-  KnowledgePageOwnerAssignedEvent,
-} from "./events/knowledge.events";
-
-// ── KnowledgeCollection ───────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "./entities/knowledge-collection.entity";
-
-export type {
-  KnowledgePageRepository,
-  KnowledgeBlockRepository,
-  KnowledgeVersionRepository,
-} from "./repositories/knowledge.repositories";
-````
-
-## File: modules/knowledge/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: module/barrel (public API)
- *
- * This is the ONLY file that external modules should import from.
- * All internal implementation details (domain, application, infrastructure)
- * are NOT importable from outside — use the exports listed here.
- *
- * Boundary rule: other modules import via `@/modules/knowledge`, never from
- * `@/modules/knowledge/domain/...` or deeper paths.
- *
- * Access pattern:
- *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
- *   - UI mutations                    → Server Actions below
- *   - UI reads                        → Query functions below
- *
- * Current boundary note:
- *   - `Page` / `Block` are owned by this module.
- *   - `KnowledgeCollection` is still exported here as a transitional surface.
- *   - `Article` / `Category` belong to `knowledge-base`.
- */
-
-// ── API: Facade (cross-domain entry point) ────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
 export type {
   KnowledgeCreatePageParams,
   KnowledgeRenamePageParams,
   KnowledgeMovePageParams,
   KnowledgeAddBlockParams,
   KnowledgeUpdateBlockParams,
-} from "./api/knowledge-facade";
+} from "./knowledge-facade";
 
-// ── Domain: entity types ──────────────────────────────────────────────────────
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-} from "./domain/entities/content-page.entity";
+export { KnowledgeApi } from "./knowledge-api";
 
-export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
 
-export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
+// ── Server Actions (write-side) ───────────────────────────────────────────────
 
-export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
 export {
   createKnowledgePage,
   renameKnowledgePage,
@@ -71799,18 +64764,65 @@ export {
   deleteKnowledgeBlock,
   publishKnowledgeVersion,
   approveKnowledgePage,
+  // Collection actions
   createKnowledgeCollection,
   renameKnowledgeCollection,
   addPageToCollection,
   removePageFromCollection,
   addCollectionColumn,
   archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
   verifyKnowledgePage,
   requestKnowledgePageReview,
   assignKnowledgePageOwner,
-} from "./interfaces/_actions/knowledge.actions";
+} from "../interfaces/_actions/knowledge.actions";
 
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
 export {
   getKnowledgePage,
   getKnowledgePages,
@@ -71819,564 +64831,65 @@ export {
   getKnowledgeVersions,
   getKnowledgeCollection,
   getKnowledgeCollections,
-} from "./interfaces/queries/knowledge.queries";
+} from "../interfaces/queries/knowledge.queries";
 
-// ── Domain: Collection + Wiki types ──────────────────────────────────────────
-export type {
-  KnowledgeCollection,
-  CollectionSpaceType,
-} from "./domain/entities/knowledge-collection.entity";
+export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+export type { KnowledgePage } from "../domain/entities/content-page.entity";
 
-export type { PageVerificationState } from "./domain/entities/content-page.entity";
-
-// ── Interfaces: Components ────────────────────────────────────────────────────
-export { BlockEditorView } from "./interfaces/components/BlockEditorView";
-export { PageTreeView } from "./interfaces/components/PageTreeView";
-export { PageDialog } from "./interfaces/components/PageDialog";
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
 ````
 
-## File: modules/knowledge/infrastructure/firebase/FirebaseContentCollectionRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase Firestore implementation of KnowledgeCollectionRepository.
- *
- * Firestore collection: accounts/{accountId}/knowledgeCollections/{collectionId}
- */
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
 
-import {
-  arrayRemove,
-  arrayUnion,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** 🏗️ Midway
 
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
+## 在 Knowledge Platform / Second Brain 中的角色
 
-import type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionStatus,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "../../domain/entities/knowledge-collection.entity";
-import type { KnowledgeCollectionRepository } from "../../domain/repositories/knowledge.repositories";
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
 
-function collectionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "knowledgeCollections");
-}
+## 主要職責
 
-function collectionDoc(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  collectionId: string,
-) {
-  return doc(db, "accounts", accountId, "knowledgeCollections", collectionId);
-}
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
 
-function toKnowledgeCollection(id: string, data: Record<string, unknown>): KnowledgeCollection {
-  const columns: CollectionColumn[] = Array.isArray(data.columns)
-    ? (data.columns as unknown[]).filter(
-        (c): c is Record<string, unknown> => typeof c === "object" && c !== null,
-      ).map((c) => ({
-        id: typeof c.id === "string" ? c.id : generateId(),
-        name: typeof c.name === "string" ? c.name : "",
-        type: (c.type as CollectionColumn["type"]) ?? "text",
-        options: Array.isArray(c.options)
-          ? (c.options as unknown[]).filter((v): v is string => typeof v === "string")
-          : undefined,
-      }))
-    : [];
+## 與其他 Bounded Context 協作
 
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : undefined,
-    columns,
-    pageIds: Array.isArray(data.pageIds)
-      ? (data.pageIds as unknown[]).filter((v): v is string => typeof v === "string")
-      : [],
-    status: (data.status as CollectionStatus) === "archived" ? "archived" : "active",
-    spaceType: data.spaceType === "wiki" ? "wiki" : "database",
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
 
-export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectionRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
+## 核心聚合 / 核心概念
 
-  async create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection> {
-    const nowISO = new Date().toISOString();
-    const id = generateId();
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
 
-    const columns: CollectionColumn[] = (input.columns ?? []).map((c) => ({
-      id: generateId(),
-      name: c.name,
-      type: c.type,
-      options: c.options,
-    }));
+## 詳細文件
 
-    const docRef = collectionDoc(this.db, input.accountId, id);
-    const data: Record<string, unknown> = {
-      accountId: input.accountId,
-      name: input.name,
-      description: input.description ?? null,
-      columns,
-      pageIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      _serverTimestamp: serverTimestamp(),
-    };
-
-    if (input.workspaceId) {
-      data.workspaceId = input.workspaceId;
-    }
-
-    await setDoc(docRef, data);
-
-    return toKnowledgeCollection(id, { ...data, createdAtISO: nowISO, updatedAtISO: nowISO });
-  }
-
-  async rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null> {
-    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(docRef, { name: input.name, updatedAtISO: nowISO });
-
-    return toKnowledgeCollection(input.collectionId, {
-      ...snap.data(),
-      name: input.name,
-      updatedAtISO: nowISO,
-    });
-  }
-
-  async addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null> {
-    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(docRef, { pageIds: arrayUnion(input.pageId), updatedAtISO: nowISO });
-
-    const data = snap.data() as Record<string, unknown>;
-    const pageIds = Array.isArray(data.pageIds)
-      ? [...(data.pageIds as string[]), input.pageId]
-      : [input.pageId];
-
-    return toKnowledgeCollection(input.collectionId, { ...data, pageIds, updatedAtISO: nowISO });
-  }
-
-  async removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null> {
-    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(docRef, { pageIds: arrayRemove(input.pageId), updatedAtISO: nowISO });
-
-    const data = snap.data() as Record<string, unknown>;
-    const pageIds = Array.isArray(data.pageIds)
-      ? (data.pageIds as string[]).filter((id) => id !== input.pageId)
-      : [];
-
-    return toKnowledgeCollection(input.collectionId, { ...data, pageIds, updatedAtISO: nowISO });
-  }
-
-  async addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null> {
-    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    const newColumn: CollectionColumn = {
-      id: generateId(),
-      name: input.column.name,
-      type: input.column.type,
-      options: input.column.options,
-    };
-
-    await updateDoc(docRef, { columns: arrayUnion(newColumn), updatedAtISO: nowISO });
-
-    const data = snap.data() as Record<string, unknown>;
-    const columns = Array.isArray(data.columns)
-      ? [...(data.columns as CollectionColumn[]), newColumn]
-      : [newColumn];
-
-    return toKnowledgeCollection(input.collectionId, { ...data, columns, updatedAtISO: nowISO });
-  }
-
-  async archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null> {
-    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(docRef, { status: "archived", updatedAtISO: nowISO });
-
-    return toKnowledgeCollection(input.collectionId, {
-      ...snap.data(),
-      status: "archived",
-      updatedAtISO: nowISO,
-    });
-  }
-
-  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
-    const snap = await getDoc(collectionDoc(this.db, accountId, collectionId));
-    if (!snap.exists()) return null;
-    return toKnowledgeCollection(collectionId, snap.data() as Record<string, unknown>);
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
-    const snaps = await getDocs(collectionsCol(this.db, accountId));
-    return snaps.docs.map((d) =>
-      toKnowledgeCollection(d.id, d.data() as Record<string, unknown>),
-    );
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
-    const q = query(collectionsCol(this.db, accountId), where("workspaceId", "==", workspaceId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) =>
-      toKnowledgeCollection(d.id, d.data() as Record<string, unknown>),
-    );
-  }
-}
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
-````typescript
-"use server";
+## File: modules/subdomains.md
+````markdown
+# Modules Subdomains（Canonical Link）
 
-/**
- * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Next.js Server Actions for Content domain mutations.
- */
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-  ApproveKnowledgePageUseCase,
-  VerifyKnowledgePageUseCase,
-  RequestPageReviewUseCase,
-  AssignPageOwnerUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import {
-  AddKnowledgeBlockUseCase,
-  UpdateKnowledgeBlockUseCase,
-  DeleteKnowledgeBlockUseCase,
-} from "../../application/use-cases/knowledge-block.use-cases";
-import {
-  CreateKnowledgeCollectionUseCase,
-  RenameKnowledgeCollectionUseCase,
-  AddPageToCollectionUseCase,
-  RemovePageFromCollectionUseCase,
-  AddCollectionColumnUseCase,
-  ArchiveKnowledgeCollectionUseCase,
-} from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockDto,
-  CreateKnowledgeVersionDto,
-  ApproveKnowledgePageDto,
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-} from "../../application/dto/knowledge.dto";
-
-function makePageRepo() {
-  return new FirebaseKnowledgePageRepository();
-}
-
-function makeBlockRepo() {
-  return new FirebaseKnowledgeBlockRepository();
-}
-
-function makeCollectionRepo() {
-  return new FirebaseKnowledgeCollectionRepository();
-}
-
-export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_RENAME_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_MOVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_ARCHIVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function reorderKnowledgePageBlocks(
-  input: ReorderKnowledgePageBlocksDto,
-): Promise<CommandResult> {
-  try {
-    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_REORDER_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_ADD_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_UPDATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_DELETE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function publishKnowledgeVersion(
-  _input: CreateKnowledgeVersionDto,
-): Promise<CommandResult> {
-  return commandFailureFrom(
-    "CONTENT_VERSION_NOT_IMPLEMENTED",
-    "Version persistence is not yet implemented.",
-  );
-}
-
-export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    // causationId is generated at the action layer (command origin) to ensure
-    // proper command-event causality tracing as described in ADR-001.
-    const causationId = input.causationId ?? generateId();
-    return await new ApproveKnowledgePageUseCase(
-      makePageRepo(),
-      new InMemoryEventStoreRepository(),
-      new NoopEventBusRepository(),
-    ).execute({ ...input, causationId });
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_APPROVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-// ── Collection actions ────────────────────────────────────────────────────────
-
-export async function createKnowledgeCollection(
-  input: CreateKnowledgeCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function renameKnowledgeCollection(
-  input: RenameKnowledgeCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_RENAME_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addPageToCollection(
-  input: AddPageToCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_ADD_PAGE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function removePageFromCollection(
-  input: RemovePageFromCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_REMOVE_PAGE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addCollectionColumn(
-  input: AddCollectionColumnDto,
-): Promise<CommandResult> {
-  try {
-    return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_ADD_COLUMN_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function archiveKnowledgeCollection(
-  input: ArchiveKnowledgeCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_ARCHIVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-// ── Wiki / Knowledge Base verification actions ────────────────────────────────
-
-export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_VERIFY_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function requestKnowledgePageReview(
-  input: RequestPageReviewDto,
-): Promise<CommandResult> {
-  try {
-    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_REVIEW_REQUEST_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function assignKnowledgePageOwner(
-  input: AssignPageOwnerDto,
-): Promise<CommandResult> {
-  try {
-    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_ASSIGN_OWNER_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
+- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
+- 若需調整子域分類內容，請只編輯 canonical 檔案。
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
@@ -74183,119 +66696,6 @@ export default function NotebookRagQueryPage() {
 }
 ````
 
-## File: docs/ddd/bounded-contexts.md
-````markdown
-# Bounded Contexts — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
-> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
-
-本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
-Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
-
-- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
-- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
-- **NotebookLM-like 層**：檢索、摘要、問答、推理
-
----
-
-## 系統層級映射
-
-| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
-|---|---|---|---|
-| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
-| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
-| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
-| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
-| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
-| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
-
----
-
-## 子域分類摘要
-
-| 分類 | Bounded Context |
-|---|---|
-| **Core Domain** | `knowledge`, `knowledge-base` |
-| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
-| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
-
----
-
-## Bounded Context Catalog
-
-| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
-|---|---|---|---|---|
-| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
-| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
-| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
-| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
-| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
-| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
-| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
-| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
-| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
-| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
-| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
-| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
-| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
-| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
-| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
-| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
-| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
-| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
-
----
-
-## 典型依賴與協作方式
-
-```text
-Identity → Account → Organization → Workspace
-                              ├─→ Knowledge ─────────────────────┐
-                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
-                              ├─→ Knowledge Collab / Database ───┘
-                              ├─→ Source ───→ AI ────────────────────────────┘
-                              └─→ Workspace Operations
-                                   ├─ workspace-flow
-                                   ├─ workspace-scheduling
-                                   ├─ workspace-audit
-                                   └─ workspace-feed
-```
-
----
-
-## 整合原則
-
-1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
-2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
-3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
-4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
-5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
-
----
-
-## 詳細文件
-
-- 子域分類：[`subdomains.md`](./subdomains.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
-````
-
-## File: modules/knowledge-base/index.ts
-````typescript
-/**
- * knowledge-base module — public barrel export
- *
- * Cross-module access: only import from this file.
- * Internal layers (domain/, application/, infrastructure/) are NOT exported here.
- *
- * @module knowledge-base
- */
-
-export * from "./api";
-````
-
 ## File: modules/knowledge-base/interfaces/_actions/knowledge-base.actions.ts
 ````typescript
 "use server";
@@ -74666,6 +67066,18 @@ export { CommentPanel } from "../interfaces/components/CommentPanel";
 export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
 ````
 
+## File: modules/knowledge-collaboration/index.ts
+````typescript
+/**
+ * knowledge-collaboration module — public barrel export
+ *
+ * Cross-module access → use api/ exports only.
+ * Internal imports use relative paths.
+ */
+
+export * from "./api";
+````
+
 ## File: modules/knowledge-database/api/index.ts
 ````typescript
 /**
@@ -74777,6 +67189,14 @@ export class ListViewsUseCase {
     return this.viewRepo.listByDatabase(accountId, databaseId);
   }
 }
+````
+
+## File: modules/knowledge-database/index.ts
+````typescript
+/**
+ * knowledge-database module — public barrel export
+ */
+export * from "./api";
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
@@ -75002,282 +67422,82 @@ export async function deleteView(accountId: string, viewId: string): Promise<Com
 }
 ````
 
-## File: modules/knowledge/AGENT.md
+## File: modules/knowledge/context-map.md
 ````markdown
-# AGENT.md — knowledge BC
+# Context Map — knowledge
 
-## 模組定位
+## 上游（依賴）
 
-`knowledge` 是 **Core Domain**，負責個人筆記與頁面管理。對應 Notion 的 **Page + Block** 核心體驗。
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
 
-目前程式已落地的主軸是：
-- Page tree / child page / archive / move / rename
-- Block CRUD 與極簡編輯器
-- approval / verification / owner assignment 的部分 page metadata
-- `KnowledgeCollection` 過渡能力仍留在本模組
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
 
-**這個 BC 負責：**
-- Page（頁面內容與層級結構）
-- Block（頁面內最小內容單位：文字、標題、清單、程式碼、圖片、待辦事項等）
-- Block 排序、草稿與暫存
-- Page approval / verification / owner metadata
-- `KnowledgeCollection` 過渡能力：把 Page 聚成 database/wiki space
+---
 
-**不歸屬這個 BC：**
-- 組織級知識庫文章 → `knowledge-base`
-- 留言、版本歷史、權限控制 → `knowledge-collaboration`
-- 資料庫 / Table / Board / View → `knowledge-database`
+## 下游（被依賴）
 
-**邊界提醒：**
-- `knowledge-base` 擁有 `Article`、`Category`
-- `knowledge-collaboration` 擁有 `Comment`、`Permission`、`Version`
-- `knowledge-database` 是 `Database / Record / View` 的最終歸屬；`KnowledgeCollection` 是目前仍在 `knowledge` 內的過渡實作
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
 
-## 通用語言（Ubiquitous Language）
+**這是平台最重要的跨 BC 整合點。**
 
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Page` | Document、Note |
-| `Block` | Node、Element、Item |
-| `BlockType` | ContentType、Type |
-| `KnowledgeCollection` | Database（跨 BC 定義時） |
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
 
-> `Article` 為 `knowledge-base` BC 術語。`Database` / `Record` / `View` 為 `knowledge-database` BC 術語。若程式碼內看到 `KnowledgeCollection`，應視為本模組尚未完成抽離的過渡面。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { createKnowledgePage } from "@/modules/knowledge/api";
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (ContentToWorkflowMaterializer)
 ```
 
-### ❌ 禁止
-```typescript
-import { KnowledgeCollection } from "@/modules/knowledge/domain/..."; // 搬去 knowledge-database
-import { ContentVersion } from "@/modules/knowledge/domain/...";     // 搬去 knowledge-collaboration
-```
+### knowledge → wiki（Customer/Supplier）
 
-### 實作入口
+- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
+- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
 
-- Public boundary: `modules/knowledge/index.ts`、`modules/knowledge/api/index.ts`
-- Write-side: `interfaces/_actions/knowledge.actions.ts`
-- Read-side: `interfaces/queries/knowledge.queries.ts`
-- Minimal editor state: `interfaces/store/block-editor.store.ts`（Zustand）
+### knowledge → ai（Customer/Supplier）
 
-## 驗證命令
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
 
-```bash
-npm run lint
-npm run build
-```
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
 ````
 
-## File: modules/knowledge/application-services.md
+## File: modules/knowledge/domain-services.md
 ````markdown
-# knowledge — Application Services
+# knowledge — Domain Services
 
-## Application Layer 職責
-
-管理頁面（Page）、內容區塊（Block）與過渡中的 `KnowledgeCollection` 的 CRUD、排序與 workflow orchestration。
-
-## 實際檔案
-
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-
-## Use Cases 清單
-
-| Use Case 類別 | 操作 |
-|---|---|
-| `CreateKnowledgePageUseCase` | 建立頁面 |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面 Block IDs |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 建立頁面樹狀結構 |
-| `ApproveKnowledgePageUseCase` | 核准頁面並 publish `knowledge.page_approved` |
-| `VerifyKnowledgePageUseCase` | 設為 verified |
-| `RequestPageReviewUseCase` | 設為 needs_review |
-| `AssignPageOwnerUseCase` | 指派 page owner |
-| `AddKnowledgeBlockUseCase` | 新增 Block |
-| `UpdateKnowledgeBlockUseCase` | 更新 Block 內容 |
-| `DeleteKnowledgeBlockUseCase` | 刪除 Block |
-| `ListKnowledgeBlocksUseCase` | 取得頁面所有 Block |
-| `CreateKnowledgeCollectionUseCase` | 建立 collection |
-| `RenameKnowledgeCollectionUseCase` | 重新命名 collection |
-| `AddPageToCollectionUseCase` | 把 page 加入 collection |
-| `RemovePageFromCollectionUseCase` | 從 collection 移除 page |
-| `AddCollectionColumnUseCase` | 新增 collection column |
-| `ArchiveKnowledgeCollectionUseCase` | 封存 collection |
-
-## 已知差距
-
-- `publishKnowledgeVersion` 目前回傳 not implemented
-- `getKnowledgeVersions` 目前回傳空陣列
-- approval / verify / owner workflow 已有 use case，但對應 UI 與完整 downstream materialization 尚未補齊
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 公開事件契約
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAtISO` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAtISO` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAtISO` |
-| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAtISO` |
-| `knowledge.block_added` | Block 新增 | `blockId`, `pageId`, `accountId`, `blockType`, `occurredAtISO` |
-| `knowledge.block_updated` | Block 內容更新 | `blockId`, `pageId`, `accountId`, `occurredAtISO` |
-| `knowledge.block_deleted` | Block 刪除 | `blockId`, `pageId`, `accountId`, `occurredAtISO` |
-| `knowledge.version_published` | 版本發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAtISO` |
-| `knowledge.page_verified` | wiki page 標記 verified | `pageId`, `accountId`, `verifiedByUserId`, `verificationExpiresAtISO?`, `occurredAtISO` |
-| `knowledge.page_review_requested` | wiki page 被要求複核 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
-| `knowledge.page_owner_assigned` | wiki page 指派 owner | `pageId`, `accountId`, `ownerId`, `assignedByUserId`, `occurredAtISO` |
-
-## 目前 runtime 已實際 publish
-
-- `knowledge.page_approved`
-
-目前只在 `ApproveKnowledgePageUseCase` 中看到實際透過 `PublishDomainEventUseCase` 發佈。其餘事件目前屬公開契約型別，尚未看到一致的 emit wiring。
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `knowledge-base` | `knowledge.page_created` / `knowledge.page_approved` | 可選：Promote 或建立組織知識流程 |
-| `knowledge-collaboration` | `knowledge.page_created` | 規劃中的初始版本快照 |
-| `workspace-audit` | `knowledge.page_approved` | append-only 稽核記錄 |
-
-## 事件檔案位置
-
-- Event contracts: `domain/events/knowledge.events.ts`
-- Public API export: `api/events.ts`
-</content>
-````
-
-## File: modules/knowledge/README.md
-````markdown
-# knowledge — 個人筆記與頁面管理
-
-> **Domain Type:** **Core Domain**（核心域）
+> **Canonical bounded context:** `knowledge`
 > **模組路徑:** `modules/knowledge/`
-> **開發狀態:** 🚧 Developing — 積極開發中
+> **Domain Type:** Core Domain
 
-## 在 Knowledge Platform 中的角色
+本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
 
-`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
+## Domain Services 檔案
 
-目前它同時承載一部分過渡中的 wiki / database surface：
-- `Page` 上已有 `approvalState`、`verificationState`、`ownerId`
-- `KnowledgeCollection` 仍在本模組內，尚未完全抽離到 `knowledge-database`
+- 目前沒有獨立的 `domain/services/*` 檔案。
 
-## 主要職責
+## 設計規則
 
-| 能力 | 說明 |
-|---|---|
-| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
-| Block 管理 | 新增、更新、刪除、重排內容區塊 |
-| 層級結構 | 父子頁面樹狀管理 |
-| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
-| Approval / Verification | 頁面核准、驗證、要求複核、指派 owner |
-| Collection 過渡能力 | 以 `KnowledgeCollection` 聚合 Page，支援 `database` / `wiki` spaceType |
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
 
-## 核心聚合
+## 模組內對應文件
 
-- **`Page`**（KnowledgePage）
-- **`Block`**（ContentBlock）
-- **`KnowledgeCollection`**（過渡中的結構化 / wiki 空間聚合）
-
-## 已實作現況
-
-| 區塊 | 現況 |
-|---|---|
-| Page mutations | 已有 create / rename / move / archive server actions |
-| Page metadata | 已有 approve / verify / request review / assign owner use cases |
-| Block editor | 目前是基於 Zustand 的極簡本地編輯器 |
-| Event publish | 目前只有 `knowledge.page_approved` 在 use case 內實際 publish |
-| Version read/write | contract 存在，但 `publishKnowledgeVersion` 與 `getKnowledgeVersions` 尚未完整落地 |
-| Collection | 已有 create / rename / add/remove page / add column / archive |
-
-## 不在此 BC 範圍
-
-| 功能 | 歸屬 BC |
-|------|---------|
-| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
-| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
-| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
-
-## 差距與邊界說明
-
-- `Page` 的 page-level UX 仍未達 Notion 級完整度，像 duplicate / favorite / copy link / side peek 等能力尚未成形
-- `KnowledgeCollection` 與 `knowledge-database` 的最終邊界仍需進一步收斂
-- `knowledge-base` 應視為 `Article` / `Category` 的組織知識庫，不等於 `knowledge` 的 `Page`
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件 |
-| [repositories.md](./repositories.md) | Repository 介面與實作 |
-| [application-services.md](./application-services.md) | Use Cases 清單 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
-````
-
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 頁面 | Page | 個人或團隊筆記頁面，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 區塊 | Block | 頁面內的原子內容單位（type、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote` | `domain/value-objects/block-content.ts` |
-| 頁面狀態 | PageStatus | `active \| archived` | `domain/entities/content-page.entity.ts` |
-| 核准狀態 | ApprovalState | `pending \| approved`，用於 ingestion / approve 流程 | `domain/entities/content-page.entity.ts` |
-| 驗證狀態 | PageVerificationState | `verified \| needs_review`，目前用於 wiki 型頁面 | `domain/entities/content-page.entity.ts` |
-| 頁面擁有者 | PageOwner | `ownerId`，目前仍掛在 Page 上 | `domain/entities/content-page.entity.ts` |
-| 頁面樹 | PageTree | 以 parentPageId 組成的頁面層級結構 | — |
-| 知識集合 | KnowledgeCollection | 暫留在本模組的頁面集合空間，可為 `database` 或 `wiki` | `domain/entities/knowledge-collection.entity.ts` |
-
-## 禁止替換術語
-
-| 正確（此 BC） | 禁止 | 備註 |
-|------|------|------|
-| `Page` | Document、Note | — |
-| `Block` | Node、Element、Item | — |
-| `KnowledgeCollection` | Database、Wiki（在跨 BC 討論中） | 在本 BC 內是過渡術語 |
-
-## 跨 BC 術語邊界
-
-| 術語 | 正確 BC |
-|------|---------|
-| `Article` | `knowledge-base` |
-| `Category` | `knowledge-base` |
-| `Comment` | `knowledge-collaboration` |
-| `Version` | `knowledge-collaboration` |
-| `Permission` | `knowledge-collaboration` |
-| `Database` | `knowledge-database` |
-| `Record` | `knowledge-database` |
-| `View` | `knowledge-database` |
-
-## 術語補充
-
-- `Page` 與 `Article` 不能混用：前者是個人 / 工作區筆記頁，後者是組織知識文章
-- `KnowledgeCollection` 不等於最終的 `Database` bounded context；它是目前 code 中尚未完全抽離的結構化空間
-- `PageVerificationState` 雖然名稱靠近 wiki governance，但目前仍是 `knowledge` 內的 page metadata
+- `../../../modules/knowledge/domain-services.md`
+- `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -77224,18 +69444,6 @@ export class ListCategoriesUseCase {
 }
 ````
 
-## File: modules/knowledge-collaboration/index.ts
-````typescript
-/**
- * knowledge-collaboration module — public barrel export
- *
- * Cross-module access → use api/ exports only.
- * Internal imports use relative paths.
- */
-
-export * from "./api";
-````
-
 ## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
 "use client";
@@ -77336,22 +69544,70 @@ export function VersionHistoryPanel({ accountId, contentId, currentUserId }: Ver
 }
 ````
 
-## File: modules/knowledge-database/index.ts
-````typescript
-/**
- * knowledge-database module — public barrel export
- */
-export * from "./api";
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
+
+## 模組定位
+
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
+
+> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { WikiPage } from "@/modules/wiki/domain/entities/...";
+```
+
+## page_approved 事件規則
+
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
 
-## 聚合根：Page（KnowledgePage）
+## 聚合根：KnowledgePage（ContentPage）
 
 ### 職責
-個人筆記頁面的聚合根。管理頁面標題、父子層級（parentPageId）、Block 引用列表（blockIds），以及目前暫留在本模組的 approval / verification / owner metadata。
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
 
 ### 關鍵屬性
 
@@ -77361,70 +69617,103 @@ export * from "./api";
 | `title` | `string` | 頁面標題 |
 | `slug` | `string` | URL-safe 識別符 |
 | `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 Block ID 列表（有序） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
 | `accountId` | `string` | 所屬帳戶 |
 | `workspaceId` | `string?` | 所屬工作區（可選） |
-| `order` | `number` | 同層級排序 |
-| `status` | `PageStatus` | `active \| archived` |
-| `approvalState` | `pending \| approved` | AI / ingestion page 的核准狀態（可選） |
-| `approvedAtISO` | `string?` | 核准時間 |
-| `approvedByUserId` | `string?` | 核准者 |
-| `verificationState` | `verified \| needs_review` | wiki 型頁面驗證狀態（可選） |
-| `ownerId` | `string?` | wiki 型頁面維護者 |
-| `verifiedByUserId` | `string?` | 最後驗證者 |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間 |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
 | `createdByUserId` | `string` | 建立者 ID |
 | `createdAtISO` | `string` | ISO 8601 建立時間 |
 | `updatedAtISO` | `string` | ISO 8601 更新時間 |
 
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- `archived` 頁面不應再進入正常編輯流程
-- `pageId === targetParentPageId` 的 move 屬非法
-
----
-
-## 實體：Block（ContentBlock）
-
-### 職責
-頁面內的原子內容單位，依序排列形成頁面內容。
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
 
 | 屬性 | 型別 | 說明 |
 |------|------|------|
-| `id` | `string` | Block 主鍵 |
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
 | `pageId` | `string` | 所屬頁面 ID |
 | `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType`） |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
 | `order` | `number` | 排列順序 |
 | `createdAtISO` | `string` | ISO 8601 |
 | `updatedAtISO` | `string` | ISO 8601 |
 
-### BlockType
-
-`text | heading-1 | heading-2 | heading-3 | image | code | bullet-list | numbered-list | divider | quote`
-
-代碼位置：`domain/value-objects/block-content.ts`
-
-> `todo` 目前不在實作中的 `BlockType` union 內，若要加入需同步更新 value object、DTO schema 與 editor UI。
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
 
 ---
 
-## 過渡聚合：KnowledgeCollection
+## 實體：ContentVersion（KnowledgeVersion）
 
-目前 `knowledge` 仍保有 `KnowledgeCollection` 聚合，用於把 `Page` 聚成結構化空間。
+### 職責
+頁面的歷史版本快照，append-only。
 
 | 屬性 | 型別 | 說明 |
 |------|------|------|
-| `id` | `string` | Collection 主鍵 |
-| `name` | `string` | 空間名稱 |
-| `columns` | `CollectionColumn[]` | schema 欄位定義 |
-| `pageIds` | `string[]` | 關聯的 Page IDs |
-| `spaceType` | `database \| wiki` | 空間型態 |
-| `status` | `active \| archived` | 狀態 |
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
 
-這塊是目前最需要和 `knowledge-database` 重新釐清的邊界。
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
 
 ---
 
@@ -77432,133 +69721,262 @@ export * from "./api";
 
 | 介面 | 主要方法 |
 |------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
- */
+## File: modules/knowledge/application-services.md
+````markdown
+# knowledge — Application Services
 
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
 
-export { KnowledgeApi } from "./knowledge-api";
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
 
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
+## Application Layer 職責
 
-// ── Server Actions (write-side) ───────────────────────────────────────────────
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
 
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "../interfaces/_actions/knowledge.actions";
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
 
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+## 實際檔案
 
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+- `application/block-service.ts`
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
 
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
+## Use Cases 清單
 
-// ── Collection types ──────────────────────────────────────────────────────────
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
 
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
+## 設計對齊
 
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+````
 
-// ── Public event contracts ────────────────────────────────────────────────────
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
 
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
+## 發出事件
 
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAtISO` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAtISO` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
 
-// ── Queries (read-side) ──────────────────────────────────────────────
+## 最重要事件：knowledge.page_approved
 
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
 
-export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
-export type { KnowledgePage } from "../domain/entities/content-page.entity";
+## Wiki/Knowledge Base 驗證事件
 
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAtISO: string;
+}
+
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAtISO: string;
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+````
+
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/knowledge/repositories.md
 ````markdown
 # knowledge — Repositories
 
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
 ## Domain Repository Ports
 
 - `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
   - `KnowledgeBlockRepository`
   - `KnowledgeVersionRepository`
   - `KnowledgeCollectionRepository`
@@ -77566,16 +69984,10 @@ export { PageDialog } from "../interfaces/components/PageDialog";
 ## Infrastructure Implementations
 
 - `infrastructure/firebase/FirebaseContentPageRepository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
 - `infrastructure/firebase/FirebaseContentBlockRepository.ts`
 - `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-
-## Firestore 路徑
-
-- Page: `accounts/{accountId}/contentPages/{pageId}`
-- Block: `accounts/{accountId}/contentBlocks/{blockId}`
-- Collection: `accounts/{accountId}/knowledgeCollections/{collectionId}`
-
-這與 Firestore 官方文件的 document / subcollection path 寫法一致，採 `doc(db, "accounts", accountId, ...)` 形式建立引用。
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
 
 ## KnowledgePageRepository 方法對照
 
@@ -77585,55 +69997,100 @@ export { PageDialog } from "../interfaces/components/PageDialog";
 | `rename()` | 重命名 |
 | `move()` | 移動層級 |
 | `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排 Block |
-| `approve()` | 設定 approvalState = approved |
-| `verify()` | 設定 verificationState = verified |
-| `requestReview()` | 設定 verificationState = needs_review |
-| `assignOwner()` | 指派 ownerId |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
 | `findById()` | 取得單頁 |
 | `listByAccountId()` | 列出帳戶所有頁面 |
 | `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## KnowledgeBlockRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `add()` | 新增 Block |
-| `update()` | 更新 Block 內容 |
-| `delete()` | 刪除 Block |
-| `findById()` | 取得單一 Block |
-| `listByPageId()` | 列出頁面所有 Block |
-
-## KnowledgeCollectionRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立 collection |
-| `rename()` | 重新命名 |
-| `addPage()` | 加入 page |
-| `removePage()` | 移除 page |
-| `addColumn()` | 新增 schema column |
-| `archive()` | 封存 collection |
-| `findById()` | 取得單一 collection |
-| `listByAccountId()` | 列出帳戶所有 collections |
-| `listByWorkspaceId()` | 列出工作區 collections |
 
 ## 設計規則
 
 - Repository 介面定義在 `domain/repositories/`
 - Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports
-- `interfaces/queries` 直接 new Firebase repository 是目前做法，但跨 BC 不應跳過 `api/` 公開面
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
 
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
 ## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
@@ -77813,4 +70270,14 @@ export class ListArticlesUseCase {
     return this.repo.list(params);
   }
 }
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````

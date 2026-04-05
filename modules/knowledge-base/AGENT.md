@@ -1,46 +1,25 @@
-# AGENT.md — knowledge-base BC
+# knowledge-base — DDD Agent
 
-## 模組定位
+## 戰略分類
 
-`knowledge-base` 是 **Core Domain**，負責組織級知識管理，對應 Notion 的 **Wiki / Knowledge Base** 功能。管理公司或團隊的知識文章（Article）與分類（Category）。
+| 屬性 | 值 |
+|---|---|
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
 
-**這個 BC 負責：**
-- Article（知識文章）的建立、編輯、審批、歸檔
-- Category（分類目錄）的層級管理
-- 知識文章的 Backlink、標籤（Tag）、版本管理
-- SOP 流程文件、共享知識參考手冊
-- 頁面驗證狀態（verified / needs_review）與頁面負責人（Owner）
+## 為何是 Core Domain
 
-**不歸屬這個 BC：**
-- 個人筆記（Page + Block） → `knowledge`
-- 留言與協作 → `knowledge-collaboration`
-- 表格 / 資料庫 View → `knowledge-database`
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
 
-## 通用語言（Ubiquitous Language）
+## 關鍵設計決策
 
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Article` | Page、Document（在此 BC 中） |
-| `Category` | Folder、Tag（作為分類時） |
-| `ArticleStatus` | Status |
-| `VerificationState` | State |
-| `ArticleOwner` | Owner |
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
 
-## 邊界規則
+## 詳細實作文件
 
-### ✅ 允許
-```typescript
-import { createArticle } from "@/modules/knowledge-base/api";
-```
-
-### ❌ 禁止
-```typescript
-import anything from "@/modules/knowledge-base/domain/..."; // 走 api/ 邊界
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)

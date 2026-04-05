@@ -17,7 +17,7 @@
 interface SomethingHappenedEvent {
   readonly type: "module-name.entity.action";  // 命名格式：module.entity.action
   readonly aggregateId: string;
-  readonly occurredAtISO: string;              // ISO 8601 時間戳
+  readonly occurredAt: string;                 // ISO 8601 時間戳
   // ...事件特定欄位直接展開
 }
 ```
@@ -25,7 +25,7 @@ interface SomethingHappenedEvent {
 | 規則 | 說明 |
 |------|------|
 | **無 payload 包裹** | 事件欄位直接在介面頂層展開，不套 `payload` 物件 |
-| **includeOccurredAt** | 每個事件必須含 `occurredAtISO` 或 `occurredAt` 時間戳 |
+| **includeOccurredAt** | 每個事件必須含 `occurredAt` 時間戳 |
 | **discriminated union** | 同模組的事件聚合為 `XxxEvent = A \| B \| C` 的 union 型別 |
 | **命名格式** | `<module>.<entity>.<action>` 全小寫底線分隔 |
 
@@ -54,7 +54,7 @@ interface SomethingHappenedEvent {
 interface ContentPageApprovedEvent {
   readonly type: "content.page_approved";
   readonly aggregateId: string;       // ContentPage ID（聚合根 ID）
-  readonly occurredAtISO: string;     // ISO 8601 核准時間戳
+  readonly occurredAt: string;        // ISO 8601 核准時間戳
   readonly pageId: string;            // ContentPage ID
   readonly extractedTasks: ReadonlyArray<{
     readonly title: string;
