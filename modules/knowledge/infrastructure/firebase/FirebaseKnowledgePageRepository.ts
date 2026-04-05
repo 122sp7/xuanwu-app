@@ -1,0 +1,1 @@
+export { FirebaseKnowledgePageRepository } from "./FirebaseContentPageRepository";

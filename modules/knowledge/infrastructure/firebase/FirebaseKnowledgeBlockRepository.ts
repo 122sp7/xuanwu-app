@@ -1,0 +1,1 @@
+export { FirebaseKnowledgeBlockRepository } from "./FirebaseContentBlockRepository";

@@ -21,8 +21,8 @@
  */
 
 import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi } from "../modules/knowledge/api/knowledge-api";
-import { KnowledgeApi } from "../modules/ai/api/knowledge-api";
+import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+import { KnowledgeApi as GraphKnowledgeApi } from "../modules/ai/api/knowledge-api";
 
 async function main() {
   const ACCOUNT_ID = "demo-account";
@@ -35,11 +35,11 @@ async function main() {
 
   // ── Step 2 & 3: Wire KnowledgeApi and KnowledgeApi ──────────────────────────
   console.log("[2] Creating KnowledgeApi...");
-  const contentApi = new KnowledgeApi(eventBus);
+  const contentApi = new ContentKnowledgeApi(eventBus);
   console.log("    ✓ KnowledgeApi ready\n");
 
   console.log("[3] Creating KnowledgeApi (subscribing to event bus)...");
-  const knowledgeApi = new KnowledgeApi(eventBus);
+  const knowledgeApi = new GraphKnowledgeApi(eventBus);
   console.log("    ✓ KnowledgeApi ready — LinkExtractorService subscribed\n");
 
   // ── Step 4: Create a Page ─────────────────────────────────────────────────
