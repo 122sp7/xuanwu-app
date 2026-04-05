@@ -33,8 +33,8 @@ import {
   ListKnowledgeBlocksUseCase,
 } from "../application/use-cases/knowledge-block.use-cases";
 
-import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseKnowledgeBlockRepository";
+import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
 
 export interface KnowledgeCreatePageParams {
   accountId: string;

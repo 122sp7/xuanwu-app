@@ -21,8 +21,8 @@ import {
   UpdateKnowledgeBlockUseCase,
   DeleteKnowledgeBlockUseCase,
 } from "../../application/use-cases/knowledge-block.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseKnowledgeBlockRepository";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
 import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
 import { v7 as generateId } from "@lib-uuid";
 import type {

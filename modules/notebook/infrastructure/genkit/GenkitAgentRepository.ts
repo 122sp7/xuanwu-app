@@ -2,7 +2,7 @@ import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
 } from "../../domain/entities/AgentGeneration";
-import type { NotebookRepository } from "../../domain/repositories/NotebookRepository";
+import type { NotebookRepository } from "../../domain/repositories/AgentRepository";
 import { agentClient, getConfiguredGenkitModel } from "./client";
 
 export class GenkitNotebookRepository implements NotebookRepository {

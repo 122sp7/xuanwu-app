@@ -8,5 +8,5 @@ export {
   getConfiguredGenkitModel,
   type GenkitClientOptions,
 } from "./client";
-export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
+export { GenkitNotebookRepository } from "./GenkitAgentRepository";
 export { GenkitRagGenerationRepository } from "@/modules/search/api/server";

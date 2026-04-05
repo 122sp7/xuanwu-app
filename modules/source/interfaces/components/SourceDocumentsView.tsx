@@ -1,1 +1,0 @@
-export { SourceDocumentsView } from "./AssetDocumentsView";

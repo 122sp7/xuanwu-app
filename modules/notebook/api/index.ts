@@ -11,9 +11,9 @@ export type {
   GenerateNotebookResponseResult,
 } from "../domain/entities/AgentGeneration";
 
-export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+export type { NotebookRepository } from "../domain/repositories/AgentRepository";
 export { GenerateNotebookResponseUseCase } from "../application/use-cases/generate-agent-response.use-case";
-export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitNotebookRepository";
+export { GenkitNotebookRepository } from "../infrastructure/genkit/GenkitAgentRepository";
 
 export type {
   AnswerRagQueryInput,

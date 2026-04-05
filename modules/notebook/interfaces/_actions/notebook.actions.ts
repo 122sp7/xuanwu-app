@@ -8,7 +8,7 @@ import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search
 import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
 import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
 import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
-import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
+import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitAgentRepository";
 import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 
 export async function generateNotebookResponse(

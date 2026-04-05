@@ -81,6 +81,6 @@ export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
 // --- UI components (cross-module public) -------------------------------------
 
 export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { SourceDocumentsView } from "../interfaces/components/AssetDocumentsView";
 export { LibrariesView } from "../interfaces/components/LibrariesView";
 export { LibraryTableView } from "../interfaces/components/LibraryTableView";

@@ -12,7 +12,7 @@ export type {
   RagRetrievalSummary,
   RagStreamEvent,
 } from "./entities/RagQuery";
-export type { NotebookRepository } from "./repositories/NotebookRepository";
+export type { NotebookRepository } from "./repositories/AgentRepository";
 export type {
   GenerateRagAnswerInput,
   GenerateRagAnswerOutput,
