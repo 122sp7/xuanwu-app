@@ -109,9 +109,8 @@ function asDate(value: unknown): Date | null {
     return value;
   }
   if (value && typeof value === "object" && "toDate" in value) {
-    const candidate = (value as { toDate?: unknown }).toDate;
-    if (typeof candidate === "function") {
-      const converted = candidate();
+    if (typeof (value as { toDate?: unknown }).toDate === "function") {
+      const converted = (value as { toDate: () => unknown }).toDate();
       return converted instanceof Date ? converted : null;
     }
   }
