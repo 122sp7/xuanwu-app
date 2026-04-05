@@ -2027,6 +2027,15 @@ export function subscribeToAccountsForUser(
 
 ````
 
+## File: modules/ai/api/index.ts
+````typescript
+/**
+ * modules/ai — public API barrel.
+ *
+ * Public surface for the AI ingestion pipeline only.
+ */
+````
+
 ## File: modules/ai/api/knowledge-ingestion-api.ts
 ````typescript
 import { AdvanceIngestionStageUseCase } from "../application/use-cases/advance-ingestion-stage.use-case";
@@ -4504,6 +4513,69 @@ async function handleSubmit()
 <Button onClick=
 ````
 
+## File: modules/search/interfaces/components/RagView.tsx
+````typescript
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ExternalLink,
+  FileText,
+  FileUp,
+  Loader2,
+  Pencil,
+  Search,
+  Trash2,
+  XCircle,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { runWikiRagQuery, type WikiCitation } from "../../api";
+import type { SourceLiveDocument as WikiLiveDocument } from "@/modules/source/api";
+import { useDocumentsSnapshot } from "@/modules/source/api";
+interface WikiRagViewProps {
+  readonly onBack: () => void;
+  readonly mode?: "all" | "query" | "reindex" | "documents";
+  readonly workspaceId?: string;
+  readonly showBackButton?: boolean;
+}
+⋮----
+function formatDate(value: Date | null): string
+function isRecord(value: unknown): value is Record<string, unknown>
+function objectOrEmpty(value: unknown): Record<string, unknown>
+function getErrorMessage(error: unknown): string
+function StatusBadge(
+⋮----
+function RagBadge(
+⋮----
+async function handleAsk()
+function buildUploadPath(accountId: string, file: File):
+function handleFileChange(file: File | null)
+async function handleUpload()
+async function handleDelete(doc: WikiLiveDocument)
+⋮----
+// ignore storage-not-found
+⋮----
+// ignore storage-not-found
+⋮----
+async function handleRename(doc: WikiLiveDocument)
+async function handleViewOriginal(doc: WikiLiveDocument)
+⋮----
+<Button onClick=
+⋮----
+onDragOver=
+⋮----
+onDrop=
+````
+
 ## File: modules/shared/api/index.ts
 ````typescript
 /**
@@ -5723,6 +5795,58 @@ export type FileCommandResult<TData> =
       };
       commandId: string;
     };
+````
+
+## File: modules/source/interfaces/hooks/useDocumentsSnapshot.ts
+````typescript
+import { useCallback, useEffect, useRef, useState } from "react";
+import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
+// ─── Standalone document types (owned by source module) ──────────────────────
+export interface SourceDocument {
+  readonly id: string;
+  readonly filename: string;
+  readonly workspaceId: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+  readonly status: string;
+  readonly ragStatus: string;
+  readonly uploadedAt: Date | null;
+}
+export interface SourceLiveDocument extends SourceDocument {
+  readonly errorMessage: string;
+  readonly ragError: string;
+  readonly isClientPending?: boolean;
+}
+export type AssetDocument = SourceDocument;
+export type AssetLiveDocument = SourceLiveDocument;
+// ─── Internal helpers ─────────────────────────────────────────────────────────
+function isRecord(value: unknown): value is Record<string, unknown>
+function objectOrEmpty(value: unknown): Record<string, unknown>
+function toDateOrNull(value: unknown): Date | null
+⋮----
+// fall through
+⋮----
+// fall through
+⋮----
+function resolveFilename(data: Record<string, unknown>): string
+export function mapToSourceLiveDocument(id: string, data: Record<string, unknown>): SourceLiveDocument
+⋮----
+const n = (v: unknown)
+⋮----
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+export interface UseDocumentsSnapshotResult {
+  readonly docs: SourceLiveDocument[];
+  readonly loading: boolean;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
+  readonly removePending: (id: string) => void;
+}
+/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
+export function useDocumentsSnapshot(
+  accountId: string,
+  workspaceId?: string,
+): UseDocumentsSnapshotResult
 ````
 
 ## File: modules/source/interfaces/index.ts
@@ -15440,6 +15564,23 @@ export function HeaderControls()
 function toggleTheme()
 ````
 
+## File: app/(shell)/ai-chat/_actions.ts
+````typescript
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  Thread,
+} from "@/modules/notebook/api";
+import {
+  GenerateNotebookResponseUseCase,
+  GenkitNotebookRepository,
+} from "@/modules/notebook/api/server";
+import { saveThread, loadThread } from "@/modules/notebook/api";
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult>
+````
+
 ## File: app/(shell)/dev-tools/page.tsx
 ````typescript
 /**
@@ -16206,15 +16347,6 @@ uploaded ──► parsing ──► embedding ──► indexed
 | 介面 | 主要方法 |
 |------|---------|
 | `IngestionJobRepository` | `save()`, `findByDocumentId()`, `listByWorkspace()`, `updateStatus()` |
-````
-
-## File: modules/ai/api/index.ts
-````typescript
-/**
- * modules/ai — public API barrel.
- *
- * Public surface for the AI ingestion pipeline only.
- */
 ````
 
 ## File: modules/ai/application-services.md
@@ -18510,6 +18642,16 @@ interface NotebookResponse {
 ```
 ````
 
+## File: modules/notebook/api/server.ts
+````typescript
+/**
+ * modules/notebook — server-only API barrel.
+ *
+ * Exports concrete notebook implementations that depend on server-only
+ * packages or infrastructure wiring.
+ */
+````
+
 ## File: modules/notebook/application-services.md
 ````markdown
 # notebook — Application Services
@@ -19752,69 +19894,6 @@ export interface WikiReindexInput {
 }
 ````
 
-## File: modules/search/interfaces/components/RagView.tsx
-````typescript
-import { useCallback, useMemo, useRef, useState } from "react";
-import {
-  AlertCircle,
-  CheckCircle2,
-  ExternalLink,
-  FileText,
-  FileUp,
-  Loader2,
-  Pencil,
-  Search,
-  Trash2,
-  XCircle,
-} from "lucide-react";
-import { toast } from "sonner";
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { DEV_DEMO_ACCOUNT_EMAIL } from "@/app/providers/dev-demo-auth";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { runWikiRagQuery, type WikiCitation } from "../../api";
-import type { SourceLiveDocument as WikiLiveDocument } from "@/modules/source/api";
-import { useDocumentsSnapshot } from "@/modules/source/api";
-interface WikiRagViewProps {
-  readonly onBack: () => void;
-  readonly mode?: "all" | "query" | "reindex" | "documents";
-  readonly workspaceId?: string;
-  readonly showBackButton?: boolean;
-}
-⋮----
-function formatDate(value: Date | null): string
-function isRecord(value: unknown): value is Record<string, unknown>
-function objectOrEmpty(value: unknown): Record<string, unknown>
-function getErrorMessage(error: unknown): string
-function StatusBadge(
-⋮----
-function RagBadge(
-⋮----
-async function handleAsk()
-function buildUploadPath(accountId: string, file: File):
-function handleFileChange(file: File | null)
-async function handleUpload()
-async function handleDelete(doc: WikiLiveDocument)
-⋮----
-// ignore storage-not-found
-⋮----
-// ignore storage-not-found
-⋮----
-async function handleRename(doc: WikiLiveDocument)
-async function handleViewOriginal(doc: WikiLiveDocument)
-⋮----
-<Button onClick=
-⋮----
-onDragOver=
-⋮----
-onDrop=
-````
-
 ## File: modules/search/README.md
 ````markdown
 # search — 語意檢索上下文
@@ -20705,58 +20784,6 @@ onChange=
 onClick=
 ⋮----
 {/* Document list */}
-````
-
-## File: modules/source/interfaces/hooks/useDocumentsSnapshot.ts
-````typescript
-import { useCallback, useEffect, useRef, useState } from "react";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-// ─── Standalone document types (owned by source module) ──────────────────────
-export interface SourceDocument {
-  readonly id: string;
-  readonly filename: string;
-  readonly workspaceId: string;
-  readonly sourceGcsUri: string;
-  readonly jsonGcsUri: string;
-  readonly pageCount: number;
-  readonly status: string;
-  readonly ragStatus: string;
-  readonly uploadedAt: Date | null;
-}
-export interface SourceLiveDocument extends SourceDocument {
-  readonly errorMessage: string;
-  readonly ragError: string;
-  readonly isClientPending?: boolean;
-}
-export type AssetDocument = SourceDocument;
-export type AssetLiveDocument = SourceLiveDocument;
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-function isRecord(value: unknown): value is Record<string, unknown>
-function objectOrEmpty(value: unknown): Record<string, unknown>
-function toDateOrNull(value: unknown): Date | null
-⋮----
-// fall through
-⋮----
-// fall through
-⋮----
-function resolveFilename(data: Record<string, unknown>): string
-export function mapToSourceLiveDocument(id: string, data: Record<string, unknown>): SourceLiveDocument
-⋮----
-const n = (v: unknown)
-⋮----
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-export interface UseDocumentsSnapshotResult {
-  readonly docs: SourceLiveDocument[];
-  readonly loading: boolean;
-  readonly pendingDocs: SourceLiveDocument[];
-  readonly addPending: (doc: SourceLiveDocument) => void;
-  readonly removePending: (id: string) => void;
-}
-/** Subscribes to Firestore `accounts/{accountId}/documents` in real time via onSnapshot. */
-export function useDocumentsSnapshot(
-  accountId: string,
-  workspaceId?: string,
-): UseDocumentsSnapshotResult
 ````
 
 ## File: modules/source/repositories.md
@@ -23011,55 +23038,6 @@ function handleSelect(href: string)
 /** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
 ⋮----
 function onKeyDown(event: KeyboardEvent)
-````
-
-## File: app/(shell)/ai-chat/_actions.ts
-````typescript
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  Thread,
-} from "@/modules/notebook/api";
-import {
-  GenerateNotebookResponseUseCase,
-  GenkitNotebookRepository,
-} from "@/modules/notebook/api/server";
-import { saveThread, loadThread } from "@/modules/notebook/api";
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult>
-````
-
-## File: app/(shell)/knowledge-base/articles/page.tsx
-````typescript
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, ChevronDown, ChevronRight, CircleDot, FileClock, FolderOpen, Layers, Plus } from "lucide-react";
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
-import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-⋮----
-// ── Category tree helpers ────────────────────────────────────────────────────
-interface CategoryNode extends Category {
-  children: CategoryNode[];
-}
-function buildCategoryTree(categories: Category[]): CategoryNode[]
-// ── Category tree panel ──────────────────────────────────────────────────────
-interface CategoryTreePanelProps {
-  categories: Category[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-function CategoryTreePanel(
-⋮----
-// ── Main page ────────────────────────────────────────────────────────────────
-⋮----
-function handleSuccess(articleId?: string)
 ````
 
 ## File: firestore.indexes.json
@@ -26342,13 +26320,10 @@ npm run build
 ```
 ````
 
-## File: modules/notebook/api/server.ts
+## File: modules/notebook/api/index.ts
 ````typescript
 /**
- * modules/notebook — server-only API barrel.
- *
- * Exports concrete notebook implementations that depend on server-only
- * packages or infrastructure wiring.
+ * modules/notebook — public API barrel.
  */
 ````
 
@@ -26862,6 +26837,38 @@ function handleRequestReview()
 {/* Body tabs */}
 ````
 
+## File: app/(shell)/knowledge-base/articles/page.tsx
+````typescript
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, ChevronDown, ChevronRight, CircleDot, FileClock, FolderOpen, Layers, Plus } from "lucide-react";
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
+import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+⋮----
+// ── Category tree helpers ────────────────────────────────────────────────────
+interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+function buildCategoryTree(categories: Category[]): CategoryNode[]
+// ── Category tree panel ──────────────────────────────────────────────────────
+interface CategoryTreePanelProps {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+function CategoryTreePanel(
+⋮----
+// ── Main page ────────────────────────────────────────────────────────────────
+⋮----
+function handleSuccess(articleId?: string)
+````
+
 ## File: app/(shell)/layout.tsx
 ````typescript
 /**
@@ -27351,11 +27358,49 @@ npm run build
 | `View` | `knowledge-database` |
 ````
 
-## File: modules/notebook/api/index.ts
+## File: modules/source/api/index.ts
 ````typescript
 /**
- * modules/notebook — public API barrel.
+ * Module: source
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the source domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
  */
+// --- Core entity types -------------------------------------------------------
+⋮----
+// --- Wiki library entity types (owned by source domain) -------------------
+⋮----
+// --- Wiki library use-cases ------------------------------------------------
+import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
+import {
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
+⋮----
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot>
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
+// --- Document snapshot types --------------------------------------------------
+⋮----
+// --- Query functions ---------------------------------------------------------
+⋮----
+// --- UI components (cross-module public) -------------------------------------
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
@@ -27682,51 +27727,6 @@ function handleDelete(versionId: string)
 - `../../../docs/ddd/notebook/aggregates.md`
 ````
 
-## File: modules/source/api/index.ts
-````typescript
-/**
- * Module: source
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the source domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-// --- Core entity types -------------------------------------------------------
-⋮----
-// --- Wiki library entity types (owned by source domain) -------------------
-⋮----
-// --- Wiki library use-cases ------------------------------------------------
-import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
-import {
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibrary as _createWikiLibrary,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-  listWikiLibraries as _listWikiLibraries,
-} from "../application/use-cases/wiki-libraries.use-case";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../domain/entities/wiki-library.types";
-import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
-⋮----
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField>
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary>
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow>
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot>
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]>
-// --- Document snapshot types --------------------------------------------------
-⋮----
-// --- Query functions ---------------------------------------------------------
-⋮----
-// --- UI components (cross-module public) -------------------------------------
-````
-
 ## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 /**
@@ -28020,6 +28020,15 @@ setIsEditWorkspaceOpen(true);
 setIsEditWorkspaceOpen(open);
 ````
 
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+⋮----
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
 ## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
 ````typescript
 /**
@@ -28099,15 +28108,6 @@ async execute(params:
 // ── Queries (read-side) ──────────────────────────────────────────────
 ⋮----
 // ── UI Components ─────────────────────────────────────────────────────────────
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-⋮----
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
