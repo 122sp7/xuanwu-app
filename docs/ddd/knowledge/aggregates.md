@@ -34,10 +34,20 @@
 | `verifiedAtISO` | `string?` | 最後驗證時間 |
 | `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
 
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
 ### 不變數
 
 - `slug` 在同一 accountId 下必須唯一
 - archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
 
 ---
 
