@@ -38,21 +38,21 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1175 files | 82,336 lines
+1177 files | 82,358 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 523 | 32,798 |
+| Markdown | 525 | 32,819 |
 | TypeScript | 375 | 21,233 |
 | TypeScript (TSX) | 119 | 19,129 |
-| No Extension | 53 | 134 |
+| No Extension | 53 | 135 |
 | Python | 49 | 3,532 |
 | MERMAID | 25 | 1,888 |
 | JSON | 12 | 1,724 |
 | Shell | 11 | 1,245 |
-| Text | 2 | 105 |
 | JavaScript (ESM) | 2 | 338 |
-| Other | 4 | 210 |
+| RULES | 2 | 18 |
+| Other | 4 | 297 |
 
 **Largest files:**
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (971 lines)
