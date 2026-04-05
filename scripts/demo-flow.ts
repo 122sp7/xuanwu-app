@@ -21,8 +21,8 @@
  */
 
 import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { ContentApi } from "../modules/content/api/content-api";
-import { KnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+import { ContentApi } from "../modules/knowledge/api/content-api";
+import { KnowledgeApi } from "../modules/ai/api/knowledge-api";
 
 async function main() {
   const ACCOUNT_ID = "demo-account";

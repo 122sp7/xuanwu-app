@@ -21,7 +21,7 @@
 import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
 import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
 import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { ContentPageApprovedEvent } from "@/modules/content/api/events";
+import type { ContentPageApprovedEvent } from "@/modules/knowledge/api/events";
 
 // ── Public listener factory ───────────────────────────────────────────────────
 

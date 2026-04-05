@@ -24,7 +24,7 @@
  * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
  */
 
-import type { ContentPageApprovedEvent } from "@/modules/content/api/events";
+import type { ContentPageApprovedEvent } from "@/modules/knowledge/api/events";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
 import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";

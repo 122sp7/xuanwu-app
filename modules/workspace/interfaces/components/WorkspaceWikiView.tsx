@@ -4,8 +4,8 @@ import Link from "next/link";
 import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { WikiPageTreeNode } from "@/modules/content/api";
-import { listWikiPagesTree } from "@/modules/content/api";
+import type { WikiPageTreeNode } from "@/modules/knowledge/api";
+import { listWikiPagesTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Button } from "@ui-shadcn/ui/button";
 import {

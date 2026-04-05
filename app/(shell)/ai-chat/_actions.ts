@@ -3,9 +3,9 @@
 import type {
   GenerateAgentResponseInput,
   GenerateAgentResponseResult,
-} from "@/modules/agent/api";
-import { GenerateAgentResponseUseCase } from "@/modules/agent/api";
-import { GenkitAgentRepository } from "@/modules/agent/api";
+} from "@/modules/notebook/api";
+import { GenerateAgentResponseUseCase } from "@/modules/notebook/api";
+import { GenkitAgentRepository } from "@/modules/notebook/api";
 
 export async function sendChatMessage(
   input: GenerateAgentResponseInput,

@@ -2,7 +2,7 @@
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { PagesDnDView } from "@/modules/content/api";
+import { PagesDnDView } from "@/modules/knowledge/api";
 
 export default function WikiPagesDnDPage() {
   const { state: appState } = useApp();

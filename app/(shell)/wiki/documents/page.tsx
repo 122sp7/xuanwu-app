@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { AssetDocumentsView } from "@/modules/asset/api";
+import { AssetDocumentsView } from "@/modules/source/api";
 
 export default function WikiDocumentsPage() {
   const searchParams = useSearchParams();

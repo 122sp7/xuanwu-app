@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { LibrariesView, LibraryTableView } from "@/modules/asset/api";
+import { LibrariesView, LibraryTableView } from "@/modules/source/api";
 
 export default function WikiLibrariesPage() {
   const router = useRouter();

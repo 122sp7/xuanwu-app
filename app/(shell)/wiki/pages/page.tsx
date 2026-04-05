@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { PagesView } from "@/modules/content/api";
+import { PagesView } from "@/modules/knowledge/api";
 
 export default function WikiPagesPage() {
   const router = useRouter();
