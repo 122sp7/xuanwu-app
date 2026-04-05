@@ -14056,38 +14056,6 @@ async findById(accountId: string, databaseId: string): Promise<Database | null>
 async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]>
 ````
 
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/databaseRecords/{recordId}
- */
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type {
-  IDatabaseRecordRepository,
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string)
-function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string)
-function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord
-export class FirebaseRecordRepository implements IDatabaseRecordRepository {
-⋮----
-private db()
-async create(input: CreateRecordInput): Promise<DatabaseRecord>
-async update(input: UpdateRecordInput): Promise<DatabaseRecord | null>
-async delete(accountId: string, recordId: string): Promise<void>
-async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null>
-async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]>
-````
-
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseViewRepository.ts
 ````typescript
 /**
@@ -14364,60 +14332,6 @@ export function blockContentEquals(a: BlockContent, b: BlockContent): boolean
 const sortedKeys = (obj: Record<string, unknown>): string
 ⋮----
 export function emptyTextBlockContent(): BlockContent
-````
-
-## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/in-memory
- * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
- *          Uses plain Map<string, …> — no external database required.
- *          Designed for local demos and unit tests (Occam's Razor).
- */
-import { v7 as generateId } from "@lib-uuid";
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-} from "../domain/entities/content-block.entity";
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-} from "../domain/entities/content-page.entity";
-import type {
-  KnowledgeBlockRepository,
-  KnowledgePageRepository,
-} from "../domain/repositories/knowledge.repositories";
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-function generateSlug(title: string): string
-// ─── Page repository ──────────────────────────────────────────────────────────
-export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
-⋮----
-async create(input: CreateKnowledgePageInput): Promise<KnowledgePage>
-async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>
-async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>
-async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>
-async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null>
-async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>
-async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null>
-async listByAccountId(accountId: string): Promise<KnowledgePage[]>
-async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>
-/** Append a blockId to a page's blockIds list (called by block operations). */
-async appendBlockId(pageId: string, blockId: string): Promise<void>
-⋮----
-// ─── Block repository ─────────────────────────────────────────────────────────
-export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
-⋮----
-async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>
-async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>
-async delete(_accountId: string, blockId: string): Promise<void>
-async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null>
-async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>
 ````
 
 ## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
@@ -16284,103 +16198,6 @@ export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevSt
 export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string
 export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[]
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --config repomix.skill.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --config repomix.markdown.config.json --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
-    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
-    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
-    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
-  }
-}
 ````
 
 ## File: PERMISSIONS.md
@@ -19596,39 +19413,6 @@ interface View {
 | `QueryRecordsUseCase` | databaseId, viewId | `CommandResult<Record[]>` | 依視圖 filter/sort/groupBy 查詢 |
 ````
 
-## File: modules/knowledge-database/application/use-cases/view.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- * Use cases for View (database view) lifecycle.
- */
-import { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import {
-  CreateViewSchema,
-  UpdateViewSchema,
-  DeleteViewSchema,
-} from "../dto/knowledge-database.dto";
-export class CreateViewUseCase {
-⋮----
-constructor(private readonly viewRepo: IViewRepository)
-async execute(input: z.infer<typeof CreateViewSchema>): Promise<CommandResult>
-⋮----
-export class UpdateViewUseCase {
-⋮----
-async execute(input: z.infer<typeof UpdateViewSchema>): Promise<CommandResult>
-⋮----
-export class DeleteViewUseCase {
-⋮----
-async execute(input: z.infer<typeof DeleteViewSchema>): Promise<CommandResult>
-⋮----
-export class ListViewsUseCase {
-⋮----
-async execute(accountId: string, databaseId: string)
-````
-
 ## File: modules/knowledge-database/context-map.md
 ````markdown
 # Context Map — knowledge-database
@@ -19926,43 +19710,6 @@ export class ViewQueryBuilder {
   }
 }
 ```
-````
-
-## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
-````typescript
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
-import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
-import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
-import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
-import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
-import type {
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
-import type {
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-import type {
-  CreateViewInput,
-  UpdateViewInput,
-} from "../../domain/repositories/IViewRepository";
-function makeDatabaseRepo()
-function makeRecordRepo()
-function makeViewRepo()
-export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult>
-export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult>
-export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult>
-export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult>
-export async function createRecord(input: CreateRecordInput): Promise<CommandResult>
-export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult>
-export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult>
-export async function createView(input: CreateViewInput): Promise<CommandResult>
-export async function updateView(input: UpdateViewInput): Promise<CommandResult>
-export async function deleteView(accountId: string, viewId: string): Promise<CommandResult>
 ````
 
 ## File: modules/knowledge-database/README.md
@@ -20841,6 +20588,66 @@ async archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollecti
 async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>
 async listByAccountId(accountId: string): Promise<KnowledgeCollection[]>
 async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>
+````
+
+## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/in-memory
+ * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
+ *          Uses plain Map<string, …> — no external database required.
+ *          Designed for local demos and unit tests (Occam's Razor).
+ */
+import { v7 as generateId } from "@lib-uuid";
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+} from "../domain/entities/content-block.entity";
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../domain/entities/content-page.entity";
+import type {
+  KnowledgeBlockRepository,
+  KnowledgePageRepository,
+} from "../domain/repositories/knowledge.repositories";
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function generateSlug(title: string): string
+// ─── Page repository ──────────────────────────────────────────────────────────
+export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
+⋮----
+async create(input: CreateKnowledgePageInput): Promise<KnowledgePage>
+async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>
+async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>
+async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>
+async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null>
+async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>
+async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>
+async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>
+async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>
+async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null>
+async listByAccountId(accountId: string): Promise<KnowledgePage[]>
+async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>
+/** Append a blockId to a page's blockIds list (called by block operations). */
+async appendBlockId(pageId: string, blockId: string): Promise<void>
+⋮----
+// ─── Block repository ─────────────────────────────────────────────────────────
+export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
+⋮----
+async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>
+async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>
+async delete(_accountId: string, blockId: string): Promise<void>
+async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null>
+async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>
 ````
 
 ## File: modules/knowledge/interfaces/index.ts
@@ -24702,6 +24509,108 @@ setIsCreateWorkspaceOpen(false);
 | `WikiContentTree` | `PageTree`, `Tree`, `Hierarchy` |
 ````
 
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --config repomix.skill.config.json --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --config repomix.markdown.config.json --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
+    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
+    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
+    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0"
+  }
+}
+````
+
 ## File: repomix.config.json
 ````json
 {
@@ -25583,6 +25492,108 @@ export type FieldId = string;
 // Queries
 ⋮----
 // UI Components
+````
+
+## File: modules/knowledge-database/application/use-cases/view.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ * Use cases for View (database view) lifecycle.
+ */
+import { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IViewRepository } from "../../domain/repositories/IViewRepository";
+import {
+  CreateViewSchema,
+  UpdateViewSchema,
+  DeleteViewSchema,
+} from "../dto/knowledge-database.dto";
+export class CreateViewUseCase {
+⋮----
+constructor(private readonly viewRepo: IViewRepository)
+async execute(input: z.infer<typeof CreateViewSchema>): Promise<CommandResult>
+⋮----
+export class UpdateViewUseCase {
+⋮----
+async execute(input: z.infer<typeof UpdateViewSchema>): Promise<CommandResult>
+⋮----
+export class DeleteViewUseCase {
+⋮----
+async execute(input: z.infer<typeof DeleteViewSchema>): Promise<CommandResult>
+⋮----
+export class ListViewsUseCase {
+⋮----
+async execute(accountId: string, databaseId: string)
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/databaseRecords/{recordId}
+ */
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type {
+  IDatabaseRecordRepository,
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string)
+function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string)
+function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord
+export class FirebaseRecordRepository implements IDatabaseRecordRepository {
+⋮----
+private db()
+async create(input: CreateRecordInput): Promise<DatabaseRecord>
+async update(input: UpdateRecordInput): Promise<DatabaseRecord | null>
+async delete(accountId: string, recordId: string): Promise<void>
+async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null>
+async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]>
+````
+
+## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
+````typescript
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
+import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
+import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
+import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
+import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
+import type {
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
+import type {
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+import type {
+  CreateViewInput,
+  UpdateViewInput,
+} from "../../domain/repositories/IViewRepository";
+function makeDatabaseRepo()
+function makeRecordRepo()
+function makeViewRepo()
+export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult>
+export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult>
+export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult>
+export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult>
+export async function createRecord(input: CreateRecordInput): Promise<CommandResult>
+export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult>
+export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult>
+export async function createView(input: CreateViewInput): Promise<CommandResult>
+export async function updateView(input: UpdateViewInput): Promise<CommandResult>
+export async function deleteView(accountId: string, viewId: string): Promise<CommandResult>
 ````
 
 ## File: modules/knowledge/application/dto/knowledge.dto.ts

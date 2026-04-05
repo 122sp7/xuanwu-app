@@ -57,6 +57,7 @@
 
 ## Dev Dependencies
 
+- @next/eslint-plugin-next (^16.2.2)
 - @tailwindcss/postcss (^4)
 - @types/node (^20.19.37)
 - @types/react (^19)
@@ -69,6 +70,9 @@
 - eslint-config-next (^16.1.7)
 - eslint-plugin-boundaries (^6.0.1)
 - eslint-plugin-jsdoc (^62.8.0)
+- eslint-plugin-jsx-a11y (^6.10.2)
+- eslint-plugin-react (^7.37.5)
+- eslint-plugin-react-hooks (^7.0.1)
 - repomix (^1.12.0)
 - shadcn (^4.1.0)
 - tailwind-merge (^3.5.0)
@@ -76,11 +80,12 @@
 - tailwindcss-animate (^1.0.7)
 - tw-animate-css (^1.4.0)
 - typescript (^5)
+- typescript-eslint (^8.58.0)
 
 ## Configuration Files
 
 - .gitattributes
 - eslint.config.mjs
 - tsconfig.json
-- package.json
 - .gitignore
+- package.json

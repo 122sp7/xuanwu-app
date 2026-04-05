@@ -41,16 +41,16 @@ This skill contains the following reference files:
 
 ## Statistics
 
-852 files | 24,477 lines
+852 files | 24,488 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 412 | 10,837 |
+| TypeScript | 412 | 10,843 |
 | Markdown | 170 | 7,103 |
 | TypeScript (TSX) | 140 | 3,118 |
 | No Extension | 52 | 135 |
 | Python | 49 | 1,140 |
-| JSON | 10 | 934 |
+| JSON | 10 | 939 |
 | MERMAID | 10 | 583 |
 | JavaScript (ESM) | 2 | 17 |
 | RULES | 2 | 18 |
