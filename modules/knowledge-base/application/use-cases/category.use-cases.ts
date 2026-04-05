@@ -79,7 +79,7 @@ export class MoveCategoryUseCase {
       depth,
       updatedAtISO: now,
     });
-    return commandSuccess(parsed.data.id, now);
+    return commandSuccess(parsed.data.id, 1);
   }
 }
 
@@ -94,7 +94,7 @@ export class DeleteCategoryUseCase {
     const existing = await this.repo.getById(parsed.data.id);
     if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
     await this.repo.delete(parsed.data.id);
-    return commandSuccess(parsed.data.id, new Date().toISOString());
+    return commandSuccess(parsed.data.id, 1);
   }
 }
 

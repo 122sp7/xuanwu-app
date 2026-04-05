@@ -1,6 +1,6 @@
 "use server";
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
 import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
 import {
@@ -88,7 +88,7 @@ export async function deleteArticle(accountId: string, articleId: string): Promi
   try {
     const repo = makeArticleRepo() as FirebaseArticleRepository;
     await repo.deleteArticle(accountId, articleId);
-    return { success: true, id: articleId, timestamp: new Date().toISOString() };
+    return commandSuccess(articleId, 1);
   } catch (e) {
     return commandFailureFrom("ARTICLE_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
@@ -121,7 +121,7 @@ export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): P
 export async function deleteCategory(accountId: string, categoryId: string): Promise<CommandResult> {
   try {
     await makeCategoryRepo(accountId).delete(categoryId);
-    return { success: true, id: categoryId, timestamp: new Date().toISOString() };
+    return commandSuccess(categoryId, 1);
   } catch (e) {
     return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
