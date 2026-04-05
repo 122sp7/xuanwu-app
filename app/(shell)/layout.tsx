@@ -34,6 +34,9 @@ const routeTitles: Record<string, string> = {
   "/wiki": "Account Wiki Bridge",
   "/wiki/rag-query": "Notebook / AI · Ask / Cite",
   "/wiki/documents": "Knowledge · 文件來源",
+  "/wiki/pages": "Knowledge · 頁面",
+  "/wiki/articles": "Knowledge Base · 文章",
+  "/wiki/databases": "Knowledge Database · 資料庫",
   "/ai-chat": "Notebook / AI",
   "/dev-tools": "開發工具",
 };
