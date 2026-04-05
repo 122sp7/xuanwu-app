@@ -41,6 +41,7 @@ import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
 import { WorkspaceFilesTab } from "@/modules/source/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
 import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -602,6 +603,14 @@ export function WorkspaceDetailScreen({
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       case "Tasks":
         return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
       default:
         return renderWorkspacePlaceholderTab(tab);
     }
