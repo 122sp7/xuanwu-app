@@ -41,7 +41,7 @@ export class CreateCategoryUseCase {
       updatedAtISO: now,
     };
     await this.repo.save(category);
-    return commandSuccess(category.id, now);
+    return commandSuccess(category.id, 1);
   }
 }
 
@@ -57,7 +57,7 @@ export class RenameCategoryUseCase {
     if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
     const now = new Date().toISOString();
     await this.repo.save({ ...existing, name: parsed.data.name, updatedAtISO: now });
-    return commandSuccess(parsed.data.id, now);
+    return commandSuccess(parsed.data.id, 1);
   }
 }
 

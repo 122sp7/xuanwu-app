@@ -14,6 +14,45 @@
 }
 ````
 
+## File: .gitattributes
+````
+# Use bd merge for beads JSONL files
+.beads/issues.jsonl merge=beads
+````
+
+## File: .mcp.json
+````json
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp"
+      ]
+    },
+    "filesystem": {                                                  
+      "command": "npx",                                              
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] 
+    },                                                  
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    }
+  }
+}
+````
+
 ## File: agents/agents
 ````
 ../.github/agents
@@ -11894,6 +11933,584 @@ document_pipeline_gateway = _FakeDocumentPipelineGateway()
 def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstances() -> None
 ````
 
+## File: README.md
+````markdown
+# Claude Agentic Framework
+
+A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
+
+## Install
+
+Run this inside your project directory:
+
+```bash
+cd your-project
+curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+```
+
+The script will:
+- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
+- Copy `.mcp.json` (MCP server configuration)
+- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
+- Create an `artifacts/` directory for planning documents
+- Set up `.gitignore` entries
+- Install hook dependencies
+- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
+
+### Beads Setup
+
+Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+```
+
+The init script will then run `bd init` in your project automatically.
+
+The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
+
+## After Install
+
+1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
+2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
+3. Start Claude Code and try: `/architect hello`
+
+## What You Get
+
+### Commands
+
+Single-agent expert modes, invoked via slash commands:
+
+| Command | Role |
+|---------|------|
+| `/architect` | System design, ADRs |
+| `/builder` | Implementation, debugging, testing |
+| `/qa-engineer` | Test strategy, E2E, accessibility |
+| `/security-auditor` | Threat modeling, security audits |
+| `/ui-ux-designer` | Interface design, visual assets |
+| `/code-check` | SOLID, DRY, consistency audit |
+
+### Swarm Orchestrators
+
+Multi-agent commands that fan work out across parallel workers:
+
+| Command | What It Does |
+|---------|-------------|
+| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
+| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
+| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
+| `/swarm-research` | Deep multi-source investigation with verification tiers |
+
+### The Full Cycle
+
+```
+/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
+```
+
+One agent thinks. Many agents build. Many agents review.
+
+### Workers
+
+Six specialized agent types tuned for cost and capability:
+
+| Worker | Model | Use |
+|--------|-------|-----|
+| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
+| `worker-builder` | Sonnet | Implementation, testing, refactoring |
+| `worker-reviewer` | Opus | Code review, security analysis |
+| `worker-researcher` | Sonnet | Quick web research, API docs |
+| `worker-research` | Opus | Deep multi-source investigation |
+| `worker-architect` | Opus | Complex design decisions, ADRs |
+
+### Skills
+
+67 skills across 7 categories — auto-suggested based on keywords in your prompt:
+
+**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
+
+Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
+
+### Safety Hooks
+
+Pre-configured hooks that run automatically:
+
+- **Secret detection** — blocks commits containing API keys, tokens, private keys
+- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
+- **Push blocking** — stops direct pushes to `main`/`master`
+- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
+- **File locking** — prevents concurrent edits in multi-agent swarms
+
+### MCP Servers
+
+Four servers pre-configured in `.mcp.json`:
+
+| Server | Purpose |
+|--------|---------|
+| Sequential Thinking | Structured multi-step reasoning |
+| Chrome DevTools | Browser testing, performance profiling |
+| Context7 | Up-to-date library documentation |
+| Filesystem | File operations beyond workspace |
+
+## Customization
+
+Everything is designed to be extended:
+
+- Add commands → `.claude/commands/your-command.md`
+- Add skills → `.claude/skills/category/your-skill/SKILL.md`
+- Add rules → `.claude/rules/your-rule.md`
+- Add hooks → `.claude/hooks/your-hook.sh`
+- Add workers → `.claude/agents/worker-yourtype.md`
+
+Templates for each are in `.claude/templates/`.
+
+See [docs/customization.md](docs/customization.md) for details.
+
+## Docs
+
+- [Getting started](docs/getting-started.md)
+- [Multi-agent swarms](docs/swarm.md)
+- [Commands](docs/personas.md)
+- [Skills reference](docs/skills.md)
+- [MCP servers](docs/mcp-servers.md)
+- [Hooks](docs/hooks.md)
+- [Handoffs](docs/handoffs.md)
+- [Beads setup & usage](docs/beads.md)
+- [Customization](docs/customization.md)
+````
+
+## File: scripts/init-framework.sh
+````bash
+#!/bin/bash
+# Claude Agentic Framework - Initialization Script
+# Usage: ./init-framework.sh [/path/to/your/project]
+set -e
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+# Repository URL for cloning when run via curl
+REPO_URL="https://github.com/dralgorhythm/claude-agentic-framework.git"
+# Determine framework source directory
+# When run via curl | bash, BASH_SOURCE[0] is not a valid file path
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    # Running from local file
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    FRAMEWORK_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+    TEMP_CLONE=""
+else
+    # Running via curl | bash - need to clone the repo
+    echo "Downloading framework from repository..."
+    TEMP_CLONE="$(mktemp -d)"
+    git clone --depth 1 --quiet "$REPO_URL" "$TEMP_CLONE"
+    FRAMEWORK_DIR="$TEMP_CLONE"
+fi
+# Cleanup function for temp directory
+cleanup() {
+    if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
+        rm -rf "$TEMP_CLONE"
+    fi
+}
+trap cleanup EXIT
+# Target directory (default: current directory)
+TARGET_DIR="${1:-.}"
+TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || echo "$TARGET_DIR")"
+# Function to print colored output
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+# Function to prompt user for confirmation
+confirm() {
+    local prompt="$1"
+    local response
+    read -r -p "$prompt [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+# Function to show diff between two files
+show_file_diff() {
+    local existing="$1"
+    local new="$2"
+    local name="$3"
+    if command -v diff &>/dev/null; then
+        echo ""
+        echo -e "${BLUE}--- Diff for ${name} ---${NC}"
+        # Use color diff if available, otherwise plain diff
+        if diff --color=auto /dev/null /dev/null 2>/dev/null; then
+            diff --color=auto -u "$existing" "$new" 2>/dev/null || true
+        else
+            diff -u "$existing" "$new" 2>/dev/null || true
+        fi
+        echo -e "${BLUE}--- End diff ---${NC}"
+        echo ""
+    fi
+}
+# Function to show diff summary for directories
+show_dir_diff() {
+    local existing="$1"
+    local new="$2"
+    local name="$3"
+    if command -v diff &>/dev/null; then
+        echo ""
+        echo -e "${BLUE}--- Changes in ${name}/ ---${NC}"
+        # Show new files
+        local new_files
+        new_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $new" | sed "s|Only in $new[^:]*: |  + |" || true)
+        if [ -n "$new_files" ]; then
+            echo -e "${GREEN}New files:${NC}"
+            echo "$new_files"
+        fi
+        # Show removed files
+        local removed_files
+        removed_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $existing" | sed "s|Only in $existing[^:]*: |  - |" || true)
+        if [ -n "$removed_files" ]; then
+            echo -e "${RED}Files only in existing:${NC}"
+            echo "$removed_files"
+        fi
+        # Show modified files
+        local modified_files
+        modified_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "^Files .* differ$" | sed -E 's/Files (.*) and .* differ/  ~ \1/' || true)
+        if [ -n "$modified_files" ]; then
+            echo -e "${YELLOW}Modified files:${NC}"
+            echo "$modified_files"
+        fi
+        # Count changes
+        local total_changes
+        total_changes=$(diff -rq "$existing" "$new" 2>/dev/null | wc -l | tr -d ' ')
+        echo ""
+        echo "Total: $total_changes file(s) differ"
+        echo -e "${BLUE}--- End summary ---${NC}"
+        echo ""
+    fi
+}
+# Function to copy file with diff prompt
+copy_file_with_diff() {
+    local src="$1"
+    local dst="$2"
+    local name="$3"
+    local optional="${4:-false}"
+    if [ ! -f "$src" ]; then
+        if [ "$optional" = "true" ]; then
+            return 0
+        fi
+        print_error "Source file not found: $src"
+        return 1
+    fi
+    if [ -f "$dst" ]; then
+        # Check if files are identical
+        if diff -q "$dst" "$src" &>/dev/null; then
+            print_info "$name is already up to date"
+            return 0
+        fi
+        print_warning "$name already exists with differences"
+        show_file_diff "$dst" "$src" "$name"
+        if confirm "  Overwrite $name?"; then
+            cp "$src" "$dst"
+            print_success "$name updated"
+        else
+            print_info "Skipped $name"
+        fi
+    else
+        print_info "Copying $name..."
+        cp "$src" "$dst"
+        print_success "$name installed"
+    fi
+}
+# Function to copy directory with diff prompt
+copy_dir_with_diff() {
+    local src="$1"
+    local dst="$2"
+    local name="$3"
+    local optional="${4:-false}"
+    if [ ! -d "$src" ]; then
+        if [ "$optional" = "true" ]; then
+            return 0
+        fi
+        print_error "Source directory not found: $src"
+        return 1
+    fi
+    if [ -d "$dst" ]; then
+        # Check if directories are identical
+        if diff -rq "$dst" "$src" &>/dev/null; then
+            print_info "$name/ is already up to date"
+            return 0
+        fi
+        print_warning "$name/ already exists with differences"
+        show_dir_diff "$dst" "$src" "$name"
+        if confirm "  Overwrite $name/?"; then
+            rm -rf "$dst"
+            cp -r "$src" "$dst"
+            print_success "$name/ updated"
+        else
+            print_info "Skipped $name/"
+        fi
+    else
+        print_info "Copying $name/..."
+        cp -r "$src" "$dst"
+        print_success "$name/ installed"
+    fi
+}
+# Validate target directory
+if [ ! -d "$TARGET_DIR" ]; then
+    print_error "Target directory does not exist: $TARGET_DIR"
+    exit 1
+fi
+# Detect project name (prefer GitHub repo name, fallback to directory name)
+detect_project_name() {
+    local dir="$1"
+    # Try to get GitHub repo name from git remote
+    if [ -d "$dir/.git" ] || git -C "$dir" rev-parse --git-dir &>/dev/null; then
+        local remote_url
+        remote_url=$(git -C "$dir" remote get-url origin 2>/dev/null || echo "")
+        if [ -n "$remote_url" ]; then
+            # Extract repo name from various URL formats:
+            # https://github.com/user/repo.git -> repo
+            # git@github.com:user/repo.git -> repo
+            # https://github.com/user/repo -> repo
+            local repo_name
+            repo_name=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
+            if [ -n "$repo_name" ]; then
+                echo "$repo_name"
+                return
+            fi
+        fi
+    fi
+    # Fallback to directory name
+    basename "$dir"
+}
+PROJECT_NAME="$(detect_project_name "$TARGET_DIR")"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Claude Agentic Framework - Initialization"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+print_info "Framework source: $FRAMEWORK_DIR"
+print_info "Target directory: $TARGET_DIR"
+print_info "Project name: $PROJECT_NAME"
+echo ""
+# Copy core directories with diff support
+copy_dir_with_diff "$FRAMEWORK_DIR/.claude" "$TARGET_DIR/.claude" ".claude"
+# Create artifacts directory if it doesn't exist
+if [ ! -d "$TARGET_DIR/artifacts" ]; then
+    print_info "Creating artifacts directory..."
+    mkdir -p "$TARGET_DIR/artifacts"
+    print_success "artifacts directory created"
+else
+    print_info "artifacts directory already exists"
+fi
+# Copy config files with diff support
+copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
+copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.mcp.json" ".mcp.json"
+# Initialize Beads issue tracking (required for swarm coordination)
+if [ ! -d "$TARGET_DIR/.beads" ]; then
+    if command -v bd &>/dev/null; then
+        print_info "Initializing Beads issue tracking..."
+        if (cd "$TARGET_DIR" && bd init 2>/dev/null); then
+            print_success "Beads initialized"
+        else
+            print_warning "Beads initialization failed. Run 'bd init' manually for swarm coordination."
+        fi
+    else
+        print_warning "Beads CLI not found — required for swarm coordination"
+        print_info "  Install: curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+        print_info "  Then: cd $TARGET_DIR && bd init"
+    fi
+else
+    print_info ".beads/ already initialized"
+fi
+# Copy CLAUDE.md and AGENTS.md with diff support
+copy_file_with_diff "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
+copy_file_with_diff "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md" "AGENTS.md"
+# Copy README.md with diff support (optional for existing projects)
+if [ ! -f "$TARGET_DIR/README.md" ]; then
+    print_warning "README.md does not exist"
+    if confirm "  Create README.md from framework template?"; then
+        cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
+        print_success "README.md created"
+    else
+        print_info "Skipped README.md"
+    fi
+else
+    # Only show diff for README if user wants to see framework updates
+    if ! diff -q "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" &>/dev/null; then
+        print_info "README.md exists (differs from framework template)"
+        if confirm "  View diff and optionally update?"; then
+            show_file_diff "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" "README.md"
+            if confirm "  Overwrite README.md with framework template?"; then
+                cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
+                print_success "README.md updated"
+            else
+                print_info "Kept existing README.md"
+            fi
+        else
+            print_info "Skipped README.md"
+        fi
+    else
+        print_info "README.md is already up to date"
+    fi
+fi
+# Create or update .gitignore (append mode for existing files)
+GITIGNORE_ENTRIES=(
+    "# Dependencies"
+    "node_modules/"
+    ".pnpm-store/"
+    "__pycache__/"
+    "*.pyc"
+    ".venv/"
+    "venv/"
+    "# Build outputs"
+    "dist/"
+    "build/"
+    "*.o"
+    "*.so"
+    "*.exe"
+    "# IDE"
+    ".vscode/"
+    ".idea/"
+    "*.swp"
+    "*.swo"
+    "*~"
+    "# OS"
+    ".DS_Store"
+    "Thumbs.db"
+    "# Environment"
+    ".env"
+    ".env.local"
+    "*.local"
+    "# Logs"
+    "*.log"
+    "npm-debug.log*"
+    "# Claude Framework"
+    "scratchpad/"
+)
+if [ ! -f "$TARGET_DIR/.gitignore" ]; then
+    print_warning ".gitignore does not exist"
+    if confirm "  Create basic .gitignore?"; then
+        printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > "$TARGET_DIR/.gitignore"
+        print_success ".gitignore created"
+    else
+        print_info "Skipped .gitignore"
+    fi
+else
+    # Find missing entries (excluding comments)
+    MISSING_ENTRIES=()
+    for entry in "${GITIGNORE_ENTRIES[@]}"; do
+        # Skip comment lines for matching
+        if [[ "$entry" == \#* ]]; then
+            continue
+        fi
+        # Check if entry exists in current .gitignore (exact line match)
+        if ! grep -Fxq "$entry" "$TARGET_DIR/.gitignore" 2>/dev/null; then
+            MISSING_ENTRIES+=("$entry")
+        fi
+    done
+    if [ ${#MISSING_ENTRIES[@]} -eq 0 ]; then
+        print_info ".gitignore already contains all framework entries"
+    else
+        print_warning ".gitignore is missing ${#MISSING_ENTRIES[@]} framework entries"
+        echo ""
+        echo -e "${BLUE}--- Entries to append ---${NC}"
+        for entry in "${MISSING_ENTRIES[@]}"; do
+            echo -e "${GREEN}  + $entry${NC}"
+        done
+        echo -e "${BLUE}--- End entries ---${NC}"
+        echo ""
+        if confirm "  Append missing entries to .gitignore?"; then
+            # Add a blank line separator if file doesn't end with newline
+            if [ -s "$TARGET_DIR/.gitignore" ] && [ "$(tail -c1 "$TARGET_DIR/.gitignore" | wc -l)" -eq 0 ]; then
+                echo "" >> "$TARGET_DIR/.gitignore"
+            fi
+            # Add framework section header
+            echo "" >> "$TARGET_DIR/.gitignore"
+            echo "# Claude Agentic Framework" >> "$TARGET_DIR/.gitignore"
+            for entry in "${MISSING_ENTRIES[@]}"; do
+                echo "$entry" >> "$TARGET_DIR/.gitignore"
+            done
+            print_success ".gitignore updated (${#MISSING_ENTRIES[@]} entries appended)"
+        else
+            print_info "Kept existing .gitignore"
+        fi
+    fi
+fi
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+print_success "Framework initialization complete!"
+echo ""
+# Create hook runtime directories
+mkdir -p "$TARGET_DIR/.claude/hooks/.state" "$TARGET_DIR/.claude/hooks/.locks"
+print_success "Hook runtime directories created (.state, .locks)"
+# Make hook scripts executable
+if [ -d "$TARGET_DIR/.claude/hooks" ]; then
+    chmod +x "$TARGET_DIR/.claude/hooks"/*.sh 2>/dev/null || true
+    print_success "Hook scripts made executable"
+fi
+# Install hook dependencies if needed
+if [ -f "$TARGET_DIR/.claude/hooks/package.json" ]; then
+    print_info "Installing hook dependencies..."
+    echo ""
+    INSTALL_OK=false
+    if command -v pnpm &> /dev/null; then
+        (cd "$TARGET_DIR/.claude/hooks" && pnpm install --silent) && INSTALL_OK=true
+    elif command -v npm &> /dev/null; then
+        (cd "$TARGET_DIR/.claude/hooks" && npm install --silent) && INSTALL_OK=true
+    else
+        print_warning "Neither pnpm nor npm found - skipping dependency installation"
+        print_info "Install Node.js and run: cd .claude/hooks && npm install"
+    fi
+    if [ "$INSTALL_OK" = "true" ]; then
+        print_success "Hook dependencies installed"
+    fi
+    echo ""
+fi
+# Print next steps
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Next Steps"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "1. Customize CLAUDE.md with your project-specific context"
+echo ""
+echo "2. Review tech strategy in .claude/rules/tech-strategy.md"
+echo "   Update to match your organization's standards"
+echo ""
+echo "3. Start using commands via slash commands:"
+echo "   /architect       - System design and ADRs"
+echo "   /builder         - Code implementation"
+echo "   /qa-engineer     - Test strategy and quality"
+echo "   /security-auditor - Security reviews"
+echo "   /ui-ux-designer  - Interface design"
+echo ""
+echo "   Swarm orchestration commands:"
+echo "   /swarm-plan      - Plan with parallel exploration"
+echo "   /swarm-execute   - Execute with parallel workers"
+echo "   /swarm-review    - Adversarial multi-perspective review"
+echo "   /swarm-research  - Deep investigation"
+echo "   /code-check      - SOLID, DRY, consistency audit"
+echo ""
+echo "4. If Beads was not initialized above, install it for swarm coordination:"
+echo "   curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+echo "   cd $TARGET_DIR && bd init"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+````
+
 ## File: storage.rules
 ````
 rules_version = '2';
@@ -11979,45 +12596,6 @@ import tailwindcssAnimate from 'tailwindcss-animate';
     "node_modules",
     "functions"
   ]
-}
-````
-
-## File: .gitattributes
-````
-# Use bd merge for beads JSONL files
-.beads/issues.jsonl merge=beads
-````
-
-## File: .mcp.json
-````json
-{
-  "mcpServers": {
-    "sequential-thinking": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
-      ]
-    },
-    "chrome-devtools": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "chrome-devtools-mcp"
-      ]
-    },
-    "filesystem": {                                                  
-      "command": "npx",                                              
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."] 
-    },                                                  
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp"
-      ]
-    }
-  }
 }
 ````
 
@@ -16088,151 +16666,6 @@ HTTP Request
 看完整路徑判斷層級，不看資料夾名稱猜責任。
 ````
 
-## File: README.md
-````markdown
-# Claude Agentic Framework
-
-A drop-in template for Claude Code projects. Adds coordinated multi-agent swarms, specialized commands, 67 reusable skills, and safety hooks — all configured through a single install command.
-
-## Install
-
-Run this inside your project directory:
-
-```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
-```
-
-The script will:
-- Copy `.claude/` (commands, skills, rules, hooks, agents, templates)
-- Copy `.mcp.json` (MCP server configuration)
-- Copy `CLAUDE.md` and `AGENTS.md` (project instructions)
-- Create an `artifacts/` directory for planning documents
-- Set up `.gitignore` entries
-- Install hook dependencies
-- Initialize [Beads](https://github.com/steveyegge/beads) issue tracking (required for swarm coordination)
-
-### Beads Setup
-
-Beads is the issue tracker that coordinates swarm workers — it's how agents claim tasks, track progress, and avoid conflicts. Install it before running the init script:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
-```
-
-The init script will then run `bd init` in your project automatically.
-
-The script prompts before overwriting any existing files. Re-run it to pull in framework updates.
-
-## After Install
-
-1. **Edit `CLAUDE.md`** — Add your build/test commands and project context
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack (this is required — the framework enforces whatever you put here)
-3. Start Claude Code and try: `/architect hello`
-
-## What You Get
-
-### Commands
-
-Single-agent expert modes, invoked via slash commands:
-
-| Command | Role |
-|---------|------|
-| `/architect` | System design, ADRs |
-| `/builder` | Implementation, debugging, testing |
-| `/qa-engineer` | Test strategy, E2E, accessibility |
-| `/security-auditor` | Threat modeling, security audits |
-| `/ui-ux-designer` | Interface design, visual assets |
-| `/code-check` | SOLID, DRY, consistency audit |
-
-### Swarm Orchestrators
-
-Multi-agent commands that fan work out across parallel workers:
-
-| Command | What It Does |
-|---------|-------------|
-| `/swarm-plan` | Launches 3-6 explorer agents to research patterns, dependencies, and constraints — produces a decomposed plan |
-| `/swarm-execute` | Picks up planned work, fans out across builder agents (up to 8 parallel), each running quality gates |
-| `/swarm-review` | Launches 5 parallel reviewers (security, performance, architecture, tests, quality) — run 2-3 times |
-| `/swarm-research` | Deep multi-source investigation with verification tiers |
-
-### The Full Cycle
-
-```
-/architect <feature>  →  /swarm-plan  →  /swarm-execute  →  /swarm-review (2-3x)  →  PR
-```
-
-One agent thinks. Many agents build. Many agents review.
-
-### Workers
-
-Six specialized agent types tuned for cost and capability:
-
-| Worker | Model | Use |
-|--------|-------|-----|
-| `worker-explorer` | Haiku | Fast codebase search, dependency mapping |
-| `worker-builder` | Sonnet | Implementation, testing, refactoring |
-| `worker-reviewer` | Opus | Code review, security analysis |
-| `worker-researcher` | Sonnet | Quick web research, API docs |
-| `worker-research` | Opus | Deep multi-source investigation |
-| `worker-architect` | Opus | Complex design decisions, ADRs |
-
-### Skills
-
-67 skills across 7 categories — auto-suggested based on keywords in your prompt:
-
-**Architecture** · **Engineering** · **Product** · **Security** · **Operations** · **Design** · **Languages & Frameworks**
-
-Covers everything from `designing-systems` and `debugging` to `react-patterns`, `terraform`, and `application-security`. See [docs/skills.md](docs/skills.md) for the full list.
-
-### Safety Hooks
-
-Pre-configured hooks that run automatically:
-
-- **Secret detection** — blocks commits containing API keys, tokens, private keys
-- **Protected files** — prevents accidental modification of `.env`, `.mcp.json`, `.beads/`
-- **Push blocking** — stops direct pushes to `main`/`master`
-- **Dangerous command guard** — warns on `rm -rf`, force push, `terraform destroy`
-- **File locking** — prevents concurrent edits in multi-agent swarms
-
-### MCP Servers
-
-Four servers pre-configured in `.mcp.json`:
-
-| Server | Purpose |
-|--------|---------|
-| Sequential Thinking | Structured multi-step reasoning |
-| Chrome DevTools | Browser testing, performance profiling |
-| Context7 | Up-to-date library documentation |
-| Filesystem | File operations beyond workspace |
-
-## Customization
-
-Everything is designed to be extended:
-
-- Add commands → `.claude/commands/your-command.md`
-- Add skills → `.claude/skills/category/your-skill/SKILL.md`
-- Add rules → `.claude/rules/your-rule.md`
-- Add hooks → `.claude/hooks/your-hook.sh`
-- Add workers → `.claude/agents/worker-yourtype.md`
-
-Templates for each are in `.claude/templates/`.
-
-See [docs/customization.md](docs/customization.md) for details.
-
-## Docs
-
-- [Getting started](docs/getting-started.md)
-- [Multi-agent swarms](docs/swarm.md)
-- [Commands](docs/personas.md)
-- [Skills reference](docs/skills.md)
-- [MCP servers](docs/mcp-servers.md)
-- [Hooks](docs/hooks.md)
-- [Handoffs](docs/handoffs.md)
-- [Beads setup & usage](docs/beads.md)
-- [Customization](docs/customization.md)
-````
-
 ## File: repomix.markdown.config.json
 ````json
 {
@@ -16471,439 +16904,6 @@ See [docs/customization.md](docs/customization.md) for details.
     "encoding": "o200k_base"
   }
 }
-````
-
-## File: scripts/init-framework.sh
-````bash
-#!/bin/bash
-# Claude Agentic Framework - Initialization Script
-# Usage: ./init-framework.sh [/path/to/your/project]
-set -e
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-# Repository URL for cloning when run via curl
-REPO_URL="https://github.com/dralgorhythm/claude-agentic-framework.git"
-# Determine framework source directory
-# When run via curl | bash, BASH_SOURCE[0] is not a valid file path
-if [ -f "${BASH_SOURCE[0]}" ]; then
-    # Running from local file
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    FRAMEWORK_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
-    TEMP_CLONE=""
-else
-    # Running via curl | bash - need to clone the repo
-    echo "Downloading framework from repository..."
-    TEMP_CLONE="$(mktemp -d)"
-    git clone --depth 1 --quiet "$REPO_URL" "$TEMP_CLONE"
-    FRAMEWORK_DIR="$TEMP_CLONE"
-fi
-# Cleanup function for temp directory
-cleanup() {
-    if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
-        rm -rf "$TEMP_CLONE"
-    fi
-}
-trap cleanup EXIT
-# Target directory (default: current directory)
-TARGET_DIR="${1:-.}"
-TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || echo "$TARGET_DIR")"
-# Function to print colored output
-print_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-print_error() {
-    echo -e "${RED}✗${NC} $1"
-}
-print_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
-}
-# Function to prompt user for confirmation
-confirm() {
-    local prompt="$1"
-    local response
-    read -r -p "$prompt [y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-# Function to show diff between two files
-show_file_diff() {
-    local existing="$1"
-    local new="$2"
-    local name="$3"
-    if command -v diff &>/dev/null; then
-        echo ""
-        echo -e "${BLUE}--- Diff for ${name} ---${NC}"
-        # Use color diff if available, otherwise plain diff
-        if diff --color=auto /dev/null /dev/null 2>/dev/null; then
-            diff --color=auto -u "$existing" "$new" 2>/dev/null || true
-        else
-            diff -u "$existing" "$new" 2>/dev/null || true
-        fi
-        echo -e "${BLUE}--- End diff ---${NC}"
-        echo ""
-    fi
-}
-# Function to show diff summary for directories
-show_dir_diff() {
-    local existing="$1"
-    local new="$2"
-    local name="$3"
-    if command -v diff &>/dev/null; then
-        echo ""
-        echo -e "${BLUE}--- Changes in ${name}/ ---${NC}"
-        # Show new files
-        local new_files
-        new_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $new" | sed "s|Only in $new[^:]*: |  + |" || true)
-        if [ -n "$new_files" ]; then
-            echo -e "${GREEN}New files:${NC}"
-            echo "$new_files"
-        fi
-        # Show removed files
-        local removed_files
-        removed_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $existing" | sed "s|Only in $existing[^:]*: |  - |" || true)
-        if [ -n "$removed_files" ]; then
-            echo -e "${RED}Files only in existing:${NC}"
-            echo "$removed_files"
-        fi
-        # Show modified files
-        local modified_files
-        modified_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "^Files .* differ$" | sed -E 's/Files (.*) and .* differ/  ~ \1/' || true)
-        if [ -n "$modified_files" ]; then
-            echo -e "${YELLOW}Modified files:${NC}"
-            echo "$modified_files"
-        fi
-        # Count changes
-        local total_changes
-        total_changes=$(diff -rq "$existing" "$new" 2>/dev/null | wc -l | tr -d ' ')
-        echo ""
-        echo "Total: $total_changes file(s) differ"
-        echo -e "${BLUE}--- End summary ---${NC}"
-        echo ""
-    fi
-}
-# Function to copy file with diff prompt
-copy_file_with_diff() {
-    local src="$1"
-    local dst="$2"
-    local name="$3"
-    local optional="${4:-false}"
-    if [ ! -f "$src" ]; then
-        if [ "$optional" = "true" ]; then
-            return 0
-        fi
-        print_error "Source file not found: $src"
-        return 1
-    fi
-    if [ -f "$dst" ]; then
-        # Check if files are identical
-        if diff -q "$dst" "$src" &>/dev/null; then
-            print_info "$name is already up to date"
-            return 0
-        fi
-        print_warning "$name already exists with differences"
-        show_file_diff "$dst" "$src" "$name"
-        if confirm "  Overwrite $name?"; then
-            cp "$src" "$dst"
-            print_success "$name updated"
-        else
-            print_info "Skipped $name"
-        fi
-    else
-        print_info "Copying $name..."
-        cp "$src" "$dst"
-        print_success "$name installed"
-    fi
-}
-# Function to copy directory with diff prompt
-copy_dir_with_diff() {
-    local src="$1"
-    local dst="$2"
-    local name="$3"
-    local optional="${4:-false}"
-    if [ ! -d "$src" ]; then
-        if [ "$optional" = "true" ]; then
-            return 0
-        fi
-        print_error "Source directory not found: $src"
-        return 1
-    fi
-    if [ -d "$dst" ]; then
-        # Check if directories are identical
-        if diff -rq "$dst" "$src" &>/dev/null; then
-            print_info "$name/ is already up to date"
-            return 0
-        fi
-        print_warning "$name/ already exists with differences"
-        show_dir_diff "$dst" "$src" "$name"
-        if confirm "  Overwrite $name/?"; then
-            rm -rf "$dst"
-            cp -r "$src" "$dst"
-            print_success "$name/ updated"
-        else
-            print_info "Skipped $name/"
-        fi
-    else
-        print_info "Copying $name/..."
-        cp -r "$src" "$dst"
-        print_success "$name/ installed"
-    fi
-}
-# Validate target directory
-if [ ! -d "$TARGET_DIR" ]; then
-    print_error "Target directory does not exist: $TARGET_DIR"
-    exit 1
-fi
-# Detect project name (prefer GitHub repo name, fallback to directory name)
-detect_project_name() {
-    local dir="$1"
-    # Try to get GitHub repo name from git remote
-    if [ -d "$dir/.git" ] || git -C "$dir" rev-parse --git-dir &>/dev/null; then
-        local remote_url
-        remote_url=$(git -C "$dir" remote get-url origin 2>/dev/null || echo "")
-        if [ -n "$remote_url" ]; then
-            # Extract repo name from various URL formats:
-            # https://github.com/user/repo.git -> repo
-            # git@github.com:user/repo.git -> repo
-            # https://github.com/user/repo -> repo
-            local repo_name
-            repo_name=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
-            if [ -n "$repo_name" ]; then
-                echo "$repo_name"
-                return
-            fi
-        fi
-    fi
-    # Fallback to directory name
-    basename "$dir"
-}
-PROJECT_NAME="$(detect_project_name "$TARGET_DIR")"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Claude Agentic Framework - Initialization"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-print_info "Framework source: $FRAMEWORK_DIR"
-print_info "Target directory: $TARGET_DIR"
-print_info "Project name: $PROJECT_NAME"
-echo ""
-# Copy core directories with diff support
-copy_dir_with_diff "$FRAMEWORK_DIR/.claude" "$TARGET_DIR/.claude" ".claude"
-# Create artifacts directory if it doesn't exist
-if [ ! -d "$TARGET_DIR/artifacts" ]; then
-    print_info "Creating artifacts directory..."
-    mkdir -p "$TARGET_DIR/artifacts"
-    print_success "artifacts directory created"
-else
-    print_info "artifacts directory already exists"
-fi
-# Copy config files with diff support
-copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
-copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.mcp.json" ".mcp.json"
-# Initialize Beads issue tracking (required for swarm coordination)
-if [ ! -d "$TARGET_DIR/.beads" ]; then
-    if command -v bd &>/dev/null; then
-        print_info "Initializing Beads issue tracking..."
-        if (cd "$TARGET_DIR" && bd init 2>/dev/null); then
-            print_success "Beads initialized"
-        else
-            print_warning "Beads initialization failed. Run 'bd init' manually for swarm coordination."
-        fi
-    else
-        print_warning "Beads CLI not found — required for swarm coordination"
-        print_info "  Install: curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-        print_info "  Then: cd $TARGET_DIR && bd init"
-    fi
-else
-    print_info ".beads/ already initialized"
-fi
-# Copy CLAUDE.md and AGENTS.md with diff support
-copy_file_with_diff "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
-copy_file_with_diff "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md" "AGENTS.md"
-# Copy README.md with diff support (optional for existing projects)
-if [ ! -f "$TARGET_DIR/README.md" ]; then
-    print_warning "README.md does not exist"
-    if confirm "  Create README.md from framework template?"; then
-        cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
-        print_success "README.md created"
-    else
-        print_info "Skipped README.md"
-    fi
-else
-    # Only show diff for README if user wants to see framework updates
-    if ! diff -q "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" &>/dev/null; then
-        print_info "README.md exists (differs from framework template)"
-        if confirm "  View diff and optionally update?"; then
-            show_file_diff "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" "README.md"
-            if confirm "  Overwrite README.md with framework template?"; then
-                cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
-                print_success "README.md updated"
-            else
-                print_info "Kept existing README.md"
-            fi
-        else
-            print_info "Skipped README.md"
-        fi
-    else
-        print_info "README.md is already up to date"
-    fi
-fi
-# Create or update .gitignore (append mode for existing files)
-GITIGNORE_ENTRIES=(
-    "# Dependencies"
-    "node_modules/"
-    ".pnpm-store/"
-    "__pycache__/"
-    "*.pyc"
-    ".venv/"
-    "venv/"
-    "# Build outputs"
-    "dist/"
-    "build/"
-    "*.o"
-    "*.so"
-    "*.exe"
-    "# IDE"
-    ".vscode/"
-    ".idea/"
-    "*.swp"
-    "*.swo"
-    "*~"
-    "# OS"
-    ".DS_Store"
-    "Thumbs.db"
-    "# Environment"
-    ".env"
-    ".env.local"
-    "*.local"
-    "# Logs"
-    "*.log"
-    "npm-debug.log*"
-    "# Claude Framework"
-    "scratchpad/"
-)
-if [ ! -f "$TARGET_DIR/.gitignore" ]; then
-    print_warning ".gitignore does not exist"
-    if confirm "  Create basic .gitignore?"; then
-        printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > "$TARGET_DIR/.gitignore"
-        print_success ".gitignore created"
-    else
-        print_info "Skipped .gitignore"
-    fi
-else
-    # Find missing entries (excluding comments)
-    MISSING_ENTRIES=()
-    for entry in "${GITIGNORE_ENTRIES[@]}"; do
-        # Skip comment lines for matching
-        if [[ "$entry" == \#* ]]; then
-            continue
-        fi
-        # Check if entry exists in current .gitignore (exact line match)
-        if ! grep -Fxq "$entry" "$TARGET_DIR/.gitignore" 2>/dev/null; then
-            MISSING_ENTRIES+=("$entry")
-        fi
-    done
-    if [ ${#MISSING_ENTRIES[@]} -eq 0 ]; then
-        print_info ".gitignore already contains all framework entries"
-    else
-        print_warning ".gitignore is missing ${#MISSING_ENTRIES[@]} framework entries"
-        echo ""
-        echo -e "${BLUE}--- Entries to append ---${NC}"
-        for entry in "${MISSING_ENTRIES[@]}"; do
-            echo -e "${GREEN}  + $entry${NC}"
-        done
-        echo -e "${BLUE}--- End entries ---${NC}"
-        echo ""
-        if confirm "  Append missing entries to .gitignore?"; then
-            # Add a blank line separator if file doesn't end with newline
-            if [ -s "$TARGET_DIR/.gitignore" ] && [ "$(tail -c1 "$TARGET_DIR/.gitignore" | wc -l)" -eq 0 ]; then
-                echo "" >> "$TARGET_DIR/.gitignore"
-            fi
-            # Add framework section header
-            echo "" >> "$TARGET_DIR/.gitignore"
-            echo "# Claude Agentic Framework" >> "$TARGET_DIR/.gitignore"
-            for entry in "${MISSING_ENTRIES[@]}"; do
-                echo "$entry" >> "$TARGET_DIR/.gitignore"
-            done
-            print_success ".gitignore updated (${#MISSING_ENTRIES[@]} entries appended)"
-        else
-            print_info "Kept existing .gitignore"
-        fi
-    fi
-fi
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-print_success "Framework initialization complete!"
-echo ""
-# Create hook runtime directories
-mkdir -p "$TARGET_DIR/.claude/hooks/.state" "$TARGET_DIR/.claude/hooks/.locks"
-print_success "Hook runtime directories created (.state, .locks)"
-# Make hook scripts executable
-if [ -d "$TARGET_DIR/.claude/hooks" ]; then
-    chmod +x "$TARGET_DIR/.claude/hooks"/*.sh 2>/dev/null || true
-    print_success "Hook scripts made executable"
-fi
-# Install hook dependencies if needed
-if [ -f "$TARGET_DIR/.claude/hooks/package.json" ]; then
-    print_info "Installing hook dependencies..."
-    echo ""
-    INSTALL_OK=false
-    if command -v pnpm &> /dev/null; then
-        (cd "$TARGET_DIR/.claude/hooks" && pnpm install --silent) && INSTALL_OK=true
-    elif command -v npm &> /dev/null; then
-        (cd "$TARGET_DIR/.claude/hooks" && npm install --silent) && INSTALL_OK=true
-    else
-        print_warning "Neither pnpm nor npm found - skipping dependency installation"
-        print_info "Install Node.js and run: cd .claude/hooks && npm install"
-    fi
-    if [ "$INSTALL_OK" = "true" ]; then
-        print_success "Hook dependencies installed"
-    fi
-    echo ""
-fi
-# Print next steps
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Next Steps"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "1. Customize CLAUDE.md with your project-specific context"
-echo ""
-echo "2. Review tech strategy in .claude/rules/tech-strategy.md"
-echo "   Update to match your organization's standards"
-echo ""
-echo "3. Start using commands via slash commands:"
-echo "   /architect       - System design and ADRs"
-echo "   /builder         - Code implementation"
-echo "   /qa-engineer     - Test strategy and quality"
-echo "   /security-auditor - Security reviews"
-echo "   /ui-ux-designer  - Interface design"
-echo ""
-echo "   Swarm orchestration commands:"
-echo "   /swarm-plan      - Plan with parallel exploration"
-echo "   /swarm-execute   - Execute with parallel workers"
-echo "   /swarm-review    - Adversarial multi-perspective review"
-echo "   /swarm-research  - Deep investigation"
-echo "   /code-check      - SOLID, DRY, consistency audit"
-echo ""
-echo "4. If Beads was not initialized above, install it for swarm coordination:"
-echo "   curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-echo "   cd $TARGET_DIR && bd init"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
 ````
 
 ## File: SPEC-WORKFLOW.md
@@ -24778,6 +24778,84 @@ setIsCreateWorkspaceOpen(false);
 }
 ````
 
+## File: .gitignore
+````
+# =============================================================================
+# Claude Code Local Files
+# =============================================================================
+CLAUDE.local.md
+.claude/settings.local.json
+
+# =============================================================================
+# Claude Hooks Runtime
+# =============================================================================
+.claude/hooks/node_modules/
+.claude/hooks/dist/
+.claude/hooks/.file-tracker.log
+.claude/hooks/.locks/
+.claude/hooks/.state/
+
+# =============================================================================
+# Scratchpad (ephemeral working notes, gitignored by design)
+# =============================================================================
+scratchpad/
+
+# =============================================================================
+# Swarm Runtime
+# =============================================================================
+.swarm/
+
+# =============================================================================
+# Beads Runtime (project-specific, not part of framework template)
+# =============================================================================
+.beads/
+
+# =============================================================================
+# OS Files
+# =============================================================================
+.DS_Store
+Thumbs.db
+
+# =============================================================================
+# Editor Directories
+# =============================================================================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# =============================================================================
+# Node.js
+# =============================================================================
+node_modules/
+.next/
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# =============================================================================
+# Logs
+# =============================================================================
+*.log
+
+# =============================================================================
+# Runtime Lock Files
+# =============================================================================
+*.pid
+*.sock
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.playwright-mcp
+````
+
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
 ````typescript
 /**
@@ -24975,6 +25053,55 @@ export default async function WikiArticleDetailRedirect({
 ````typescript
 import { redirect } from "next/navigation";
 export default function WikiRagQueryRedirect()
+````
+
+## File: CLAUDE.md
+````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: CONTRIBUTING.md
@@ -26734,82 +26861,155 @@ async function loadPages()
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: .gitignore
-````
-# =============================================================================
-# Claude Code Local Files
-# =============================================================================
-CLAUDE.local.md
-.claude/settings.local.json
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
 
-# =============================================================================
-# Claude Hooks Runtime
-# =============================================================================
-.claude/hooks/node_modules/
-.claude/hooks/dist/
-.claude/hooks/.file-tracker.log
-.claude/hooks/.locks/
-.claude/hooks/.state/
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
 
-# =============================================================================
-# Scratchpad (ephemeral working notes, gitignored by design)
-# =============================================================================
-scratchpad/
+## Development Status Workflow
 
-# =============================================================================
-# Swarm Runtime
-# =============================================================================
-.swarm/
+Use the following status flow for issues, tasks, and features:
 
-# =============================================================================
-# Beads Runtime (project-specific, not part of framework template)
-# =============================================================================
-.beads/
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
 
-# =============================================================================
-# OS Files
-# =============================================================================
-.DS_Store
-Thumbs.db
+## Quick Start
 
-# =============================================================================
-# Editor Directories
-# =============================================================================
-.idea/
-.vscode/
-*.swp
-*.swo
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
-# =============================================================================
-# Node.js
-# =============================================================================
-node_modules/
-.next/
+## Key Rules
 
-# =============================================================================
-# Python
-# =============================================================================
-__pycache__/
-*.pyc
-.venv/
-venv/
+### Architecture
 
-# =============================================================================
-# Logs
-# =============================================================================
-*.log
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
 
-# =============================================================================
-# Runtime Lock Files
-# =============================================================================
-*.pid
-*.sock
+### Import Aliases
 
-# Beads / Dolt files (added by bd init)
-.dolt/
-*.db
-.beads-credential-key
-.playwright-mcp
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: app/(shell)/wiki/articles/page.tsx
@@ -26834,55 +27034,6 @@ export default function WikiDocumentsRedirect()
 ````typescript
 import { redirect } from "next/navigation";
 export default function WikiPageRedirect()
-````
-
-## File: CLAUDE.md
-````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: modules/knowledge-collaboration/index.ts
@@ -27294,216 +27445,10 @@ import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/kn
 async function main()
 ````
 
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
-````
-
 ## File: app/(shell)/wiki/pages/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
 export default function WikiPagesRedirect()
-````
-
-## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: application/use-cases
- * Article lifecycle use cases.
- */
-import { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
-import type { Article } from "../../domain/entities/article.entity";
-import {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-  DeleteArticleSchema,
-} from "../dto/knowledge-base.dto";
-import { v7 as generateId } from "@lib-uuid";
-export class CreateArticleUseCase {
-⋮----
-constructor(private readonly repo: IArticleRepository)
-async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult>
-⋮----
-export class UpdateArticleUseCase {
-⋮----
-async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult>
-⋮----
-export class PublishArticleUseCase {
-⋮----
-async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult>
-⋮----
-export class ArchiveArticleUseCase {
-⋮----
-async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult>
-⋮----
-export class VerifyArticleUseCase {
-⋮----
-async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult>
-⋮----
-export class RequestArticleReviewUseCase {
-⋮----
-async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult>
-⋮----
-export class DeleteArticleUseCase {
-⋮----
-async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult>
-⋮----
-export class ListArticlesUseCase {
-⋮----
-async execute(params:
 ````
 
 ## File: modules/knowledge/repositories.md
@@ -27702,6 +27647,70 @@ setIsEditWorkspaceOpen(true);
 setIsEditWorkspaceOpen(open);
 ````
 
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+⋮----
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: application/use-cases
+ * Article lifecycle use cases.
+ */
+import { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
+import type { Article } from "../../domain/entities/article.entity";
+import {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+  DeleteArticleSchema,
+} from "../dto/knowledge-base.dto";
+import { v7 as generateId } from "@lib-uuid";
+export class CreateArticleUseCase {
+⋮----
+constructor(private readonly repo: IArticleRepository)
+async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult>
+⋮----
+export class UpdateArticleUseCase {
+⋮----
+async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult>
+⋮----
+export class PublishArticleUseCase {
+⋮----
+async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult>
+⋮----
+export class ArchiveArticleUseCase {
+⋮----
+async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult>
+⋮----
+export class VerifyArticleUseCase {
+⋮----
+async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult>
+⋮----
+export class RequestArticleReviewUseCase {
+⋮----
+async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult>
+⋮----
+export class DeleteArticleUseCase {
+⋮----
+async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult>
+⋮----
+export class ListArticlesUseCase {
+⋮----
+async execute(params:
+````
+
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -27815,15 +27824,6 @@ export function listWikiLibraries(accountId: string, workspaceId?: string): Prom
 // --- Query functions ---------------------------------------------------------
 ⋮----
 // --- UI components (cross-module public) -------------------------------------
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-⋮----
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
