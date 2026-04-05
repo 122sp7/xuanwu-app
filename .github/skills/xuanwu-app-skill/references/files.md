@@ -636,6 +636,238 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
+## File: .github/agents/knowledge-base.md
+````markdown
+# Knowledge Base — MDDD Domain & Architecture
+
+This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
+
+## Module-Driven Domain Design (MDDD)
+
+The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
+
+### Core Principle
+
+> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+
+### Global Dependency Direction
+
+```
+UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
+```
+
+The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
+
+## Module Structure
+
+Each module under `modules/` follows a four-layer Clean Architecture:
+
+```
+modules/<module-name>/
+├── api/
+│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
+├── index.ts                    # Optional local barrel for same-module composition
+├── README.md                   # Module documentation (optional)
+├── domain/
+│   ├── entities/               # Aggregate roots, value objects, entity types
+│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
+│   ├── services/               # Pure domain services (stateless business rules)
+│   ├── value-objects/          # DDD value objects (immutable, equality by value)
+│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
+├── application/
+│   ├── use-cases/              # One file per use case (single operation)
+│   └── dto/                    # Data Transfer Objects for use-case I/O
+├── infrastructure/
+│   ├── firebase/               # Firebase Firestore repository implementations
+│   ├── genkit/                 # AI/Genkit integrations (AI module)
+│   ├── default/                # In-memory or simplified implementations
+│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
+│   ├── persistence/            # Persistence adapters
+│   └── repositories/           # Repository implementations (alternative layout)
+└── interfaces/
+    ├── components/             # React UI components
+    ├── queries/                # TanStack Query hooks (read-side)
+    ├── _actions/               # Next.js Server Actions (write-side)
+    ├── hooks/                  # Custom React hooks
+    ├── api/                    # REST API route controllers
+    ├── contracts/              # API contracts
+    └── view-models/            # View model transformations
+```
+
+Not every module has every subdirectory — only what it needs.
+
+### Boundary Policy
+
+- Every `modules/<module-name>/` is isolated.
+- Cross-module imports are allowed only via `modules/<target-module>/api/`.
+- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
+- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+
+## Module Inventory
+
+Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+
+`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+
+> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
+
+## Package System (21 Packages)
+
+Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
+
+### Import Rule
+
+```typescript
+// ✅ CORRECT — via @alias from tsconfig.json
+import type { CommandResult, DomainError } from "@shared-types";
+import { cn, formatDate } from "@shared-utils";
+import { auth } from "@integration-firebase";
+
+// ❌ NEVER — relative paths to package internals
+import type { CommandResult } from "../../../../packages/shared-types/index";
+
+// ❌ NEVER — legacy paths (ESLint will block)
+import type { CommandResult } from "@/shared/types";
+```
+
+### Package Catalog
+
+| Alias | Package | Purpose |
+|-------|---------|---------|
+| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
+| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
+| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
+| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
+| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
+| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
+| `@integration-http` | integration-http | Axios HTTP client with interceptors |
+| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
+| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
+| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
+| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
+| `@lib-zod` | lib-zod | Zod v4 wrapper |
+| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
+| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
+| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
+| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
+| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
+| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
+| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
+| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
+
+### ESLint Boundary Enforcement
+
+Legacy import paths are blocked by `eslint.config.mjs`:
+
+| Blocked Pattern | Replacement |
+|----------------|-------------|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` or `@integration-*` |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+`modules/` 內也有額外邊界保護：
+
+- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
+- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
+- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
+
+### 已知邊界警告（待修復）
+
+以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
+
+目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
+
+> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
+
+> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
+
+## Tech Stack
+
+| Concern | Technology | Version |
+|---------|-----------|---------|
+| Framework | Next.js (App Router) | 16.1.7 |
+| UI Library | React | 19.2.3 |
+| Language | TypeScript | 5 |
+| Backend | Firebase (client SDK) | 12 |
+| Styling | Tailwind CSS | 4 |
+| Validation | Zod | 4.3.6 |
+| State (global) | Zustand | 5.0.12 |
+| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
+| AI | Genkit + Google GenAI | 1.30.1 |
+| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
+| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
+| Date Handling | date-fns | 4 |
+| HTTP Client | Axios | 1.13.6 |
+| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
+| Node Engine | Node.js | 24 |
+
+## Key Architectural Patterns
+
+### Repository Pattern
+
+- **Interface** lives in `domain/repositories/` — defines what the module needs
+- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
+- Domain layer never imports infrastructure
+
+### Use Case Pattern
+
+- Each use case is a single file under `application/use-cases/`
+- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
+- One use case = one user-facing operation
+
+### Hexagonal Ports (Advanced)
+
+Example port shapes:
+- `domain/ports/ActorContextPort.ts` — resolves who is acting
+- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
+- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
+- All access decisions flow through ports, not scattered in UI/router
+
+### Domain Events
+
+Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
+- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
+- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
+- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
+- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
+
+Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
+
+### Internal Imports Within a Module
+
+Inside a module, files use **relative imports** (not the module's own barrel export):
+
+```typescript
+// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+import { KnowledgePage } from "../../domain/entities/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
+
+// ❌ Do NOT self-import via the barrel
+import { KnowledgePage } from "@/modules/knowledge";
+```
+
+### Cross-Module Imports
+
+Between modules, always use the target module's `api/` boundary:
+
+```typescript
+// ✅ Cross-module import — event-store primitives are now in modules/shared
+import { PublishDomainEventUseCase } from "@/modules/shared/api";
+
+// ❌ Reaching into another module's internals
+import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
+```
+
+## Responsibility Boundaries
+
+- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
+- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
+- When ownership shifts, update contracts and architecture docs in the same change.
+````
+
 ## File: .github/agents/lint-rule-enforcer.agent.md
 ````markdown
 ---
@@ -3088,6 +3320,42 @@ npm run repomix:markdown
 ```
 
 Keep this directory focused on active customizations. Remove stale references, broken links, and unused compatibility notes when the structure changes.
+````
+
+## File: .github/terminology-glossary.md
+````markdown
+# Terminology Glossary Entry Point
+
+Use this file as the stable glossary entry point referenced by `.github/*` customizations.
+
+## DDD Reference Set
+
+- Strategic classification: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
+- Bounded context map: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
+- Context terms: use the matching `../docs/ddd/<context>/ubiquitous-language.md`
+
+## Bounded Context Glossaries
+
+- [`account`](../docs/ddd/account/ubiquitous-language.md)
+- [`ai`](../docs/ddd/ai/ubiquitous-language.md)
+- [`identity`](../docs/ddd/identity/ubiquitous-language.md)
+- [`knowledge`](../docs/ddd/knowledge/ubiquitous-language.md)
+- [`knowledge-base`](../docs/ddd/knowledge-base/ubiquitous-language.md)
+- [`knowledge-collaboration`](../docs/ddd/knowledge-collaboration/ubiquitous-language.md)
+- [`knowledge-database`](../docs/ddd/knowledge-database/ubiquitous-language.md)
+- [`notebook`](../docs/ddd/notebook/ubiquitous-language.md)
+- [`notification`](../docs/ddd/notification/ubiquitous-language.md)
+- [`organization`](../docs/ddd/organization/ubiquitous-language.md)
+- [`search`](../docs/ddd/search/ubiquitous-language.md)
+- [`shared`](../docs/ddd/shared/ubiquitous-language.md)
+- [`source`](../docs/ddd/source/ubiquitous-language.md)
+- [`workspace`](../docs/ddd/workspace/ubiquitous-language.md)
+- [`workspace-audit`](../docs/ddd/workspace-audit/ubiquitous-language.md)
+- [`workspace-feed`](../docs/ddd/workspace-feed/ubiquitous-language.md)
+- [`workspace-flow`](../docs/ddd/workspace-flow/ubiquitous-language.md)
+- [`workspace-scheduling`](../docs/ddd/workspace-scheduling/ubiquitous-language.md)
+
+When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
 ````
 
 ## File: AGENTS.md
@@ -6345,935 +6613,6 @@ modules/*
 ## File: docs/development/README.md
 ````markdown
 
-````
-
-## File: docs/guides/explanation/architecture-domain.md
-````markdown
-# 領域概念模型：AI 知識平台架構實現指南
-
-基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
-
----
-
-## 一、四層架構與有界上下文對應
-
-architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
-
-```text
-┌─────────────────────────────────────────────────┐
-│              AI Layer（AI 層）                    │  ← modules/search, modules/notebook, modules/knowledge
-├─────────────────────────────────────────────────┤
-│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/wiki
-├─────────────────────────────────────────────────┤
-│         Content / UI Layer（內容層）               │  ← modules/knowledge, modules/source
-├─────────────────────────────────────────────────┤
-│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
-│                                                  │     modules/account, modules/identity, modules/shared
-└─────────────────────────────────────────────────┘
-```
-
-| 架構層 | 對應模組 | 核心職責 |
-| --- | --- | --- |
-| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
-| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
-| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
-| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
-
-**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
-
-```text
-依賴方向（箭頭表示「依賴」）：
-
-AI Layer
-  ↓ 依賴
-Knowledge Graph Layer
-  ↓ 依賴
-Content / UI Layer
-  ↓ 依賴
-Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
-```
-
----
-
-## 二、Content / UI Layer 的領域概念
-
-### 2.1 Page（頁面聚合根）
-
-Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
-
-**實現位置：** `modules/knowledge/domain/entities/content-page.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 唯一識別碼（聚合根 ID） |
-| `title` | `string` | 頁面標題（Graph Node 標籤） |
-| `slug` | `string` | URL 友好路徑（重定向的基礎） |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
-| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
-| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
-| `organizationId` | `string` | 所屬組織（多租戶） |
-
-**值物件：**
-- `PageStatus`：`"draft" | "published" | "archived"`
-- `PageSlug`：確保唯一且 URL-safe 的值物件
-
-**不變式（Invariants）：**
-- 一個 Page 必須屬於一個 Workspace。
-- `slug` 在同一 Workspace 中必須唯一。
-- 已 `archived` 的頁面不能再接受 Block 更新。
-
-### 2.2 Block（區塊聚合根）
-
-Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
-
-**實現位置：** `modules/knowledge/domain/entities/content-block.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Block 唯一識別碼 |
-| `pageId` | `string` | 所屬頁面（外鍵） |
-| `type` | `BlockType` | Block 類型（見下方） |
-| `content` | `BlockContent` | 具體內容（依 type 變化） |
-| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
-| `order` | `number` | 在頁面中的排列順序 |
-
-**BlockType 值物件（對應 Notion Block 類型）：**
-
-```typescript
-type BlockType =
-  | "text"
-  | "heading_1" | "heading_2" | "heading_3"
-  | "toggle"
-  | "callout"
-  | "code"
-  | "quote"
-  | "divider"
-  | "table"
-  | "image" | "video" | "file"
-  | "embed"
-  | "synced_block"
-  | "column_layout"
-  | "bulleted_list" | "numbered_list"
-  | "to_do"
-  | "page_link";
-```
-
-**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
-
-### 2.3 ContentVersion（版本快照）
-
-對應 Wiki 的 Edit History / Diff / Rollback 能力。
-
-**實現位置：** `modules/knowledge/domain/entities/content-version.entity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 版本 ID |
-| `pageId` | `string` | 所屬頁面 |
-| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
-| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
-| `authorId` | `string` | 作者 ID |
-| `createdAt` | `Timestamp` | 版本時間戳 |
-| `isMinorEdit` | `boolean` | 是否為小修改標記 |
-
----
-
-## 三、Knowledge Graph Layer 的領域概念
-
-### 3.1 GraphNode（知識圖節點）
-
-對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
-
-**實現位置：** `modules/wiki/domain/entities/graph-node.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
-| `label` | `string` | 顯示標籤 |
-| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
-| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
-
-**GraphNodeStatus 狀態機：**
-
-```text
-draft ──────────→ active ──────────→ archived
-  ↑                  │
-  └──────────────────┘ (reactivation)
-```
-
-**領域事件：**
-- `graph-node.activated`：節點從 draft 轉為 active 時觸發
-- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
-
-### 3.2 GraphEdge / Link（知識圖邊）
-
-對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
-
-**實現位置：** `modules/wiki/domain/entities/link.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邊唯一 ID |
-| `fromNodeId` | `string` | 來源節點（連結發起方） |
-| `toNodeId` | `string` | 目標節點（連結目標） |
-| `type` | `EdgeType` | 語意關係類型（見下方） |
-| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
-
-**EdgeType 值物件（對應 Schema + Ontology Layer）：**
-
-```typescript
-type EdgeType =
-  | "IS_A"        // 繼承關係（A 是 B 的一種）
-  | "PART_OF"     // 組成關係（A 是 B 的一部分）
-  | "RELATED_TO"  // 相關關係（通用）
-  | "DEPENDS_ON"  // 依賴關係
-  | "CAUSES"      // 因果關係
-  | "CONTRADICTS" // 矛盾關係
-  | "REDIRECT"    // 重定向（別名統一）
-  | "CATEGORY";   // 分類從屬
-```
-
-**不變式：**
-- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
-- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
-
-**Backlink 的領域含義：**  
-Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
-
-### 3.3 WikiPage（Wiki 頁面整合）
-
-輕量化的 Wiki 風格頁面實體，用於 wiki 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
-
-> **模組遷移說明：** `modules/wiki` 獨立模組已移除。WikiPage 概念已遷移至 `modules/knowledge`（頁面層）；WikiLibrary 概念遷移至 `modules/source`（結構化資料層）；WikiContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/search`。
-
-**實現位置：** `modules/knowledge/domain/entities/wiki-page.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 頁面唯一識別碼 |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL 友好路徑 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `order` | `number` | 在內容樹中的排列順序 |
-| `status` | `WikiPageStatus` | 頁面狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-### 3.4 WikiLibrary（Wiki 知識庫聚合根）
-
-WikiLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
-
-**實現位置：** `modules/source/domain/entities/wiki-library.types.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Library 唯一 ID（聚合根） |
-| `accountId` | `string` | 所屬帳戶（租戶隔離） |
-| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
-| `name` | `string` | Library 名稱（顯示於側邊欄） |
-| `slug` | `string` | URL 友好路徑 |
-| `status` | `WikiLibraryStatus` | 狀態：`"active" \| "archived"` |
-| `createdAt` | `Date` | 建立時間 |
-| `updatedAt` | `Date` | 最後更新時間 |
-
-**相關實體：**
-- `WikiLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
-- `WikiLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
-
-**與其他概念的關係：**
-- 一個 Workspace 可包含多個 WikiLibrary。
-- WikiContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
-
-### 3.5 Slug 工具（原 Namespace 模組）
-
-> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
-
-Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
-
-**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
-
-| 函式 | 說明 |
-| --- | --- |
-| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
-| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
-
-## 四、AI Layer 的領域概念
-
-### 4.1 IngestionDocument（攝入文件聚合根）
-
-文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 文件唯一 ID |
-| `organizationId` | `string` | 所屬組織（多租戶隔離） |
-| `workspaceId` | `string` | 所屬工作區 |
-| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
-| `title` | `string` | 文件標題 |
-| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
-| `status` | `IngestionStatus` | 攝入狀態（見下方） |
-
-**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
-
-```text
-                        ┌─────────────────────────────────────┐
-                        ↓                                     │
-uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
-    │          │          │           │                         │
-    └──────────┴──────────┴───────────┴─────────────────────────┘
-                                  failed（任一階段可轉入）
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `uploaded` | 檔案已上傳，等待處理 |
-| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
-| `chunking` | 正在分塊（Chunk 階段：語意分段） |
-| `embedding` | 正在向量化（Embedding 階段） |
-| `indexed` | 已完成索引，可供查詢 |
-| `stale` | 原始文件已更新，需重新索引 |
-| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
-| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
-
----
-
-### 4.2 IngestionJob（攝入作業）
-
-追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 作業唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `stage` | `PipelineStage` | 當前執行階段 |
-| `startedAt` | `Timestamp` | 開始時間 |
-| `completedAt` | `Timestamp \| null` | 完成時間 |
-| `error` | `string \| null` | 錯誤訊息（若 failed） |
-
-**PipelineStage 值物件：**
-
-```typescript
-type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
-```
-
-### 4.3 IngestionChunk（語意分塊）
-
-代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
-
-**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
-
-**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | Chunk 唯一 ID |
-| `documentId` | `string` | 所屬文件 |
-| `content` | `string` | Chunk 文字內容 |
-| `chunkIndex` | `number` | 在文件中的順序編號 |
-| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
-| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
-| `vector` | `number[]` | 向量表示（Embedding 結果） |
-| `tokenCount` | `number` | Token 數量（分塊品質指標） |
-
-**不變式：**
-- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
-- `content` 長度不得超過所選 Embedding Model 的 token 上限。
-
-### 4.4 RagQuery（RAG 查詢聚合根）
-
-代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
-
-**實現位置：** `modules/search/domain/entities/RagQuery.ts`
-
-**核心介面：**
-
-```typescript
-interface RagQuery {
-  id: string;
-  workspaceId: string;
-  input: string;               // 用戶原始輸入
-  intent?: QueryIntent;        // 分類後的查詢意圖
-  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
-  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
-}
-```
-
-**QueryIntent 值物件（對應 Query Understanding Layer）：**
-
-```typescript
-type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
-```
-
-**RagRetrievedChunk 值物件（檢索結果項目）：**
-
-```typescript
-interface RagRetrievedChunk {
-  chunkId: string;
-  documentId: string;
-  content: string;
-  score: number;           // 相關性分數（Reranker 輸出）
-  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
-}
-```
-
-**RagCitation 值物件（引用系統，對應 Source Grounding）：**
-
-```typescript
-interface RagCitation {
-  documentId: string;
-  documentTitle: string;
-  chunkId: string;
-  sectionPath: string;
-  pageNumber?: number;
-  confidenceScore: number;     // 引用可信度
-}
-```
-
-**RagRetrievalSummary 值物件（完整回答結果）：**
-
-```typescript
-interface RagRetrievalSummary {
-  answer: string;              // LLM 生成的回答
-  citations: RagCitation[];    // 引用來源列表
-  faithfulnessScore?: number;  // Faithfulness 驗證分數
-  isGrounded: boolean;         // 是否通過 Grounding 驗證
-}
-```
-
-### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
-
-對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
-
-**實現位置：**
-- `modules/notebook/domain/entities/thread.ts`
-- `modules/notebook/domain/entities/message.ts`
-
-**AgentThread 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 對話 Thread ID |
-| `workspaceId` | `string` | 所屬工作區 |
-| `userId` | `string` | 發起用戶 |
-| `createdAt` | `Timestamp` | 建立時間 |
-| `updatedAt` | `Timestamp` | 最後更新時間 |
-
-**AgentMessage 核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 訊息唯一 ID |
-| `threadId` | `string` | 所屬 Thread |
-| `role` | `"user" \| "assistant"` | 訊息角色 |
-| `content` | `string` | 訊息內容 |
-| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
----
-
-## 五、Platform Foundation Layer 的領域概念
-
-Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
-
-### 5.1 Identity（身份識別）
-
-Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
-
-**實現位置：** `modules/identity/domain/entities/Identity.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
-| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 大頭照 URL |
-| `isAnonymous` | `boolean` | 是否為匿名會話 |
-| `emailVerified` | `boolean` | 信箱是否已驗證 |
-
-**值物件：**
-- `SignInCredentials`：`{ email: string; password: string }`
-- `RegistrationInput`：`{ email: string; password: string; name: string }`
-
-**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
-
-#### TokenRefreshSignal（Custom Claims 刷新訊號）
-
-當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
-
-```text
-Party 1（account / organization 模組）
-    → 角色或政策變更
-    → 呼叫 identityApi.emitTokenRefreshSignal()
-
-Party 2（identity 模組 TokenRefreshRepository）
-    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
-
-Party 3（前端 useTokenRefreshListener hook）
-    → 監聽 Firestore 該文件
-    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
-```
-
-**TokenRefreshSignal 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `accountId` | `string` | 觸發刷新的帳戶 ID |
-| `reason` | `TokenRefreshReason` | 觸發原因 |
-| `issuedAt` | `string` | ISO-8601 時間戳 |
-| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
-
-**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
-
----
-
-### 5.2 Account（帳戶聚合根）
-
-Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
-
-**實現位置：** `modules/account/domain/entities/Account.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
-| `name` | `string` | 帳戶顯示名稱 |
-| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
-| `email` | `string \| undefined` | 聯絡信箱 |
-| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
-| `bio` | `string \| undefined` | 個人簡介或組織描述 |
-| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
-| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
-| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
-| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
-| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
-| `createdAt` | `Timestamp \| undefined` | 建立時間 |
-
-**值物件：**
-- `AccountType`：`"user" | "organization"`
-- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
-- `Presence`：`"active" | "away" | "offline"`
-- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
-- `Wallet`：`{ balance: number }`（積分系統）
-
-**Team 嵌套物件（組織帳戶專屬）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 小組 ID |
-| `name` | `string` | 小組名稱 |
-| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
-| `memberIds` | `string[]` | 成員 ID 列表 |
-
-**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
-
-#### AccountPolicy（帳戶層 ABAC 政策）
-
-Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
-
-**AccountPolicy 屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 政策唯一 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `name` | `string` | 政策名稱 |
-| `rules` | `PolicyRule[]` | 規則列表 |
-| `isActive` | `boolean` | 是否啟用 |
-| `createdAt` | `string` | ISO-8601 建立時間 |
-| `traceId` | `string \| undefined` | 審計追蹤 ID |
-
-**PolicyRule 值物件：**
-
-```typescript
-interface PolicyRule {
-  resource: string;                      // 受保護資源路徑
-  actions: string[];                     // 允許或拒絕的操作列表
-  effect: "allow" | "deny";             // 政策效果
-  conditions?: Record<string, string>;   // 條件約束（可選）
-}
-```
-
-政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
-
----
-
-### 5.3 Organization（組織聚合根）
-
-Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
-
-**實現位置：** `modules/organization/domain/entities/Organization.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 組織唯一 ID（聚合根） |
-| `name` | `string` | 組織名稱 |
-| `ownerId` | `string` | 擁有者 UID |
-| `email` | `string \| undefined` | 組織聯絡信箱 |
-| `description` | `string \| undefined` | 組織描述 |
-| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
-| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
-| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
-| `teams` | `Team[]` | 小組列表 |
-| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**PartnerInvite 值物件（合作夥伴邀請）：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 邀請唯一 ID |
-| `email` | `string` | 被邀請方信箱 |
-| `teamId` | `string` | 加入的小組 |
-| `role` | `OrganizationRole` | 授予角色 |
-| `inviteState` | `InviteState` | 邀請狀態 |
-| `invitedAt` | `Timestamp` | 邀請時間 |
-| `protocol` | `string` | 協議說明（外部協作規範） |
-
-**InviteState 值物件：** `"pending" | "accepted" | "expired"`
-
-#### OrgPolicy（組織層 ABAC 政策）
-
-與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
-
-**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
-
-**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
-
----
-
-### 5.4 Workspace（工作區聚合根）
-
-Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
-
-**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
-
-**核心屬性：**
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 工作區唯一 ID（聚合根） |
-| `name` | `string` | 工作區名稱 |
-| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
-| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
-| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
-| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
-| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
-| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
-| `teamIds` | `string[]` | 關聯的組織小組 |
-| `address` | `Address \| undefined` | 實體地址（選填） |
-| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
-| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-**WorkspaceLifecycleState 狀態機：**
-
-```text
-preparatory ──────────→ active ──────────→ stopped
-```
-
-| 狀態 | 說明 |
-| --- | --- |
-| `preparatory` | 工作區準備中，正在初始化能力與設定 |
-| `active` | 工作區正常運作，可使用全部能力 |
-| `stopped` | 工作區已停用，保留資料但不可新增內容 |
-
-**Capability 值物件（能力模組）：**
-
-工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
-
-```typescript
-interface Capability {
-  id: string;
-  name: string;
-  type: "ui" | "api" | "data" | "governance" | "monitoring";
-  status: "stable" | "beta";
-  description: string;
-  config?: object;  // 各能力的自訂設定
-}
-```
-
-**WorkspaceGrant 值物件（存取授權）：**
-
-```typescript
-interface WorkspaceGrant {
-  userId?: string;   // 個人授權
-  teamId?: string;   // 小組授權
-  role: string;      // 授予的角色
-  protocol?: string; // 授權協議（外部合作適用）
-}
-```
-
-**不變式：**
-- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
-- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
-- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
-
-**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
-
-#### WorkspaceMemberView（工作區成員讀取模型）
-
-WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
-
-**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
-
-| 屬性 | 類型 | 說明 |
-| --- | --- | --- |
-| `id` | `string` | 成員 ID |
-| `displayName` | `string` | 顯示名稱 |
-| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
-| `isExternal` | `boolean` | 是否為外部合作成員 |
-| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
-
-**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
-
-#### WikiContentTree（側邊欄導覽樹聚合根）
-
-WikiContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
-
-**實現位置：** `modules/workspace/domain/entities/WikiContentTree.ts`
-
-**樹狀結構：**
-
-```text
-WikiAccountContentNode（帳戶節點）
-  ├── accountId, accountName, accountType（personal | organization）
-  ├── membersHref（組織帳戶限定）
-  ├── teamsHref（組織帳戶限定）
-  └── workspaces[]
-        └── WikiWorkspaceContentNode（工作區節點）
-              ├── workspaceId, workspaceName
-              └── contentBaseItems[]
-                    └── WikiContentItemNode（內容入口）
-                          ├── key（spaces | pages | libraries | rag | ai-tools …）
-                          ├── label, href
-                          └── enabled（是否啟用）
-```
-
-**不變式：**
-- Personal 帳戶節點排列在 Organization 帳戶節點之前。
-- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
-
----
-
-### 5.5 Platform Foundation 跨模組關係
-
-```text
-Identity ──→ Account ──→ Organization ──→ Workspace
-  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
-  │             │               │               │
-  │         AccountPolicy   OrgPolicy       Capability
-  │             │               │
-  └─────────────┴───────────────┘
-         [S6] Claims Refresh Protocol
-         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
-```
-
-| 關係 | 說明 |
-| --- | --- |
-| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
-| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
-| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
-| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
-| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
-
-## 六、三層記憶架構的領域映射
-
-架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
-
-| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
-| --- | --- | --- | --- |
-| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
-| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
-| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
-
----
-
-## 七、Ingestion Pipeline 的領域事件
-
-完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
-
-| 領域事件 | 觸發時機 | 訂閱方 |
-| --- | --- | --- |
-| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
-| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
-| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
-| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
-| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
-| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
-
-**事件 DTO 結構慣例：**
-
-```typescript
-interface DomainEventDTO {
-  type: "knowledge.document_registered";  // 格式：module.event_name
-  payload: { documentId: string; workspaceId: string; };
-  occurredAtISO: string;                  // ISO 8601 時間戳
-}
-```
-
----
-
-## 八、Query Understanding Layer 的領域服務
-
-Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
-
-**建議的領域服務介面（位於 `modules/search/domain/services/`）：**
-
-```typescript
-interface QueryPlannerService {
-  classifyIntent(query: string): Promise<QueryIntent>;
-  decomposeQuery(query: string): Promise<string[]>;
-  rewriteForRetrieval(query: string): Promise<string>;
-  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
-}
-```
-
-**對應的 Genkit Flow（`modules/notebook/infrastructure/genkit/` 或 `modules/search/infrastructure/genkit/`）：**
-- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
-- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
-- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
-
----
-
-## 九、Schema + Ontology Layer 的領域概念
-
-架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
-
-### Ontology 在 EdgeType 中的實現
-
-GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
-
-```text
-IS_A        → 類別繼承（OWL SubClassOf）
-PART_OF     → 組成關係（Mereology）
-RELATED_TO  → 通用相關（RDF関係）
-DEPENDS_ON  → 工程依賴
-CAUSES      → 因果推理
-CONTRADICTS → 知識矛盾偵測
-```
-
-### 未來擴充：Entity Normalization（實體正規化）
-
-為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
-1. `WikiPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
-2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
-3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
-
----
-
-## 十、Hybrid Retrieval 的技術邊界說明
-
-architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
-
-| 元件 | 層級 | 位置 |
-| --- | --- | --- |
-| Dense Retrieval（Vector Search） | Infrastructure | `modules/search/infrastructure/firebase/` |
-| Sparse Retrieval（BM25） | Infrastructure | `modules/search/infrastructure/` |
-| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/wiki/infrastructure/` |
-| Reranker | Infrastructure / AI | `modules/search/infrastructure/genkit/` |
-| Fusion & Ranking | Application | `modules/search/application/use-cases/answer-rag-query.use-case.ts` |
-
-領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
-
----
-
-## 十一、完整領域概念清單
-
-| 領域概念 | 類型 | 模組 | 狀態 |
-| --- | --- | --- | --- |
-| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
-| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
-| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
-| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
-| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
-| `Account` | 聚合根 | `account` | ✅ 已實現 |
-| `AccountType` | 值物件 | `account` | ✅ 已實現 |
-| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
-| `Presence` | 值物件 | `account` | ✅ 已實現 |
-| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
-| `Wallet` | 值物件 | `account` | ✅ 已實現 |
-| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
-| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
-| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
-| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
-| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
-| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
-| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
-| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
-| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
-| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
-| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
-| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
-| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
-| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
-| `WikiContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
-| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
-| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
-| `BlockType` | 值物件 | `content` | ✅ 已實現 |
-| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
-| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
-| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
-| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
-| `WikiPage` | 投影實體 | `content` | ✅ 已實現 |
-| `WikiLibrary` | 聚合根 | `asset` | ✅ 已實現 |
-| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
-| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
-| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
-| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
-| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
-| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
-| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
-| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
-| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
-| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
-| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
-| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
-| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
-
----
-
-> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
 ````
 
 ## File: docs/guides/explanation/architecture.md
@@ -13657,6 +12996,1393 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 | `Identity` | `User`, `AuthUser`, `CurrentUser` |
 | `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
+````
+
+## File: modules/knowledge-base/application/dto/knowledge-base.dto.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: application/dto
+ * Zod schemas for Article and Category CQRS inputs.
+ */
+
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+// ─── Article DTOs ──────────────────────────────────────────────────────────────
+
+export const CreateArticleSchema = AccountScopeSchema.extend({
+  title: z.string().min(1).max(256),
+  content: z.string().default(""),
+  categoryId: z.string().nullable().default(null),
+  tags: z.array(z.string()).default([]),
+  createdByUserId: z.string().min(1),
+});
+
+export const UpdateArticleSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  title: z.string().min(1).max(256).optional(),
+  content: z.string().optional(),
+  categoryId: z.string().nullable().optional(),
+  tags: z.array(z.string()).optional(),
+});
+
+export const PublishArticleSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+
+export const ArchiveArticleSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+
+export const VerifyArticleSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  expiresInDays: z.number().int().positive().optional(),
+});
+
+export const RequestArticleReviewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+
+export const DeleteArticleSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+
+// ─── Category DTOs ─────────────────────────────────────────────────────────────
+
+export const CreateCategorySchema = AccountScopeSchema.extend({
+  name: z.string().min(1).max(128),
+  slug: z.string().min(1).max(128),
+  parentCategoryId: z.string().nullable().default(null),
+  description: z.string().nullable().default(null),
+  createdByUserId: z.string().min(1),
+});
+
+export const RenameCategorySchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(128),
+});
+
+export const MoveCategorySchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  parentCategoryId: z.string().nullable(),
+});
+
+export const DeleteCategorySchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+````
+
+## File: modules/knowledge-base/domain/entities/article.entity.ts
+````typescript
+export type ArticleStatus = "draft" | "published" | "archived";
+export type VerificationState = "verified" | "needs_review" | "unverified";
+
+export interface Article {
+  id: string;
+  accountId: string;
+  workspaceId: string;
+  categoryId: string | null;
+  title: string;
+  content: string;
+  tags: string[];
+  status: ArticleStatus;
+  version: number;
+  verificationState: VerificationState;
+  ownerId: string | null;
+  verifiedByUserId: string | null;
+  verifiedAtISO: string | null;
+  verificationExpiresAtISO: string | null;
+  linkedArticleIds: string[];
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+````
+
+## File: modules/knowledge-base/domain/entities/category.entity.ts
+````typescript
+export interface Category {
+  id: string;
+  accountId: string;
+  workspaceId: string;
+  name: string;
+  slug: string;
+  parentCategoryId: string | null;
+  depth: number;
+  articleIds: string[];
+  description: string | null;
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+````
+
+## File: modules/knowledge-base/domain/index.ts
+````typescript
+/**
+ * knowledge-base domain layer exports
+ */
+
+export type { Article, ArticleStatus, VerificationState } from "./entities/article.entity";
+export type { Category } from "./entities/category.entity";
+export type { IArticleRepository } from "./repositories/ArticleRepository";
+export type { ICategoryRepository } from "./repositories/CategoryRepository";
+export { BacklinkExtractorService } from "./services/BacklinkExtractorService";
+````
+
+## File: modules/knowledge-base/domain/repositories/ArticleRepository.ts
+````typescript
+import type { Article, ArticleStatus } from "../entities/article.entity";
+
+export interface IArticleRepository {
+  getById(articleId: string): Promise<Article>;
+  list(params: {
+    workspaceId: string;
+    accountId: string;
+    categoryId?: string;
+    status?: ArticleStatus;
+    limit?: number;
+    cursor?: string;
+  }): Promise<Article[]>;
+  search(params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]>;
+  save(article: Article): Promise<void>;
+  getByIds(articleIds: string[]): Promise<Article[]>;
+  findByLinkedArticleId(articleId: string): Promise<Article[]>;
+  delete(articleId: string): Promise<void>;
+}
+````
+
+## File: modules/knowledge-base/domain/repositories/CategoryRepository.ts
+````typescript
+import type { Category } from "../entities/category.entity";
+
+export interface ICategoryRepository {
+  getById(categoryId: string): Promise<Category>;
+  listByWorkspace(workspaceId: string, accountId: string): Promise<Category[]>;
+  listChildren(parentCategoryId: string): Promise<Category[]>;
+  save(category: Category): Promise<void>;
+  delete(categoryId: string): Promise<void>;
+  updateArticleIds(categoryId: string, articleIds: string[]): Promise<void>;
+}
+````
+
+## File: modules/knowledge-base/domain/services/BacklinkExtractorService.ts
+````typescript
+export class BacklinkExtractorService {
+  extractWikilinkTitles(content: string): string[] {
+    const regex = /\[\[([^\]]+)\]\]/g;
+    const titles = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(content)) !== null) {
+      titles.add(match[1].trim());
+    }
+    return Array.from(titles);
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/dto
+ */
+
+import { z } from "@lib-zod";
+
+const ContentScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+// ── Comment ───────────────────────────────────────────────────────────────────
+
+export const CreateCommentSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  authorId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+  parentCommentId: z.string().min(1).nullable().optional(),
+});
+export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
+
+export const UpdateCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+});
+export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
+
+export const ResolveCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  resolvedByUserId: z.string().min(1),
+});
+export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
+
+export const DeleteCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
+
+// ── Version ───────────────────────────────────────────────────────────────────
+
+export const CreateVersionSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  snapshotBlocks: z.array(z.unknown()),
+  label: z.string().max(200).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
+
+export const DeleteVersionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
+
+// ── Permission ────────────────────────────────────────────────────────────────
+
+export const GrantPermissionSchema = ContentScopeSchema.extend({
+  subjectId: z.string().min(1),
+  subjectType: z.enum(["page", "article", "database"]),
+  principalId: z.string().min(1),
+  principalType: z.enum(["user", "team"]),
+  level: z.enum(["view", "comment", "edit", "full"]),
+  grantedByUserId: z.string().min(1),
+  expiresAtISO: z.string().nullable().optional(),
+});
+export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
+
+export const RevokePermissionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
+````
+
+## File: modules/knowledge-collaboration/application/use-cases/comment.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/use-cases
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Comment } from "../../domain/entities/comment.entity";
+import type { ICommentRepository } from "../../domain/repositories/ICommentRepository";
+import {
+  CreateCommentSchema, type CreateCommentDto,
+  UpdateCommentSchema, type UpdateCommentDto,
+  ResolveCommentSchema, type ResolveCommentDto,
+  DeleteCommentSchema, type DeleteCommentDto,
+} from "../dto/knowledge-collaboration.dto";
+
+export class CreateCommentUseCase {
+  constructor(private readonly repo: ICommentRepository) {}
+
+  async execute(input: CreateCommentDto): Promise<CommandResult> {
+    const parsed = CreateCommentSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId } = parsed.data;
+    const comment = await this.repo.create({ accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId });
+    return commandSuccess(comment.id, Date.now());
+  }
+}
+
+export class UpdateCommentUseCase {
+  constructor(private readonly repo: ICommentRepository) {}
+
+  async execute(input: UpdateCommentDto): Promise<CommandResult> {
+    const parsed = UpdateCommentSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    if (!result) return commandFailureFrom("COMMENT_NOT_FOUND", "Comment not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class ResolveCommentUseCase {
+  constructor(private readonly repo: ICommentRepository) {}
+
+  async execute(input: ResolveCommentDto): Promise<CommandResult> {
+    const parsed = ResolveCommentSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.resolve(parsed.data);
+    if (!result) return commandFailureFrom("COMMENT_NOT_FOUND", "Comment not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteCommentUseCase {
+  constructor(private readonly repo: ICommentRepository) {}
+
+  async execute(input: DeleteCommentDto): Promise<CommandResult> {
+    const parsed = DeleteCommentSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListCommentsUseCase {
+  constructor(private readonly repo: ICommentRepository) {}
+
+  async execute(accountId: string, contentId: string): Promise<Comment[]> {
+    if (!accountId.trim() || !contentId.trim()) return [];
+    return this.repo.listByContent(accountId, contentId);
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/use-cases
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Version } from "../../domain/entities/version.entity";
+import type { IVersionRepository } from "../../domain/repositories/IVersionRepository";
+import {
+  CreateVersionSchema, type CreateVersionDto,
+  DeleteVersionSchema, type DeleteVersionDto,
+} from "../dto/knowledge-collaboration.dto";
+
+export class CreateVersionUseCase {
+  constructor(private readonly repo: IVersionRepository) {}
+
+  async execute(input: CreateVersionDto): Promise<CommandResult> {
+    const parsed = CreateVersionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VERSION_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, workspaceId, contentId, contentType, snapshotBlocks, label, description, createdByUserId } = parsed.data;
+    const version = await this.repo.create({ accountId, workspaceId, contentId, contentType, snapshotBlocks, label, description, createdByUserId });
+    return commandSuccess(version.id, Date.now());
+  }
+}
+
+export class DeleteVersionUseCase {
+  constructor(private readonly repo: IVersionRepository) {}
+
+  async execute(input: DeleteVersionDto): Promise<CommandResult> {
+    const parsed = DeleteVersionSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("VERSION_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListVersionsUseCase {
+  constructor(private readonly repo: IVersionRepository) {}
+
+  async execute(accountId: string, contentId: string): Promise<Version[]> {
+    if (!accountId.trim() || !contentId.trim()) return [];
+    return this.repo.listByContent(accountId, contentId);
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/domain/entities/comment.entity.ts
+````typescript
+export interface Comment {
+  id: string;
+  contentId: string;
+  contentType: "page" | "article";
+  workspaceId: string;
+  accountId: string;
+  authorId: string;
+  body: string;
+  parentCommentId: string | null;
+  resolvedAt: string | null;
+  resolvedByUserId: string | null;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+````
+
+## File: modules/knowledge-collaboration/domain/entities/permission.entity.ts
+````typescript
+export type PermissionLevel = "view" | "comment" | "edit" | "full";
+
+export interface Permission {
+  id: string;
+  subjectId: string;
+  subjectType: "page" | "article" | "database";
+  workspaceId: string;
+  accountId: string;
+  principalId: string;
+  principalType: "user" | "team";
+  level: PermissionLevel;
+  grantedByUserId: string;
+  grantedAtISO: string;
+  expiresAtISO: string | null;
+}
+````
+
+## File: modules/knowledge-collaboration/domain/entities/version.entity.ts
+````typescript
+export interface Version {
+  id: string;
+  contentId: string;
+  contentType: "page" | "article";
+  workspaceId: string;
+  accountId: string;
+  snapshotBlocks: unknown[];
+  label: string | null;
+  description: string | null;
+  createdByUserId: string;
+  createdAtISO: string;
+}
+````
+
+## File: modules/knowledge-collaboration/domain/repositories/ICommentRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: domain/repositories
+ */
+
+import type { Comment } from "../entities/comment.entity";
+
+export interface CreateCommentInput {
+  readonly contentId: string;
+  readonly contentType: "page" | "article";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly authorId: string;
+  readonly body: string;
+  readonly parentCommentId?: string | null;
+}
+
+export interface UpdateCommentInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly body: string;
+}
+
+export interface ResolveCommentInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly resolvedByUserId: string;
+}
+
+export interface ICommentRepository {
+  create(input: CreateCommentInput): Promise<Comment>;
+  update(input: UpdateCommentInput): Promise<Comment | null>;
+  resolve(input: ResolveCommentInput): Promise<Comment | null>;
+  delete(accountId: string, commentId: string): Promise<void>;
+  findById(accountId: string, commentId: string): Promise<Comment | null>;
+  listByContent(accountId: string, contentId: string): Promise<Comment[]>;
+}
+````
+
+## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: domain/repositories
+ */
+
+import type { Permission, PermissionLevel } from "../entities/permission.entity";
+
+export interface GrantPermissionInput {
+  readonly subjectId: string;
+  readonly subjectType: "page" | "article" | "database";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly principalId: string;
+  readonly principalType: "user" | "team";
+  readonly level: PermissionLevel;
+  readonly grantedByUserId: string;
+  readonly expiresAtISO?: string | null;
+}
+
+export interface IPermissionRepository {
+  grant(input: GrantPermissionInput): Promise<Permission>;
+  revoke(accountId: string, permissionId: string): Promise<void>;
+  findById(accountId: string, permissionId: string): Promise<Permission | null>;
+  listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
+  listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
+}
+````
+
+## File: modules/knowledge-collaboration/domain/repositories/IVersionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: domain/repositories
+ */
+
+import type { Version } from "../entities/version.entity";
+
+export interface CreateVersionInput {
+  readonly contentId: string;
+  readonly contentType: "page" | "article";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly snapshotBlocks: unknown[];
+  readonly label?: string | null;
+  readonly description?: string | null;
+  readonly createdByUserId: string;
+}
+
+export interface IVersionRepository {
+  create(input: CreateVersionInput): Promise<Version>;
+  findById(accountId: string, versionId: string): Promise<Version | null>;
+  listByContent(accountId: string, contentId: string): Promise<Version[]>;
+  delete(accountId: string, versionId: string): Promise<void>;
+}
+````
+
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationComments/{commentId}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Comment } from "../../domain/entities/comment.entity";
+import type {
+  ICommentRepository,
+  CreateCommentInput,
+  UpdateCommentInput,
+  ResolveCommentInput,
+} from "../../domain/repositories/ICommentRepository";
+
+function commentsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationComments");
+}
+
+function commentDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationComments", id);
+}
+
+function toComment(id: string, data: Record<string, unknown>): Comment {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    authorId: typeof data.authorId === "string" ? data.authorId : "",
+    body: typeof data.body === "string" ? data.body : "",
+    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
+    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseCommentRepository implements ICommentRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateCommentInput): Promise<Comment> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      authorId: input.authorId,
+      body: input.body,
+      parentCommentId: input.parentCommentId ?? null,
+      resolvedAt: null,
+      resolvedByUserId: null,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(commentDoc(db, input.accountId, id), data);
+    return toComment(id, data);
+  }
+
+  async update(input: UpdateCommentInput): Promise<Comment | null> {
+    const db = this.db();
+    const ref = commentDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    await updateDoc(ref, { body: input.body, updatedAtISO: now });
+    return toComment(snap.id, { ...snap.data(), body: input.body, updatedAtISO: now });
+  }
+
+  async resolve(input: ResolveCommentInput): Promise<Comment | null> {
+    const db = this.db();
+    const ref = commentDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    await updateDoc(ref, { resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
+    return toComment(snap.id, { ...snap.data(), resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
+  }
+
+  async delete(accountId: string, commentId: string): Promise<void> {
+    const db = this.db();
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(commentDoc(db, accountId, commentId));
+  }
+
+  async findById(accountId: string, commentId: string): Promise<Comment | null> {
+    const db = this.db();
+    const snap = await getDoc(commentDoc(db, accountId, commentId));
+    if (!snap.exists()) return null;
+    return toComment(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<Comment[]> {
+    const db = this.db();
+    const q = query(commentsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "asc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Version } from "../../domain/entities/version.entity";
+import type { IVersionRepository, CreateVersionInput } from "../../domain/repositories/IVersionRepository";
+
+function versionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationVersions");
+}
+
+function versionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationVersions", id);
+}
+
+function toVersion(id: string, data: Record<string, unknown>): Version {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    snapshotBlocks: Array.isArray(data.snapshotBlocks) ? data.snapshotBlocks : [],
+    label: typeof data.label === "string" ? data.label : null,
+    description: typeof data.description === "string" ? data.description : null,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+  };
+}
+
+export class FirebaseVersionRepository implements IVersionRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateVersionInput): Promise<Version> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      snapshotBlocks: input.snapshotBlocks,
+      label: input.label ?? null,
+      description: input.description ?? null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(versionDoc(db, input.accountId, id), data);
+    return toVersion(id, data);
+  }
+
+  async findById(accountId: string, versionId: string): Promise<Version | null> {
+    const db = this.db();
+    const snap = await getDoc(versionDoc(db, accountId, versionId));
+    if (!snap.exists()) return null;
+    return toVersion(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<Version[]> {
+    const db = this.db();
+    const q = query(versionsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "desc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toVersion(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async delete(accountId: string, versionId: string): Promise<void> {
+    const db = this.db();
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(versionDoc(db, accountId, versionId));
+  }
+}
+````
+
+## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/dto
+ */
+
+import { z } from "@lib-zod";
+
+const WorkspaceScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+const FieldTypeSchema = z.enum([
+  "text", "number", "select", "multi_select", "date",
+  "checkbox", "url", "email", "relation", "formula", "rollup",
+]);
+
+const ViewTypeSchema = z.enum(["table", "board", "list", "calendar", "timeline", "gallery"]);
+
+// ── Database ──────────────────────────────────────────────────────────────────
+
+export const CreateDatabaseSchema = WorkspaceScopeSchema.extend({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateDatabaseDto = z.infer<typeof CreateDatabaseSchema>;
+
+export const UpdateDatabaseSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  icon: z.string().max(100).nullable().optional(),
+  coverImageUrl: z.string().url().nullable().optional(),
+});
+export type UpdateDatabaseDto = z.infer<typeof UpdateDatabaseSchema>;
+
+export const AddFieldSchema = z.object({
+  databaseId: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: FieldTypeSchema,
+  config: z.record(z.string(), z.unknown()).optional(),
+  required: z.boolean().optional(),
+});
+export type AddFieldDto = z.infer<typeof AddFieldSchema>;
+
+export const ArchiveDatabaseSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
+
+// ── Record ────────────────────────────────────────────────────────────────────
+
+export const CreateRecordSchema = WorkspaceScopeSchema.extend({
+  databaseId: z.string().min(1),
+  properties: z.record(z.string(), z.unknown()).optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
+
+export const UpdateRecordSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  properties: z.record(z.string(), z.unknown()),
+});
+export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
+
+export const DeleteRecordSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteRecordDto = z.infer<typeof DeleteRecordSchema>;
+
+// ── View ──────────────────────────────────────────────────────────────────────
+
+export const CreateViewSchema = WorkspaceScopeSchema.extend({
+  databaseId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: ViewTypeSchema,
+  createdByUserId: z.string().min(1),
+});
+export type CreateViewDto = z.infer<typeof CreateViewSchema>;
+
+export const UpdateViewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(100).optional(),
+  filters: z.array(z.object({
+    fieldId: z.string(),
+    operator: z.enum(["eq","neq","contains","not_contains","is_empty","is_not_empty","gt","lt"]),
+    value: z.unknown(),
+  })).optional(),
+  sorts: z.array(z.object({
+    fieldId: z.string(),
+    direction: z.enum(["asc","desc"]),
+  })).optional(),
+  visibleFieldIds: z.array(z.string()).optional(),
+  hiddenFieldIds: z.array(z.string()).optional(),
+});
+export type UpdateViewDto = z.infer<typeof UpdateViewSchema>;
+
+export const DeleteViewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
+````
+
+## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+import type { Database } from "../../domain/entities/database.entity";
+import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
+import {
+  CreateDatabaseSchema, type CreateDatabaseDto,
+  UpdateDatabaseSchema, type UpdateDatabaseDto,
+  AddFieldSchema, type AddFieldDto,
+  ArchiveDatabaseSchema, type ArchiveDatabaseDto,
+} from "../dto/knowledge-database.dto";
+
+export class CreateDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: CreateDatabaseDto): Promise<CommandResult> {
+    const parsed = CreateDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, name, description, createdByUserId } = parsed.data;
+    const db = await this.repo.create({ accountId, workspaceId, name: name.trim(), description, createdByUserId });
+    return commandSuccess(db.id, Date.now());
+  }
+}
+
+export class UpdateDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
+    const parsed = UpdateDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AddFieldUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: AddFieldDto): Promise<CommandResult> {
+    const parsed = AddFieldSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    const { databaseId, accountId, name, type, config = {}, required = false } = parsed.data;
+    const result = await this.repo.addField({ databaseId, accountId, field: { name, type, config, required } });
+    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class ArchiveDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
+    const parsed = ArchiveDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    await this.repo.archive(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class GetDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<Database | null> {
+    return this.repo.findById(accountId, databaseId);
+  }
+}
+
+export class ListDatabasesUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<Database[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listByWorkspace(accountId, workspaceId);
+  }
+}
+````
+
+## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import {
+  CreateRecordSchema, type CreateRecordDto,
+  UpdateRecordSchema, type UpdateRecordDto,
+  DeleteRecordSchema, type DeleteRecordDto,
+} from "../dto/knowledge-database.dto";
+
+export class CreateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: CreateRecordDto): Promise<CommandResult> {
+    const parsed = CreateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, databaseId, properties = {}, createdByUserId } = parsed.data;
+    const rec = await this.repo.create({ accountId, workspaceId, databaseId, properties, createdByUserId });
+    return commandSuccess(rec.id, Date.now());
+  }
+}
+
+export class UpdateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: UpdateRecordDto): Promise<CommandResult> {
+    const parsed = UpdateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    if (!result) return commandFailureFrom("RECORD_NOT_FOUND", "Record not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: DeleteRecordDto): Promise<CommandResult> {
+    const parsed = DeleteRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListRecordsUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+    if (!accountId.trim() || !databaseId.trim()) return [];
+    return this.repo.listByDatabase(accountId, databaseId);
+  }
+}
+````
+
+## File: modules/knowledge-database/domain/entities/database.entity.ts
+````typescript
+export type FieldType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi_select"
+  | "date"
+  | "checkbox"
+  | "url"
+  | "email"
+  | "relation"
+  | "formula"
+  | "rollup";
+
+export interface Field {
+  id: string;
+  name: string;
+  type: FieldType;
+  config: Record<string, unknown>;
+  required: boolean;
+  order: number;
+}
+
+export interface Database {
+  id: string;
+  workspaceId: string;
+  accountId: string;
+  name: string;
+  description: string | null;
+  fields: Field[];
+  viewIds: string[];
+  icon: string | null;
+  coverImageUrl: string | null;
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+````
+
+## File: modules/knowledge-database/domain/entities/record.entity.ts
+````typescript
+export interface DatabaseRecord {
+  id: string;
+  databaseId: string;
+  workspaceId: string;
+  accountId: string;
+  properties: Map<string, unknown>;
+  order: number;
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+````
+
+## File: modules/knowledge-database/domain/entities/view.entity.ts
+````typescript
+export type ViewType = "table" | "board" | "list" | "calendar" | "timeline" | "gallery";
+
+export interface FilterRule {
+  fieldId: string;
+  operator: "eq" | "neq" | "contains" | "not_contains" | "is_empty" | "is_not_empty" | "gt" | "lt";
+  value: unknown;
+}
+
+export interface SortRule {
+  fieldId: string;
+  direction: "asc" | "desc";
+}
+
+export interface View {
+  id: string;
+  databaseId: string;
+  workspaceId: string;
+  accountId: string;
+  name: string;
+  type: ViewType;
+  filters: FilterRule[];
+  sorts: SortRule[];
+  groupBy: { fieldId: string; direction: "asc" | "desc" } | null;
+  visibleFieldIds: string[];
+  hiddenFieldIds: string[];
+  boardGroupFieldId: string | null;
+  calendarDateFieldId: string | null;
+  timelineStartFieldId: string | null;
+  timelineEndFieldId: string | null;
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+````
+
+## File: modules/knowledge-database/domain/repositories/IDatabaseRecordRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/repositories
+ */
+
+import type { DatabaseRecord } from "../entities/record.entity";
+
+export interface CreateRecordInput {
+  readonly databaseId: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly properties?: Record<string, unknown>;
+  readonly createdByUserId: string;
+}
+
+export interface UpdateRecordInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly properties: Record<string, unknown>;
+}
+
+export interface IDatabaseRecordRepository {
+  create(input: CreateRecordInput): Promise<DatabaseRecord>;
+  update(input: UpdateRecordInput): Promise<DatabaseRecord | null>;
+  delete(accountId: string, recordId: string): Promise<void>;
+  findById(accountId: string, recordId: string): Promise<DatabaseRecord | null>;
+  listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]>;
+}
+````
+
+## File: modules/knowledge-database/domain/repositories/IDatabaseRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/repositories
+ */
+
+import type { Database, Field } from "../entities/database.entity";
+
+export interface CreateDatabaseInput {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly description?: string | null;
+  readonly createdByUserId: string;
+}
+
+export interface UpdateDatabaseInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly name?: string;
+  readonly description?: string | null;
+  readonly icon?: string | null;
+  readonly coverImageUrl?: string | null;
+}
+
+export interface AddFieldInput {
+  readonly databaseId: string;
+  readonly accountId: string;
+  readonly field: Omit<Field, "id" | "order">;
+}
+
+export interface IDatabaseRepository {
+  create(input: CreateDatabaseInput): Promise<Database>;
+  update(input: UpdateDatabaseInput): Promise<Database | null>;
+  addField(input: AddFieldInput): Promise<Database | null>;
+  archive(accountId: string, databaseId: string): Promise<void>;
+  findById(accountId: string, databaseId: string): Promise<Database | null>;
+  listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]>;
+}
+````
+
+## File: modules/knowledge-database/domain/repositories/IViewRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/repositories
+ */
+
+import type { View, ViewType } from "../entities/view.entity";
+
+export interface CreateViewInput {
+  readonly databaseId: string;
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly type: ViewType;
+  readonly createdByUserId: string;
+}
+
+export interface UpdateViewInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly name?: string;
+  readonly filters?: View["filters"];
+  readonly sorts?: View["sorts"];
+  readonly groupBy?: View["groupBy"];
+  readonly visibleFieldIds?: string[];
+  readonly hiddenFieldIds?: string[];
+}
+
+export interface IViewRepository {
+  create(input: CreateViewInput): Promise<View>;
+  update(input: UpdateViewInput): Promise<View | null>;
+  delete(accountId: string, viewId: string): Promise<void>;
+  findById(accountId: string, viewId: string): Promise<View | null>;
+  listByDatabase(accountId: string, databaseId: string): Promise<View[]>;
+}
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseViewRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/databaseViews/{viewId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { View, FilterRule, SortRule } from "../../domain/entities/view.entity";
+import type {
+  IViewRepository,
+  CreateViewInput,
+  UpdateViewInput,
+} from "../../domain/repositories/IViewRepository";
+
+function viewsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "databaseViews");
+}
+
+function viewDoc(db: ReturnType<typeof getFirestore>, accountId: string, viewId: string) {
+  return doc(db, "accounts", accountId, "databaseViews", viewId);
+}
+
+function toView(id: string, data: Record<string, unknown>): View {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    type: (data.type as View["type"]) ?? "table",
+    filters: Array.isArray(data.filters) ? (data.filters as FilterRule[]) : [],
+    sorts: Array.isArray(data.sorts) ? (data.sorts as SortRule[]) : [],
+    groupBy: typeof data.groupBy === "object" && data.groupBy !== null
+      ? (data.groupBy as View["groupBy"])
+      : null,
+    visibleFieldIds: Array.isArray(data.visibleFieldIds)
+      ? (data.visibleFieldIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    hiddenFieldIds: Array.isArray(data.hiddenFieldIds)
+      ? (data.hiddenFieldIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    boardGroupFieldId: typeof data.boardGroupFieldId === "string" ? data.boardGroupFieldId : null,
+    calendarDateFieldId: typeof data.calendarDateFieldId === "string" ? data.calendarDateFieldId : null,
+    timelineStartFieldId: typeof data.timelineStartFieldId === "string" ? data.timelineStartFieldId : null,
+    timelineEndFieldId: typeof data.timelineEndFieldId === "string" ? data.timelineEndFieldId : null,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseViewRepository implements IViewRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateViewInput): Promise<View> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      name: input.name,
+      type: input.type,
+      filters: [],
+      sorts: [],
+      groupBy: null,
+      visibleFieldIds: [],
+      hiddenFieldIds: [],
+      boardGroupFieldId: null,
+      calendarDateFieldId: null,
+      timelineStartFieldId: null,
+      timelineEndFieldId: null,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(viewDoc(db, input.accountId, id), data);
+    return toView(id, data);
+  }
+
+  async update(input: UpdateViewInput): Promise<View | null> {
+    const db = this.db();
+    const ref = viewDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updatedAtISO: now };
+    if (input.name !== undefined) updates.name = input.name;
+    if (input.filters !== undefined) updates.filters = input.filters;
+    if (input.sorts !== undefined) updates.sorts = input.sorts;
+    if (input.groupBy !== undefined) updates.groupBy = input.groupBy;
+    if (input.visibleFieldIds !== undefined) updates.visibleFieldIds = input.visibleFieldIds;
+    if (input.hiddenFieldIds !== undefined) updates.hiddenFieldIds = input.hiddenFieldIds;
+    await updateDoc(ref, updates);
+    return toView(snap.id, { ...snap.data() as Record<string, unknown>, ...updates });
+  }
+
+  async delete(accountId: string, viewId: string): Promise<void> {
+    const db = this.db();
+    await deleteDoc(viewDoc(db, accountId, viewId));
+  }
+
+  async findById(accountId: string, viewId: string): Promise<View | null> {
+    const db = this.db();
+    const snap = await getDoc(viewDoc(db, accountId, viewId));
+    if (!snap.exists()) return null;
+    return toView(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<View[]> {
+    const db = this.db();
+    const q = query(
+      viewsCol(db, accountId),
+      where("databaseId", "==", databaseId),
+      orderBy("createdAtISO", "asc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toView(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/knowledge-database/interfaces/queries/knowledge-database.queries.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/queries
+ * Direct-instantiation query functions (read-side, no server action overhead).
+ */
+
+import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
+import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
+import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import type { Database } from "../../domain/entities/database.entity";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type { View } from "../../domain/entities/view.entity";
+
+export async function getDatabases(accountId: string, workspaceId: string): Promise<Database[]> {
+  const repo = new FirebaseDatabaseRepository();
+  return repo.listByWorkspace(accountId, workspaceId);
+}
+
+export async function getDatabase(accountId: string, databaseId: string): Promise<Database | null> {
+  const repo = new FirebaseDatabaseRepository();
+  return repo.findById(accountId, databaseId);
+}
+
+export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+  const repo = new FirebaseRecordRepository();
+  return repo.listByDatabase(accountId, databaseId);
+}
+
+export async function getViews(accountId: string, databaseId: string): Promise<View[]> {
+  const repo = new FirebaseViewRepository();
+  return repo.listByDatabase(accountId, databaseId);
+}
 ````
 
 ## File: modules/knowledge/api/events.ts
@@ -52046,238 +52772,6 @@ export default {
 }
 ````
 
-## File: .github/agents/knowledge-base.md
-````markdown
-# Knowledge Base — MDDD Domain & Architecture
-
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
-
-## Module-Driven Domain Design (MDDD)
-
-The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
-
-### Core Principle
-
-> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
-
-### Global Dependency Direction
-
-```
-UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
-```
-
-The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
-
-## Module Structure
-
-Each module under `modules/` follows a four-layer Clean Architecture:
-
-```
-modules/<module-name>/
-├── api/
-│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
-├── index.ts                    # Optional local barrel for same-module composition
-├── README.md                   # Module documentation (optional)
-├── domain/
-│   ├── entities/               # Aggregate roots, value objects, entity types
-│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
-│   ├── services/               # Pure domain services (stateless business rules)
-│   ├── value-objects/          # DDD value objects (immutable, equality by value)
-│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
-├── application/
-│   ├── use-cases/              # One file per use case (single operation)
-│   └── dto/                    # Data Transfer Objects for use-case I/O
-├── infrastructure/
-│   ├── firebase/               # Firebase Firestore repository implementations
-│   ├── genkit/                 # AI/Genkit integrations (AI module)
-│   ├── default/                # In-memory or simplified implementations
-│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
-│   ├── persistence/            # Persistence adapters
-│   └── repositories/           # Repository implementations (alternative layout)
-└── interfaces/
-    ├── components/             # React UI components
-    ├── queries/                # TanStack Query hooks (read-side)
-    ├── _actions/               # Next.js Server Actions (write-side)
-    ├── hooks/                  # Custom React hooks
-    ├── api/                    # REST API route controllers
-    ├── contracts/              # API contracts
-    └── view-models/            # View model transformations
-```
-
-Not every module has every subdirectory — only what it needs.
-
-### Boundary Policy
-
-- Every `modules/<module-name>/` is isolated.
-- Cross-module imports are allowed only via `modules/<target-module>/api/`.
-- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
-- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
-
-## Module Inventory
-
-Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
-
-`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
-
-> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
-
-## Package System (21 Packages)
-
-Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
-
-### Import Rule
-
-```typescript
-// ✅ CORRECT — via @alias from tsconfig.json
-import type { CommandResult, DomainError } from "@shared-types";
-import { cn, formatDate } from "@shared-utils";
-import { auth } from "@integration-firebase";
-
-// ❌ NEVER — relative paths to package internals
-import type { CommandResult } from "../../../../packages/shared-types/index";
-
-// ❌ NEVER — legacy paths (ESLint will block)
-import type { CommandResult } from "@/shared/types";
-```
-
-### Package Catalog
-
-| Alias | Package | Purpose |
-|-------|---------|---------|
-| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
-| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
-| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
-| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | integration-http | Axios HTTP client with interceptors |
-| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
-| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
-| `@lib-zod` | lib-zod | Zod v4 wrapper |
-| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
-| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
-| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
-| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
-| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
-| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
-| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
-| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
-
-### ESLint Boundary Enforcement
-
-Legacy import paths are blocked by `eslint.config.mjs`:
-
-| Blocked Pattern | Replacement |
-|----------------|-------------|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` or `@integration-*` |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
-`modules/` 內也有額外邊界保護：
-
-- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
-- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
-- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
-
-### 已知邊界警告（待修復）
-
-以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
-
-目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
-
-> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
-
-> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
-
-## Tech Stack
-
-| Concern | Technology | Version |
-|---------|-----------|---------|
-| Framework | Next.js (App Router) | 16.1.7 |
-| UI Library | React | 19.2.3 |
-| Language | TypeScript | 5 |
-| Backend | Firebase (client SDK) | 12 |
-| Styling | Tailwind CSS | 4 |
-| Validation | Zod | 4.3.6 |
-| State (global) | Zustand | 5.0.12 |
-| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
-| AI | Genkit + Google GenAI | 1.30.1 |
-| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
-| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
-| Date Handling | date-fns | 4 |
-| HTTP Client | Axios | 1.13.6 |
-| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
-| Node Engine | Node.js | 24 |
-
-## Key Architectural Patterns
-
-### Repository Pattern
-
-- **Interface** lives in `domain/repositories/` — defines what the module needs
-- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
-- Domain layer never imports infrastructure
-
-### Use Case Pattern
-
-- Each use case is a single file under `application/use-cases/`
-- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
-- One use case = one user-facing operation
-
-### Hexagonal Ports (Advanced)
-
-Example port shapes:
-- `domain/ports/ActorContextPort.ts` — resolves who is acting
-- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
-- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
-- All access decisions flow through ports, not scattered in UI/router
-
-### Domain Events
-
-Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
-- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
-- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
-- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
-- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
-
-Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
-
-### Internal Imports Within a Module
-
-Inside a module, files use **relative imports** (not the module's own barrel export):
-
-```typescript
-// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-import { KnowledgePage } from "../../domain/entities/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
-
-// ❌ Do NOT self-import via the barrel
-import { KnowledgePage } from "@/modules/knowledge";
-```
-
-### Cross-Module Imports
-
-Between modules, always use the target module's `api/` boundary:
-
-```typescript
-// ✅ Cross-module import — event-store primitives are now in modules/shared
-import { PublishDomainEventUseCase } from "@/modules/shared/api";
-
-// ❌ Reaching into another module's internals
-import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
-```
-
-## Responsibility Boundaries
-
-- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
-- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
-- When ownership shifts, update contracts and architecture docs in the same change.
-````
-
 ## File: .github/instructions/playwright-mcp-testing.instructions.md
 ````markdown
 ---
@@ -52798,42 +53292,6 @@ Repository prompt set for repeatable planning, implementation, review, and docum
 - [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)
 ````
 
-## File: .github/terminology-glossary.md
-````markdown
-# Terminology Glossary Entry Point
-
-Use this file as the stable glossary entry point referenced by `.github/*` customizations.
-
-## DDD Reference Set
-
-- Strategic classification: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
-- Bounded context map: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
-- Context terms: use the matching `../docs/ddd/<context>/ubiquitous-language.md`
-
-## Bounded Context Glossaries
-
-- [`account`](../docs/ddd/account/ubiquitous-language.md)
-- [`ai`](../docs/ddd/ai/ubiquitous-language.md)
-- [`identity`](../docs/ddd/identity/ubiquitous-language.md)
-- [`knowledge`](../docs/ddd/knowledge/ubiquitous-language.md)
-- [`knowledge-base`](../docs/ddd/knowledge-base/ubiquitous-language.md)
-- [`knowledge-collaboration`](../docs/ddd/knowledge-collaboration/ubiquitous-language.md)
-- [`knowledge-database`](../docs/ddd/knowledge-database/ubiquitous-language.md)
-- [`notebook`](../docs/ddd/notebook/ubiquitous-language.md)
-- [`notification`](../docs/ddd/notification/ubiquitous-language.md)
-- [`organization`](../docs/ddd/organization/ubiquitous-language.md)
-- [`search`](../docs/ddd/search/ubiquitous-language.md)
-- [`shared`](../docs/ddd/shared/ubiquitous-language.md)
-- [`source`](../docs/ddd/source/ubiquitous-language.md)
-- [`workspace`](../docs/ddd/workspace/ubiquitous-language.md)
-- [`workspace-audit`](../docs/ddd/workspace-audit/ubiquitous-language.md)
-- [`workspace-feed`](../docs/ddd/workspace-feed/ubiquitous-language.md)
-- [`workspace-flow`](../docs/ddd/workspace-flow/ubiquitous-language.md)
-- [`workspace-scheduling`](../docs/ddd/workspace-scheduling/ubiquitous-language.md)
-
-When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
-````
-
 ## File: .gitignore
 ````
 # =============================================================================
@@ -53152,6 +53610,149 @@ export function HeaderControls() {
 
       <NotificationBell recipientId={recipientId} />
     </div>
+  );
+}
+````
+
+## File: app/(shell)/_components/knowledge-sidebar-section.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { useState } from "react";
+
+interface WorkspaceLinkItem {
+  id: string;
+  name: string;
+  href: string;
+}
+
+interface KnowledgeSidebarSectionProps {
+  readonly pathname: string;
+  readonly workspacesHydrated: boolean;
+  readonly allWorkspaceLinks: WorkspaceLinkItem[];
+  readonly activeWorkspaceId: string | null;
+  readonly creatingKind: "page" | "database" | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onQuickCreatePage: () => void | Promise<void>;
+}
+
+function isActiveRoute(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function KnowledgeSidebarSection({
+  pathname,
+  workspacesHydrated,
+  allWorkspaceLinks,
+  activeWorkspaceId,
+  creatingKind,
+  onSelectWorkspace,
+  onQuickCreatePage,
+}: KnowledgeSidebarSectionProps) {
+  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(false);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Knowledge navigation">
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        知識管理
+      </p>
+      <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+        <Link
+          href="/knowledge/pages"
+          aria-current={isActiveRoute(pathname, "/knowledge/pages") ? "page" : undefined}
+          className={`flex-1 ${
+            isActiveRoute(pathname, "/knowledge/pages")
+              ? "text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          頁面
+        </Link>
+        <button
+          type="button"
+          onClick={() => void onQuickCreatePage()}
+          disabled={creatingKind !== null}
+          className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
+          aria-label="快速新增頁面"
+          title="新增頁面"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+      {(
+        [
+          { href: "/knowledge", label: "Knowledge Hub" },
+          { href: "/knowledge/block-editor", label: "區塊編輯器" },
+        ] as const
+      ).map((item) => {
+        const active = isActiveRoute(pathname, item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+      <div className="my-1.5 border-t border-border/40" />
+
+      <button
+        type="button"
+        onClick={() => {
+          setIsKnowledgeWorkspacesExpanded((prev) => !prev);
+        }}
+        className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        aria-expanded={isKnowledgeWorkspacesExpanded}
+      >
+        <span>Workspaces</span>
+        {isKnowledgeWorkspacesExpanded ? (
+          <ChevronDown className="size-3.5" />
+        ) : (
+          <ChevronRight className="size-3.5" />
+        )}
+      </button>
+
+      {isKnowledgeWorkspacesExpanded && (
+        <div className="space-y-0.5 pl-2">
+          {!workspacesHydrated ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+          ) : allWorkspaceLinks.length === 0 ? (
+            <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+          ) : (
+            allWorkspaceLinks.map((workspace) => {
+              const active = activeWorkspaceId === workspace.id;
+              return (
+                <Link
+                  key={workspace.id}
+                  href={workspace.href}
+                  onClick={() => {
+                    onSelectWorkspace(workspace.id);
+                  }}
+                  aria-current={active ? "page" : undefined}
+                  className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  }`}
+                  title={workspace.name}
+                >
+                  <span className="truncate">{workspace.name}</span>
+                </Link>
+              );
+            })
+          )}
+        </div>
+      )}
+    </nav>
   );
 }
 ````
@@ -55741,213 +56342,6 @@ export default function OrganizationTeamsPage() {
 }
 ````
 
-## File: app/(shell)/organization/workspaces/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationWorkspacesPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadWorkspaces(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspacesForAccount(organizationId);
-      setWorkspaces(data);
-      setLoadState("loaded");
-    } catch {
-      setWorkspaces([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getWorkspacesForAccount(organizationId);
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreating(true);
-    setCreateError(null);
-    const result = await createWorkspace({
-      name: newName.trim(),
-      accountId: activeOrganizationId,
-      accountType: "organization",
-    });
-    setCreating(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      void loadWorkspaces(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message.message.message ?? "建立失敗，請稍後再試。");
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-          </p>
-        </div>
-        <Button size="sm" onClick={() => { setCreateOpen(true); setCreateError(null); setNewName(""); }}>
-          建立工作區
-        </Button>
-      </div>
-
-      {/* Create Workspace Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="ws-name">工作區名稱</Label>
-              <Input
-                id="ws-name"
-                placeholder="例：行銷專案"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
-              />
-            </div>
-            {createError && <p className="text-xs text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>取消</Button>
-            <Button onClick={() => void handleCreate()} disabled={creating || !newName.trim()}>
-              {creating ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Workspaces</CardTitle>
-          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">工作區載入中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
-                    </Button>
-                    <Badge
-                      variant={
-                        workspace.lifecycleState === "active"
-                          ? "default"
-                          : workspace.lifecycleState === "preparatory"
-                            ? "secondary"
-                            : "outline"
-                      }
-                    >
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/source/documents/page.tsx
 ````typescript
 "use client";
@@ -56267,6 +56661,935 @@ See [beads.md](beads.md) for Beads usage and team setup.
 [← Back to README](../README.md)
 ````
 
+## File: docs/guides/explanation/architecture-domain.md
+````markdown
+# 領域概念模型：AI 知識平台架構實現指南
+
+基於 [architecture.md](./architecture.md) 所描述的「Notion × Wiki × NotebookLM」融合架構研究，本文說明儲存庫實現此系統所需的核心領域概念、有界上下文（Bounded Context）、聚合根（Aggregate Root）、值物件（Value Object）及領域事件（Domain Event）。
+
+---
+
+## 一、四層架構與有界上下文對應
+
+architecture.md 確立了三層融合架構（Content / UI、Knowledge Graph、AI）。儲存庫在此三層之下，加入第四層「**Platform Foundation Layer**」，提供驗證、帳戶、組織與工作區等跨切關注點，讓上層三層得以共用同一租戶模型：
+
+```text
+┌─────────────────────────────────────────────────┐
+│              AI Layer（AI 層）                    │  ← modules/search, modules/notebook, modules/knowledge
+├─────────────────────────────────────────────────┤
+│         Knowledge Graph Layer（知識圖譜層）        │  ← modules/wiki
+├─────────────────────────────────────────────────┤
+│         Content / UI Layer（內容層）               │  ← modules/knowledge, modules/source
+├─────────────────────────────────────────────────┤
+│    Platform Foundation Layer（平台基礎層）         │  ← modules/workspace, modules/organization
+│                                                  │     modules/account, modules/identity, modules/shared
+└─────────────────────────────────────────────────┘
+```
+
+| 架構層 | 對應模組 | 核心職責 |
+| --- | --- | --- |
+| Platform Foundation Layer | `identity`, `account`, `organization`, `workspace`, `shared` | 身份驗證、帳戶設定檔、組織租戶、工作區容器與能力掛載、共享領域原語（slug 工具、事件存儲原語） |
+| Content / UI Layer | `content`, `asset` | Block 編輯器、頁面樹、資料庫、版本歷程、Wiki Library 結構化資料 |
+| Knowledge Graph Layer | `knowledge-graph` | 頁面連結、圖譜邊、分類樹、重定向 |
+| AI Layer | `knowledge`, `retrieval`, `agent` | 文件攝入、Embedding、RAG 查詢、AI Agent |
+
+**依賴方向：** 圖中越下方的層，越是上方層的基礎——上方層依賴下方層，但下方層絕不直接依賴上方層。圖示從上往下讀是「功能堆疊」，從下往上讀才是「依賴方向」。跨層通訊一律透過各模組的 `api/` 邊界：
+
+```text
+依賴方向（箭頭表示「依賴」）：
+
+AI Layer
+  ↓ 依賴
+Knowledge Graph Layer
+  ↓ 依賴
+Content / UI Layer
+  ↓ 依賴
+Platform Foundation Layer（被所有層依賴，但它本身無上層依賴）
+```
+
+---
+
+## 二、Content / UI Layer 的領域概念
+
+### 2.1 Page（頁面聚合根）
+
+Page 是系統中最基本的知識單元，融合了 Notion 的「可排版頁面」與 Wiki 的「知識圖節點」兩種角色。
+
+**實現位置：** `modules/knowledge/domain/entities/content-page.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 唯一識別碼（聚合根 ID） |
+| `title` | `string` | 頁面標題（Graph Node 標籤） |
+| `slug` | `string` | URL 友好路徑（重定向的基礎） |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 組成此頁面的 Block 列表（有序） |
+| `status` | `PageStatus` | 頁面狀態（draft / published / archived） |
+| `workspaceId` | `string` | 所屬工作區（租戶隔離） |
+| `organizationId` | `string` | 所屬組織（多租戶） |
+
+**值物件：**
+- `PageStatus`：`"draft" | "published" | "archived"`
+- `PageSlug`：確保唯一且 URL-safe 的值物件
+
+**不變式（Invariants）：**
+- 一個 Page 必須屬於一個 Workspace。
+- `slug` 在同一 Workspace 中必須唯一。
+- 已 `archived` 的頁面不能再接受 Block 更新。
+
+### 2.2 Block（區塊聚合根）
+
+Block 是 Notion Block System 的對應物，是頁面的最小內容單元。
+
+**實現位置：** `modules/knowledge/domain/entities/content-block.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Block 唯一識別碼 |
+| `pageId` | `string` | 所屬頁面（外鍵） |
+| `type` | `BlockType` | Block 類型（見下方） |
+| `content` | `BlockContent` | 具體內容（依 type 變化） |
+| `parentBlockId` | `string \| null` | 父 Block（支援巢狀結構） |
+| `order` | `number` | 在頁面中的排列順序 |
+
+**BlockType 值物件（對應 Notion Block 類型）：**
+
+```typescript
+type BlockType =
+  | "text"
+  | "heading_1" | "heading_2" | "heading_3"
+  | "toggle"
+  | "callout"
+  | "code"
+  | "quote"
+  | "divider"
+  | "table"
+  | "image" | "video" | "file"
+  | "embed"
+  | "synced_block"
+  | "column_layout"
+  | "bulleted_list" | "numbered_list"
+  | "to_do"
+  | "page_link";
+```
+
+**設計說明：** Block 被建模為聚合根（獨立 Firestore 文件），而非 Page 內的嵌套陣列，以支援大型頁面的局部更新與 Embedding 顆粒度控制。
+
+### 2.3 ContentVersion（版本快照）
+
+對應 Wiki 的 Edit History / Diff / Rollback 能力。
+
+**實現位置：** `modules/knowledge/domain/entities/content-version.entity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 版本 ID |
+| `pageId` | `string` | 所屬頁面 |
+| `snapshotBlocks` | `Block[]` | 此版本的 Block 快照 |
+| `editSummary` | `string` | 編輯說明（對應 Wiki Edit Summary） |
+| `authorId` | `string` | 作者 ID |
+| `createdAt` | `Timestamp` | 版本時間戳 |
+| `isMinorEdit` | `boolean` | 是否為小修改標記 |
+
+---
+
+## 三、Knowledge Graph Layer 的領域概念
+
+### 3.1 GraphNode（知識圖節點）
+
+對應 Wiki 的 Page = Graph Node 模型。每個 ContentPage 在知識圖譜中都有一個對應的 GraphNode。
+
+**實現位置：** `modules/wiki/domain/entities/graph-node.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 節點唯一 ID（通常等於 PageId） |
+| `label` | `string` | 顯示標籤 |
+| `type` | `GraphNodeType` | 節點類型：`"page" \| "tag" \| "attachment"` |
+| `status` | `GraphNodeStatus` | 生命週期：`draft → active → archived` |
+
+**GraphNodeStatus 狀態機：**
+
+```text
+draft ──────────→ active ──────────→ archived
+  ↑                  │
+  └──────────────────┘ (reactivation)
+```
+
+**領域事件：**
+- `graph-node.activated`：節點從 draft 轉為 active 時觸發
+- `graph-node.archived`：節點歸檔時觸發（對應 Wiki Page 的歸檔/刪除流程）
+
+### 3.2 GraphEdge / Link（知識圖邊）
+
+對應 Wiki 的 Internal Link，是知識圖譜的核心關聯機制。
+
+**實現位置：** `modules/wiki/domain/entities/link.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邊唯一 ID |
+| `fromNodeId` | `string` | 來源節點（連結發起方） |
+| `toNodeId` | `string` | 目標節點（連結目標） |
+| `type` | `EdgeType` | 語意關係類型（見下方） |
+| `status` | `EdgeStatus` | 生命週期：`pending → active → inactive → removed` |
+
+**EdgeType 值物件（對應 Schema + Ontology Layer）：**
+
+```typescript
+type EdgeType =
+  | "IS_A"        // 繼承關係（A 是 B 的一種）
+  | "PART_OF"     // 組成關係（A 是 B 的一部分）
+  | "RELATED_TO"  // 相關關係（通用）
+  | "DEPENDS_ON"  // 依賴關係
+  | "CAUSES"      // 因果關係
+  | "CONTRADICTS" // 矛盾關係
+  | "REDIRECT"    // 重定向（別名統一）
+  | "CATEGORY";   // 分類從屬
+```
+
+**不變式：**
+- 一條邊的 `fromNodeId` 與 `toNodeId` 不能相同（禁止自環）。
+- `REDIRECT` 類型的邊在同一來源節點只能有一條 `active` 狀態的邊。
+
+**Backlink 的領域含義：**  
+Backlink（入度統計）不是獨立的領域物件，而是對某個 `toNodeId` 上所有 `active` 的 GraphEdge 進行反向查詢的結果。Repository 介面應提供 `findByToNodeId(nodeId)` 方法支援此查詢。
+
+### 3.3 WikiPage（Wiki 頁面整合）
+
+輕量化的 Wiki 風格頁面實體，用於 wiki 介面期間的過渡期分解。因為頁面是內容領域關切，此實體已遷移至 `content` 模組。
+
+> **模組遷移說明：** `modules/wiki` 獨立模組已移除。WikiPage 概念已遷移至 `modules/knowledge`（頁面層）；WikiLibrary 概念遷移至 `modules/source`（結構化資料層）；WikiContentTree 保留於 `modules/workspace`；Wiki RAG 查詢類型遷移至 `modules/search`。
+
+**實現位置：** `modules/knowledge/domain/entities/wiki-page.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 頁面唯一識別碼 |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL 友好路徑 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `order` | `number` | 在內容樹中的排列順序 |
+| `status` | `WikiPageStatus` | 頁面狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+### 3.4 WikiLibrary（Wiki 知識庫聚合根）
+
+WikiLibrary 是輕量化的結構化資料模型，相當於 Wiki 的「書架」或 Notion 的「Database」，用於將多個結構化資料列群組為一個具有欄位定義的知識集合。因為 Library 是資產與結構化資料的關切，此實體已遷移至 `asset` 模組。
+
+**實現位置：** `modules/source/domain/entities/wiki-library.types.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Library 唯一 ID（聚合根） |
+| `accountId` | `string` | 所屬帳戶（租戶隔離） |
+| `workspaceId` | `string \| undefined` | 所屬工作區（選填） |
+| `name` | `string` | Library 名稱（顯示於側邊欄） |
+| `slug` | `string` | URL 友好路徑 |
+| `status` | `WikiLibraryStatus` | 狀態：`"active" \| "archived"` |
+| `createdAt` | `Date` | 建立時間 |
+| `updatedAt` | `Date` | 最後更新時間 |
+
+**相關實體：**
+- `WikiLibraryField`：Library 的欄位定義（`key`, `label`, `type`, `required`, `options`），支援類型：`"title" | "text" | "number" | "select" | "relation"`
+- `WikiLibraryRow`：Library 的資料列（`values: Record<string, unknown>`）
+
+**與其他概念的關係：**
+- 一個 Workspace 可包含多個 WikiLibrary。
+- WikiContentTree 的側邊欄導覽以 Library 為分組呈現頁面列表。
+
+### 3.5 Slug 工具（原 Namespace 模組）
+
+> **模組遷移說明：** `modules/namespace` 獨立模組已移除。其核心職責——Slug 生成與驗證——已遷移至 `modules/shared/domain/slug-utils.ts`，透過 `modules/shared/api` 公開。
+
+Slug 工具提供工作區層面的 URL 友好路徑生成與驗證能力：
+
+**實現位置：** `modules/shared/domain/slug-utils.ts`（透過 `modules/shared/api` 匯出）
+
+| 函式 | 說明 |
+| --- | --- |
+| `deriveSlugCandidate(displayName)` | 將顯示名稱轉換為 slug 候選字串（小寫、連字符分隔、最長 63 字元） |
+| `isValidSlug(slug)` | 驗證 slug 是否符合規範（`/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/`） |
+
+## 四、AI Layer 的領域概念
+
+### 4.1 IngestionDocument（攝入文件聚合根）
+
+文件進入 RAG Pipeline 的起點，對應 architecture.md 第十二節 Ingestion Pipeline 的最頂層實體。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionDocument.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 文件唯一 ID |
+| `organizationId` | `string` | 所屬組織（多租戶隔離） |
+| `workspaceId` | `string` | 所屬工作區 |
+| `sourceFileId` | `string` | 原始檔案 ID（關聯 asset 模組） |
+| `title` | `string` | 文件標題 |
+| `mimeType` | `string` | 原始檔案類型（PDF / DOCX / Markdown 等） |
+| `status` | `IngestionStatus` | 攝入狀態（見下方） |
+
+**IngestionStatus 狀態機（對應 Ingestion Pipeline 各階段）：**
+
+```text
+                        ┌─────────────────────────────────────┐
+                        ↓                                     │
+uploaded → parsing → chunking → embedding → indexed → stale → re-indexing
+    │          │          │           │                         │
+    └──────────┴──────────┴───────────┴─────────────────────────┘
+                                  failed（任一階段可轉入）
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `uploaded` | 檔案已上傳，等待處理 |
+| `parsing` | 正在解析（Parse 階段：PDF/DOCX → Markdown） |
+| `chunking` | 正在分塊（Chunk 階段：語意分段） |
+| `embedding` | 正在向量化（Embedding 階段） |
+| `indexed` | 已完成索引，可供查詢 |
+| `stale` | 原始文件已更新，需重新索引 |
+| `re-indexing` | 重新索引中；完成後轉回 `uploaded` 重新執行完整 Pipeline |
+| `failed` | Pipeline 任一階段發生錯誤，可由管理員重設為 `uploaded` 重試 |
+
+---
+
+### 4.2 IngestionJob（攝入作業）
+
+追蹤單一文件在整個 Pipeline 中的執行進度，對應 architecture.md 中各 Pipeline 階段的工作記錄。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionJob.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 作業唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `stage` | `PipelineStage` | 當前執行階段 |
+| `startedAt` | `Timestamp` | 開始時間 |
+| `completedAt` | `Timestamp \| null` | 完成時間 |
+| `error` | `string \| null` | 錯誤訊息（若 failed） |
+
+**PipelineStage 值物件：**
+
+```typescript
+type PipelineStage = "parse" | "clean" | "taxonomy" | "chunk" | "embed" | "persist" | "mark_ready";
+```
+
+### 4.3 IngestionChunk（語意分塊）
+
+代表文件被分割後的最小語意單元，是 Embedding 的直接輸入與 RAG 檢索的基本單位。
+
+**實現位置：** `modules/knowledge/domain/entities/IngestionChunk.ts`
+
+**核心屬性（對應 architecture.md 17.1 embeddings collection）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | Chunk 唯一 ID |
+| `documentId` | `string` | 所屬文件 |
+| `content` | `string` | Chunk 文字內容 |
+| `chunkIndex` | `number` | 在文件中的順序編號 |
+| `sectionPath` | `string` | 標題路徑（如 `"第三章 > 3.1 小節"`） |
+| `pageNumber` | `number \| null` | 原始頁碼（PDF 適用） |
+| `vector` | `number[]` | 向量表示（Embedding 結果） |
+| `tokenCount` | `number` | Token 數量（分塊品質指標） |
+
+**不變式：**
+- `vector` 維度在同一 Workspace 中必須一致（由 Embedding Model 決定）。Embedding Model 的選擇儲存於 Workspace `capabilities` 陣列中 `id: "embedding"` 的 Capability 項目的 `config` 物件內，由 `modules/workspace` 負責維護。
+- `content` 長度不得超過所選 Embedding Model 的 token 上限。
+
+### 4.4 RagQuery（RAG 查詢聚合根）
+
+代表一次完整的 RAG 查詢生命週期，從用戶輸入到最終帶引用的回答。
+
+**實現位置：** `modules/search/domain/entities/RagQuery.ts`
+
+**核心介面：**
+
+```typescript
+interface RagQuery {
+  id: string;
+  workspaceId: string;
+  input: string;               // 用戶原始輸入
+  intent?: QueryIntent;        // 分類後的查詢意圖
+  rewrittenQuery?: string;     // 改寫後的查詢語句（HyDE 或 Query Rewriting）
+  subQueries?: string[];       // 拆解的子查詢（Query Decomposition）
+}
+```
+
+**QueryIntent 值物件（對應 Query Understanding Layer）：**
+
+```typescript
+type QueryIntent = "question_answering" | "summarization" | "comparison" | "reasoning" | "exploration";
+```
+
+**RagRetrievedChunk 值物件（檢索結果項目）：**
+
+```typescript
+interface RagRetrievedChunk {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;           // 相關性分數（Reranker 輸出）
+  retrievalMethod: "dense" | "sparse" | "graph" | "hybrid";
+}
+```
+
+**RagCitation 值物件（引用系統，對應 Source Grounding）：**
+
+```typescript
+interface RagCitation {
+  documentId: string;
+  documentTitle: string;
+  chunkId: string;
+  sectionPath: string;
+  pageNumber?: number;
+  confidenceScore: number;     // 引用可信度
+}
+```
+
+**RagRetrievalSummary 值物件（完整回答結果）：**
+
+```typescript
+interface RagRetrievalSummary {
+  answer: string;              // LLM 生成的回答
+  citations: RagCitation[];    // 引用來源列表
+  faithfulnessScore?: number;  // Faithfulness 驗證分數
+  isGrounded: boolean;         // 是否通過 Grounding 驗證
+}
+```
+
+### 4.5 AgentThread / AgentMessage（AI Agent 對話層）
+
+對應 architecture.md 第七節 AI Memory Layer 中的 Episodic Memory（互動記憶）。
+
+**實現位置：**
+- `modules/notebook/domain/entities/thread.ts`
+- `modules/notebook/domain/entities/message.ts`
+
+**AgentThread 核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 對話 Thread ID |
+| `workspaceId` | `string` | 所屬工作區 |
+| `userId` | `string` | 發起用戶 |
+| `createdAt` | `Timestamp` | 建立時間 |
+| `updatedAt` | `Timestamp` | 最後更新時間 |
+
+**AgentMessage 核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 訊息唯一 ID |
+| `threadId` | `string` | 所屬 Thread |
+| `role` | `"user" \| "assistant"` | 訊息角色 |
+| `content` | `string` | 訊息內容 |
+| `citations` | `RagCitation[]` | 關聯引用（AI 回覆時） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+---
+
+## 五、Platform Foundation Layer 的領域概念
+
+Platform Foundation Layer 提供整個平台的身份驗證、帳戶設定檔、組織結構與工作區容器，是上層三層（Content / UI、Knowledge Graph、AI）的共同基礎。所有 Content Page、Knowledge Graph 節點及 AI 文件攝入，都必須在一個已驗證身份的用戶（Identity）、歸屬帳戶（Account）、組織租戶（Organization）及工作區（Workspace）的脈絡下運行。
+
+### 5.1 Identity（身份識別）
+
+Identity 是平台安全入口，代表一個已驗證的 Firebase 用戶會話。
+
+**實現位置：** `modules/identity/domain/entities/Identity.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `uid` | `string` | Firebase UID（全平台唯一識別碼） |
+| `email` | `string \| null` | 電子信箱（匿名登入時為 null） |
+| `displayName` | `string \| null` | 顯示名稱 |
+| `photoURL` | `string \| null` | 大頭照 URL |
+| `isAnonymous` | `boolean` | 是否為匿名會話 |
+| `emailVerified` | `boolean` | 信箱是否已驗證 |
+
+**值物件：**
+- `SignInCredentials`：`{ email: string; password: string }`
+- `RegistrationInput`：`{ email: string; password: string; name: string }`
+
+**用例：** `SignInUseCase`、`RegisterUseCase`、`SignOutUseCase`、`SendPasswordResetEmailUseCase`
+
+#### TokenRefreshSignal（Custom Claims 刷新訊號）
+
+當帳戶角色或存取政策發生變更時，系統需觸發 Firebase Custom Claims 重新整理，以確保 JWT 中的權限資訊是最新的。此三方握手稱為 **[S6] Claims Refresh Protocol**：
+
+```text
+Party 1（account / organization 模組）
+    → 角色或政策變更
+    → 呼叫 identityApi.emitTokenRefreshSignal()
+
+Party 2（identity 模組 TokenRefreshRepository）
+    → 寫入 Firestore tokenRefreshSignals/<accountId> 文件
+
+Party 3（前端 useTokenRefreshListener hook）
+    → 監聽 Firestore 該文件
+    → 偵測到訊號後呼叫 user.getIdToken(true) 強制刷新 JWT
+```
+
+**TokenRefreshSignal 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `accountId` | `string` | 觸發刷新的帳戶 ID |
+| `reason` | `TokenRefreshReason` | 觸發原因 |
+| `issuedAt` | `string` | ISO-8601 時間戳 |
+| `traceId` | `string \| undefined` | 可選的追蹤 ID（審計用） |
+
+**TokenRefreshReason 值物件：** `"role:changed" | "policy:changed"`
+
+---
+
+### 5.2 Account（帳戶聚合根）
+
+Account 是平台中「人」或「組織」在系統內的完整設定檔，支援 `user`（個人）與 `organization`（組織帳戶）兩種類型。
+
+**實現位置：** `modules/account/domain/entities/Account.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 帳戶唯一 ID（對應 Firebase UID 或 Org ID） |
+| `name` | `string` | 帳戶顯示名稱 |
+| `accountType` | `AccountType` | 類型：`"user" \| "organization"` |
+| `email` | `string \| undefined` | 聯絡信箱 |
+| `photoURL` | `string \| undefined` | 大頭照 / 組織 Logo |
+| `bio` | `string \| undefined` | 個人簡介或組織描述 |
+| `ownerId` | `string \| undefined` | 組織帳戶的擁有者 UID |
+| `role` | `OrganizationRole \| undefined` | 在組織中的角色 |
+| `members` | `MemberReference[] \| undefined` | 組織帳戶的成員列表 |
+| `teams` | `Team[] \| undefined` | 組織帳戶的小組列表 |
+| `wallet` | `Wallet \| undefined` | 錢包（積分 / 配額） |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題色彩 |
+| `createdAt` | `Timestamp \| undefined` | 建立時間 |
+
+**值物件：**
+- `AccountType`：`"user" | "organization"`
+- `OrganizationRole`：`"Owner" | "Admin" | "Member" | "Guest"`
+- `Presence`：`"active" | "away" | "offline"`
+- `ThemeConfig`：`{ primary; background; accent }`（對應 Notion 的工作區自訂主題）
+- `Wallet`：`{ balance: number }`（積分系統）
+
+**Team 嵌套物件（組織帳戶專屬）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 小組 ID |
+| `name` | `string` | 小組名稱 |
+| `type` | `"internal" \| "external"` | 內部小組或外部合作小組 |
+| `memberIds` | `string[]` | 成員 ID 列表 |
+
+**用例：** `CreateUserAccountUseCase`、`UpdateUserProfileUseCase`、`CreditWalletUseCase`、`AssignAccountRoleUseCase`
+
+#### AccountPolicy（帳戶層 ABAC 政策）
+
+Account 支援屬性型存取控制（ABAC）。每個帳戶可定義多條 `AccountPolicy`，由規則集（PolicyRule[]）組成，精確控制哪些資源可以執行哪些操作。
+
+**AccountPolicy 屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 政策唯一 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `name` | `string` | 政策名稱 |
+| `rules` | `PolicyRule[]` | 規則列表 |
+| `isActive` | `boolean` | 是否啟用 |
+| `createdAt` | `string` | ISO-8601 建立時間 |
+| `traceId` | `string \| undefined` | 審計追蹤 ID |
+
+**PolicyRule 值物件：**
+
+```typescript
+interface PolicyRule {
+  resource: string;                      // 受保護資源路徑
+  actions: string[];                     // 允許或拒絕的操作列表
+  effect: "allow" | "deny";             // 政策效果
+  conditions?: Record<string, string>;   // 條件約束（可選）
+}
+```
+
+政策變更後，系統自動觸發 `TOKEN_REFRESH_SIGNAL`（see §5.1），確保 JWT 中的 Custom Claims 即時反映最新政策。
+
+---
+
+### 5.3 Organization（組織聚合根）
+
+Organization 是多租戶架構的核心，管理組織的完整生命週期：成員招募、小組管理、合作夥伴邀請及組織層存取政策。
+
+**實現位置：** `modules/organization/domain/entities/Organization.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 組織唯一 ID（聚合根） |
+| `name` | `string` | 組織名稱 |
+| `ownerId` | `string` | 擁有者 UID |
+| `email` | `string \| undefined` | 組織聯絡信箱 |
+| `description` | `string \| undefined` | 組織描述 |
+| `theme` | `ThemeConfig \| undefined` | 自訂主題 |
+| `members` | `MemberReference[]` | 成員列表（含角色與在線狀態） |
+| `memberIds` | `string[]` | 成員 ID 快取（查詢最佳化） |
+| `teams` | `Team[]` | 小組列表 |
+| `partnerInvites` | `PartnerInvite[] \| undefined` | 合作夥伴邀請列表 |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**PartnerInvite 值物件（合作夥伴邀請）：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 邀請唯一 ID |
+| `email` | `string` | 被邀請方信箱 |
+| `teamId` | `string` | 加入的小組 |
+| `role` | `OrganizationRole` | 授予角色 |
+| `inviteState` | `InviteState` | 邀請狀態 |
+| `invitedAt` | `Timestamp` | 邀請時間 |
+| `protocol` | `string` | 協議說明（外部協作規範） |
+
+**InviteState 值物件：** `"pending" | "accepted" | "expired"`
+
+#### OrgPolicy（組織層 ABAC 政策）
+
+與帳戶層 AccountPolicy 類似，但作用域（`OrgPolicyScope`）更廣，可覆蓋整個組織的工作區、成員或全局資源。
+
+**OrgPolicyScope 值物件：** `"workspace" | "member" | "global"`
+
+**用例：** `CreateOrganizationUseCase`、`InviteMemberUseCase`、`RecruitMemberUseCase`、`CreateTeamUseCase`、`SendPartnerInviteUseCase`、`CreateOrgPolicyUseCase`
+
+---
+
+### 5.4 Workspace（工作區聚合根）
+
+Workspace 是平台的「房間」（Room）概念，是 Content、Knowledge Graph 與 AI 三層功能的運行容器。每個 ContentPage、GraphNode 及 IngestionDocument 都掛載在一個特定的 Workspace 之下。
+
+**實現位置：** `modules/workspace/domain/entities/Workspace.ts`
+
+**核心屬性：**
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 工作區唯一 ID（聚合根） |
+| `name` | `string` | 工作區名稱 |
+| `lifecycleState` | `WorkspaceLifecycleState` | 生命週期狀態（見下方） |
+| `visibility` | `WorkspaceVisibility` | 能見度：`"visible" \| "hidden"` |
+| `accountId` | `string` | 擁有者帳戶 ID（user 或 org） |
+| `accountType` | `"user" \| "organization"` | 擁有者帳戶類型 |
+| `capabilities` | `Capability[]` | 已掛載的能力模組（見下方） |
+| `grants` | `WorkspaceGrant[]` | 存取授權列表 |
+| `teamIds` | `string[]` | 關聯的組織小組 |
+| `address` | `Address \| undefined` | 實體地址（選填） |
+| `locations` | `WorkspaceLocation[] \| undefined` | 工作區內的地點列表 |
+| `personnel` | `WorkspacePersonnel \| undefined` | 工作區人事指派（經理 / 主管 / 安全官） |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+**WorkspaceLifecycleState 狀態機：**
+
+```text
+preparatory ──────────→ active ──────────→ stopped
+```
+
+| 狀態 | 說明 |
+| --- | --- |
+| `preparatory` | 工作區準備中，正在初始化能力與設定 |
+| `active` | 工作區正常運作，可使用全部能力 |
+| `stopped` | 工作區已停用，保留資料但不可新增內容 |
+
+**Capability 值物件（能力模組）：**
+
+工作區透過 `capabilities` 列表宣告它開啟了哪些功能模組，對應 architecture.md 中各層的具體能力：
+
+```typescript
+interface Capability {
+  id: string;
+  name: string;
+  type: "ui" | "api" | "data" | "governance" | "monitoring";
+  status: "stable" | "beta";
+  description: string;
+  config?: object;  // 各能力的自訂設定
+}
+```
+
+**WorkspaceGrant 值物件（存取授權）：**
+
+```typescript
+interface WorkspaceGrant {
+  userId?: string;   // 個人授權
+  teamId?: string;   // 小組授權
+  role: string;      // 授予的角色
+  protocol?: string; // 授權協議（外部合作適用）
+}
+```
+
+**不變式：**
+- 一個 Workspace 必須屬於一個 Account（user 或 organization）。
+- `stopped` 狀態的 Workspace 不能再掛載新的 Capability。
+- 每個 Workspace 中 `grants` 陣列內，相同 `userId` 最多只能有一條個人直接授權記錄（對應 `WorkspaceMemberAccessSource` 中的 `"direct"` 管道；透過 `userId` 判斷，而非透過 `teamId`）。
+
+**用例：** `CreateWorkspaceUseCase`、`CreateWorkspaceWithCapabilitiesUseCase`、`UpdateWorkspaceSettingsUseCase`、`MountCapabilitiesUseCase`、`GrantTeamAccessUseCase`、`GrantIndividualAccessUseCase`
+
+#### WorkspaceMemberView（工作區成員讀取模型）
+
+WorkspaceMemberView 是 CQRS 的讀側（Read Model），聚合來自 Organization 成員列表與 Workspace grants 的資訊，為 UI 提供「此工作區中哪些人可存取、透過哪個渠道」的扁平化視圖。
+
+**實現位置：** `modules/workspace/domain/entities/WorkspaceMember.ts`
+
+| 屬性 | 類型 | 說明 |
+| --- | --- | --- |
+| `id` | `string` | 成員 ID |
+| `displayName` | `string` | 顯示名稱 |
+| `presence` | `WorkspaceMemberPresence` | 在線狀態 |
+| `isExternal` | `boolean` | 是否為外部合作成員 |
+| `accessChannels` | `WorkspaceMemberAccessChannel[]` | 存取管道列表 |
+
+**WorkspaceMemberAccessSource 值物件：** `"owner" | "direct" | "team" | "personnel"`
+
+#### WikiContentTree（側邊欄導覽樹聚合根）
+
+WikiContentTree 是 Wiki 側邊欄的導覽資料結構，以帳戶為根節點（personal 帳戶優先），展示所屬工作區及各工作區的內容入口（spaces、pages、libraries、documents、rag、ai-tools 等）。
+
+**實現位置：** `modules/workspace/domain/entities/WikiContentTree.ts`
+
+**樹狀結構：**
+
+```text
+WikiAccountContentNode（帳戶節點）
+  ├── accountId, accountName, accountType（personal | organization）
+  ├── membersHref（組織帳戶限定）
+  ├── teamsHref（組織帳戶限定）
+  └── workspaces[]
+        └── WikiWorkspaceContentNode（工作區節點）
+              ├── workspaceId, workspaceName
+              └── contentBaseItems[]
+                    └── WikiContentItemNode（內容入口）
+                          ├── key（spaces | pages | libraries | rag | ai-tools …）
+                          ├── label, href
+                          └── enabled（是否啟用）
+```
+
+**不變式：**
+- Personal 帳戶節點排列在 Organization 帳戶節點之前。
+- `membersHref` 與 `teamsHref` 僅在 `accountType === "organization"` 時存在。
+
+---
+
+### 5.5 Platform Foundation 跨模組關係
+
+```text
+Identity ──→ Account ──→ Organization ──→ Workspace
+  │ (uid)       │ (accountId)   │ (orgId)       │ (workspaceId)
+  │             │               │               │
+  │         AccountPolicy   OrgPolicy       Capability
+  │             │               │
+  └─────────────┴───────────────┘
+         [S6] Claims Refresh Protocol
+         (角色或政策變更 → TokenRefreshSignal → JWT 刷新)
+```
+
+| 關係 | 說明 |
+| --- | --- |
+| `Identity → Account` | Firebase UID 對應唯一 AccountEntity（user 帳戶），多租戶下同一 UID 可加入多個 Organization |
+| `Account → Organization` | Organization 是 Account 的聚合，ownerId 指向建立者的 UID；成員以 MemberReference 陣列嵌入 |
+| `Organization → Workspace` | Workspace 透過 `accountId + accountType` 歸屬於 user 或 organization 帳戶 |
+| `Workspace → Content / KG / AI` | ContentPage、GraphNode、IngestionDocument 的 `workspaceId` 外鍵指向此聚合根 |
+| `Account / Org → Identity ([S6])` | 角色或政策變更後，透過 `identityApi.emitTokenRefreshSignal()` 通知 Identity 模組刷新 JWT Custom Claims |
+
+## 六、三層記憶架構的領域映射
+
+架構研究（第七節）定義了三種記憶類型。以下是各記憶類型在儲存庫中的領域對應：
+
+| 記憶類型 | 架構角色 | 儲存庫對應 | 持久化機制 |
+| --- | --- | --- | --- |
+| Semantic Memory（語意記憶） | 知識庫長期記憶 | `IngestionChunk.vector` | Firestore Vector Search |
+| Episodic Memory（互動記憶） | 用戶互動歷程 | `AgentThread` + `AgentMessage` | Firestore `sessions` collection |
+| Working Memory（工作記憶） | 當前對話上下文 | 傳遞給 Genkit Flow 的 context buffer | In-memory（不持久化） |
+
+---
+
+## 七、Ingestion Pipeline 的領域事件
+
+完整的 Ingestion Pipeline（第十二節）應透過領域事件在各階段間協調，避免直接同步呼叫。
+
+| 領域事件 | 觸發時機 | 訂閱方 |
+| --- | --- | --- |
+| `knowledge.document_registered` | IngestionDocument 建立時 | py_fn 攝入 Worker |
+| `knowledge.parsing_completed` | Parse 階段完成時 | py_fn 清洗 Worker |
+| `knowledge.chunking_completed` | Chunk 階段完成時 | py_fn Embedding Worker |
+| `knowledge.embedding_completed` | Embedding 完成，vector 寫入時 | Next.js（更新 status → indexed） |
+| `knowledge.document_stale` | 原始文件更新時 | py_fn 觸發 re-indexing |
+| `knowledge.ingestion_failed` | 任一階段發生錯誤時 | 通知系統（notification 模組） |
+
+**事件 DTO 結構慣例：**
+
+```typescript
+interface DomainEventDTO {
+  type: "knowledge.document_registered";  // 格式：module.event_name
+  payload: { documentId: string; workspaceId: string; };
+  occurredAt: string;                     // ISO 8601 時間戳
+}
+```
+
+---
+
+## 八、Query Understanding Layer 的領域服務
+
+Query Understanding Layer（第六節）的核心邏輯應建模為領域服務（Domain Service），而非 Use Case，因為它代表無狀態的業務規則計算。
+
+**建議的領域服務介面（位於 `modules/search/domain/services/`）：**
+
+```typescript
+interface QueryPlannerService {
+  classifyIntent(query: string): Promise<QueryIntent>;
+  decomposeQuery(query: string): Promise<string[]>;
+  rewriteForRetrieval(query: string): Promise<string>;
+  generateHyDE(query: string): Promise<string>;  // Hypothetical Document Embedding
+}
+```
+
+**對應的 Genkit Flow（`modules/notebook/infrastructure/genkit/` 或 `modules/search/infrastructure/genkit/`）：**
+- `QueryPlannerFlow` → 包裝上方 QueryPlannerService 的 AI 實作
+- `RetrievalFlow` → Hybrid RAG（Dense + Sparse + Graph + Reranker）
+- `CitationFlow` → Answer + Source Mapping + Faithfulness Check
+
+---
+
+## 九、Schema + Ontology Layer 的領域概念
+
+架構研究（第十四節）定義了 Domain Ontology。以下是對應的領域建模方向：
+
+### Ontology 在 EdgeType 中的實現
+
+GraphEdge 的 `type` 屬性直接承載本體論的關係語意：
+
+```text
+IS_A        → 類別繼承（OWL SubClassOf）
+PART_OF     → 組成關係（Mereology）
+RELATED_TO  → 通用相關（RDF関係）
+DEPENDS_ON  → 工程依賴
+CAUSES      → 因果推理
+CONTRADICTS → 知識矛盾偵測
+```
+
+### 未來擴充：Entity Normalization（實體正規化）
+
+為支援 Wiki 的 Redirect（別名統一）功能，Domain 層需要：
+1. `WikiPage.isRedirect` + `redirectTargetId` 屬性（已在 3.3 節定義）
+2. `GraphEdge` 的 `REDIRECT` 類型（已在 3.2 節的 EdgeType 中定義）
+3. Repository 的 `resolveRedirect(pageId)` 方法，沿 REDIRECT 邊鏈追蹤到正規頁面
+
+---
+
+## 十、Hybrid Retrieval 的技術邊界說明
+
+architecture.md 第八節描述了 Hybrid Retrieval（Dense + Sparse + Graph + Reranker）。這是基礎設施關切（Infrastructure Concern），**不屬於**領域模型，而是由以下層級實現：
+
+| 元件 | 層級 | 位置 |
+| --- | --- | --- |
+| Dense Retrieval（Vector Search） | Infrastructure | `modules/search/infrastructure/firebase/` |
+| Sparse Retrieval（BM25） | Infrastructure | `modules/search/infrastructure/` |
+| Graph Retrieval（Knowledge Graph 遍歷） | Infrastructure | `modules/wiki/infrastructure/` |
+| Reranker | Infrastructure / AI | `modules/search/infrastructure/genkit/` |
+| Fusion & Ranking | Application | `modules/search/application/use-cases/answer-rag-query.use-case.ts` |
+
+領域層只定義 `RagRetrievedChunk.retrievalMethod` 值物件，記錄某個 Chunk 是透過哪種方式被檢索到的，供上層決策使用。
+
+---
+
+## 十一、完整領域概念清單
+
+| 領域概念 | 類型 | 模組 | 狀態 |
+| --- | --- | --- | --- |
+| `Identity` | 聚合根 | `identity` | ✅ 已實現 |
+| `SignInCredentials` | 值物件 | `identity` | ✅ 已實現 |
+| `RegistrationInput` | 值物件 | `identity` | ✅ 已實現 |
+| `TokenRefreshSignal` | 聚合根（訊號） | `identity` | ✅ 已實現 |
+| `TokenRefreshReason` | 值物件 | `identity` | ✅ 已實現 |
+| `Account` | 聚合根 | `account` | ✅ 已實現 |
+| `AccountType` | 值物件 | `account` | ✅ 已實現 |
+| `OrganizationRole` | 值物件 | `account` | ✅ 已實現 |
+| `Presence` | 值物件 | `account` | ✅ 已實現 |
+| `ThemeConfig` | 值物件 | `account` | ✅ 已實現 |
+| `Wallet` | 值物件 | `account` | ✅ 已實現 |
+| `Team` | 值物件（嵌套） | `account` | ✅ 已實現 |
+| `AccountPolicy` | 聚合根 | `account` | ✅ 已實現 |
+| `PolicyRule` | 值物件 | `account` | ✅ 已實現 |
+| `PolicyEffect` | 值物件 | `account` | ✅ 已實現 |
+| `Organization` | 聚合根 | `organization` | ✅ 已實現 |
+| `MemberReference` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `PartnerInvite` | 值物件（嵌套） | `organization` | ✅ 已實現 |
+| `InviteState` | 值物件 | `organization` | ✅ 已實現 |
+| `OrgPolicy` | 聚合根 | `organization` | ✅ 已實現 |
+| `OrgPolicyScope` | 值物件 | `organization` | ✅ 已實現 |
+| `Workspace` | 聚合根 | `workspace` | ✅ 已實現 |
+| `WorkspaceLifecycleState` | 值物件（狀態機） | `workspace` | ✅ 已實現 |
+| `WorkspaceVisibility` | 值物件 | `workspace` | ✅ 已實現 |
+| `Capability` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceGrant` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspacePersonnel` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceLocation` | 值物件 | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberView` | 讀取模型（CQRS） | `workspace` | ✅ 已實現 |
+| `WorkspaceMemberAccessSource` | 值物件 | `workspace` | ✅ 已實現 |
+| `WikiContentTree` | 聚合根 | `workspace` | ✅ 已實現 |
+| `ContentPage` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentBlock` | 聚合根 | `content` | ✅ 已實現 |
+| `ContentVersion` | 聚合根 | `content` | ✅ 已實現 |
+| `BlockType` | 值物件 | `content` | ✅ 已實現 |
+| `PageStatus` | 值物件 | `content` | ✅ 已實現 |
+| `GraphNode` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `GraphEdge / Link` | 聚合根 | `knowledge-graph` | ✅ 已實現 |
+| `EdgeType` | 值物件 | `knowledge-graph` | ✅ 已實現 |
+| `GraphNodeStatus` | 值物件（狀態機） | `knowledge-graph` | ✅ 已實現 |
+| `WikiPage` | 投影實體 | `content` | ✅ 已實現 |
+| `WikiLibrary` | 聚合根 | `asset` | ✅ 已實現 |
+| `IngestionDocument` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionJob` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionChunk` | 聚合根 | `knowledge` | ✅ 已實現 |
+| `IngestionStatus` | 值物件（狀態機） | `knowledge` | ✅ 已實現 |
+| `PipelineStage` | 值物件 | `knowledge` | ✅ 已實現 |
+| `RagQuery` | 聚合根 | `retrieval` | ✅ 已實現 |
+| `RagRetrievedChunk` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagCitation` | 值物件 | `retrieval` | ✅ 已實現 |
+| `RagRetrievalSummary` | 值物件 | `retrieval` | ✅ 已實現 |
+| `QueryIntent` | 值物件 | `retrieval` | 🔲 待補充 |
+| `AgentThread` | 聚合根 | `agent` | ✅ 已實現 |
+| `AgentMessage` | 聚合根 | `agent` | ✅ 已實現 |
+| `QueryPlannerService` | 領域服務介面 | `retrieval` | 🔲 待補充 |
+| `deriveSlugCandidate` / `isValidSlug` | 領域服務（純函式） | `shared` | ✅ 已實現（原 namespace 模組） |
+| `EventRecord` / `IEventStoreRepository` / `IEventBusRepository` | 事件存儲原語 | `shared` | ✅ 已實現（原 event 模組） |
+| `PublishDomainEventUseCase` | 用例 | `shared` | ✅ 已實現（原 event 模組） |
+
+---
+
+> 本文件從領域建模角度解釋儲存庫如何實現 architecture.md 描述的三層融合知識平台研究。詳細的技術實現決策請參閱各模組的 `README.md` 及相關 ADR（`docs/decision-architecture/adr/`）。
+````
+
 ## File: docs/hooks.md
 ````markdown
 # Hooks
@@ -56510,394 +57833,6 @@ MCP servers run as your user. Check file permissions and API tokens.
 [← Back to README](../README.md)
 ````
 
-## File: eslint.config.mjs
-````javascript
-import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import boundaries from "eslint-plugin-boundaries";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
-import jsxA11y from "eslint-plugin-jsx-a11y";
- 
-const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const typescriptFileGlobs = ["**/*.{ts,tsx}"];
-const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
-const boundaryRuleSeverity = "warn";
-const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
-
-const moduleApiEntrypointMessage =
-  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
-
-const moduleApiEntrypointPattern = {
-  regex: "^@/modules/(?!system$)[^/]+$",
-  message: moduleApiEntrypointMessage,
-};
-
-const moduleNonApiSubpathPattern = {
-  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
-  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
-};
-
-const explicitIndexPathPattern = {
-  group: ["**/index", "**/index.ts", "**/index.tsx"],
-  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-};
-
-const moduleInternalLayerPattern = {
-  group: [
-    "@/modules/*/application/**",
-    "@/modules/*/domain/**",
-    "@/modules/*/infrastructure/**",
-    "@/modules/*/interfaces/**",
-  ],
-  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-};
-
-const moduleElements = [
-  {
-    type: "module-root",
-    pattern: "modules/*/index.ts",
-    capture: ["module"],
-  },
-  {
-    type: "module-api",
-    pattern: "modules/*/api/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-domain",
-    pattern: "modules/*/domain/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-application",
-    pattern: "modules/*/application/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-infrastructure",
-    pattern: "modules/*/infrastructure/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-interfaces",
-    pattern: "modules/*/interfaces/**/*",
-    capture: ["module"],
-  },
-];
-
-const sameModuleCapture = { module: "{{from.captured.module}}" };
-const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
-
-const crossModuleApiRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [{ to: { type: "module-api" } }],
-  message: "Cross-module imports must go through `modules/<target>/api`.",
-}));
-
-const sameModuleRootRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [sameModuleTarget("module-root")],
-  message: "Module root barrel is allowed only for the same module.",
-}));
-
-const apiLayerRule = {
-  from: { type: "module-api" },
-  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
-  message: "API layer may depend only on same-module layers.",
-};
-
-const sameModuleLayerAllowMap = {
-  "module-domain": ["module-domain"],
-  "module-application": ["module-application", "module-domain"],
-  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
-  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
-};
-
-const sameModuleLayerMessageMap = {
-  "module-domain": "Domain may only depend on domain of the same module.",
-  "module-application": "Application may depend only on application/domain in the same module.",
-  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
-  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
-};
-
-const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
-  message: sameModuleLayerMessageMap[type],
-}));
-
-const moduleDependencyRules = [
-  ...crossModuleApiRules,
-  ...sameModuleRootRules,
-  apiLayerRule,
-  ...sameModuleLayerRules,
-];
-
-const packageAliasMigrationPatterns = [
-  {
-    group: ["@/shared/*"],
-    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
-  },
-  {
-    group: ["@/infrastructure/*"],
-    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
-  },
-  {
-    group: ["@/libs/*"],
-    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
-  },
-  {
-    group: ["@/ui/shadcn/*"],
-    message: "Use @ui-shadcn/* instead.",
-  },
-  {
-    group: ["@/ui/vis", "@/ui/vis/*"],
-    message: "Use @ui-vis instead.",
-  },
-  {
-    group: ["@/interfaces/*"],
-    message: "Use @api-contracts instead.",
-  },
-];
-
-const wikiIsolationPatterns = [
-  {
-    group: ["@/modules/wiki-beta", "@/modules/wiki-beta/*"],
-    message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta。",
-  },
-  {
-    group: ["@/app/(shell)/wiki-beta", "@/app/(shell)/wiki-beta/*"],
-    message: "wiki 與 wiki-beta 必須完全隔離，禁止從 wiki 引用 wiki-beta route。",
-  },
-];
-
-const wikiBetaIsolationPatterns = [
-  {
-    group: ["@/modules/wiki", "@/modules/wiki/*"],
-    message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki。",
-  },
-  {
-    group: ["@/app/(shell)/wiki", "@/app/(shell)/wiki/*"],
-    message: "wiki-beta 與 wiki 必須完全隔離，禁止從 wiki-beta 引用 wiki route。",
-  },
-];
-
-const createRestrictedImportsRule = (patterns) => [
-  boundaryRuleSeverity,
-  {
-    patterns,
-  },
-];
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  {
-    files: sourceFileGlobs,
-    plugins: {
-      jsdoc,
-    },
-    settings: {
-      jsdoc: {
-        mode: "typescript",
-      },
-    },
-    rules: {
-      "jsdoc/check-alignment": "warn",
-      "jsdoc/check-syntax": "warn",
-      "jsdoc/check-tag-names": "warn",
-      "jsdoc/no-blank-blocks": "warn",
-    },
-  },
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/naming-convention": [
-        "warn",
-        {
-          selector: "typeLike",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "variable",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow",
-        },
-        {
-          selector: "parameter",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "enumMember",
-          format: ["PascalCase", "UPPER_CASE"],
-        },
-      ],
-    },
-  },
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-    },
-  },
-  // ─── Consistent type-only imports ──────────────────────────────────────
-  // Enforces `import type` for type-only imports, improving tree-shaking and
-  // making module-boundary intent explicit (matches project MDDD conventions).
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/consistent-type-imports": [
-        "warn",
-        { prefer: "type-imports", fixStyle: "inline-type-imports" },
-      ],
-    },
-  },
-  // ─── React best-practices ───────────────────────────────────────────────
-  // eslint-config-next already pulls in react / react-hooks rules via its
-  // own config; these overrides make project-specific settings explicit and
-  // add missing checks not covered by the base config.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
-      "react/prop-types": "off",            // TypeScript types replace PropTypes
-      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
-      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-    },
-  },
-  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
-  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
-  // activated here.  Enabling recommended rules as warn catches common a11y
-  // mistakes without breaking the zero-error baseline.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
-          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
-          // Downgrade all errors to warnings to preserve the zero-error baseline.
-          if (Array.isArray(config)) {
-            const [severity, ...rest] = config;
-            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
-            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
-          }
-          const normalised = config === "error" || config === 2 ? "warn" : config;
-          return [rule, normalised];
-        }),
-      ),
-    },
-  },
-  {
-    files: moduleFileGlobs,
-    plugins: {
-      boundaries,
-    },
-    settings: {
-      "boundaries/include": moduleFileGlobs,
-      "boundaries/elements": moduleElements,
-    },
-    rules: {
-      "boundaries/dependencies": [
-        boundaryRuleSeverity,
-        {
-          default: "disallow",
-          rules: moduleDependencyRules,
-        },
-      ],
-    },
-  },
-  // ─── Package boundary enforcement ───────────────────────────────────────
-  // Forbid legacy import paths that were migrated to packages/*.
-  {
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
-    },
-  },
-  // ─── Strict module entrypoint enforcement ───────────────────────────────
-  {
-    files: [
-      "app/**/*.{ts,tsx,js,jsx}",
-      "providers/**/*.{ts,tsx,js,jsx}",
-      "debug/**/*.{ts,tsx,js,jsx}",
-    ],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-      ]),
-    },
-  },
-  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
-  {
-    files: moduleFileGlobs,
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        explicitIndexPathPattern,
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-        moduleInternalLayerPattern,
-      ]),
-    },
-  },
-  // ─── Wiki / Wiki-Beta isolation boundaries ───────────────────────────────
-  {
-    files: ["modules/wiki/**/*.{ts,tsx}", "app/(shell)/wiki/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(wikiIsolationPatterns),
-    },
-  },
-  {
-    files: ["modules/wiki-beta/**/*.{ts,tsx}", "app/(shell)/wiki-beta/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(wikiBetaIsolationPatterns),
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    ".agents/**",
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
-
-export default eslintConfig;
-````
-
 ## File: llms.txt
 ````
 # Xuanwu App
@@ -57044,202 +57979,139 @@ npm run build
 ```
 ````
 
-## File: modules/knowledge-base/application/dto/knowledge-base.dto.ts
+## File: modules/knowledge-base/AGENT.md
+````markdown
+# knowledge-base — DDD Agent
+
+## 戰略分類
+
+| 屬性 | 值 |
+|---|---|
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
+
+## 為何是 Core Domain
+
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+
+## 關鍵設計決策
+
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+
+## 詳細實作文件
+
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+````
+
+## File: modules/knowledge-base/aggregates.md
+````markdown
+# knowledge-base — 聚合根摘要
+
+> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+
+## Article（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `title`, `content` | 文章標題與主體 |
+| `status` | `draft` / `published` / `archived` |
+| `verificationState` | `verified` / `needs_review` / `unverified` |
+| `ownerId` | 文章負責人（ArticleOwner） |
+| `linkedArticleIds` | Backlink 引用列表 |
+| `categoryId` | 所屬分類 |
+| `tags` | 標籤列表 |
+
+## Category（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `name`, `slug` | 分類名稱與 URL 識別碼 |  
+| `parentCategoryId` | 父分類（null = 根節點） |
+| `depth` | 層級深度（最大 5）|
+| `articleIds` | 直屬文章 ID 列表 |
+````
+
+## File: modules/knowledge-base/application-services.md
+````markdown
+# knowledge-base — Application Services
+
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks
+
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
+````
+
+## File: modules/knowledge-base/context-map.md
+````markdown
+# knowledge-base — Context Map
+
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
+
+## 上游
+
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+
+## 下游
+
+- `knowledge` — 頁面可提升（Promote）為 Article
+- `knowledge-database` — Article 可與 Record 連結（ACL）
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
+````
+
+## File: modules/knowledge-base/domain-events.md
+````markdown
+# knowledge-base — 領域事件
+
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+
+## 事件清單
+
+| 事件 | 觸發條件 |
+|---|---|
+| `knowledge-base.article_created` | 文章建立（狀態 draft） |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
+````
+
+## File: modules/knowledge-base/domain-services.md
+````markdown
+# knowledge-base — Domain Services
+
+> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+
+- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
+- `ArticleSlugService` — title → URL-safe slug 轉換
+- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+````
+
+## File: modules/knowledge-base/index.ts
 ````typescript
 /**
- * Module: knowledge-base
- * Layer: application/dto
- * Zod schemas for Article and Category CQRS inputs.
+ * knowledge-base module — public barrel export
+ *
+ * Cross-module access: only import from this file.
+ * Internal layers (domain/, application/, infrastructure/) are NOT exported here.
+ *
+ * @module knowledge-base
  */
 
-import { z } from "@lib-zod";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-// ─── Article DTOs ──────────────────────────────────────────────────────────────
-
-export const CreateArticleSchema = AccountScopeSchema.extend({
-  title: z.string().min(1).max(256),
-  content: z.string().default(""),
-  categoryId: z.string().nullable().default(null),
-  tags: z.array(z.string()).default([]),
-  createdByUserId: z.string().min(1),
-});
-
-export const UpdateArticleSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  title: z.string().min(1).max(256).optional(),
-  content: z.string().optional(),
-  categoryId: z.string().nullable().optional(),
-  tags: z.array(z.string()).optional(),
-});
-
-export const PublishArticleSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-
-export const ArchiveArticleSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-
-export const VerifyArticleSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  verifiedByUserId: z.string().min(1),
-  expiresInDays: z.number().int().positive().optional(),
-});
-
-export const RequestArticleReviewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-
-export const DeleteArticleSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-
-// ─── Category DTOs ─────────────────────────────────────────────────────────────
-
-export const CreateCategorySchema = AccountScopeSchema.extend({
-  name: z.string().min(1).max(128),
-  slug: z.string().min(1).max(128),
-  parentCategoryId: z.string().nullable().default(null),
-  description: z.string().nullable().default(null),
-  createdByUserId: z.string().min(1),
-});
-
-export const RenameCategorySchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(128),
-});
-
-export const MoveCategorySchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  parentCategoryId: z.string().nullable(),
-});
-
-export const DeleteCategorySchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-````
-
-## File: modules/knowledge-base/domain/entities/article.entity.ts
-````typescript
-export type ArticleStatus = "draft" | "published" | "archived";
-export type VerificationState = "verified" | "needs_review" | "unverified";
-
-export interface Article {
-  id: string;
-  accountId: string;
-  workspaceId: string;
-  categoryId: string | null;
-  title: string;
-  content: string;
-  tags: string[];
-  status: ArticleStatus;
-  version: number;
-  verificationState: VerificationState;
-  ownerId: string | null;
-  verifiedByUserId: string | null;
-  verifiedAtISO: string | null;
-  verificationExpiresAtISO: string | null;
-  linkedArticleIds: string[];
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-````
-
-## File: modules/knowledge-base/domain/entities/category.entity.ts
-````typescript
-export interface Category {
-  id: string;
-  accountId: string;
-  workspaceId: string;
-  name: string;
-  slug: string;
-  parentCategoryId: string | null;
-  depth: number;
-  articleIds: string[];
-  description: string | null;
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-````
-
-## File: modules/knowledge-base/domain/index.ts
-````typescript
-/**
- * knowledge-base domain layer exports
- */
-
-export type { Article, ArticleStatus, VerificationState } from "./entities/article.entity";
-export type { Category } from "./entities/category.entity";
-export type { IArticleRepository } from "./repositories/ArticleRepository";
-export type { ICategoryRepository } from "./repositories/CategoryRepository";
-export { BacklinkExtractorService } from "./services/BacklinkExtractorService";
-````
-
-## File: modules/knowledge-base/domain/repositories/ArticleRepository.ts
-````typescript
-import type { Article, ArticleStatus } from "../entities/article.entity";
-
-export interface IArticleRepository {
-  getById(articleId: string): Promise<Article>;
-  list(params: {
-    workspaceId: string;
-    accountId: string;
-    categoryId?: string;
-    status?: ArticleStatus;
-    limit?: number;
-    cursor?: string;
-  }): Promise<Article[]>;
-  search(params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]>;
-  save(article: Article): Promise<void>;
-  getByIds(articleIds: string[]): Promise<Article[]>;
-  findByLinkedArticleId(articleId: string): Promise<Article[]>;
-  delete(articleId: string): Promise<void>;
-}
-````
-
-## File: modules/knowledge-base/domain/repositories/CategoryRepository.ts
-````typescript
-import type { Category } from "../entities/category.entity";
-
-export interface ICategoryRepository {
-  getById(categoryId: string): Promise<Category>;
-  listByWorkspace(workspaceId: string, accountId: string): Promise<Category[]>;
-  listChildren(parentCategoryId: string): Promise<Category[]>;
-  save(category: Category): Promise<void>;
-  delete(categoryId: string): Promise<void>;
-  updateArticleIds(categoryId: string, articleIds: string[]): Promise<void>;
-}
-````
-
-## File: modules/knowledge-base/domain/services/BacklinkExtractorService.ts
-````typescript
-export class BacklinkExtractorService {
-  extractWikilinkTitles(content: string): string[] {
-    const regex = /\[\[([^\]]+)\]\]/g;
-    const titles = new Set<string>();
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(content)) !== null) {
-      titles.add(match[1].trim());
-    }
-    return Array.from(titles);
-  }
-}
+export * from "./api";
 ````
 
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseCategoryRepository.ts
@@ -57347,163 +58219,170 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
-## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/dto
- */
+## File: modules/knowledge-base/README.md
+````markdown
+# knowledge-base — DDD Reference
 
-import { z } from "@lib-zod";
+> **Domain Type:** Core Domain
+> **Module:** `modules/knowledge-base/`
+> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
 
-const ContentScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
+## 戰略定位
 
-// ── Comment ───────────────────────────────────────────────────────────────────
+`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
 
-export const CreateCommentSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  authorId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-  parentCommentId: z.string().min(1).nullable().optional(),
-});
-export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
+## Bounded Context 邊界
 
-export const UpdateCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-});
-export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
+- **擁有：** Article（文章）、Category（分類）
+- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
 
-export const ResolveCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  resolvedByUserId: z.string().min(1),
-});
-export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
+## 核心聚合
 
-export const DeleteCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
+詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
 
-// ── Version ───────────────────────────────────────────────────────────────────
+- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
+- **Category** — 層級分類目錄（最多 5 層）
 
-export const CreateVersionSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  snapshotBlocks: z.array(z.unknown()),
-  label: z.string().max(200).nullable().optional(),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
+## 主要領域事件
 
-export const DeleteVersionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
+詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
 
-// ── Permission ────────────────────────────────────────────────────────────────
+- `knowledge-base.article_created`
+- `knowledge-base.article_published`
+- `knowledge-base.article_verified`
+- `knowledge-base.article_review_requested`
+- `knowledge-base.category_created`
 
-export const GrantPermissionSchema = ContentScopeSchema.extend({
-  subjectId: z.string().min(1),
-  subjectType: z.enum(["page", "article", "database"]),
-  principalId: z.string().min(1),
-  principalType: z.enum(["user", "team"]),
-  level: z.enum(["view", "comment", "edit", "full"]),
-  grantedByUserId: z.string().min(1),
-  expiresAtISO: z.string().nullable().optional(),
-});
-export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
+## 通用語言
 
-export const RevokePermissionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
+詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+
+- **Article** ≠ Page（個人筆記）≠ Document（泛型）
+- **VerificationState** ≠ ApprovalState（knowledge 的審核）
+- **Backlink** = `[[Article Title]]` wikilink 解析結果
+
+## 上下文關係
+
+詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier |
+| 下游 | `knowledge` (promote) | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed` | Published Language |
 ````
 
-## File: modules/knowledge-collaboration/application/use-cases/comment.use-cases.ts
+## File: modules/knowledge-base/repositories.md
+````markdown
+# knowledge-base — Repositories
+
+> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
+
+- `IArticleRepository` — CRUD + search + backlink 反查
+- `ICategoryRepository` — 層級樹操作 + articleIds 管理
+
+**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
+````
+
+## File: modules/knowledge-base/ubiquitous-language.md
+````markdown
+# knowledge-base — 通用語言
+
+> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
+
+## 核心術語速查
+
+| 術語 | 定義 |
+|---|---|
+| **Article** | 組織級知識文章（SOP / Wiki） |
+| **Category** | 層級分類目錄（max 5 層） |
+| **VerificationState** | `verified` / `needs_review` / `unverified` |
+| **ArticleOwner** | 負責維護文章準確性的使用者 |
+| **Backlink** | `[[Article Title]]` 解析的反向引用 |
+| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
+````
+
+## File: modules/knowledge-collaboration/AGENT.md
+````markdown
+# knowledge-collaboration — DDD Agent
+
+**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
+
+為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
+
+→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+````
+
+## File: modules/knowledge-collaboration/aggregates.md
+````markdown
+**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
+**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
+**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
+
+→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
+````
+
+## File: modules/knowledge-collaboration/api/index.ts
 ````typescript
 /**
- * Module: knowledge-collaboration
- * Layer: application/use-cases
+ * knowledge-collaboration public API boundary
+ *
+ * Other modules MUST import knowledge-collaboration resources from this file only.
  */
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { Comment } from "../../domain/entities/comment.entity";
-import type { ICommentRepository } from "../../domain/repositories/ICommentRepository";
-import {
-  CreateCommentSchema, type CreateCommentDto,
-  UpdateCommentSchema, type UpdateCommentDto,
-  ResolveCommentSchema, type ResolveCommentDto,
-  DeleteCommentSchema, type DeleteCommentDto,
-} from "../dto/knowledge-collaboration.dto";
+// ── Domain types ───────────────────────────────────────────────────────────────
+export type { Comment } from "../domain/entities/comment.entity";
+export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
+export type { Version } from "../domain/entities/version.entity";
 
-export class CreateCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+export type CommentId = string;
+export type PermissionId = string;
+export type VersionId = string;
 
-  async execute(input: CreateCommentDto): Promise<CommandResult> {
-    const parsed = CreateCommentSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId } = parsed.data;
-    const comment = await this.repo.create({ accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId });
-    return commandSuccess(comment.id, Date.now());
-  }
-}
+// ── DTOs ───────────────────────────────────────────────────────────────────────
+export type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+  CreateVersionDto,
+  DeleteVersionDto,
+  GrantPermissionDto,
+  RevokePermissionDto,
+} from "../application/dto/knowledge-collaboration.dto";
 
-export class UpdateCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+// ── Server Actions (mutations) ─────────────────────────────────────────────────
+export {
+  createComment,
+  updateComment,
+  resolveComment,
+  deleteComment,
+  createVersion,
+  deleteVersion,
+  grantPermission,
+  revokePermission,
+} from "../interfaces/_actions/knowledge-collaboration.actions";
 
-  async execute(input: UpdateCommentDto): Promise<CommandResult> {
-    const parsed = UpdateCommentSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    if (!result) return commandFailureFrom("COMMENT_NOT_FOUND", "Comment not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
+// ── Queries (reads) ────────────────────────────────────────────────────────────
+export {
+  getComments,
+  getVersions,
+  getPermissions,
+} from "../interfaces/queries/knowledge-collaboration.queries";
 
-export class ResolveCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+````
 
-  async execute(input: ResolveCommentDto): Promise<CommandResult> {
-    const parsed = ResolveCommentSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.resolve(parsed.data);
-    if (!result) return commandFailureFrom("COMMENT_NOT_FOUND", "Comment not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
+## File: modules/knowledge-collaboration/application-services.md
+````markdown
+Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
+Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
+Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
 
-export class DeleteCommentUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
-
-  async execute(input: DeleteCommentDto): Promise<CommandResult> {
-    const parsed = DeleteCommentSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListCommentsUseCase {
-  constructor(private readonly repo: ICommentRepository) {}
-
-  async execute(accountId: string, contentId: string): Promise<Comment[]> {
-    if (!accountId.trim() || !contentId.trim()) return [];
-    return this.repo.listByContent(accountId, contentId);
-  }
-}
+→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
 ````
 
 ## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
@@ -57562,320 +58441,42 @@ export class ListPermissionsBySubjectUseCase {
 }
 ````
 
-## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
+## File: modules/knowledge-collaboration/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
+下游消費者: `notification`, `workspace-feed`, `workspace-audit`
+
+→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
+````
+
+## File: modules/knowledge-collaboration/domain-events.md
+````markdown
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
+````
+
+## File: modules/knowledge-collaboration/domain-services.md
+````markdown
+- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
+- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
+
+→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
+````
+
+## File: modules/knowledge-collaboration/index.ts
 ````typescript
 /**
- * Module: knowledge-collaboration
- * Layer: application/use-cases
+ * knowledge-collaboration module — public barrel export
+ *
+ * Cross-module access → use api/ exports only.
+ * Internal imports use relative paths.
  */
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { Version } from "../../domain/entities/version.entity";
-import type { IVersionRepository } from "../../domain/repositories/IVersionRepository";
-import {
-  CreateVersionSchema, type CreateVersionDto,
-  DeleteVersionSchema, type DeleteVersionDto,
-} from "../dto/knowledge-collaboration.dto";
-
-export class CreateVersionUseCase {
-  constructor(private readonly repo: IVersionRepository) {}
-
-  async execute(input: CreateVersionDto): Promise<CommandResult> {
-    const parsed = CreateVersionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VERSION_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, workspaceId, contentId, contentType, snapshotBlocks, label, description, createdByUserId } = parsed.data;
-    const version = await this.repo.create({ accountId, workspaceId, contentId, contentType, snapshotBlocks, label, description, createdByUserId });
-    return commandSuccess(version.id, Date.now());
-  }
-}
-
-export class DeleteVersionUseCase {
-  constructor(private readonly repo: IVersionRepository) {}
-
-  async execute(input: DeleteVersionDto): Promise<CommandResult> {
-    const parsed = DeleteVersionSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("VERSION_INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListVersionsUseCase {
-  constructor(private readonly repo: IVersionRepository) {}
-
-  async execute(accountId: string, contentId: string): Promise<Version[]> {
-    if (!accountId.trim() || !contentId.trim()) return [];
-    return this.repo.listByContent(accountId, contentId);
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/domain/entities/comment.entity.ts
-````typescript
-export interface Comment {
-  id: string;
-  contentId: string;
-  contentType: "page" | "article";
-  workspaceId: string;
-  accountId: string;
-  authorId: string;
-  body: string;
-  parentCommentId: string | null;
-  resolvedAt: string | null;
-  resolvedByUserId: string | null;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-````
-
-## File: modules/knowledge-collaboration/domain/entities/permission.entity.ts
-````typescript
-export type PermissionLevel = "view" | "comment" | "edit" | "full";
-
-export interface Permission {
-  id: string;
-  subjectId: string;
-  subjectType: "page" | "article" | "database";
-  workspaceId: string;
-  accountId: string;
-  principalId: string;
-  principalType: "user" | "team";
-  level: PermissionLevel;
-  grantedByUserId: string;
-  grantedAtISO: string;
-  expiresAtISO: string | null;
-}
-````
-
-## File: modules/knowledge-collaboration/domain/entities/version.entity.ts
-````typescript
-export interface Version {
-  id: string;
-  contentId: string;
-  contentType: "page" | "article";
-  workspaceId: string;
-  accountId: string;
-  snapshotBlocks: unknown[];
-  label: string | null;
-  description: string | null;
-  createdByUserId: string;
-  createdAtISO: string;
-}
-````
-
-## File: modules/knowledge-collaboration/domain/repositories/ICommentRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: domain/repositories
- */
-
-import type { Comment } from "../entities/comment.entity";
-
-export interface CreateCommentInput {
-  readonly contentId: string;
-  readonly contentType: "page" | "article";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly authorId: string;
-  readonly body: string;
-  readonly parentCommentId?: string | null;
-}
-
-export interface UpdateCommentInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly body: string;
-}
-
-export interface ResolveCommentInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly resolvedByUserId: string;
-}
-
-export interface ICommentRepository {
-  create(input: CreateCommentInput): Promise<Comment>;
-  update(input: UpdateCommentInput): Promise<Comment | null>;
-  resolve(input: ResolveCommentInput): Promise<Comment | null>;
-  delete(accountId: string, commentId: string): Promise<void>;
-  findById(accountId: string, commentId: string): Promise<Comment | null>;
-  listByContent(accountId: string, contentId: string): Promise<Comment[]>;
-}
-````
-
-## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: domain/repositories
- */
-
-import type { Permission, PermissionLevel } from "../entities/permission.entity";
-
-export interface GrantPermissionInput {
-  readonly subjectId: string;
-  readonly subjectType: "page" | "article" | "database";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly principalId: string;
-  readonly principalType: "user" | "team";
-  readonly level: PermissionLevel;
-  readonly grantedByUserId: string;
-  readonly expiresAtISO?: string | null;
-}
-
-export interface IPermissionRepository {
-  grant(input: GrantPermissionInput): Promise<Permission>;
-  revoke(accountId: string, permissionId: string): Promise<void>;
-  findById(accountId: string, permissionId: string): Promise<Permission | null>;
-  listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
-  listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
-}
-````
-
-## File: modules/knowledge-collaboration/domain/repositories/IVersionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: domain/repositories
- */
-
-import type { Version } from "../entities/version.entity";
-
-export interface CreateVersionInput {
-  readonly contentId: string;
-  readonly contentType: "page" | "article";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly snapshotBlocks: unknown[];
-  readonly label?: string | null;
-  readonly description?: string | null;
-  readonly createdByUserId: string;
-}
-
-export interface IVersionRepository {
-  create(input: CreateVersionInput): Promise<Version>;
-  findById(accountId: string, versionId: string): Promise<Version | null>;
-  listByContent(accountId: string, contentId: string): Promise<Version[]>;
-  delete(accountId: string, versionId: string): Promise<void>;
-}
-````
-
-## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationComments/{commentId}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Comment } from "../../domain/entities/comment.entity";
-import type {
-  ICommentRepository,
-  CreateCommentInput,
-  UpdateCommentInput,
-  ResolveCommentInput,
-} from "../../domain/repositories/ICommentRepository";
-
-function commentsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationComments");
-}
-
-function commentDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationComments", id);
-}
-
-function toComment(id: string, data: Record<string, unknown>): Comment {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    authorId: typeof data.authorId === "string" ? data.authorId : "",
-    body: typeof data.body === "string" ? data.body : "",
-    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
-    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
-    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseCommentRepository implements ICommentRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateCommentInput): Promise<Comment> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      authorId: input.authorId,
-      body: input.body,
-      parentCommentId: input.parentCommentId ?? null,
-      resolvedAt: null,
-      resolvedByUserId: null,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(commentDoc(db, input.accountId, id), data);
-    return toComment(id, data);
-  }
-
-  async update(input: UpdateCommentInput): Promise<Comment | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    await updateDoc(ref, { body: input.body, updatedAtISO: now });
-    return toComment(snap.id, { ...snap.data(), body: input.body, updatedAtISO: now });
-  }
-
-  async resolve(input: ResolveCommentInput): Promise<Comment | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    await updateDoc(ref, { resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
-    return toComment(snap.id, { ...snap.data(), resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
-  }
-
-  async delete(accountId: string, commentId: string): Promise<void> {
-    const db = this.db();
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(commentDoc(db, accountId, commentId));
-  }
-
-  async findById(accountId: string, commentId: string): Promise<Comment | null> {
-    const db = this.db();
-    const snap = await getDoc(commentDoc(db, accountId, commentId));
-    if (!snap.exists()) return null;
-    return toComment(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<Comment[]> {
-    const db = this.db();
-    const q = query(commentsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "asc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>));
-  }
-}
+export * from "./api";
 ````
 
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
@@ -57971,680 +58572,440 @@ export class FirebasePermissionRepository implements IPermissionRepository {
 }
 ````
 
-## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
+## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
+import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
+
+function makeCommentRepo() { return new FirebaseCommentRepository(); }
+function makeVersionRepo() { return new FirebaseVersionRepository(); }
+function makePermissionRepo() { return new FirebasePermissionRepository(); }
+
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
+  try {
+    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
+  try {
+    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
+  try {
+    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
+  try {
+    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
 ````typescript
 /**
  * Module: knowledge-collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationVersions/{versionId}
+ * Layer: interfaces/queries
  */
 
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
+import type { Comment } from "../../domain/entities/comment.entity";
 import type { Version } from "../../domain/entities/version.entity";
-import type { IVersionRepository, CreateVersionInput } from "../../domain/repositories/IVersionRepository";
+import type { Permission } from "../../domain/entities/permission.entity";
+import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
+import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
+import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
 
-function versionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationVersions");
+export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
+  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
 }
 
-function versionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationVersions", id);
+export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
+  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
 }
 
-function toVersion(id: string, data: Record<string, unknown>): Version {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    snapshotBlocks: Array.isArray(data.snapshotBlocks) ? data.snapshotBlocks : [],
-    label: typeof data.label === "string" ? data.label : null,
-    description: typeof data.description === "string" ? data.description : null,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-  };
-}
-
-export class FirebaseVersionRepository implements IVersionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateVersionInput): Promise<Version> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      snapshotBlocks: input.snapshotBlocks,
-      label: input.label ?? null,
-      description: input.description ?? null,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(versionDoc(db, input.accountId, id), data);
-    return toVersion(id, data);
-  }
-
-  async findById(accountId: string, versionId: string): Promise<Version | null> {
-    const db = this.db();
-    const snap = await getDoc(versionDoc(db, accountId, versionId));
-    if (!snap.exists()) return null;
-    return toVersion(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<Version[]> {
-    const db = this.db();
-    const q = query(versionsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "desc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toVersion(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async delete(accountId: string, versionId: string): Promise<void> {
-    const db = this.db();
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(versionDoc(db, accountId, versionId));
-  }
+export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
+  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
 }
 ````
 
-## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
+## File: modules/knowledge-collaboration/README.md
+````markdown
+# knowledge-collaboration — DDD Reference
+
+> **Domain Type:** Supporting Subdomain + Generic Subdomain
+> **Module:** `modules/knowledge-collaboration/`
+> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+
+## 戰略定位
+
+`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
+
+## 核心聚合
+
+- **Comment** — 線程式留言，透過 `contentId` 引用內容
+- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
+- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
+
+## 主要領域事件
+
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Comment** | 針對 contentId 的留言（root 或 reply） |
+| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
+| **Version** | immutable Block 快照 |
+| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
+| **contentId** | opaque reference 到任意知識內容 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity` | Conformist |
+| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
+````
+
+## File: modules/knowledge-collaboration/repositories.md
+````markdown
+ICommentRepository, IPermissionRepository, IVersionRepository
+
+Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
+
+→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
+````
+
+## File: modules/knowledge-collaboration/ubiquitous-language.md
+````markdown
+| Comment | 留言（≠ Note, Message） |
+| Permission | 存取授權（≠ Role） |
+| PermissionLevel | view < comment < edit < full |
+| Version | Block 快照（≠ Revision, History） |
+| NamedVersion | 附標籤的具名版本（不自動刪除） |
+| contentId | opaque ID 跨 BC 引用 |
+| PageLock | 防並發的暫時鎖定 |
+
+→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
+````
+
+## File: modules/knowledge-database/AGENT.md
+````markdown
+# knowledge-database — DDD Agent
+
+**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
+
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
+
+→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
+````
+
+## File: modules/knowledge-database/aggregates.md
+````markdown
+**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
+**Record** — databaseId + properties(Map<fieldId, value>) + order
+**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
+
+→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
+````
+
+## File: modules/knowledge-database/api/index.ts
 ````typescript
 /**
- * Module: knowledge-database
- * Layer: application/dto
+ * knowledge-database public API boundary
  */
 
-import { z } from "@lib-zod";
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
 
-const WorkspaceScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
 
-const FieldTypeSchema = z.enum([
-  "text", "number", "select", "multi_select", "date",
-  "checkbox", "url", "email", "relation", "formula", "rollup",
-]);
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/knowledge-database.actions";
 
-const ViewTypeSchema = z.enum(["table", "board", "list", "calendar", "timeline", "gallery"]);
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
 
-// ── Database ──────────────────────────────────────────────────────────────────
-
-export const CreateDatabaseSchema = WorkspaceScopeSchema.extend({
-  name: z.string().min(1).max(200),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateDatabaseDto = z.infer<typeof CreateDatabaseSchema>;
-
-export const UpdateDatabaseSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().max(2000).nullable().optional(),
-  icon: z.string().max(100).nullable().optional(),
-  coverImageUrl: z.string().url().nullable().optional(),
-});
-export type UpdateDatabaseDto = z.infer<typeof UpdateDatabaseSchema>;
-
-export const AddFieldSchema = z.object({
-  databaseId: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  type: FieldTypeSchema,
-  config: z.record(z.string(), z.unknown()).optional(),
-  required: z.boolean().optional(),
-});
-export type AddFieldDto = z.infer<typeof AddFieldSchema>;
-
-export const ArchiveDatabaseSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
-
-// ── Record ────────────────────────────────────────────────────────────────────
-
-export const CreateRecordSchema = WorkspaceScopeSchema.extend({
-  databaseId: z.string().min(1),
-  properties: z.record(z.string(), z.unknown()).optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
-
-export const UpdateRecordSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  properties: z.record(z.string(), z.unknown()),
-});
-export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
-
-export const DeleteRecordSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteRecordDto = z.infer<typeof DeleteRecordSchema>;
-
-// ── View ──────────────────────────────────────────────────────────────────────
-
-export const CreateViewSchema = WorkspaceScopeSchema.extend({
-  databaseId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  type: ViewTypeSchema,
-  createdByUserId: z.string().min(1),
-});
-export type CreateViewDto = z.infer<typeof CreateViewSchema>;
-
-export const UpdateViewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(100).optional(),
-  filters: z.array(z.object({
-    fieldId: z.string(),
-    operator: z.enum(["eq","neq","contains","not_contains","is_empty","is_not_empty","gt","lt"]),
-    value: z.unknown(),
-  })).optional(),
-  sorts: z.array(z.object({
-    fieldId: z.string(),
-    direction: z.enum(["asc","desc"]),
-  })).optional(),
-  visibleFieldIds: z.array(z.string()).optional(),
-  hiddenFieldIds: z.array(z.string()).optional(),
-});
-export type UpdateViewDto = z.infer<typeof UpdateViewSchema>;
-
-export const DeleteViewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
 ````
 
-## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
+## File: modules/knowledge-database/application-services.md
+````markdown
+Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
+View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
+Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
+
+→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
+````
+
+## File: modules/knowledge-database/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission)
+下游: `knowledge`(inline db), `knowledge-base`(article-record link), `workspace-feed`, `notification`
+
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
+````
+
+## File: modules/knowledge-database/domain-events.md
+````markdown
+- `knowledge-database.database_created` / `database_renamed`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
+````
+
+## File: modules/knowledge-database/domain-services.md
+````markdown
+- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
+- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
+
+→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
+````
+
+## File: modules/knowledge-database/index.ts
 ````typescript
 /**
- * Module: knowledge-database
- * Layer: application/use-cases
+ * knowledge-database module — public barrel export
  */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-import type { Database } from "../../domain/entities/database.entity";
-import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
-import {
-  CreateDatabaseSchema, type CreateDatabaseDto,
-  UpdateDatabaseSchema, type UpdateDatabaseDto,
-  AddFieldSchema, type AddFieldDto,
-  ArchiveDatabaseSchema, type ArchiveDatabaseDto,
-} from "../dto/knowledge-database.dto";
-
-export class CreateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: CreateDatabaseDto): Promise<CommandResult> {
-    const parsed = CreateDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, name, description, createdByUserId } = parsed.data;
-    const db = await this.repo.create({ accountId, workspaceId, name: name.trim(), description, createdByUserId });
-    return commandSuccess(db.id, Date.now());
-  }
-}
-
-export class UpdateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
-    const parsed = UpdateDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AddFieldUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: AddFieldDto): Promise<CommandResult> {
-    const parsed = AddFieldSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    const { databaseId, accountId, name, type, config = {}, required = false } = parsed.data;
-    const result = await this.repo.addField({ databaseId, accountId, field: { name, type, config, required } });
-    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class ArchiveDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
-    const parsed = ArchiveDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    await this.repo.archive(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class GetDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<Database | null> {
-    return this.repo.findById(accountId, databaseId);
-  }
-}
-
-export class ListDatabasesUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<Database[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    return this.repo.listByWorkspace(accountId, workspaceId);
-  }
-}
+export * from "./api";
 ````
 
-## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
-import {
-  CreateRecordSchema, type CreateRecordDto,
-  UpdateRecordSchema, type UpdateRecordDto,
-  DeleteRecordSchema, type DeleteRecordDto,
-} from "../dto/knowledge-database.dto";
-
-export class CreateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: CreateRecordDto): Promise<CommandResult> {
-    const parsed = CreateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, databaseId, properties = {}, createdByUserId } = parsed.data;
-    const rec = await this.repo.create({ accountId, workspaceId, databaseId, properties, createdByUserId });
-    return commandSuccess(rec.id, Date.now());
-  }
-}
-
-export class UpdateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: UpdateRecordDto): Promise<CommandResult> {
-    const parsed = UpdateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    if (!result) return commandFailureFrom("RECORD_NOT_FOUND", "Record not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class DeleteRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: DeleteRecordDto): Promise<CommandResult> {
-    const parsed = DeleteRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    if (!accountId.trim() || !databaseId.trim()) return [];
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
-````
-
-## File: modules/knowledge-database/domain/entities/database.entity.ts
-````typescript
-export type FieldType =
-  | "text"
-  | "number"
-  | "select"
-  | "multi_select"
-  | "date"
-  | "checkbox"
-  | "url"
-  | "email"
-  | "relation"
-  | "formula"
-  | "rollup";
-
-export interface Field {
-  id: string;
-  name: string;
-  type: FieldType;
-  config: Record<string, unknown>;
-  required: boolean;
-  order: number;
-}
-
-export interface Database {
-  id: string;
-  workspaceId: string;
-  accountId: string;
-  name: string;
-  description: string | null;
-  fields: Field[];
-  viewIds: string[];
-  icon: string | null;
-  coverImageUrl: string | null;
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-````
-
-## File: modules/knowledge-database/domain/entities/record.entity.ts
-````typescript
-export interface DatabaseRecord {
-  id: string;
-  databaseId: string;
-  workspaceId: string;
-  accountId: string;
-  properties: Map<string, unknown>;
-  order: number;
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-````
-
-## File: modules/knowledge-database/domain/entities/view.entity.ts
-````typescript
-export type ViewType = "table" | "board" | "list" | "calendar" | "timeline" | "gallery";
-
-export interface FilterRule {
-  fieldId: string;
-  operator: "eq" | "neq" | "contains" | "not_contains" | "is_empty" | "is_not_empty" | "gt" | "lt";
-  value: unknown;
-}
-
-export interface SortRule {
-  fieldId: string;
-  direction: "asc" | "desc";
-}
-
-export interface View {
-  id: string;
-  databaseId: string;
-  workspaceId: string;
-  accountId: string;
-  name: string;
-  type: ViewType;
-  filters: FilterRule[];
-  sorts: SortRule[];
-  groupBy: { fieldId: string; direction: "asc" | "desc" } | null;
-  visibleFieldIds: string[];
-  hiddenFieldIds: string[];
-  boardGroupFieldId: string | null;
-  calendarDateFieldId: string | null;
-  timelineStartFieldId: string | null;
-  timelineEndFieldId: string | null;
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-````
-
-## File: modules/knowledge-database/domain/repositories/IDatabaseRecordRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: domain/repositories
- */
-
-import type { DatabaseRecord } from "../entities/record.entity";
-
-export interface CreateRecordInput {
-  readonly databaseId: string;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly properties?: Record<string, unknown>;
-  readonly createdByUserId: string;
-}
-
-export interface UpdateRecordInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly properties: Record<string, unknown>;
-}
-
-export interface IDatabaseRecordRepository {
-  create(input: CreateRecordInput): Promise<DatabaseRecord>;
-  update(input: UpdateRecordInput): Promise<DatabaseRecord | null>;
-  delete(accountId: string, recordId: string): Promise<void>;
-  findById(accountId: string, recordId: string): Promise<DatabaseRecord | null>;
-  listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]>;
-}
-````
-
-## File: modules/knowledge-database/domain/repositories/IDatabaseRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: domain/repositories
- */
-
-import type { Database, Field } from "../entities/database.entity";
-
-export interface CreateDatabaseInput {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly description?: string | null;
-  readonly createdByUserId: string;
-}
-
-export interface UpdateDatabaseInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly name?: string;
-  readonly description?: string | null;
-  readonly icon?: string | null;
-  readonly coverImageUrl?: string | null;
-}
-
-export interface AddFieldInput {
-  readonly databaseId: string;
-  readonly accountId: string;
-  readonly field: Omit<Field, "id" | "order">;
-}
-
-export interface IDatabaseRepository {
-  create(input: CreateDatabaseInput): Promise<Database>;
-  update(input: UpdateDatabaseInput): Promise<Database | null>;
-  addField(input: AddFieldInput): Promise<Database | null>;
-  archive(accountId: string, databaseId: string): Promise<void>;
-  findById(accountId: string, databaseId: string): Promise<Database | null>;
-  listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]>;
-}
-````
-
-## File: modules/knowledge-database/domain/repositories/IViewRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: domain/repositories
- */
-
-import type { View, ViewType } from "../entities/view.entity";
-
-export interface CreateViewInput {
-  readonly databaseId: string;
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly type: ViewType;
-  readonly createdByUserId: string;
-}
-
-export interface UpdateViewInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly name?: string;
-  readonly filters?: View["filters"];
-  readonly sorts?: View["sorts"];
-  readonly groupBy?: View["groupBy"];
-  readonly visibleFieldIds?: string[];
-  readonly hiddenFieldIds?: string[];
-}
-
-export interface IViewRepository {
-  create(input: CreateViewInput): Promise<View>;
-  update(input: UpdateViewInput): Promise<View | null>;
-  delete(accountId: string, viewId: string): Promise<void>;
-  findById(accountId: string, viewId: string): Promise<View | null>;
-  listByDatabase(accountId: string, databaseId: string): Promise<View[]>;
-}
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseViewRepository.ts
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
 ````typescript
 /**
  * Module: knowledge-database
  * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/databaseViews/{viewId}
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}
  */
 
 import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  arrayUnion, collection, doc, getDoc, getDocs, getFirestore,
   orderBy, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
-import type { View, FilterRule, SortRule } from "../../domain/entities/view.entity";
+import type { Database, Field, FieldType } from "../../domain/entities/database.entity";
 import type {
-  IViewRepository,
-  CreateViewInput,
-  UpdateViewInput,
-} from "../../domain/repositories/IViewRepository";
+  IDatabaseRepository,
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
 
-function viewsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "databaseViews");
+function dbsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "knowledgeDatabases");
 }
 
-function viewDoc(db: ReturnType<typeof getFirestore>, accountId: string, viewId: string) {
-  return doc(db, "accounts", accountId, "databaseViews", viewId);
+function dbDoc(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string) {
+  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId);
 }
 
-function toView(id: string, data: Record<string, unknown>): View {
+function toField(f: Record<string, unknown>): Field {
+  return {
+    id: typeof f.id === "string" ? f.id : generateId(),
+    name: typeof f.name === "string" ? f.name : "",
+    type: (f.type as FieldType) ?? "text",
+    config: typeof f.config === "object" && f.config !== null ? (f.config as Record<string, unknown>) : {},
+    required: f.required === true,
+    order: typeof f.order === "number" ? f.order : 0,
+  };
+}
+
+function toDatabase(id: string, data: Record<string, unknown>): Database {
   return {
     id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
     accountId: typeof data.accountId === "string" ? data.accountId : "",
     name: typeof data.name === "string" ? data.name : "",
-    type: (data.type as View["type"]) ?? "table",
-    filters: Array.isArray(data.filters) ? (data.filters as FilterRule[]) : [],
-    sorts: Array.isArray(data.sorts) ? (data.sorts as SortRule[]) : [],
-    groupBy: typeof data.groupBy === "object" && data.groupBy !== null
-      ? (data.groupBy as View["groupBy"])
-      : null,
-    visibleFieldIds: Array.isArray(data.visibleFieldIds)
-      ? (data.visibleFieldIds as unknown[]).filter((v): v is string => typeof v === "string")
+    description: typeof data.description === "string" ? data.description : null,
+    fields: Array.isArray(data.fields)
+      ? (data.fields as Record<string, unknown>[]).map(toField)
       : [],
-    hiddenFieldIds: Array.isArray(data.hiddenFieldIds)
-      ? (data.hiddenFieldIds as unknown[]).filter((v): v is string => typeof v === "string")
+    viewIds: Array.isArray(data.viewIds)
+      ? (data.viewIds as unknown[]).filter((v): v is string => typeof v === "string")
       : [],
-    boardGroupFieldId: typeof data.boardGroupFieldId === "string" ? data.boardGroupFieldId : null,
-    calendarDateFieldId: typeof data.calendarDateFieldId === "string" ? data.calendarDateFieldId : null,
-    timelineStartFieldId: typeof data.timelineStartFieldId === "string" ? data.timelineStartFieldId : null,
-    timelineEndFieldId: typeof data.timelineEndFieldId === "string" ? data.timelineEndFieldId : null,
+    icon: typeof data.icon === "string" ? data.icon : null,
+    coverImageUrl: typeof data.coverImageUrl === "string" ? data.coverImageUrl : null,
     createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };
 }
 
-export class FirebaseViewRepository implements IViewRepository {
+export class FirebaseDatabaseRepository implements IDatabaseRepository {
   private db() { return getFirestore(firebaseClientApp); }
 
-  async create(input: CreateViewInput): Promise<View> {
+  async create(input: CreateDatabaseInput): Promise<Database> {
     const db = this.db();
     const id = generateId();
     const now = new Date().toISOString();
     const data = {
-      databaseId: input.databaseId,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
       name: input.name,
-      type: input.type,
-      filters: [],
-      sorts: [],
-      groupBy: null,
-      visibleFieldIds: [],
-      hiddenFieldIds: [],
-      boardGroupFieldId: null,
-      calendarDateFieldId: null,
-      timelineStartFieldId: null,
-      timelineEndFieldId: null,
+      description: input.description ?? null,
+      fields: [],
+      viewIds: [],
+      icon: null,
+      coverImageUrl: null,
+      archived: false,
       createdByUserId: input.createdByUserId,
       createdAtISO: now,
       updatedAtISO: now,
       _createdAt: serverTimestamp(),
     };
-    await setDoc(viewDoc(db, input.accountId, id), data);
-    return toView(id, data);
+    await setDoc(dbDoc(db, input.accountId, id), data);
+    return toDatabase(id, data);
   }
 
-  async update(input: UpdateViewInput): Promise<View | null> {
+  async update(input: UpdateDatabaseInput): Promise<Database | null> {
     const db = this.db();
-    const ref = viewDoc(db, input.accountId, input.id);
+    const ref = dbDoc(db, input.accountId, input.id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     const now = new Date().toISOString();
     const updates: Record<string, unknown> = { updatedAtISO: now };
     if (input.name !== undefined) updates.name = input.name;
-    if (input.filters !== undefined) updates.filters = input.filters;
-    if (input.sorts !== undefined) updates.sorts = input.sorts;
-    if (input.groupBy !== undefined) updates.groupBy = input.groupBy;
-    if (input.visibleFieldIds !== undefined) updates.visibleFieldIds = input.visibleFieldIds;
-    if (input.hiddenFieldIds !== undefined) updates.hiddenFieldIds = input.hiddenFieldIds;
+    if (input.description !== undefined) updates.description = input.description;
+    if (input.icon !== undefined) updates.icon = input.icon;
+    if (input.coverImageUrl !== undefined) updates.coverImageUrl = input.coverImageUrl;
     await updateDoc(ref, updates);
-    return toView(snap.id, { ...snap.data() as Record<string, unknown>, ...updates });
+    return toDatabase(snap.id, { ...snap.data(), ...updates });
   }
 
-  async delete(accountId: string, viewId: string): Promise<void> {
+  async addField(input: AddFieldInput): Promise<Database | null> {
     const db = this.db();
-    await deleteDoc(viewDoc(db, accountId, viewId));
-  }
-
-  async findById(accountId: string, viewId: string): Promise<View | null> {
-    const db = this.db();
-    const snap = await getDoc(viewDoc(db, accountId, viewId));
+    const ref = dbDoc(db, input.accountId, input.databaseId);
+    const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return toView(snap.id, snap.data() as Record<string, unknown>);
+    const data = snap.data() as Record<string, unknown>;
+    const currentFields = Array.isArray(data.fields) ? data.fields as Record<string, unknown>[] : [];
+    const newField: Field = {
+      id: generateId(),
+      name: input.field.name,
+      type: input.field.type,
+      config: input.field.config,
+      required: input.field.required,
+      order: currentFields.length,
+    };
+    const now = new Date().toISOString();
+    await updateDoc(ref, { fields: arrayUnion(newField), updatedAtISO: now });
+    return toDatabase(snap.id, { ...data, fields: [...currentFields, newField], updatedAtISO: now });
   }
 
-  async listByDatabase(accountId: string, databaseId: string): Promise<View[]> {
+  async archive(accountId: string, databaseId: string): Promise<void> {
     const db = this.db();
-    const q = query(
-      viewsCol(db, accountId),
-      where("databaseId", "==", databaseId),
-      orderBy("createdAtISO", "asc"),
-    );
+    const ref = dbDoc(db, accountId, databaseId);
+    await updateDoc(ref, { archived: true, updatedAtISO: new Date().toISOString() });
+  }
+
+  async findById(accountId: string, databaseId: string): Promise<Database | null> {
+    const db = this.db();
+    const snap = await getDoc(dbDoc(db, accountId, databaseId));
+    if (!snap.exists()) return null;
+    return toDatabase(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]> {
+    const db = this.db();
+    const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "==", false), orderBy("createdAtISO", "asc"));
     const snaps = await getDocs(q);
-    return snaps.docs.map(d => toView(d.id, d.data() as Record<string, unknown>));
+    return snaps.docs.map(d => toDatabase(d.id, d.data() as Record<string, unknown>));
   }
 }
 ````
@@ -59025,40 +59386,81 @@ export function DatabaseTableView({
 }
 ````
 
-## File: modules/knowledge-database/interfaces/queries/knowledge-database.queries.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: interfaces/queries
- * Direct-instantiation query functions (read-side, no server action overhead).
- */
+## File: modules/knowledge-database/README.md
+````markdown
+# knowledge-collaboration — DDD Reference
 
-import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
-import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
-import type { Database } from "../../domain/entities/database.entity";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type { View } from "../../domain/entities/view.entity";
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
 
-export async function getDatabases(accountId: string, workspaceId: string): Promise<Database[]> {
-  const repo = new FirebaseDatabaseRepository();
-  return repo.listByWorkspace(accountId, workspaceId);
-}
+## 戰略定位
 
-export async function getDatabase(accountId: string, databaseId: string): Promise<Database | null> {
-  const repo = new FirebaseDatabaseRepository();
-  return repo.findById(accountId, databaseId);
-}
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
 
-export async function getRecords(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-  const repo = new FirebaseRecordRepository();
-  return repo.listByDatabase(accountId, databaseId);
-}
+## 核心聚合
 
-export async function getViews(accountId: string, databaseId: string): Promise<View[]> {
-  const repo = new FirebaseViewRepository();
-  return repo.listByDatabase(accountId, databaseId);
-}
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
+
+## 視圖類型
+
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
+| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
+````
+
+## File: modules/knowledge-database/repositories.md
+````markdown
+IDatabaseRepository, IRecordRepository, IViewRepository
+
+Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
+
+→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
+````
+
+## File: modules/knowledge-database/ubiquitous-language.md
+````markdown
+| Database | 結構化資料容器（≠ KnowledgeCollection） |
+| Field | 欄位定義（≠ Column）|
+| Record | 資料行（≠ Row, Item, Entry）|
+| Property | 某 Field 的具體值（Map） |
+| View | 視圖配置 — 不持有資料 |
+| ViewType | table/board/list/calendar/timeline/gallery |
+| Relation | 跨 Database 的 Record 連結欄位 |
+
+→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
 ````
 
 ## File: modules/knowledge/index.ts
@@ -63184,6 +63586,566 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 }
 ````
 
+## File: app/(shell)/organization/workspaces/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationWorkspacesPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [workspaces, setWorkspaces] = useState<
+    Awaited<ReturnType<typeof getWorkspacesForAccount>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadWorkspaces(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspacesForAccount(organizationId);
+      setWorkspaces(data);
+      setLoadState("loaded");
+    } catch {
+      setWorkspaces([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getWorkspacesForAccount(organizationId);
+        if (!cancelled) {
+          setWorkspaces(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setWorkspaces([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreating(true);
+    setCreateError(null);
+    const result = await createWorkspace({
+      name: newName.trim(),
+      accountId: activeOrganizationId,
+      accountType: "organization",
+    });
+    setCreating(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      void loadWorkspaces(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message ?? "建立失敗，請稍後再試。");
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+          </p>
+        </div>
+        <Button size="sm" onClick={() => { setCreateOpen(true); setCreateError(null); setNewName(""); }}>
+          建立工作區
+        </Button>
+      </div>
+
+      {/* Create Workspace Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="ws-name">工作區名稱</Label>
+              <Input
+                id="ws-name"
+                placeholder="例：行銷專案"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
+              />
+            </div>
+            {createError && <p className="text-xs text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button onClick={() => void handleCreate()} disabled={creating || !newName.trim()}>
+              {creating ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Workspaces</CardTitle>
+          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
+          )}
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
+          )}
+          {loadState === "loaded" &&
+            workspaces.map((workspace) => (
+              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                    </Button>
+                    <Badge
+                      variant={
+                        workspace.lifecycleState === "active"
+                          ? "default"
+                          : workspace.lifecycleState === "preparatory"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: eslint.config.mjs
+````javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+ 
+const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const typescriptFileGlobs = ["**/*.{ts,tsx}"];
+const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
+const boundaryRuleSeverity = "warn";
+const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
+
+const moduleApiEntrypointMessage =
+  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+
+const moduleApiEntrypointPattern = {
+  regex: "^@/modules/(?!system$)[^/]+$",
+  message: moduleApiEntrypointMessage,
+};
+
+const moduleNonApiSubpathPattern = {
+  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
+  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
+};
+
+const explicitIndexPathPattern = {
+  group: ["**/index", "**/index.ts", "**/index.tsx"],
+  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+};
+
+const moduleInternalLayerPattern = {
+  group: [
+    "@/modules/*/application/**",
+    "@/modules/*/domain/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+  ],
+  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+};
+
+const moduleElements = [
+  {
+    type: "module-root",
+    pattern: "modules/*/index.ts",
+    capture: ["module"],
+  },
+  {
+    type: "module-api",
+    pattern: "modules/*/api/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-domain",
+    pattern: "modules/*/domain/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-application",
+    pattern: "modules/*/application/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-infrastructure",
+    pattern: "modules/*/infrastructure/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-interfaces",
+    pattern: "modules/*/interfaces/**/*",
+    capture: ["module"],
+  },
+];
+
+const sameModuleCapture = { module: "{{from.captured.module}}" };
+const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
+
+const crossModuleApiRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [{ to: { type: "module-api" } }],
+  message: "Cross-module imports must go through `modules/<target>/api`.",
+}));
+
+const sameModuleRootRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [sameModuleTarget("module-root")],
+  message: "Module root barrel is allowed only for the same module.",
+}));
+
+const apiLayerRule = {
+  from: { type: "module-api" },
+  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
+  message: "API layer may depend only on same-module layers.",
+};
+
+const sameModuleLayerAllowMap = {
+  "module-domain": ["module-domain"],
+  "module-application": ["module-application", "module-domain"],
+  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
+  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
+};
+
+const sameModuleLayerMessageMap = {
+  "module-domain": "Domain may only depend on domain of the same module.",
+  "module-application": "Application may depend only on application/domain in the same module.",
+  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
+  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
+};
+
+const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
+  message: sameModuleLayerMessageMap[type],
+}));
+
+const moduleDependencyRules = [
+  ...crossModuleApiRules,
+  ...sameModuleRootRules,
+  apiLayerRule,
+  ...sameModuleLayerRules,
+];
+
+const packageAliasMigrationPatterns = [
+  {
+    group: ["@/shared/*"],
+    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
+  },
+  {
+    group: ["@/infrastructure/*"],
+    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
+  },
+  {
+    group: ["@/libs/*"],
+    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
+  },
+  {
+    group: ["@/ui/shadcn/*"],
+    message: "Use @ui-shadcn/* instead.",
+  },
+  {
+    group: ["@/ui/vis", "@/ui/vis/*"],
+    message: "Use @ui-vis instead.",
+  },
+  {
+    group: ["@/interfaces/*"],
+    message: "Use @api-contracts instead.",
+  },
+];
+
+const createRestrictedImportsRule = (patterns) => [
+  boundaryRuleSeverity,
+  {
+    patterns,
+  },
+];
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  {
+    files: sourceFileGlobs,
+    plugins: {
+      jsdoc,
+    },
+    settings: {
+      jsdoc: {
+        mode: "typescript",
+      },
+    },
+    rules: {
+      "jsdoc/check-alignment": "warn",
+      "jsdoc/check-syntax": "warn",
+      "jsdoc/check-tag-names": "warn",
+      "jsdoc/no-blank-blocks": "warn",
+    },
+  },
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/naming-convention": [
+        "warn",
+        {
+          selector: "typeLike",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "typeParameter",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "variable",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"],
+        },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow",
+        },
+        {
+          selector: "parameter",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "enumMember",
+          format: ["PascalCase", "UPPER_CASE"],
+        },
+      ],
+    },
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  // ─── Consistent type-only imports ──────────────────────────────────────
+  // Enforces `import type` for type-only imports, improving tree-shaking and
+  // making module-boundary intent explicit (matches project MDDD conventions).
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
+    },
+  },
+  // ─── React best-practices ───────────────────────────────────────────────
+  // eslint-config-next already pulls in react / react-hooks rules via its
+  // own config; these overrides make project-specific settings explicit and
+  // add missing checks not covered by the base config.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
+      "react/prop-types": "off",            // TypeScript types replace PropTypes
+      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
+      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
+  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
+  // activated here.  Enabling recommended rules as warn catches common a11y
+  // mistakes without breaking the zero-error baseline.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
+          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
+          // Downgrade all errors to warnings to preserve the zero-error baseline.
+          if (Array.isArray(config)) {
+            const [severity, ...rest] = config;
+            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
+            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
+          }
+          const normalised = config === "error" || config === 2 ? "warn" : config;
+          return [rule, normalised];
+        }),
+      ),
+    },
+  },
+  {
+    files: moduleFileGlobs,
+    plugins: {
+      boundaries,
+    },
+    settings: {
+      "boundaries/include": moduleFileGlobs,
+      "boundaries/elements": moduleElements,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        boundaryRuleSeverity,
+        {
+          default: "disallow",
+          rules: moduleDependencyRules,
+        },
+      ],
+    },
+  },
+  // ─── Package boundary enforcement ───────────────────────────────────────
+  // Forbid legacy import paths that were migrated to packages/*.
+  {
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
+    },
+  },
+  // ─── Strict module entrypoint enforcement ───────────────────────────────
+  {
+    files: [
+      "app/**/*.{ts,tsx,js,jsx}",
+      "providers/**/*.{ts,tsx,js,jsx}",
+      "debug/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+      ]),
+    },
+  },
+  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
+  {
+    files: moduleFileGlobs,
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        explicitIndexPathPattern,
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+        moduleInternalLayerPattern,
+      ]),
+    },
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    ".agents/**",
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+````
+
 ## File: firestore.indexes.json
 ````json
 {
@@ -63613,141 +64575,6 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 - 若需調整界限上下文內容，請只編輯 canonical 檔案。
 ````
 
-## File: modules/knowledge-base/AGENT.md
-````markdown
-# knowledge-base — DDD Agent
-
-## 戰略分類
-
-| 屬性 | 值 |
-|---|---|
-| **Domain Type** | **Core Domain** — 產品差異化核心 |
-| **Module** | `modules/knowledge-base/` |
-| **Aggregates** | Article, Category |
-| **Key Events** | article_created / published / verified, category_created |
-
-## 為何是 Core Domain
-
-組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
-
-## 關鍵設計決策
-
-1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
-2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
-3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
-4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
-
-## 詳細實作文件
-
-→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
-````
-
-## File: modules/knowledge-base/aggregates.md
-````markdown
-# knowledge-base — 聚合根摘要
-
-> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
-
-## Article（聚合根）
-
-| 欄位 | 說明 |
-|---|---|
-| `id` | 唯一識別碼 |
-| `title`, `content` | 文章標題與主體 |
-| `status` | `draft` / `published` / `archived` |
-| `verificationState` | `verified` / `needs_review` / `unverified` |
-| `ownerId` | 文章負責人（ArticleOwner） |
-| `linkedArticleIds` | Backlink 引用列表 |
-| `categoryId` | 所屬分類 |
-| `tags` | 標籤列表 |
-
-## Category（聚合根）
-
-| 欄位 | 說明 |
-|---|---|
-| `id` | 唯一識別碼 |
-| `name`, `slug` | 分類名稱與 URL 識別碼 |  
-| `parentCategoryId` | 父分類（null = 根節點） |
-| `depth` | 層級深度（最大 5）|
-| `articleIds` | 直屬文章 ID 列表 |
-````
-
-## File: modules/knowledge-base/application-services.md
-````markdown
-# knowledge-base — Application Services
-
-> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
-
-**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks
-
-**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
-````
-
-## File: modules/knowledge-base/context-map.md
-````markdown
-# knowledge-base — Context Map
-
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
-
-## 上游
-
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
-
-## 下游
-
-- `knowledge` — 頁面可提升（Promote）為 Article
-- `knowledge-database` — Article 可與 Record 連結（ACL）
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
-````
-
-## File: modules/knowledge-base/domain-events.md
-````markdown
-# knowledge-base — 領域事件
-
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
-
-## 事件清單
-
-| 事件 | 觸發條件 |
-|---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft） |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
-````
-
-## File: modules/knowledge-base/domain-services.md
-````markdown
-# knowledge-base — Domain Services
-
-> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
-
-- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
-- `ArticleSlugService` — title → URL-safe slug 轉換
-- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
-````
-
-## File: modules/knowledge-base/index.ts
-````typescript
-/**
- * knowledge-base module — public barrel export
- *
- * Cross-module access: only import from this file.
- * Internal layers (domain/, application/, infrastructure/) are NOT exported here.
- *
- * @module knowledge-base
- */
-
-export * from "./api";
-````
-
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseArticleRepository.ts
 ````typescript
 /**
@@ -63921,232 +64748,6 @@ export async function getCategories(accountId: string, workspaceId: string): Pro
 export async function getBacklinks(accountId: string, articleId: string): Promise<Article[]> {
   const repo = new FirebaseArticleRepository();
   return repo.listByLinkedArticleId(accountId, articleId);
-}
-````
-
-## File: modules/knowledge-base/README.md
-````markdown
-# knowledge-base — DDD Reference
-
-> **Domain Type:** Core Domain
-> **Module:** `modules/knowledge-base/`
-> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
-
-## 戰略定位
-
-`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
-
-## Bounded Context 邊界
-
-- **擁有：** Article（文章）、Category（分類）
-- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
-
-## 核心聚合
-
-詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
-
-- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
-- **Category** — 層級分類目錄（最多 5 層）
-
-## 主要領域事件
-
-詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
-
-- `knowledge-base.article_created`
-- `knowledge-base.article_published`
-- `knowledge-base.article_verified`
-- `knowledge-base.article_review_requested`
-- `knowledge-base.category_created`
-
-## 通用語言
-
-詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
-
-- **Article** ≠ Page（個人筆記）≠ Document（泛型）
-- **VerificationState** ≠ ApprovalState（knowledge 的審核）
-- **Backlink** = `[[Article Title]]` wikilink 解析結果
-
-## 上下文關係
-
-詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 下游 | `knowledge` (promote) | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
-## File: modules/knowledge-base/repositories.md
-````markdown
-# knowledge-base — Repositories
-
-> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
-
-- `IArticleRepository` — CRUD + search + backlink 反查
-- `ICategoryRepository` — 層級樹操作 + articleIds 管理
-
-**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
-````
-
-## File: modules/knowledge-base/ubiquitous-language.md
-````markdown
-# knowledge-base — 通用語言
-
-> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
-
-## 核心術語速查
-
-| 術語 | 定義 |
-|---|---|
-| **Article** | 組織級知識文章（SOP / Wiki） |
-| **Category** | 層級分類目錄（max 5 層） |
-| **VerificationState** | `verified` / `needs_review` / `unverified` |
-| **ArticleOwner** | 負責維護文章準確性的使用者 |
-| **Backlink** | `[[Article Title]]` 解析的反向引用 |
-| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
-````
-
-## File: modules/knowledge-collaboration/AGENT.md
-````markdown
-# knowledge-collaboration — DDD Agent
-
-**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
-
-為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
-
-→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-````
-
-## File: modules/knowledge-collaboration/aggregates.md
-````markdown
-**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
-**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
-**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
-
-→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
-````
-
-## File: modules/knowledge-collaboration/application-services.md
-````markdown
-Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
-Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
-Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
-
-→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
-````
-
-## File: modules/knowledge-collaboration/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
-下游消費者: `notification`, `workspace-feed`, `workspace-audit`
-
-→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
-````
-
-## File: modules/knowledge-collaboration/domain-events.md
-````markdown
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
-````
-
-## File: modules/knowledge-collaboration/domain-services.md
-````markdown
-- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
-- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
-
-→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
-````
-
-## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
-import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
-import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
-
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
-function makeVersionRepo() { return new FirebaseVersionRepository(); }
-function makePermissionRepo() { return new FirebasePermissionRepository(); }
-
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
-  try {
-    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
-  try {
-    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
-  try {
-    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
-  try {
-    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
 }
 ````
 
@@ -64352,379 +64953,478 @@ function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: Comme
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
+## File: modules/knowledge-database/application/use-cases/view.use-cases.ts
 ````typescript
 /**
- * Module: knowledge-collaboration
- * Layer: interfaces/queries
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ * Use cases for View (database view) lifecycle.
  */
 
-import type { Comment } from "../../domain/entities/comment.entity";
-import type { Version } from "../../domain/entities/version.entity";
-import type { Permission } from "../../domain/entities/permission.entity";
-import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
-import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
-import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IViewRepository } from "../../domain/repositories/IViewRepository";
+import {
+  CreateViewSchema,
+  UpdateViewSchema,
+  DeleteViewSchema,
+} from "../dto/knowledge-database.dto";
 
-export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
-  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+export class CreateViewUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(input: z.infer<typeof CreateViewSchema>): Promise<CommandResult> {
+    const parsed = CreateViewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const view = await this.viewRepo.create(parsed.data);
+    return commandSuccess(view.id, 1);
+  }
 }
 
-export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
-  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+export class UpdateViewUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(input: z.infer<typeof UpdateViewSchema>): Promise<CommandResult> {
+    const parsed = UpdateViewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const view = await this.viewRepo.update(parsed.data);
+    if (!view) {
+      return commandFailureFrom("VIEW_NOT_FOUND", "View not found");
+    }
+    return commandSuccess(view.id, 1);
+  }
 }
 
-export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
-  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
+export class DeleteViewUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(input: z.infer<typeof DeleteViewSchema>): Promise<CommandResult> {
+    const parsed = DeleteViewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    await this.viewRepo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, 1);
+  }
+}
+
+export class ListViewsUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(accountId: string, databaseId: string) {
+    return this.viewRepo.listByDatabase(accountId, databaseId);
+  }
 }
 ````
 
-## File: modules/knowledge-collaboration/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
-
-> **Domain Type:** Supporting Subdomain + Generic Subdomain
-> **Module:** `modules/knowledge-collaboration/`
-> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-
-## 戰略定位
-
-`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
-
-## 核心聚合
-
-- **Comment** — 線程式留言，透過 `contentId` 引用內容
-- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
-- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
-
-## 主要領域事件
-
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Comment** | 針對 contentId 的留言（root 或 reply） |
-| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
-| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
-| **Version** | immutable Block 快照 |
-| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
-| **contentId** | opaque reference 到任意知識內容 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity` | Conformist |
-| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
-````
-
-## File: modules/knowledge-collaboration/repositories.md
-````markdown
-ICommentRepository, IPermissionRepository, IVersionRepository
-
-Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
-
-→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
-````
-
-## File: modules/knowledge-collaboration/ubiquitous-language.md
-````markdown
-| Comment | 留言（≠ Note, Message） |
-| Permission | 存取授權（≠ Role） |
-| PermissionLevel | view < comment < edit < full |
-| Version | Block 快照（≠ Revision, History） |
-| NamedVersion | 附標籤的具名版本（不自動刪除） |
-| contentId | opaque ID 跨 BC 引用 |
-| PageLock | 防並發的暫時鎖定 |
-
-→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
-````
-
-## File: modules/knowledge-database/AGENT.md
-````markdown
-# knowledge-database — DDD Agent
-
-**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
-
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
-
-→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
-````
-
-## File: modules/knowledge-database/aggregates.md
-````markdown
-**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
-**Record** — databaseId + properties(Map<fieldId, value>) + order
-**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
-
-→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
-````
-
-## File: modules/knowledge-database/application-services.md
-````markdown
-Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
-View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
-Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
-
-→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
-````
-
-## File: modules/knowledge-database/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge-collaboration`(Permission)
-下游: `knowledge`(inline db), `knowledge-base`(article-record link), `workspace-feed`, `notification`
-
-→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
-````
-
-## File: modules/knowledge-database/domain-events.md
-````markdown
-- `knowledge-database.database_created` / `database_renamed`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
-````
-
-## File: modules/knowledge-database/domain-services.md
-````markdown
-- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
-- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
-
-→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
 ````typescript
 /**
  * Module: knowledge-database
  * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}
+ * Firestore: accounts/{accountId}/databaseRecords/{recordId}
  */
 
 import {
-  arrayUnion, collection, doc, getDoc, getDocs, getFirestore,
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
   orderBy, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
-import type { Database, Field, FieldType } from "../../domain/entities/database.entity";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
 import type {
-  IDatabaseRepository,
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
+  IDatabaseRecordRepository,
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
 
-function dbsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases");
+function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "databaseRecords");
 }
 
-function dbDoc(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId);
+function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
+  return doc(db, "accounts", accountId, "databaseRecords", recordId);
 }
 
-function toField(f: Record<string, unknown>): Field {
-  return {
-    id: typeof f.id === "string" ? f.id : generateId(),
-    name: typeof f.name === "string" ? f.name : "",
-    type: (f.type as FieldType) ?? "text",
-    config: typeof f.config === "object" && f.config !== null ? (f.config as Record<string, unknown>) : {},
-    required: f.required === true,
-    order: typeof f.order === "number" ? f.order : 0,
-  };
-}
-
-function toDatabase(id: string, data: Record<string, unknown>): Database {
+function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
   return {
     id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
     accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : null,
-    fields: Array.isArray(data.fields)
-      ? (data.fields as Record<string, unknown>[]).map(toField)
-      : [],
-    viewIds: Array.isArray(data.viewIds)
-      ? (data.viewIds as unknown[]).filter((v): v is string => typeof v === "string")
-      : [],
-    icon: typeof data.icon === "string" ? data.icon : null,
-    coverImageUrl: typeof data.coverImageUrl === "string" ? data.coverImageUrl : null,
+    properties: typeof data.properties === "object" && data.properties !== null
+      ? new Map(Object.entries(data.properties as Record<string, unknown>))
+      : new Map(),
+    order: typeof data.order === "number" ? data.order : 0,
     createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };
 }
 
-export class FirebaseDatabaseRepository implements IDatabaseRepository {
+export class FirebaseRecordRepository implements IDatabaseRecordRepository {
   private db() { return getFirestore(firebaseClientApp); }
 
-  async create(input: CreateDatabaseInput): Promise<Database> {
+  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
     const db = this.db();
     const id = generateId();
     const now = new Date().toISOString();
     const data = {
+      databaseId: input.databaseId,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
-      name: input.name,
-      description: input.description ?? null,
-      fields: [],
-      viewIds: [],
-      icon: null,
-      coverImageUrl: null,
-      archived: false,
+      properties: input.properties ?? {},
       createdByUserId: input.createdByUserId,
       createdAtISO: now,
       updatedAtISO: now,
       _createdAt: serverTimestamp(),
     };
-    await setDoc(dbDoc(db, input.accountId, id), data);
-    return toDatabase(id, data);
+    await setDoc(recordDoc(db, input.accountId, id), data);
+    return toRecord(id, { ...data, properties: input.properties });
   }
 
-  async update(input: UpdateDatabaseInput): Promise<Database | null> {
+  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
     const db = this.db();
-    const ref = dbDoc(db, input.accountId, input.id);
+    const ref = recordDoc(db, input.accountId, input.id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
     const now = new Date().toISOString();
     const updates: Record<string, unknown> = { updatedAtISO: now };
-    if (input.name !== undefined) updates.name = input.name;
-    if (input.description !== undefined) updates.description = input.description;
-    if (input.icon !== undefined) updates.icon = input.icon;
-    if (input.coverImageUrl !== undefined) updates.coverImageUrl = input.coverImageUrl;
+    if (input.properties !== undefined) {
+      updates.properties = input.properties;
+    }
     await updateDoc(ref, updates);
-    return toDatabase(snap.id, { ...snap.data(), ...updates });
+    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
+    return toRecord(snap.id, merged);
   }
 
-  async addField(input: AddFieldInput): Promise<Database | null> {
+  async delete(accountId: string, recordId: string): Promise<void> {
     const db = this.db();
-    const ref = dbDoc(db, input.accountId, input.databaseId);
-    const snap = await getDoc(ref);
+    await deleteDoc(recordDoc(db, accountId, recordId));
+  }
+
+  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const snap = await getDoc(recordDoc(db, accountId, recordId));
     if (!snap.exists()) return null;
-    const data = snap.data() as Record<string, unknown>;
-    const currentFields = Array.isArray(data.fields) ? data.fields as Record<string, unknown>[] : [];
-    const newField: Field = {
-      id: generateId(),
-      name: input.field.name,
-      type: input.field.type,
-      config: input.field.config,
-      required: input.field.required,
-      order: currentFields.length,
-    };
-    const now = new Date().toISOString();
-    await updateDoc(ref, { fields: arrayUnion(newField), updatedAtISO: now });
-    return toDatabase(snap.id, { ...data, fields: [...currentFields, newField], updatedAtISO: now });
+    return toRecord(snap.id, snap.data() as Record<string, unknown>);
   }
 
-  async archive(accountId: string, databaseId: string): Promise<void> {
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
     const db = this.db();
-    const ref = dbDoc(db, accountId, databaseId);
-    await updateDoc(ref, { archived: true, updatedAtISO: new Date().toISOString() });
-  }
-
-  async findById(accountId: string, databaseId: string): Promise<Database | null> {
-    const db = this.db();
-    const snap = await getDoc(dbDoc(db, accountId, databaseId));
-    if (!snap.exists()) return null;
-    return toDatabase(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]> {
-    const db = this.db();
-    const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "==", false), orderBy("createdAtISO", "asc"));
+    const q = query(
+      recordsCol(db, accountId),
+      where("databaseId", "==", databaseId),
+      orderBy("order", "asc"),
+    );
     const snaps = await getDocs(q);
-    return snaps.docs.map(d => toDatabase(d.id, d.data() as Record<string, unknown>));
+    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
   }
 }
 ````
 
-## File: modules/knowledge-database/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
+## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
+````typescript
+"use server";
 
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
+import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
+import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
+import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
+import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
+import type {
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
+import type {
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+import type {
+  CreateViewInput,
+  UpdateViewInput,
+} from "../../domain/repositories/IViewRepository";
 
-## 戰略定位
+function makeDatabaseRepo() { return new FirebaseDatabaseRepository(); }
+function makeRecordRepo() { return new FirebaseRecordRepository(); }
+function makeViewRepo() { return new FirebaseViewRepository(); }
 
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult> {
+  try {
+    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("DATABASE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-## 核心聚合
+export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult> {
+  try {
+    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("DATABASE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
+export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
+  try {
+    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.field.name,
+      type: input.field.type,
+      config: input.field.config,
+      required: input.field.required,
+    });
+  } catch (e) {
+    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-## 視圖類型
+export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult> {
+  try {
+    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
+  } catch (e) {
+    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+export async function createRecord(input: CreateRecordInput): Promise<CommandResult> {
+  try {
+    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("RECORD_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-## 欄位類型
+export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult> {
+  try {
+    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("RECORD_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ accountId, id: recordId });
+  } catch (e) {
+    return commandFailureFrom("RECORD_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-## 主要領域事件
+export async function createView(input: CreateViewInput): Promise<CommandResult> {
+  try {
+    return await new CreateViewUseCase(makeViewRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("VIEW_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-- `knowledge-database.database_created`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
+export async function updateView(input: UpdateViewInput): Promise<CommandResult> {
+  try {
+    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("VIEW_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
-| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
+export async function deleteView(accountId: string, viewId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteViewUseCase(makeViewRepo()).execute({ accountId, id: viewId });
+  } catch (e) {
+    return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
 ````
 
-## File: modules/knowledge-database/repositories.md
+## File: modules/knowledge/AGENT.md
 ````markdown
-IDatabaseRepository, IRecordRepository, IViewRepository
+# AGENT.md — knowledge BC
 
-Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
+## 模組定位
 
-→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
+
+> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { WikiPage } from "@/modules/wiki/domain/entities/...";
+```
+
+## page_approved 事件規則
+
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
-## File: modules/knowledge-database/ubiquitous-language.md
+## File: modules/knowledge/aggregates.md
 ````markdown
-| Database | 結構化資料容器（≠ KnowledgeCollection） |
-| Field | 欄位定義（≠ Column）|
-| Record | 資料行（≠ Row, Item, Entry）|
-| Property | 某 Field 的具體值（Map） |
-| View | 視圖配置 — 不持有資料 |
-| ViewType | table/board/list/calendar/timeline/gallery |
-| Relation | 跨 Database 的 Record 連結欄位 |
+# Aggregates — knowledge
 
-→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
 ## File: modules/knowledge/api/index.ts
@@ -64839,6 +65539,450 @@ export type { KnowledgePage } from "../domain/entities/content-page.entity";
 // ── UI Components ─────────────────────────────────────────────────────────────
 export { PageTreeView } from "../interfaces/components/PageTreeView";
 export { PageDialog } from "../interfaces/components/PageDialog";
+````
+
+## File: modules/knowledge/application-services.md
+````markdown
+# knowledge — Application Services
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
+
+## Application Layer 職責
+
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
+- `application/block-service.ts`
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
+
+## Use Cases 清單
+
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+
+## 設計對齊
+
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+````
+
+## File: modules/knowledge/context-map.md
+````markdown
+# Context Map — knowledge
+
+## 上游（依賴）
+
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
+
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+
+---
+
+## 下游（被依賴）
+
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
+
+**這是平台最重要的跨 BC 整合點。**
+
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (ContentToWorkflowMaterializer)
+```
+
+### knowledge → wiki（Customer/Supplier）
+
+- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
+- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+````
+
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAtISO` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAtISO` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## Wiki/Knowledge Base 驗證事件
+
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAtISO: string;
+}
+
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAtISO: string;
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+````
+
+## File: modules/knowledge/domain-services.md
+````markdown
+# knowledge — Domain Services
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
+
+## Domain Services 檔案
+
+- 目前沒有獨立的 `domain/services/*` 檔案。
+
+## 設計規則
+
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/domain-services.md`
+- `../../../docs/ddd/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../docs/ddd/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
 ## File: modules/notification/README.md
@@ -65047,1000 +66191,6 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
         </Button>
       </div>
     </div>
-  );
-}
-````
-
-## File: app/(shell)/_components/dashboard-sidebar.tsx
-````typescript
-"use client";
-
-/**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-
-interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-// ── Section helpers ──────────────────────────────────────────────────────────
-
-type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
-
-function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-// ── Section icon labels for the title bar ────────────────────────────────────
-
-const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export function DashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(false);
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
-  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
-  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-  const searchParams = useSearchParams();
-
-  function toggleCollapsed() {
-    onToggleCollapsed();
-  }
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(() => {
-    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  const visibleAccountItems = useMemo(() => {
-    return ACCOUNT_NAV_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  // Whether to show recent workspaces section (controlled by personal prefs)
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  // Max workspaces to show (apply user preference)
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  // Track recently visited workspaces in localStorage
-  useEffect(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [activeAccount?.id, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [activeAccount?.id, pathname]);
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (typeof window === "undefined" || !pathname.startsWith("/knowledge")) {
-      return;
-    }
-
-    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
-    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(searchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
-
-  const recentWorkspaceLinks = useMemo(() => {
-    return recentWorkspaceIds
-      .map((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/knowledge")) {
-        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(() => {
-    return Object.values(workspacesById)
-      .map((workspace) => ({
-        id: workspace.id,
-        name: workspace.name,
-        href: buildWorkspaceContextHref(workspace.id),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, buildWorkspaceContextHref]);
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
-    ? rawWorkspaceTab
-    : "Overview";
-
-  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
-    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-  }
-
-  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
-    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-  }
-
-  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
-    if (tab === "Wiki") {
-      const status = getWorkspaceTabStatus(tab);
-      return `${status} WorkSpace Wiki`;
-    }
-    const status = getWorkspaceTabStatus(tab);
-    return `${status} ${tWorkspaceTab(tab, fallback)}`;
-  }
-
-  function tWorkspaceGroup(groupKey: string, fallback: string) {
-    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
-  }
-
-  function getWorkspacePrefId(tabValue: string) {
-    if (isWorkspaceTabValue(tabValue)) {
-      return getWorkspaceTabPrefId(tabValue);
-    }
-    return tabValue.toLowerCase().replace(/\s+/g, "-");
-  }
-
-  function isWorkspaceItemEnabled(prefId: string) {
-    return navPrefs.pinnedWorkspace.includes(prefId);
-  }
-
-  function getWorkspaceItemOrder(prefId: string) {
-    const index = navPrefs.workspaceOrder.indexOf(prefId);
-    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-  }
-
-  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
-    return [...items].sort(
-      (left, right) =>
-        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
-        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
-    );
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSidebarLocale() {
-      const isZhHant =
-        typeof navigator !== "undefined" &&
-        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
-      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
-
-      try {
-        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as SidebarLocaleBundle;
-        if (!cancelled) {
-          setLocaleBundle(data);
-        }
-      } catch {
-        // Keep fallback labels when localization files are unavailable.
-      }
-    }
-
-    void loadSidebarLocale();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const db = getFirebaseFirestore();
-      const payload: Record<string, unknown> = {
-        title: "未命名頁面",
-        kind: "page",
-        accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, "pages"),
-        payload,
-      );
-      toast.success("已建立頁面");
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <>
-    <aside
-      aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
-      }`}
-    >
-      <>
-          {/* ── Sidebar title bar ──────────────────────────────────── */}
-          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-            {/* Section label */}
-            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-              {sectionMeta.icon}
-              {sectionMeta.label}
-            </span>
-            {/* Customize + collapse buttons grouped on the right */}
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                title="設定"
-                aria-label="設定"
-                onClick={() => {
-                  setCustomizeOpen(true);
-                }}
-                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="收起側欄"
-                title="收起側欄"
-                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-              >
-                <PanelLeftClose className="size-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Scrollable nav body ── section-specific ───────────── */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            {section === "account" && (
-              <>
-                {showAccountManagement && visibleAccountItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Account navigation">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      Account
-                    </p>
-                    {visibleAccountItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看 Account 選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "organization" && (
-              <>
-                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Organization management">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      組織管理
-                    </p>
-                    {visibleOrganizationManagementItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看管理選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "workspace" && (
-              <>
-                {workspacePathId ? (
-                  <nav className="space-y-3" aria-label="Workspace navigation">
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                    {isWorkspaceItemEnabled("workspace-modules") && (
-                      <div className="my-1.5 border-t border-border/40" />
-                    )}
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("workspace-modules") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceModulesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceModulesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
-                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceModulesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("spaces") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceSpacesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceSpacesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
-                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceSpacesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
-                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                    .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("databases") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceDatabasesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
-                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceDatabasesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                  </nav>
-                ) : (
-                  // ── Workspace hub: show recent workspaces ──────────────
-                  <>
-                    {showRecentWorkspaces && (
-                      <div className="space-y-0.5">
-                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                          最近工作區
-                        </p>
-                        {visibleRecentWorkspaceLinks.length === 0 ? (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                            尚無最近開啟的工作區。
-                          </p>
-                        ) : (
-                          visibleRecentWorkspaceLinks.map((ws) => (
-                            <Link
-                              key={ws.id}
-                              href={ws.href}
-                              onClick={() => {
-                                onSelectWorkspace(ws.id);
-                              }}
-                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                              }`}
-                              title={ws.name}
-                            >
-                              <span className="truncate">{ws.name}</span>
-                            </Link>
-                          ))
-                        )}
-                        {hasOverflow && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsExpanded((prev) => !prev);
-                            }}
-                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                          >
-                            {isExpanded ? "收起" : "顯示更多"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            {section === "knowledge" && (
-              <nav className="space-y-0.5" aria-label="Knowledge navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  知識管理
-                </p>
-                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                  <Link
-                    href="/knowledge/pages"
-                    aria-current={isActiveRoute("/knowledge/pages") ? "page" : undefined}
-                    className={`flex-1 ${
-                      isActiveRoute("/knowledge/pages")
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    頁面
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={() => void handleQuickCreatePage()}
-                    disabled={creatingKind !== null}
-                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
-                    aria-label="快速新增頁面"
-                    title="新增頁面"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
-                {(
-                  [
-                    { href: "/knowledge", label: "Knowledge Hub" },
-                    { href: "/knowledge/block-editor", label: "區塊編輯器" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-                <div className="my-1.5 border-t border-border/40" />
-
-                <button
-                  type="button"
-                  onClick={() => { setIsKnowledgeWorkspacesExpanded((prev) => !prev); }}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isKnowledgeWorkspacesExpanded}
-                >
-                  <span>Workspaces</span>
-                  {isKnowledgeWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                </button>
-
-                {isKnowledgeWorkspacesExpanded && (
-                  <div className="space-y-0.5 pl-2">
-                    {!workspacesHydrated ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">\u5de5\u4f5c\u5340\u8f09\u5165\u4e2d...</p>
-                    ) : allWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">\u76ee\u524d\u5e33\u865f\u6c92\u6709\u5de5\u4f5c\u5340</p>
-                    ) : (
-                      allWorkspaceLinks.map((workspace) => {
-                        const active = activeWorkspaceId === workspace.id;
-                        return (
-                          <Link
-                            key={workspace.id}
-                            href={workspace.href}
-                            onClick={() => { onSelectWorkspace(workspace.id); }}
-                            aria-current={active ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              active
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                            title={workspace.name}
-                          >
-                            <span className="truncate">{workspace.name}</span>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </nav>
-            )}
-
-            {section === "knowledge-base" && (
-              <nav className="space-y-0.5" aria-label="Knowledge Base navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  知識庫
-                </p>
-                {(
-                  [
-                    { href: "/knowledge-base/articles", label: "文章" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "knowledge-database" && (
-              <nav className="space-y-0.5" aria-label="Knowledge Database navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  資料庫
-                </p>
-                {(
-                  [
-                    { href: "/knowledge-database/databases", label: "資料庫" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "source" && (
-              <nav className="space-y-0.5" aria-label="Source navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  來源文件
-                </p>
-                {(
-                  [
-                    { href: "/source/documents", label: "Documents" },
-                    { href: "/source/libraries", label: "Libraries" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "notebook" && (
-              <nav className="space-y-0.5" aria-label="Notebook navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Notebook
-                </p>
-                {(
-                  [
-                    { href: "/notebook/rag-query", label: "Ask / Cite" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "ai-chat" && (
-              <nav className="space-y-0.5" aria-label="Notebook navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Notebook / AI
-                </p>
-                {(
-                  [
-                    { href: "/ai-chat", label: "Notebook shell" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-          </div>
-        </>
-    </aside>
-
-    <CustomizeNavigationDialog
-      open={customizeOpen}
-      onOpenChange={setCustomizeOpen}
-      onPreferencesChange={setNavPrefs}
-    />
-    </>
   );
 }
 ````
@@ -66696,6 +66846,50 @@ export default function NotebookRagQueryPage() {
 }
 ````
 
+## File: modules/knowledge-base/api/index.ts
+````typescript
+/**
+ * knowledge-base public API boundary
+ *
+ * Other modules MUST import knowledge-base resources from this file only.
+ * Never import from domain/, application/, or infrastructure/ directly.
+ */
+
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
+export type { Category } from "../domain/entities/category.entity";
+
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
+
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/knowledge-base.actions";
+
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export {
+  getArticles,
+  getArticle,
+  getCategories,
+  getBacklinks,
+} from "../interfaces/queries/knowledge-base.queries";
+
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+````
+
 ## File: modules/knowledge-base/interfaces/_actions/knowledge-base.actions.ts
 ````typescript
 "use server";
@@ -67011,493 +67205,6 @@ export function ArticleDialog({
     </Dialog>
   );
 }
-````
-
-## File: modules/knowledge-collaboration/api/index.ts
-````typescript
-/**
- * knowledge-collaboration public API boundary
- *
- * Other modules MUST import knowledge-collaboration resources from this file only.
- */
-
-// ── Domain types ───────────────────────────────────────────────────────────────
-export type { Comment } from "../domain/entities/comment.entity";
-export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
-export type { Version } from "../domain/entities/version.entity";
-
-export type CommentId = string;
-export type PermissionId = string;
-export type VersionId = string;
-
-// ── DTOs ───────────────────────────────────────────────────────────────────────
-export type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-  CreateVersionDto,
-  DeleteVersionDto,
-  GrantPermissionDto,
-  RevokePermissionDto,
-} from "../application/dto/knowledge-collaboration.dto";
-
-// ── Server Actions (mutations) ─────────────────────────────────────────────────
-export {
-  createComment,
-  updateComment,
-  resolveComment,
-  deleteComment,
-  createVersion,
-  deleteVersion,
-  grantPermission,
-  revokePermission,
-} from "../interfaces/_actions/knowledge-collaboration.actions";
-
-// ── Queries (reads) ────────────────────────────────────────────────────────────
-export {
-  getComments,
-  getVersions,
-  getPermissions,
-} from "../interfaces/queries/knowledge-collaboration.queries";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
-````
-
-## File: modules/knowledge-collaboration/index.ts
-````typescript
-/**
- * knowledge-collaboration module — public barrel export
- *
- * Cross-module access → use api/ exports only.
- * Internal imports use relative paths.
- */
-
-export * from "./api";
-````
-
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
-
-// UI Components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-````
-
-## File: modules/knowledge-database/application/use-cases/view.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- * Use cases for View (database view) lifecycle.
- */
-
-import { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import {
-  CreateViewSchema,
-  UpdateViewSchema,
-  DeleteViewSchema,
-} from "../dto/knowledge-database.dto";
-
-export class CreateViewUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(input: z.infer<typeof CreateViewSchema>): Promise<CommandResult> {
-    const parsed = CreateViewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const view = await this.viewRepo.create(parsed.data);
-    return commandSuccess(view.id, 1);
-  }
-}
-
-export class UpdateViewUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(input: z.infer<typeof UpdateViewSchema>): Promise<CommandResult> {
-    const parsed = UpdateViewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const view = await this.viewRepo.update(parsed.data);
-    if (!view) {
-      return commandFailureFrom("VIEW_NOT_FOUND", "View not found");
-    }
-    return commandSuccess(view.id, 1);
-  }
-}
-
-export class DeleteViewUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(input: z.infer<typeof DeleteViewSchema>): Promise<CommandResult> {
-    const parsed = DeleteViewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    await this.viewRepo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, 1);
-  }
-}
-
-export class ListViewsUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(accountId: string, databaseId: string) {
-    return this.viewRepo.listByDatabase(accountId, databaseId);
-  }
-}
-````
-
-## File: modules/knowledge-database/index.ts
-````typescript
-/**
- * knowledge-database module — public barrel export
- */
-export * from "./api";
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/databaseRecords/{recordId}
- */
-
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type {
-  IDatabaseRecordRepository,
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-
-function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "databaseRecords");
-}
-
-function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
-  return doc(db, "accounts", accountId, "databaseRecords", recordId);
-}
-
-function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    properties: typeof data.properties === "object" && data.properties !== null
-      ? new Map(Object.entries(data.properties as Record<string, unknown>))
-      : new Map(),
-    order: typeof data.order === "number" ? data.order : 0,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRecordRepository implements IDatabaseRecordRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      properties: input.properties ?? {},
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(recordDoc(db, input.accountId, id), data);
-    return toRecord(id, { ...data, properties: input.properties });
-  }
-
-  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const ref = recordDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updatedAtISO: now };
-    if (input.properties !== undefined) {
-      updates.properties = input.properties;
-    }
-    await updateDoc(ref, updates);
-    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
-    return toRecord(snap.id, merged);
-  }
-
-  async delete(accountId: string, recordId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(recordDoc(db, accountId, recordId));
-  }
-
-  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const snap = await getDoc(recordDoc(db, accountId, recordId));
-    if (!snap.exists()) return null;
-    return toRecord(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    const db = this.db();
-    const q = query(
-      recordsCol(db, accountId),
-      where("databaseId", "==", databaseId),
-      orderBy("order", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
-import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
-import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
-import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
-import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
-import type {
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
-import type {
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-import type {
-  CreateViewInput,
-  UpdateViewInput,
-} from "../../domain/repositories/IViewRepository";
-
-function makeDatabaseRepo() { return new FirebaseDatabaseRepository(); }
-function makeRecordRepo() { return new FirebaseRecordRepository(); }
-function makeViewRepo() { return new FirebaseViewRepository(); }
-
-export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult> {
-  try {
-    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("DATABASE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult> {
-  try {
-    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("DATABASE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
-  try {
-    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
-      databaseId: input.databaseId,
-      accountId: input.accountId,
-      name: input.field.name,
-      type: input.field.type,
-      config: input.field.config,
-      required: input.field.required,
-    });
-  } catch (e) {
-    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult> {
-  try {
-    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
-  } catch (e) {
-    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function createRecord(input: CreateRecordInput): Promise<CommandResult> {
-  try {
-    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("RECORD_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult> {
-  try {
-    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("RECORD_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ accountId, id: recordId });
-  } catch (e) {
-    return commandFailureFrom("RECORD_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function createView(input: CreateViewInput): Promise<CommandResult> {
-  try {
-    return await new CreateViewUseCase(makeViewRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("VIEW_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateView(input: UpdateViewInput): Promise<CommandResult> {
-  try {
-    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("VIEW_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteView(accountId: string, viewId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteViewUseCase(makeViewRepo()).execute({ accountId, id: viewId });
-  } catch (e) {
-    return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-````
-
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
-```
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-````
-
-## File: modules/knowledge/domain-services.md
-````markdown
-# knowledge — Domain Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/domain-services.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -69289,50 +68996,6 @@ export function AppRail({
 }
 ````
 
-## File: modules/knowledge-base/api/index.ts
-````typescript
-/**
- * knowledge-base public API boundary
- *
- * Other modules MUST import knowledge-base resources from this file only.
- * Never import from domain/, application/, or infrastructure/ directly.
- */
-
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
-export type { Category } from "../domain/entities/category.entity";
-
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/knowledge-base.actions";
-
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export {
-  getArticles,
-  getArticle,
-  getCategories,
-  getBacklinks,
-} from "../interfaces/queries/knowledge-base.queries";
-
-// ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-````
-
 ## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
 ````typescript
 /**
@@ -69544,555 +69207,6 @@ export function VersionHistoryPanel({ accountId, contentId, currentUserId }: Ver
 }
 ````
 
-## File: modules/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
-
-## 模組定位
-
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { WikiPage } from "@/modules/wiki/domain/entities/...";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
-## File: modules/knowledge/application-services.md
-````markdown
-# knowledge — Application Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-
-## Use Cases 清單
-
-| Use Case 類別 | 操作 | UI 入口 |
-|---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
-
-## 設計對齊
-
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAtISO` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAtISO` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## Wiki/Knowledge Base 驗證事件
-
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAtISO: string;
-}
-
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAtISO: string;
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-````
-
-## File: modules/knowledge/README.md
-````markdown
-# knowledge — 知識內容上下文
-
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
-
-## 核心聚合 / 核心概念
-
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
-
-## KnowledgePageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
-````
-
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-
-## 頁面生命周期操作（Page Lifecycle Actions）
-
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
-
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
-
-## 頁面操作選單（PageContextMenu）
-
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
-
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
-
-## 頁面樹狀視圖（PageTreeView）
-
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
-
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
-
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
 ## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
 ````typescript
 /**
@@ -70280,4 +69394,961 @@ import "./.next/types/routes.d.ts";
 
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: app/(shell)/_components/dashboard-sidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FileText,
+  Home,
+  Library,
+  PanelLeftClose,
+  Search,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+import { KnowledgeSidebarSection } from "./knowledge-sidebar-section";
+
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+const QUICK_ACCESS_ITEMS: readonly {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  { href: "/workspace", label: "首頁", icon: <Home className="size-3.5" /> },
+  { href: "/knowledge/pages", label: "頁面", icon: <FileText className="size-3.5" /> },
+  { href: "/knowledge-base/articles", label: "文章", icon: <BookOpen className="size-3.5" /> },
+  { href: "/source/documents", label: "來源", icon: <Library className="size-3.5" /> },
+];
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+// ── Section helpers ──────────────────────────────────────────────────────────
+
+type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
+
+function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+// ── Section icon labels for the title bar ────────────────────────────────────
+
+const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+export function DashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
+  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
+  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+  const searchParams = useSearchParams();
+
+  function toggleCollapsed() {
+    onToggleCollapsed();
+  }
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(() => {
+    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  const visibleAccountItems = useMemo(() => {
+    return ACCOUNT_NAV_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  // Whether to show recent workspaces section (controlled by personal prefs)
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  // Max workspaces to show (apply user preference)
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  // Track recently visited workspaces in localStorage
+  useEffect(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [activeAccount?.id, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [activeAccount?.id, pathname]);
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (typeof window === "undefined" || !pathname.startsWith("/knowledge")) {
+      return;
+    }
+
+    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
+    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(searchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+
+  const recentWorkspaceLinks = useMemo(() => {
+    return recentWorkspaceIds
+      .map((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+      })
+      .filter((item): item is { id: string; name: string; href: string } => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/knowledge")) {
+        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
+
+  const allWorkspaceLinks = useMemo(() => {
+    return Object.values(workspacesById)
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        href: buildWorkspaceContextHref(workspace.id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [workspacesById, buildWorkspaceContextHref]);
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
+    ? rawWorkspaceTab
+    : "Overview";
+
+  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
+    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  }
+
+  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
+    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+  }
+
+  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
+    if (tab === "Wiki") {
+      const status = getWorkspaceTabStatus(tab);
+      return `${status} WorkSpace Wiki`;
+    }
+    const status = getWorkspaceTabStatus(tab);
+    return `${status} ${tWorkspaceTab(tab, fallback)}`;
+  }
+
+  function tWorkspaceGroup(groupKey: string, fallback: string) {
+    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
+  }
+
+  function getWorkspacePrefId(tabValue: string) {
+    if (isWorkspaceTabValue(tabValue)) {
+      return getWorkspaceTabPrefId(tabValue);
+    }
+    return tabValue.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function isWorkspaceItemEnabled(prefId: string) {
+    return navPrefs.pinnedWorkspace.includes(prefId);
+  }
+
+  function getWorkspaceItemOrder(prefId: string) {
+    const index = navPrefs.workspaceOrder.indexOf(prefId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
+    return [...items].sort(
+      (left, right) =>
+        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
+        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarLocale() {
+      const isZhHant =
+        typeof navigator !== "undefined" &&
+        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
+      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
+
+      try {
+        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as SidebarLocaleBundle;
+        if (!cancelled) {
+          setLocaleBundle(data);
+        }
+      } catch {
+        // Keep fallback labels when localization files are unavailable.
+      }
+    }
+
+    void loadSidebarLocale();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const db = getFirebaseFirestore();
+      const payload: Record<string, unknown> = {
+        title: "未命名頁面",
+        kind: "page",
+        accountId,
+        createdAt: firestoreApi.serverTimestamp(),
+        updatedAt: firestoreApi.serverTimestamp(),
+      };
+      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
+      await firestoreApi.addDoc(
+        firestoreApi.collection(db, "accounts", accountId, "pages"),
+        payload,
+      );
+      toast.success("已建立頁面");
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+    <aside
+      aria-label="Secondary navigation"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+      }`}
+    >
+          {/* ── Sidebar title bar ──────────────────────────────────── */}
+          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+            {/* Section label */}
+            <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
+              {sectionMeta.icon}
+              {sectionMeta.label}
+            </span>
+            {/* Customize + collapse buttons grouped on the right */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                title="設定"
+                aria-label="設定"
+                onClick={() => {
+                  setCustomizeOpen(true);
+                }}
+                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="收起側欄"
+                title="收起側欄"
+                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="shrink-0 border-b border-border/30 px-2 py-2">
+            <div className="flex items-center gap-1">
+              {QUICK_ACCESS_ITEMS.map((item) => {
+                const active = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex size-7 items-center justify-center rounded-md transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="sr-only">{item.label}</span>
+                  </Link>
+                );
+              })}
+              <button
+                type="button"
+                aria-label="搜尋"
+                title="搜尋"
+                className="ml-auto flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <Search className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Scrollable nav body ── section-specific ───────────── */}
+          <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+            {section === "account" && (
+              <div className="space-y-2">
+                {showAccountManagement && visibleAccountItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Account navigation">
+                    <p className={sidebarSectionTitleClass}>
+                      Account
+                    </p>
+                    {visibleAccountItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={sidebarItemClass(active)}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看 Account 選項。
+                  </p>
+                )}
+              </div>
+            )}
+
+            {section === "organization" && (
+              <div className="space-y-2">
+                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Organization management">
+                    <p className={sidebarSectionTitleClass}>
+                      組織管理
+                    </p>
+                    {visibleOrganizationManagementItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={sidebarItemClass(active)}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看管理選項。
+                  </p>
+                )}
+              </div>
+            )}
+
+            {section === "workspace" && (
+              <div className="space-y-2">
+                {workspacePathId ? (
+                  <nav className="space-y-3" aria-label="Workspace navigation">
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={sidebarItemClass(isActive)}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    {isWorkspaceItemEnabled("workspace-modules") && (
+                      <div className="my-1.5 border-t border-border/40" />
+                    )}
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("workspace-modules") && (
+                        <div className="space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceModulesExpanded((prev) => !prev);
+                            }}
+                            className={sidebarGroupButtonClass}
+                            aria-expanded={isWorkspaceModulesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
+                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceModulesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={sidebarItemClass(isActive)}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("spaces") && (
+                        <div className="space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceSpacesExpanded((prev) => !prev);
+                            }}
+                            className={sidebarGroupButtonClass}
+                            aria-expanded={isWorkspaceSpacesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
+                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceSpacesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
+                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                    .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={sidebarItemClass(isActive)}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("databases") && (
+                        <div className="space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
+                            }}
+                            className={sidebarGroupButtonClass}
+                            aria-expanded={isWorkspaceDatabasesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
+                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceDatabasesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={sidebarItemClass(isActive)}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={sidebarItemClass(isActive)}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                  </nav>
+                ) : (
+                  // ── Workspace hub: show recent workspaces ──────────────
+                  <div>
+                    {showRecentWorkspaces && (
+                      <div className="space-y-0.5">
+                        <p className={sidebarSectionTitleClass}>
+                          最近工作區
+                        </p>
+                        {visibleRecentWorkspaceLinks.length === 0 ? (
+                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                            尚無最近開啟的工作區。
+                          </p>
+                        ) : (
+                          visibleRecentWorkspaceLinks.map((ws) => (
+                            <Link
+                              key={ws.id}
+                              href={ws.href}
+                              onClick={() => {
+                                onSelectWorkspace(ws.id);
+                              }}
+                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                  ? "border border-primary/30 bg-primary/10 text-primary"
+                                  : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+                              }`}
+                              title={ws.name}
+                            >
+                              <span className="truncate">{ws.name}</span>
+                            </Link>
+                          ))
+                        )}
+                        {hasOverflow && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExpanded((prev) => !prev);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {isExpanded ? "收起" : "顯示更多"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {section === "knowledge" && (
+              <KnowledgeSidebarSection
+                pathname={pathname}
+                workspacesHydrated={workspacesHydrated}
+                allWorkspaceLinks={allWorkspaceLinks}
+                activeWorkspaceId={activeWorkspaceId}
+                creatingKind={creatingKind}
+                onSelectWorkspace={onSelectWorkspace}
+                onQuickCreatePage={() => {
+                  void handleQuickCreatePage();
+                }}
+              />
+            )}
+
+            {section === "knowledge-base" && (
+              <nav className="space-y-0.5" aria-label="Knowledge Base navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  知識庫
+                </p>
+                {(
+                  [
+                    { href: "/knowledge-base/articles", label: "文章" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "knowledge-database" && (
+              <nav className="space-y-0.5" aria-label="Knowledge Database navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  資料庫
+                </p>
+                {(
+                  [
+                    { href: "/knowledge-database/databases", label: "資料庫" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "source" && (
+              <nav className="space-y-0.5" aria-label="Source navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  來源文件
+                </p>
+                {(
+                  [
+                    { href: "/source/documents", label: "Documents" },
+                    { href: "/source/libraries", label: "Libraries" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "notebook" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook
+                </p>
+                {(
+                  [
+                    { href: "/notebook/rag-query", label: "Ask / Cite" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "ai-chat" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook / AI
+                </p>
+                {(
+                  [
+                    { href: "/ai-chat", label: "Notebook shell" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+          </div>
+    </aside>
+
+    <CustomizeNavigationDialog
+      open={customizeOpen}
+      onOpenChange={setCustomizeOpen}
+      onPreferencesChange={setNavPrefs}
+    />
+    </div>
+  );
+}
 ````

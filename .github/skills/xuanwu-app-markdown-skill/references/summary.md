@@ -52,7 +52,7 @@ This skill contains the following reference files:
 - `docs/guides/how-to/ui-ux/wireframes.md` (337 lines)
 - `py_fn/README.md` (265 lines)
 - `docs/guides/how-to/ui-ux/information-architecture.md` (244 lines)
-- `docs/guides/how-to/ui-ux/ux-principles.md` (228 lines)
 - `.github/agents/knowledge-base.md` (228 lines)
+- `docs/guides/how-to/ui-ux/ux-principles.md` (228 lines)
 - `docs/reference/specification/system-overview.md` (189 lines)
 - `docs/development/modules-implementation-guide.md` (165 lines)
