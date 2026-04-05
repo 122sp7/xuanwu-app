@@ -41,4 +41,4 @@ interface EventRecord {
 |------------|------|
 | `ID` | string alias，用於所有業務 ID |
 | `Timestamp` | Firebase Timestamp 型別別名 |
-| `slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
+| `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |

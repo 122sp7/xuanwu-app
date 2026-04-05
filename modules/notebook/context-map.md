@@ -17,7 +17,7 @@
 
 ### notebook → app/(shell)/ai-chat（Interfaces）
 
-- AI Chat 頁面透過本地 `_actions.ts` 呼叫 `notebook/api`
+- AI Chat 頁面透過本地 `app/(shell)/ai-chat/_actions.ts` 呼叫 `notebook/api`
 - **注意**：`notebook/api` barrel 不得在 Client Component 中直接 import（Genkit server-only）
 
 ---
@@ -28,4 +28,4 @@
 |------|------|------|------|
 | search → notebook | search | notebook | Customer/Supplier（同步查詢） |
 | wiki → notebook | wiki | notebook | Customer/Supplier（同步查詢） |
-| notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（_actions.ts） |
+| notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（`app/(shell)/ai-chat/_actions.ts`） |

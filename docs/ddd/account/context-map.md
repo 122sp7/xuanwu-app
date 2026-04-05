@@ -5,7 +5,7 @@
 ### identity → account（Customer/Supplier）
 
 - `account` 依賴 `identity/api` 取得 uid 與 TokenRefreshSignal
-- `account/application/use-cases/account.use-cases.ts` 在 server 端 import `identity/api`
+- `modules/account/application/use-cases/account.use-cases.ts` 在 server 端 import `identity/api`
 
 ```
 identity/api ──► account/application (server-side use-cases)

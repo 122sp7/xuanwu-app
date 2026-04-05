@@ -30,7 +30,7 @@ import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/use
 
 ## 關鍵守衛
 
-- `identity/api/index.ts` 不得 re-export 任何含 `"use client"` 的檔案
+- `modules/identity/api/index.ts` 不得 re-export 任何含 `"use client"` 的檔案
 - hooks（`useTokenRefreshListener`）只能從 interfaces 層使用，不可進入 api barrel
 
 ## 驗證命令

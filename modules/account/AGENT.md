@@ -29,7 +29,7 @@ import { Account } from "@/modules/account/domain/entities/Account";
 
 ## 關鍵依賴規則
 
-- `account/application/use-cases/*.ts` 在 server 端執行，可 import `identity/api`
+- `modules/account/application/use-cases/account.use-cases.ts` 與 `modules/account/application/use-cases/account-policy.use-cases.ts` 在 server 端執行，可 import `identity/api`
 - 不要在 application 層 import 任何含 `"use client"` 的模組
 
 ## 驗證命令
