@@ -131,7 +131,7 @@ export class VerifyArticleUseCase {
       verificationExpiresAtISO: expiresAt,
       updatedAtISO: now,
     });
-    return commandSuccess(parsed.data.id, now);
+    return commandSuccess(parsed.data.id, existing.version);
   }
 }
 
