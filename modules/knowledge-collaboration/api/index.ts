@@ -33,10 +33,17 @@ export {
   deleteComment,
   createVersion,
   deleteVersion,
+  grantPermission,
+  revokePermission,
 } from "../interfaces/_actions/knowledge-collaboration.actions";
 
 // ── Queries (reads) ────────────────────────────────────────────────────────────
 export {
   getComments,
   getVersions,
+  getPermissions,
 } from "../interfaces/queries/knowledge-collaboration.queries";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";

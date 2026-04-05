@@ -8,12 +8,15 @@
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
 import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
 import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
 import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto } from "../../application/dto/knowledge-collaboration.dto";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
 
 function makeCommentRepo() { return new FirebaseCommentRepository(); }
 function makeVersionRepo() { return new FirebaseVersionRepository(); }
+function makePermissionRepo() { return new FirebasePermissionRepository(); }
 
 export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
   try {
@@ -60,5 +63,21 @@ export async function deleteVersion(input: DeleteVersionDto): Promise<CommandRes
     return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
+  try {
+    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
+  try {
+    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }

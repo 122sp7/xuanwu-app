@@ -34,3 +34,6 @@ export {
   getArticle,
   getCategories,
 } from "../interfaces/queries/knowledge-base.queries";
+
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
