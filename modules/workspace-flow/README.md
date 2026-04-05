@@ -1,305 +1,152 @@
-# System State Machines
+# workspace-flow — Workspace Flow & State Machine Layer
 
-workspace-flow 是純邏輯模組，負責狀態機、guard、資料契約與公開 API，不負責產品 UI 組裝。
+> **開發狀態**：🏗️ Midway — 開發部分完成
+> **Domain Type**：Supporting Domain（支援域）
 
-對外互動規則：
-- 外界只能透過 `api/` 使用本模組
-- UI 由外部頁面或其他模組自行組裝
-- 舊的 `types/` 目錄原本只作為遷移參考，現已刪除，不可再作為公開邊界
+`modules/workspace-flow` 負責工作區內的**業務流程狀態機管理**，包含任務（Task）、問題（Issue）與發票（Invoice）三條業務線的狀態轉換、守衛規則與事件發布。對應 Notion 的 Database / Board 功能，是純邏輯模組，不負責產品 UI 組裝。
 
-Mermaid 圖檔：
-- `./Workspace-Flow.mermaid`
-- `./Workspace-Flow-Tree.mermaid`
-- `./Workspace-Flow-UI.mermaid`
-- `./Workspace-Flow-States.mermaid`
-- `./Workspace-Flow-Sequence.mermaid`
-- `./Workspace-Flow-ERD.mermaid`
-- `./Workspace-Flow-Architecture.mermaid`
-- `./Workspace-Flow-Permissions.mermaid`
-- `./Workspace-Flow-Events.mermaid`
-- `./Workspace-Flow-Lifecycle.mermaid`
-- `./AGENT.md`
+外界互動規則：
+- 外界只能透過 `api/` 公開介面存取此模組
+- UI 組裝由外部頁面或 `workspace` 模組負責
+- 禁止直接 import `domain/`、`application/`、`infrastructure/`、`interfaces/`
 
 ---
 
-## 核心原則
+## 職責（Responsibilities）
 
-```
-Task.status      → 事情做完沒
-Issue.status     → 異常處理中
-Invoice.status   → 錢的狀態
-```
-
-**三條獨立狀態機，各自處理不同責任。**
-
----
-
-## 1. Task State Machine（工作流）
-
-```
-INITIAL → draft
-
-draft        --[assign]-->     in_progress
-in_progress  --[submit_qa]-->  qa
-qa           --[pass]-->       acceptance
-acceptance   --[approve]-->    accepted
-accepted     --[archive]-->    archived
-
-qa           --[fail]-->       in_progress   ← 不用，改開 Issue
-acceptance   --[fail]-->       qa            ← 不用，改開 Issue
-```
-
-> **規則：Task status 只往前走，不倒退。**
-> 發現問題 → 開 Issue，不是退狀態。
-
-### States
-
-| state | 說明 |
-|---|---|
-| `draft` | 任務建立，尚未開始 |
-| `in_progress` | 開發中 |
-| `qa` | 提交測試 |
-| `acceptance` | 客戶驗收中 |
-| `accepted` | 驗收通過，可進 Finance |
-| `archived` | 歸檔 |
-
-### Transitions
-
-| from | event | to | guard |
-|---|---|---|---|
-| `draft` | `ASSIGN` | `in_progress` | assignee 存在 |
-| `in_progress` | `SUBMIT_QA` | `qa` | — |
-| `qa` | `PASS` | `acceptance` | no open issues |
-| `acceptance` | `APPROVE` | `accepted` | no open issues |
-| `accepted` | `ARCHIVE` | `archived` | invoice closed or none |
+| 能力 | 說明 |
+|------|------|
+| Task 狀態機 | 管理 Task 從 `draft` 到 `accepted` 的完整生命週期 |
+| Issue 狀態機 | 管理 Issue 從 `open` 到 `closed` 的問題處理流程 |
+| Invoice 狀態機 | 管理 Invoice 從 `draft` 到 `paid/closed` 的財務流程 |
+| 守衛規則 | 執行狀態轉換的業務守衛（task-guards、invoice-guards） |
+| 流程物化 | 從知識內容物化生成 Task 清單（materialize-tasks-from-content） |
+| 事件發布 | 狀態轉換後發布 TaskEvent、IssueEvent、InvoiceEvent |
 
 ---
 
-## 2. Issue State Machine（問題單流）
+## 聚合根（Aggregate Roots）
 
-```
-INITIAL → open
-
-open          --[start]-->    investigating
-investigating --[fix]-->      fixing
-fixing        --[submit]-->   retest
-retest        --[pass]-->     resolved
-retest        --[fail]-->     fixing          ← 回修
-resolved      --[close]-->    closed
-```
-
-> **規則：任何節點發現問題，一律開 Issue，不退 Task。**
-> Issue 解決後，回到原來節點繼續。
-
-### States
-
-| state | 說明 |
-|---|---|
-| `open` | 問題建立 |
-| `investigating` | 調查原因中 |
-| `fixing` | 修復中 |
-| `retest` | 重新測試 |
-| `resolved` | 已解決 |
-| `closed` | 關閉歸檔 |
-
-### Transitions
-
-| from | event | to |
-|---|---|---|
-| `open` | `START` | `investigating` |
-| `investigating` | `FIX` | `fixing` |
-| `fixing` | `SUBMIT` | `retest` |
-| `retest` | `PASS` | `resolved` |
-| `retest` | `FAIL` | `fixing` |
-| `resolved` | `CLOSE` | `closed` |
-
-### Issue 與 Task 的關係
-
-```
-Task (qa)       → Issue.stage = 'qa'       → 解完 → 回 qa
-Task (acceptance) → Issue.stage = 'acceptance' → 解完 → 回 acceptance
-```
-
-`Issue.stage` 記錄在哪個節點產生，方便 retest 後回到正確位置。
+| Aggregate | 說明 |
+|-----------|------|
+| `Task` | 任務聚合根，含 status、assignee、workspaceId |
+| `Issue` | 問題聚合根，含 status、severity、stage |
+| `Invoice` | 發票聚合根，含 status、InvoiceItem 列表、金額 |
 
 ---
 
-## 3. Invoice State Machine（財務流）
+## 通用語言（Ubiquitous Language）
 
-```
-INITIAL → invoice_draft
-
-invoice_draft  --[submit]-->   submitted
-submitted      --[review]-->   finance_review
-finance_review --[approve]-->  approved
-finance_review --[reject]-->   submitted       ← 退回補件
-approved       --[pay]-->      paid
-paid           --[close]-->    closed
-```
-
-> **規則：Task 不擁有 Finance status。**
-> Invoice 有自己的狀態機。Task 被加入 InvoiceItem，透過 InvoiceItem 關聯到 Invoice。
-
-### States
-
-| state | 說明 |
-|---|---|
-| `invoice_draft` | 草稿，選取 accepted tasks |
-| `submitted` | 送出請款 |
-| `finance_review` | 財務審核中 |
-| `approved` | 核准 |
-| `paid` | 已付款 |
-| `closed` | 結案 |
-
-### Transitions
-
-| from | event | to | guard |
-|---|---|---|---|
-| `invoice_draft` | `SUBMIT` | `submitted` | items 不為空 |
-| `submitted` | `REVIEW` | `finance_review` | — |
-| `finance_review` | `APPROVE` | `approved` | — |
-| `finance_review` | `REJECT` | `submitted` | — |
-| `approved` | `PAY` | `paid` | — |
-| `paid` | `CLOSE` | `closed` | — |
+| 術語 | 英文 | 說明 |
+|------|------|------|
+| 任務 | Task | 工作項目，有 7 個狀態的完整生命週期 |
+| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
+| 問題 | Issue | 異常或缺陷記錄，有 6 個狀態的處理流程 |
+| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
+| 發票 | Invoice | 財務文件，有 6 個狀態的審批流程 |
+| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
+| 發票項目 | InvoiceItem | 發票中的明細項目 |
+| 問題階段 | IssueStage | 問題處理的目前階段（細分於 IssueStatus） |
+| 來源參考 | SourceReference | Task / Issue 來源的外部參考（知識頁面 ID 等） |
+| 流程物化 | WorkflowMaterialization | 從知識內容自動生成 Task 的流程 |
 
 ---
 
-## 4. 模組定位
+## 狀態機（State Machines）
 
-workspace-flow 應維持以下結構：
+### TaskStatus
+```
+draft → in_progress → qa → acceptance → accepted
+任何狀態 → archived（soft delete）
+```
 
-```text
+### IssueStatus
+```
+open → investigating → fixing → retest
+retest → resolved（pass）
+retest → fixing（fail）
+resolved → closed
+```
+
+### InvoiceStatus
+```
+draft → submitted → finance_review → approved → paid → closed
+approved → rejected（退回）
+```
+
+---
+
+## 領域事件（Domain Events）
+
+| 事件 | 觸發條件 |
+|------|----------|
+| `workspace-flow.task_created` | Task 建立時 |
+| `workspace-flow.task_status_changed` | Task 狀態轉換時 |
+| `workspace-flow.issue_opened` | Issue 開立時 |
+| `workspace-flow.issue_resolved` | Issue 解決時 |
+| `workspace-flow.invoice_approved` | Invoice 審批通過時 |
+| `workspace-flow.invoice_paid` | Invoice 付款完成時 |
+
+---
+
+## 依賴關係
+
+- **上游（依賴）**：`identity/api`（操作者身分）、`workspace/api`（工作區範圍）
+- **下游（被依賴）**：`workspace/api`（Tasks tab）、`workspace-scheduling/api`（截止日期同步）
+
+---
+
+## 目錄結構
+
+```
 modules/workspace-flow/
-├── api/
-├── application/
-├── domain/
-├── infrastructure/
-├── interfaces/
-├── AGENT.md
-├── README.md
-├── Workspace-Flow-Architecture.mermaid
-├── Workspace-Flow-ERD.mermaid
-├── Workspace-Flow-Events.mermaid
-├── Workspace-Flow-Lifecycle.mermaid
-├── Workspace-Flow-Permissions.mermaid
-├── Workspace-Flow-Sequence.mermaid
-├── Workspace-Flow-States.mermaid
-├── Workspace-Flow.mermaid
-├── Workspace-Flow-Tree.mermaid
-├── Workspace-Flow-UI.mermaid
+├── api/                      # 公開 API 邊界
+│   ├── contracts.ts          # 公開 DTO / 合約型別
+│   ├── facade.ts             # WorkspaceFlowFacade
+│   ├── index.ts              # barrel（含 WorkspaceFlowTab 等）
+│   └── listeners.ts          # 事件監聽器
+├── application/              # Use Cases & DTOs
+│   ├── dto/                  # create-task、open-issue、invoice-query 等
+│   ├── ports/                # TaskService、IssueService、InvoiceService
+│   ├── process-managers/     # content-to-workflow-materializer.ts
+│   └── use-cases/            # 完整的 CRUD + 狀態機轉換用例
+├── domain/                   # Aggregates, Events, Repositories, Services
+│   ├── entities/
+│   │   ├── Task.ts
+│   │   ├── Issue.ts
+│   │   ├── Invoice.ts
+│   │   └── InvoiceItem.ts
+│   ├── events/
+│   │   ├── TaskEvent.ts
+│   │   ├── IssueEvent.ts
+│   │   └── InvoiceEvent.ts
+│   ├── repositories/
+│   │   ├── TaskRepository.ts
+│   │   ├── IssueRepository.ts
+│   │   └── InvoiceRepository.ts
+│   ├── services/             # 轉換守衛與政策
+│   │   ├── task-guards.ts
+│   │   ├── task-transition-policy.ts
+│   │   ├── issue-transition-policy.ts
+│   │   ├── invoice-guards.ts
+│   │   └── invoice-transition-policy.ts
+│   └── value-objects/
+│       ├── TaskId.ts / TaskStatus.ts
+│       ├── IssueId.ts / IssueStatus.ts / IssueStage.ts
+│       ├── InvoiceId.ts / InvoiceItemId.ts / InvoiceStatus.ts
+│       ├── SourceReference.ts
+│       └── UserId.ts
+├── interfaces/               # UI 元件、actions、queries
+│   ├── _actions/
+│   ├── components/           # WorkspaceFlowTab
+│   ├── contracts/
+│   └── queries/
 └── index.ts
 ```
 
-說明：
-- `domain/`：狀態、事件、entity、transition、guard
-- `application/`：use case、DTO、ports、orchestration
-- `infrastructure/`：Firestore 與 persistence adapter
-- `interfaces/`：若未來需要本模組內的 action/query contract，可放這裡；產品 UI 仍優先在外部組裝
-- `api/`：唯一公開入口
-
-建議施工順序：
-1. 先做 `domain/` 的 statuses、events、entities、guards、transitions
-2. 再做 `application/` 的 DTO、ports、use cases
-3. 再做 `infrastructure/` 的 Firestore mapping 與 repositories
-4. 最後才做 `api/` 收斂公開 contract
-
-## 5. 資料模型
-
-### Task
-
-```ts
-type Task = {
-  id: string
-  title: string
-  description: string
-  status: 'draft' | 'in_progress' | 'qa' | 'acceptance' | 'accepted' | 'archived'
-  assignee: string
-  accepted_at?: Date
-  created_at: Date
-}
-```
-
-### Issue
-
-```ts
-type Issue = {
-  id: string
-  task_id: string
-  stage: 'qa' | 'acceptance' | 'finance'     // 在哪個節點發生
-  title: string
-  description: string
-  status: 'open' | 'investigating' | 'fixing' | 'retest' | 'resolved' | 'closed'
-  created_by: string
-  assigned_to: string
-  created_at: Date
-  resolved_at?: Date
-}
-```
-
-### Invoice
-
-```ts
-type Invoice = {
-  id: string
-  status: 'invoice_draft' | 'submitted' | 'finance_review' | 'approved' | 'paid' | 'closed'
-  total_amount: number
-  created_at: Date
-  submitted_at?: Date
-  approved_at?: Date
-  paid_at?: Date
-}
-```
-
-### InvoiceItem
-
-```ts
-type InvoiceItem = {
-  id: string
-  invoice_id: string
-  task_id: string
-  amount: number
-}
-```
-
 ---
 
-## 6. 關聯關係
+## 架構參考
 
-```
-Task    1 ──── n    Issue
-Task    1 ──── n    InvoiceItem   n ──── 1   Invoice
-```
-
-Task 不直接持有 Invoice，透過 InvoiceItem 關聯。
-
----
-
-## 7. Guard 規則（狀態轉移前置條件）
-
-| 規則 | 說明 |
-|---|---|
-| `qa → acceptance` | Task 下無 `open / investigating / fixing / retest` 的 Issue |
-| `acceptance → accepted` | 同上 |
-| `invoice_draft → submitted` | InvoiceItems 至少一筆 |
-| `accepted → archived` | 關聯的 Invoice 全為 `closed` 或無 Invoice |
-
----
-
-## 8. 完整流程一覽
-
-```
-Task → qa → acceptance → accepted
-        │        │
-        └─ Issue ┘  (任何節點發現問題 → 開 Issue → 修完回原節點)
-
-accepted → InvoiceItem → Invoice → Finance Review → Approved → Paid
-```
-
-**一句話記憶法：**
-
-```
-Task   解決：事情做完沒？
-Issue  解決：異常怎麼辦？
-Invoice 解決：要收多少錢？
-Finance 解決：錢付了沒？
-```
+- 系統設計文件：`docs/architecture/domain-model.md`
+- 通用語言：`docs/architecture/ubiquitous-language.md`
