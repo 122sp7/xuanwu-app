@@ -26,6 +26,8 @@ import {
 } from "@/modules/knowledge-base/api";
 import type { Article, Category } from "@/modules/knowledge-base/api";
 import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
@@ -201,11 +203,11 @@ export default function ArticleDetailPage() {
         </TabsList>
 
         <TabsContent value="content">
-          <div className="min-h-[200px] rounded-lg border border-border/60 bg-muted/10 p-4">
+          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
             {article.content ? (
-              <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {article.content}
-              </pre>
+              </ReactMarkdown>
             ) : (
               <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
             )}
