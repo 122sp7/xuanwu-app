@@ -162,7 +162,7 @@ export class DeleteArticleUseCase {
     const existing = await this.repo.getById(parsed.data.id);
     if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
     await this.repo.delete(parsed.data.id);
-    return commandSuccess(parsed.data.id, new Date().toISOString());
+    return commandSuccess(parsed.data.id, existing.version);
   }
 }
 
