@@ -20,6 +20,7 @@ interface VersionHistoryPanelProps {
 export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
   const [versions, setVersions] = useState<Version[]>([]);
   const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     let disposed = false;
