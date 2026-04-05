@@ -217,7 +217,7 @@
 .github/prompts/write-e2e-tests.prompt.md (20 lines)
 .github/prompts/write-tests.prompt.md (18 lines)
 .github/README.md (31 lines)
-.github/terminology-glossary.md (30 lines)
+.github/terminology-glossary.md (32 lines)
 .gitignore (73 lines)
 .mcp.json (29 lines)
 AGENTS.md (147 lines)

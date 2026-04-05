@@ -49172,57 +49172,6 @@ interface AccountPolicyUpdatedEvent {
 | `accountId` | `userId`（帳戶層應使用 accountId） |
 ````
 
-## File: docs/ddd/ai/AGENT.md
-````markdown
-# AGENT.md — ai BC
-
-## 模組定位
-
-`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
-| `IngestionDocument` | Document、File（在此 BC 內）|
-| `IngestionChunk` | Chunk、VectorChunk |
-| `IngestionStatus` | Status, JobStatus |
-
-## 棄用檔案守衛
-
-以下檔案都是 `@deprecated` stubs，已移至其他模組，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 移至 `modules/wiki/`
-- `modules/ai/domain/entities/link.ts` → 移至 `modules/wiki/`
-- `modules/ai/domain/repositories/GraphRepository.ts` → 移至 `modules/wiki/`
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { aiApi } from "@/modules/ai/api";
-import type { IngestionJobDTO } from "@/modules/ai/api";
-```
-
-### ❌ 禁止
-```typescript
-import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
-import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
-```
-
-## Runtime 邊界規則
-
-- `ai` 模組只在 Next.js 端做 Job 協調
-- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: docs/ddd/ai/aggregates.md
 ````markdown
 # Aggregates — ai
@@ -66216,6 +66165,57 @@ identity/api ──► account/application (server-side use-cases)
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
+## File: docs/ddd/ai/AGENT.md
+````markdown
+# AGENT.md — ai BC
+
+## 模組定位
+
+`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
+| `IngestionDocument` | Document、File（在此 BC 內）|
+| `IngestionChunk` | Chunk、VectorChunk |
+| `IngestionStatus` | Status, JobStatus |
+
+## 棄用檔案守衛
+
+以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
+- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { aiApi } from "@/modules/ai/api";
+import type { IngestionJobDTO } from "@/modules/ai/api";
+```
+
+### ❌ 禁止
+```typescript
+import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
+import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
+```
+
+## Runtime 邊界規則
+
+- `ai` 模組只在 Next.js 端做 Job 協調
+- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
 ## File: docs/ddd/ai/README.md
 ````markdown
 # ai — AI 攝入上下文
@@ -66747,47 +66747,6 @@ interface KnowledgePageApprovedEvent {
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: docs/ddd/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: docs/ddd/shared/aggregates.md
 ````markdown
 # Aggregates — shared
@@ -66866,47 +66825,6 @@ interface EventRecord {
 - **`DomainEvent`**
 - **`EventRecord`**
 - **`SlugUtils`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`wiki` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
 
 ## 詳細文件
 
@@ -79002,238 +78920,6 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
-## File: .github/agents/knowledge-base.md
-````markdown
-# Knowledge Base — MDDD Domain & Architecture
-
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
-
-## Module-Driven Domain Design (MDDD)
-
-The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
-
-### Core Principle
-
-> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
-
-### Global Dependency Direction
-
-```
-UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
-```
-
-The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
-
-## Module Structure
-
-Each module under `modules/` follows a four-layer Clean Architecture:
-
-```
-modules/<module-name>/
-├── api/
-│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
-├── index.ts                    # Optional local barrel for same-module composition
-├── README.md                   # Module documentation (optional)
-├── domain/
-│   ├── entities/               # Aggregate roots, value objects, entity types
-│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
-│   ├── services/               # Pure domain services (stateless business rules)
-│   ├── value-objects/          # DDD value objects (immutable, equality by value)
-│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
-├── application/
-│   ├── use-cases/              # One file per use case (single operation)
-│   └── dto/                    # Data Transfer Objects for use-case I/O
-├── infrastructure/
-│   ├── firebase/               # Firebase Firestore repository implementations
-│   ├── genkit/                 # AI/Genkit integrations (AI module)
-│   ├── default/                # In-memory or simplified implementations
-│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
-│   ├── persistence/            # Persistence adapters
-│   └── repositories/           # Repository implementations (alternative layout)
-└── interfaces/
-    ├── components/             # React UI components
-    ├── queries/                # TanStack Query hooks (read-side)
-    ├── _actions/               # Next.js Server Actions (write-side)
-    ├── hooks/                  # Custom React hooks
-    ├── api/                    # REST API route controllers
-    ├── contracts/              # API contracts
-    └── view-models/            # View model transformations
-```
-
-Not every module has every subdirectory — only what it needs.
-
-### Boundary Policy
-
-- Every `modules/<module-name>/` is isolated.
-- Cross-module imports are allowed only via `modules/<target-module>/api/`.
-- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
-- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
-
-## Module Inventory
-
-Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
-
-`account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
-
-> **Removed modules:** `wiki` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
-
-## Package System (21 Packages)
-
-Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
-
-### Import Rule
-
-```typescript
-// ✅ CORRECT — via @alias from tsconfig.json
-import type { CommandResult, DomainError } from "@shared-types";
-import { cn, formatDate } from "@shared-utils";
-import { auth } from "@integration-firebase";
-
-// ❌ NEVER — relative paths to package internals
-import type { CommandResult } from "../../../../packages/shared-types/index";
-
-// ❌ NEVER — legacy paths (ESLint will block)
-import type { CommandResult } from "@/shared/types";
-```
-
-### Package Catalog
-
-| Alias | Package | Purpose |
-|-------|---------|---------|
-| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
-| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
-| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
-| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | integration-http | Axios HTTP client with interceptors |
-| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
-| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
-| `@lib-zod` | lib-zod | Zod v4 wrapper |
-| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
-| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
-| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
-| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
-| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
-| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
-| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
-| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
-
-### ESLint Boundary Enforcement
-
-Legacy import paths are blocked by `eslint.config.mjs`:
-
-| Blocked Pattern | Replacement |
-|----------------|-------------|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` or `@integration-*` |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
-`modules/` 內也有額外邊界保護：
-
-- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
-- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
-- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
-
-### 已知邊界警告（待修復）
-
-以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
-
-目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
-
-> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
-
-> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
-
-## Tech Stack
-
-| Concern | Technology | Version |
-|---------|-----------|---------|
-| Framework | Next.js (App Router) | 16.1.7 |
-| UI Library | React | 19.2.3 |
-| Language | TypeScript | 5 |
-| Backend | Firebase (client SDK) | 12 |
-| Styling | Tailwind CSS | 4 |
-| Validation | Zod | 4.3.6 |
-| State (global) | Zustand | 5.0.12 |
-| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
-| AI | Genkit + Google GenAI | 1.30.1 |
-| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
-| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
-| Date Handling | date-fns | 4 |
-| HTTP Client | Axios | 1.13.6 |
-| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
-| Node Engine | Node.js | 24 |
-
-## Key Architectural Patterns
-
-### Repository Pattern
-
-- **Interface** lives in `domain/repositories/` — defines what the module needs
-- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
-- Domain layer never imports infrastructure
-
-### Use Case Pattern
-
-- Each use case is a single file under `application/use-cases/`
-- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
-- One use case = one user-facing operation
-
-### Hexagonal Ports (Advanced)
-
-Example port shapes:
-- `domain/ports/ActorContextPort.ts` — resolves who is acting
-- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
-- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
-- All access decisions flow through ports, not scattered in UI/router
-
-### Domain Events
-
-Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
-- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
-- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
-- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
-- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
-
-Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
-
-### Internal Imports Within a Module
-
-Inside a module, files use **relative imports** (not the module's own barrel export):
-
-```typescript
-// ✅ Inside modules/knowledge/application/use-cases/wiki-pages.use-case.ts
-import { WikiPage } from "../../domain/entities/wiki-page.types";
-import type { IWikiPageRepository } from "../../domain/repositories/WikiPageRepository";
-
-// ❌ Do NOT self-import via the barrel
-import { WikiPage } from "@/modules/knowledge";
-```
-
-### Cross-Module Imports
-
-Between modules, always use the target module's `api/` boundary:
-
-```typescript
-// ✅ Cross-module import — event-store primitives are now in modules/shared
-import { PublishDomainEventUseCase } from "@/modules/shared/api";
-
-// ❌ Reaching into another module's internals
-import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
-```
-
-## Responsibility Boundaries
-
-- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
-- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
-- When ownership shifts, update contracts and architecture docs in the same change.
-````
-
 ## File: .github/agents/lint-rule-enforcer.agent.md
 ````markdown
 ---
@@ -80136,40 +79822,6 @@ Repository prompt set for repeatable planning, implementation, review, and docum
 - [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 ````
 
-## File: .github/terminology-glossary.md
-````markdown
-# Terminology Glossary Entry Point
-
-Use this file as the stable glossary entry point referenced by `.github/*` customizations.
-
-## DDD Reference Set
-
-- Strategic classification: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
-- Bounded context map: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
-- Context terms: use the matching `../docs/ddd/<context>/ubiquitous-language.md`
-
-## Bounded Context Glossaries
-
-- [`account`](../docs/ddd/account/ubiquitous-language.md)
-- [`ai`](../docs/ddd/ai/ubiquitous-language.md)
-- [`identity`](../docs/ddd/identity/ubiquitous-language.md)
-- [`knowledge`](../docs/ddd/knowledge/ubiquitous-language.md)
-- [`notebook`](../docs/ddd/notebook/ubiquitous-language.md)
-- [`notification`](../docs/ddd/notification/ubiquitous-language.md)
-- [`organization`](../docs/ddd/organization/ubiquitous-language.md)
-- [`search`](../docs/ddd/search/ubiquitous-language.md)
-- [`shared`](../docs/ddd/shared/ubiquitous-language.md)
-- [`source`](../docs/ddd/source/ubiquitous-language.md)
-- [`wiki`](../docs/ddd/wiki/ubiquitous-language.md)
-- [`workspace`](../docs/ddd/workspace/ubiquitous-language.md)
-- [`workspace-audit`](../docs/ddd/workspace-audit/ubiquitous-language.md)
-- [`workspace-feed`](../docs/ddd/workspace-feed/ubiquitous-language.md)
-- [`workspace-flow`](../docs/ddd/workspace-flow/ubiquitous-language.md)
-- [`workspace-scheduling`](../docs/ddd/workspace-scheduling/ubiquitous-language.md)
-
-When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
-````
-
 ## File: .gitignore
 ````
 # =============================================================================
@@ -81003,6 +80655,88 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 
 - `../../../modules/notebook/repositories.md`
 - `../../../docs/ddd/notebook/aggregates.md`
+````
+
+## File: docs/ddd/search/README.md
+````markdown
+# search — 語意檢索上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/search/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
+
+## 與其他 Bounded Context 協作
+
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
+
+## 核心聚合 / 核心概念
+
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: docs/ddd/source/README.md
+````markdown
+# source — 文件來源上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
+
+## 核心聚合 / 核心概念
+
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: docs/ddd/workspace/README.md
@@ -84709,6 +84443,238 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
+## File: .github/agents/knowledge-base.md
+````markdown
+# Knowledge Base — MDDD Domain & Architecture
+
+This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
+
+## Module-Driven Domain Design (MDDD)
+
+The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
+
+### Core Principle
+
+> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+
+### Global Dependency Direction
+
+```
+UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
+```
+
+The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
+
+## Module Structure
+
+Each module under `modules/` follows a four-layer Clean Architecture:
+
+```
+modules/<module-name>/
+├── api/
+│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
+├── index.ts                    # Optional local barrel for same-module composition
+├── README.md                   # Module documentation (optional)
+├── domain/
+│   ├── entities/               # Aggregate roots, value objects, entity types
+│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
+│   ├── services/               # Pure domain services (stateless business rules)
+│   ├── value-objects/          # DDD value objects (immutable, equality by value)
+│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
+├── application/
+│   ├── use-cases/              # One file per use case (single operation)
+│   └── dto/                    # Data Transfer Objects for use-case I/O
+├── infrastructure/
+│   ├── firebase/               # Firebase Firestore repository implementations
+│   ├── genkit/                 # AI/Genkit integrations (AI module)
+│   ├── default/                # In-memory or simplified implementations
+│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
+│   ├── persistence/            # Persistence adapters
+│   └── repositories/           # Repository implementations (alternative layout)
+└── interfaces/
+    ├── components/             # React UI components
+    ├── queries/                # TanStack Query hooks (read-side)
+    ├── _actions/               # Next.js Server Actions (write-side)
+    ├── hooks/                  # Custom React hooks
+    ├── api/                    # REST API route controllers
+    ├── contracts/              # API contracts
+    └── view-models/            # View model transformations
+```
+
+Not every module has every subdirectory — only what it needs.
+
+### Boundary Policy
+
+- Every `modules/<module-name>/` is isolated.
+- Cross-module imports are allowed only via `modules/<target-module>/api/`.
+- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
+- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+
+## Module Inventory
+
+Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+
+`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+
+> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
+
+## Package System (21 Packages)
+
+Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
+
+### Import Rule
+
+```typescript
+// ✅ CORRECT — via @alias from tsconfig.json
+import type { CommandResult, DomainError } from "@shared-types";
+import { cn, formatDate } from "@shared-utils";
+import { auth } from "@integration-firebase";
+
+// ❌ NEVER — relative paths to package internals
+import type { CommandResult } from "../../../../packages/shared-types/index";
+
+// ❌ NEVER — legacy paths (ESLint will block)
+import type { CommandResult } from "@/shared/types";
+```
+
+### Package Catalog
+
+| Alias | Package | Purpose |
+|-------|---------|---------|
+| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
+| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
+| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
+| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
+| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
+| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
+| `@integration-http` | integration-http | Axios HTTP client with interceptors |
+| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
+| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
+| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
+| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
+| `@lib-zod` | lib-zod | Zod v4 wrapper |
+| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
+| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
+| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
+| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
+| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
+| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
+| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
+| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
+
+### ESLint Boundary Enforcement
+
+Legacy import paths are blocked by `eslint.config.mjs`:
+
+| Blocked Pattern | Replacement |
+|----------------|-------------|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` or `@integration-*` |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+`modules/` 內也有額外邊界保護：
+
+- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
+- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
+- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
+
+### 已知邊界警告（待修復）
+
+以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
+
+目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
+
+> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 import `knowledge-graph/domain/`、`knowledge-graph/infrastructure/`、`knowledge-graph/application/`，現已改為透過 `../../knowledge-graph/api` 公開邊界。
+
+> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 原本使用 `wiki_beta.*` 事件命名與 `"wiki-page"`/`"wiki-library"` aggregateType，現已改為符合模組所有權的 `content.page_*` / `content-page` 與 `asset.library_*` / `asset-library`。
+
+## Tech Stack
+
+| Concern | Technology | Version |
+|---------|-----------|---------|
+| Framework | Next.js (App Router) | 16.1.7 |
+| UI Library | React | 19.2.3 |
+| Language | TypeScript | 5 |
+| Backend | Firebase (client SDK) | 12 |
+| Styling | Tailwind CSS | 4 |
+| Validation | Zod | 4.3.6 |
+| State (global) | Zustand | 5.0.12 |
+| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
+| AI | Genkit + Google GenAI | 1.30.1 |
+| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
+| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
+| Date Handling | date-fns | 4 |
+| HTTP Client | Axios | 1.13.6 |
+| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
+| Node Engine | Node.js | 24 |
+
+## Key Architectural Patterns
+
+### Repository Pattern
+
+- **Interface** lives in `domain/repositories/` — defines what the module needs
+- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
+- Domain layer never imports infrastructure
+
+### Use Case Pattern
+
+- Each use case is a single file under `application/use-cases/`
+- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
+- One use case = one user-facing operation
+
+### Hexagonal Ports (Advanced)
+
+Example port shapes:
+- `domain/ports/ActorContextPort.ts` — resolves who is acting
+- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
+- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
+- All access decisions flow through ports, not scattered in UI/router
+
+### Domain Events
+
+Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
+- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
+- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
+- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
+- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
+
+Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
+
+### Internal Imports Within a Module
+
+Inside a module, files use **relative imports** (not the module's own barrel export):
+
+```typescript
+// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+import { KnowledgePage } from "../../domain/entities/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
+
+// ❌ Do NOT self-import via the barrel
+import { KnowledgePage } from "@/modules/knowledge";
+```
+
+### Cross-Module Imports
+
+Between modules, always use the target module's `api/` boundary:
+
+```typescript
+// ✅ Cross-module import — event-store primitives are now in modules/shared
+import { PublishDomainEventUseCase } from "@/modules/shared/api";
+
+// ❌ Reaching into another module's internals
+import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
+```
+
+## Responsibility Boundaries
+
+- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
+- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
+- When ownership shifts, update contracts and architecture docs in the same change.
+````
+
 ## File: .github/instructions/bounded-context-rules.instructions.md
 ````markdown
 ---
@@ -85046,6 +85012,42 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/terminology-glossary.md
+````markdown
+# Terminology Glossary Entry Point
+
+Use this file as the stable glossary entry point referenced by `.github/*` customizations.
+
+## DDD Reference Set
+
+- Strategic classification: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
+- Bounded context map: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
+- Context terms: use the matching `../docs/ddd/<context>/ubiquitous-language.md`
+
+## Bounded Context Glossaries
+
+- [`account`](../docs/ddd/account/ubiquitous-language.md)
+- [`ai`](../docs/ddd/ai/ubiquitous-language.md)
+- [`identity`](../docs/ddd/identity/ubiquitous-language.md)
+- [`knowledge`](../docs/ddd/knowledge/ubiquitous-language.md)
+- [`knowledge-base`](../docs/ddd/knowledge-base/ubiquitous-language.md)
+- [`knowledge-collaboration`](../docs/ddd/knowledge-collaboration/ubiquitous-language.md)
+- [`knowledge-database`](../docs/ddd/knowledge-database/ubiquitous-language.md)
+- [`notebook`](../docs/ddd/notebook/ubiquitous-language.md)
+- [`notification`](../docs/ddd/notification/ubiquitous-language.md)
+- [`organization`](../docs/ddd/organization/ubiquitous-language.md)
+- [`search`](../docs/ddd/search/ubiquitous-language.md)
+- [`shared`](../docs/ddd/shared/ubiquitous-language.md)
+- [`source`](../docs/ddd/source/ubiquitous-language.md)
+- [`workspace`](../docs/ddd/workspace/ubiquitous-language.md)
+- [`workspace-audit`](../docs/ddd/workspace-audit/ubiquitous-language.md)
+- [`workspace-feed`](../docs/ddd/workspace-feed/ubiquitous-language.md)
+- [`workspace-flow`](../docs/ddd/workspace-flow/ubiquitous-language.md)
+- [`workspace-scheduling`](../docs/ddd/workspace-scheduling/ubiquitous-language.md)
+
+When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
 ````
 
 ## File: app/(shell)/ai-chat/_actions.ts
@@ -86230,105 +86232,6 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
 }
 ````
 
-## File: docs/ddd/bounded-contexts.md
-````markdown
-# Bounded Contexts — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
-> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
-
-本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
-Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
-
-- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
-- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
-- **NotebookLM-like 層**：檢索、摘要、問答、推理
-
----
-
-## 系統層級映射
-
-| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
-|---|---|---|---|
-| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
-| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
-| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
-| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
-| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
-| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
-
----
-
-## 子域分類摘要
-
-| 分類 | Bounded Context |
-|---|---|
-| **Core Domain** | `knowledge`, `knowledge-base` |
-| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
-| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
-
----
-
-## Bounded Context Catalog
-
-| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
-|---|---|---|---|---|
-| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
-| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
-| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
-| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `wiki`, `workspace-*` |
-| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
-| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
-| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
-| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
-| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
-| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
-| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
-| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
-| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `wiki`, `ai` |
-| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `wiki`, `knowledge` |
-| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
-| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
-| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
-| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
-
----
-
-## 典型依賴與協作方式
-
-```text
-Identity → Account → Organization → Workspace
-                              ├─→ Knowledge ─────────────────────┐
-                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
-                              ├─→ Knowledge Collab / Database ───┘
-                              ├─→ Source ───→ AI ────────────────────────────┘
-                              └─→ Workspace Operations
-                                   ├─ workspace-flow
-                                   ├─ workspace-scheduling
-                                   ├─ workspace-audit
-                                   └─ workspace-feed
-```
-
----
-
-## 整合原則
-
-1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
-2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
-3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
-4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
-5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
-
----
-
-## 詳細文件
-
-- 子域分類：[`subdomains.md`](./subdomains.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
-````
-
 ## File: modules/knowledge/repositories.md
 ````markdown
 # knowledge — Repositories
@@ -86580,6 +86483,105 @@ For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS
 ## Full Rules
 
 See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
+## File: docs/ddd/bounded-contexts.md
+````markdown
+# Bounded Contexts — Xuanwu App
+
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
+> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
+
+本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
+Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
+
+- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
+- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
+- **NotebookLM-like 層**：檢索、摘要、問答、推理
+
+---
+
+## 系統層級映射
+
+| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
+|---|---|---|---|
+| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
+| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
+| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
+| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
+| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
+| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
+
+---
+
+## 子域分類摘要
+
+| 分類 | Bounded Context |
+|---|---|
+| **Core Domain** | `knowledge`, `knowledge-base` |
+| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
+| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
+
+---
+
+## Bounded Context Catalog
+
+| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
+|---|---|---|---|---|
+| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
+| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
+| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
+| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `knowledge-base`, `workspace-*` |
+| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
+| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
+| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
+| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
+| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
+| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
+| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
+| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
+| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `knowledge-base`, `ai` |
+| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `knowledge-base`, `knowledge` |
+| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
+| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
+| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
+| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
+
+---
+
+## 典型依賴與協作方式
+
+```text
+Identity → Account → Organization → Workspace
+                              ├─→ Knowledge ─────────────────────┐
+                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
+                              ├─→ Knowledge Collab / Database ───┘
+                              ├─→ Source ───→ AI ────────────────────────────┘
+                              └─→ Workspace Operations
+                                   ├─ workspace-flow
+                                   ├─ workspace-scheduling
+                                   ├─ workspace-audit
+                                   └─ workspace-feed
+```
+
+---
+
+## 整合原則
+
+1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
+2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
+3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
+4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
+5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
+
+---
+
+## 詳細文件
+
+- 子域分類：[`subdomains.md`](./subdomains.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
 ## File: modules/knowledge/aggregates.md
