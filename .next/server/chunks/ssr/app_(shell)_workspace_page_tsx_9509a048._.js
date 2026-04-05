@@ -1,0 +1,3 @@
+module.exports=[90164,a=>{"use strict";var b=a.i(87924),c=a.i(50944),d=a.i(24454);a.i(47034);var e=a.i(57528);function f(){let a=(0,c.useSearchParams)(),{state:{activeAccount:f,accountsHydrated:g,bootstrapPhase:h}}=(0,d.useApp)(),i=a.get("context");return(0,b.jsxs)("div",{className:"space-y-4",children:["unavailable"===i&&(0,b.jsx)("div",{className:"rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground",children:"目前帳戶無法存取該工作區，已返回工作區清單。"}),(0,b.jsx)(e.WorkspaceHubScreen,{accountId:f?.id,accountName:f?.name,accountType:f&&"accountType"in f&&"organization"===f.accountType?"organization":"user",accountsHydrated:g,isBootstrapSeeded:"seeded"===h})]})}a.s(["default",()=>f])}];
+
+//# sourceMappingURL=app_%28shell%29_workspace_page_tsx_9509a048._.js.map

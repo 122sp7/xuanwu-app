@@ -1,0 +1,3 @@
+module.exports=[67553,a=>{"use strict";var b=a.i(87924),c=a.i(50944),d=a.i(24454);a.i(47034);var e=a.i(27632);function f(){let a=(0,c.useParams)(),f=(0,c.useSearchParams)(),g="string"==typeof a.workspaceId?a.workspaceId:"",h=f.get("tab")??void 0,{state:{activeAccount:i,accountsHydrated:j}}=(0,d.useApp)();return(0,b.jsx)(e.WorkspaceDetailScreen,{workspaceId:g,accountId:i?.id,accountsHydrated:j,initialTab:h})}a.s(["default",()=>f])}];
+
+//# sourceMappingURL=app_%28shell%29_workspace_%5BworkspaceId%5D_page_tsx_c02223fb._.js.map
