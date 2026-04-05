@@ -11,13 +11,16 @@
 
 import Link from "next/link";
 import {
+  BookOpen,
   Building2,
   CalendarDays,
   ClipboardList,
+  FileText,
   FlaskConical,
   NotebookText,
   Plus,
   SlidersHorizontal,
+  Table2,
   UserRound,
   Users,
 } from "lucide-react";
@@ -32,7 +35,6 @@ import {
   createWorkspace,
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
@@ -198,11 +200,32 @@ export function AppRail({
   }
 
   const railItems: RailItem[] = [
+    // ── Hub ──────────────────────────────────────────────────────────
     {
       href: "/workspace",
       label: "工作區中心",
       icon: <Building2 className="size-[18px]" />,
     },
+    // ── Content ──────────────────────────────────────────────────────
+    {
+      href: "/knowledge/pages",
+      label: "知識頁面",
+      icon: <FileText className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
+    },
+    {
+      href: "/knowledge-base/articles",
+      label: "文章庫",
+      icon: <BookOpen className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
+    },
+    {
+      href: "/knowledge-database/databases",
+      label: "資料庫",
+      icon: <Table2 className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
+    },
+    // ── People (org-only) ─────────────────────────────────────────
     {
       href: "/organization/members",
       label: "成員",
@@ -217,13 +240,7 @@ export function AppRail({
       show: isOrganizationAccount,
       isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
     },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
+    // ── Operations (org-only) ─────────────────────────────────────
     {
       href: "/organization/daily",
       label: "每日",
@@ -238,6 +255,7 @@ export function AppRail({
       show: isOrganizationAccount,
       isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
     },
+    // ── Admin (org-only) ──────────────────────────────────────────
     {
       href: "/organization/audit",
       label: "稽核",
@@ -245,6 +263,14 @@ export function AppRail({
       show: isOrganizationAccount,
       isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
     },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
     {
       href: "/dev-tools",
       label: "開發工具",
@@ -258,14 +284,6 @@ export function AppRail({
     () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
     [workspaces],
   );
-
-  function buildWikiWorkspaceHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki")) {
-      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
-      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-    }
-    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
 
   const accountName = activeAccount?.name ?? user?.name ?? "—";
 
@@ -407,66 +425,6 @@ export function AppRail({
               );
             }
 
-            if (item.href === "/wiki") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="Account Wiki: 切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Account Wiki: 切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onSelectWorkspace(null);
-                        router.push("/wiki");
-                      }}
-                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
-                    >
-                      Account Wiki 首頁
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWikiWorkspaceHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
             return (
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>
@@ -493,42 +451,6 @@ export function AppRail({
 
         {/* ── Spacer ────────────────────────────────────────────────── */}
         <div className="flex-1" />
-
-        {/* ── User avatar / sign-out ────────────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="開啟使用者選單"
-                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  <Avatar size="sm">
-                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                      {getInitial(user?.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
-              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="end" className="w-48">
-            <DropdownMenuLabel className="space-y-0.5">
-              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-              登出
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
 
         <div className="h-1" />
       </aside>

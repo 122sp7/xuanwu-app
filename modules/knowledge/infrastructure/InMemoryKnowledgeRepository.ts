@@ -20,6 +20,9 @@ import type {
   MoveKnowledgePageInput,
   ReorderKnowledgePageBlocksInput,
   ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
 } from "../domain/entities/content-page.entity";
 import type {
   KnowledgeBlockRepository,
@@ -122,6 +125,30 @@ export class InMemoryKnowledgePageRepository implements KnowledgePageRepository 
       approvedByUserId: input.approvedByUserId,
       updatedAtISO: new Date().toISOString(),
     };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
     this.pages.set(input.pageId, updated);
     return updated;
   }

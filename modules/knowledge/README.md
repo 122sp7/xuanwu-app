@@ -1,32 +1,34 @@
-# knowledge — 知識內容上下文
+# knowledge — 個人筆記與頁面管理
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
+> **Domain Type:** **Core Domain**（核心域）
+> **模組路徑:** `modules/knowledge/`
 > **開發狀態:** 🚧 Developing — 積極開發中
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## 在 Knowledge Platform 中的角色
 
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
 
 ## 主要職責
 
 | 能力 | 說明 |
 |---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
+| Block 管理 | 新增、更新、刪除、重排內容區塊 |
+| 層級結構 | 父子頁面樹狀管理 |
+| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
 
-## 與其他 Bounded Context 協作
+## 核心聚合
 
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+- **`Page`**（KnowledgePage）
+- **`Block`**（ContentBlock）
 
-## 核心聚合 / 核心概念
+## 不在此 BC 範圍
 
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
+| 功能 | 歸屬 BC |
+|------|---------|
+| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
+| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
+| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
 
 ## 詳細文件
 
@@ -34,5 +36,7 @@
 |---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面與實作 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |

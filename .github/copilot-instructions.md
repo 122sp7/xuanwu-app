@@ -69,12 +69,58 @@ DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the 
 
 ## Serena MCP
 
-Serena is mandatory for project memory, index management, and any `.serena/` operation.
+Serena MCP is **mandatory for every session**. There are no exceptions.
 
-- Activate the `xuanwu-app` project before memory operations.
-- Never edit `.serena/` with direct file tools.
-- Record phase-end memory updates through Serena tooling.
-- See [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md) for workflow details.
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
+
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
 
 ## Skill And Agent Routing
 

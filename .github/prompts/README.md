@@ -47,3 +47,5 @@ Repository prompt set for repeatable planning, implementation, review, and docum
 
 - [write-tests.prompt.md](write-tests.prompt.md)
 - [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
+- [playwright-mcp-test.prompt.md](playwright-mcp-test.prompt.md)
+- [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)

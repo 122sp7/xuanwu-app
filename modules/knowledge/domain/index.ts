@@ -12,9 +12,13 @@ export type {
   MoveKnowledgePageInput,
   ReorderKnowledgePageBlocksInput,
   ArchiveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
 } from "./entities/content-page.entity";
 
-export { KNOWLEDGE_PAGE_STATUSES } from "./entities/content-page.entity";
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/content-page.entity";
+export type { PageVerificationState } from "./entities/content-page.entity";
 
 export type {
   KnowledgeBlock,
@@ -46,7 +50,26 @@ export type {
   KnowledgeBlockUpdatedEvent,
   KnowledgeBlockDeletedEvent,
   KnowledgeVersionPublishedEvent,
+  KnowledgePageVerifiedEvent,
+  KnowledgePageReviewRequestedEvent,
+  KnowledgePageOwnerAssignedEvent,
 } from "./events/knowledge.events";
+
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
 
 export type {
   KnowledgePageRepository,

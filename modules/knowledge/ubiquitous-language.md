@@ -6,20 +6,28 @@
 
 | 術語 | 英文 | 定義 | 代碼位置 |
 |------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 頁面 | Page | 個人或團隊筆記頁面，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
+| 區塊 | Block | 頁面內的原子內容單位（type、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| todo \| ...` | `domain/value-objects/block-content.ts` |
+| 頁面狀態 | PageStatus | `active \| archived` | `domain/entities/content-page.entity.ts` |
+| 頁面樹 | PageTree | 以 parentPageId 組成的頁面層級結構 | — |
 
 ## 禁止替換術語
 
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| 正確（此 BC） | 禁止 | 備註 |
+|------|------|------|
+| `Page` | Document、Note | — |
+| `Block` | Node、Element、Item | — |
 
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+## 跨 BC 術語邊界
+
+| 術語 | 正確 BC |
+|------|---------|
+| `Article` | `knowledge-base` |
+| `Category` | `knowledge-base` |
+| `Comment` | `knowledge-collaboration` |
+| `Version` | `knowledge-collaboration` |
+| `Permission` | `knowledge-collaboration` |
+| `Database` | `knowledge-database` |
+| `Record` | `knowledge-database` |
+| `View` | `knowledge-database` |

@@ -1,41 +1,41 @@
-# AGENT.md — knowledge BC
+﻿# AGENT.md — knowledge BC
 
 ## 模組定位
 
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+`knowledge` 是 **Core Domain**，負責個人筆記與頁面管理。對應 Notion 的 **Page + Block** 核心體驗。
+
+**這個 BC 負責：**
+- Page（頁面內容與層級結構）
+- Block（頁面內最小內容單位：文字、標題、清單、程式碼、圖片、待辦事項等）
+- Block 巢狀結構、排序、草稿與暫存
+
+**不歸屬這個 BC：**
+- 組織級知識庫文章 → `knowledge-base`
+- 留言、版本歷史、權限控制 → `knowledge-collaboration`
+- 資料庫 / Table / Board / View → `knowledge-database`
 
 ## 通用語言（Ubiquitous Language）
 
 | 正確術語 | 禁止使用 |
 |----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
+| `Page` | Document、Note |
+| `Block` | Node、Element、Item |
+| `BlockType` | ContentType、Type |
 
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `Article` 為 `knowledge-base` BC 術語。`Database` / `Record` / `View` 為 `knowledge-database` BC 術語。
 
 ## 邊界規則
 
 ### ✅ 允許
 ```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+import { createPage } from "@/modules/knowledge/api";
 ```
 
 ### ❌ 禁止
 ```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { WikiPage } from "@/modules/wiki/domain/entities/...";
+import { KnowledgeCollection } from "@/modules/knowledge/domain/..."; // 搬去 knowledge-database
+import { ContentVersion } from "@/modules/knowledge/domain/...";     // 搬去 knowledge-collaboration
 ```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
 
 ## 驗證命令
 

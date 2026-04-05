@@ -27,6 +27,12 @@ import {
   type ReorderKnowledgePageBlocksDto,
   ApproveKnowledgePageSchema,
   type ApproveKnowledgePageDto,
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
 } from "../dto/knowledge.dto";
 
 export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
@@ -239,5 +245,53 @@ export class ApproveKnowledgePageUseCase {
     });
 
     return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
   }
 }

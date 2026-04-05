@@ -20,9 +20,35 @@ Application layer 只負責：
 - `application/block-service.ts`
 - `application/dto/knowledge.dto.ts`
 - `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
 - `application/use-cases/knowledge-page.use-cases.ts`
 - `application/use-cases/knowledge-version.use-cases.ts`
-- `application/use-cases/wiki-pages.use-case.ts`
+
+## Use Cases 清單
+
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
 
 ## 設計對齊
 

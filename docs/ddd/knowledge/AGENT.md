@@ -4,6 +4,8 @@
 
 `knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
 
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
+
 ## 通用語言（Ubiquitous Language）
 
 | 正確術語 | 禁止使用 |
@@ -12,8 +14,13 @@
 | `ContentBlock` | Block、Node、Element |
 | `ContentVersion` | Version、Snapshot、History |
 | `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
 
 > `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 
 ## 邊界規則
 

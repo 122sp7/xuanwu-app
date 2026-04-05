@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
+import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -14,6 +14,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
 import { isOrganizationAccount } from "../_utils";
 
 export default function OrganizationWorkspacesPage() {
@@ -25,6 +34,23 @@ export default function OrganizationWorkspacesPage() {
     Awaited<ReturnType<typeof getWorkspacesForAccount>>
   >([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadWorkspaces(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspacesForAccount(organizationId);
+      setWorkspaces(data);
+      setLoadState("loaded");
+    } catch {
+      setWorkspaces([]);
+      setLoadState("error");
+    }
+  }
 
   useEffect(() => {
     if (!activeOrganizationId) return;
@@ -53,6 +79,25 @@ export default function OrganizationWorkspacesPage() {
     };
   }, [activeOrganizationId]);
 
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreating(true);
+    setCreateError(null);
+    const result = await createWorkspace({
+      name: newName.trim(),
+      accountId: activeOrganizationId,
+      accountType: "organization",
+    });
+    setCreating(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      void loadWorkspaces(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message.message.message ?? "建立失敗，請稍後再試。");
+    }
+  }
+
   if (!activeOrganizationId) {
     return (
       <div className="">
@@ -63,12 +108,45 @@ export default function OrganizationWorkspacesPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+          </p>
+        </div>
+        <Button size="sm" onClick={() => { setCreateOpen(true); setCreateError(null); setNewName(""); }}>
+          建立工作區
+        </Button>
       </div>
+
+      {/* Create Workspace Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="ws-name">工作區名稱</Label>
+              <Input
+                id="ws-name"
+                placeholder="例：行銷專案"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
+              />
+            </div>
+            {createError && <p className="text-xs text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button onClick={() => void handleCreate()} disabled={creating || !newName.trim()}>
+              {creating ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card className="border-border/50">
         <CardHeader>

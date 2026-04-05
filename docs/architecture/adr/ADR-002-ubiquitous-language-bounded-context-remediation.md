@@ -8,10 +8,10 @@
 
 1. **文件與代碼不一致**：`ubiquitous-language.md` 中的 `CommandResult` 定義錯誤（寫成 `{ok:true,data}`，實際為 `{success:true,aggregateId,version}`）。
 2. **shared 模組定位不清**：`modules/shared/domain/events/` 存放 content 領域事件，但未說明這是 **Published Language** 模式的刻意設計，易被誤解為邊界污染。
-3. **knowledge 模組過渡期未完成**：`graph-node.ts`、`link.ts` 已標記 `@deprecated` 但尚未移除；`GraphRepository.ts` 在兩個模組中重複定義。
-4. **Wiki 概念所有權不清**：「Wiki」前綴跨越 `content`、`asset`、`workspace`、`retrieval` 四個模組，語意各異但命名相似，易造成混淆。
+3. **`ai` 模組過渡期未完成**：`modules/ai/domain/entities/graph-node.ts`、`link.ts` 已標記 `@deprecated`，指向 `modules/wiki/`，但尚未移除；`GraphRepository.ts` 在 `ai` 與 `wiki` 兩個模組中重複定義。（`modules/knowledge/domain/entities/` 中的同名檔案已於先前 PR 清理完畢。）
+4. **Wiki 概念所有權不清**：「Wiki」前綴跨越 `knowledge`（pages 內容）、`source`（WikiLibrary 結構化文件庫）、`workspace`（WikiContentTree 導覽模型）三個模組，語意各異但命名相似，易造成混淆。
 5. **核心聚合根缺乏 Domain Events**：`identity`、`account`、`workspace` 無事件 stream，下游模組無法響應狀態變更。
-6. **`asset.WikiLibrary` 語意偏移**：WikiLibrary 是結構化文件庫，語意偏向內容層，但目前定義在 asset 模組中。
+6. **`source.WikiLibrary` 語意偏移**：WikiLibrary 是結構化文件庫，語意偏向內容層，但目前定義在 `source` 模組中（`modules/source/domain/entities/wiki-library.types.ts`）。
 
 ## 決策
 
@@ -21,19 +21,9 @@
 
 ## 修正計畫（按優先級）
 
-### P0 — 文件正確性（已完成於本 ADR）
+### P0 — 文件正確性（✅ 已完成）
 
-**目標：** 確保文件如實反映代碼現狀，不誤導開發者。
-
-| 動作 | 狀態 | 檔案 |
-|------|------|------|
-| 修正 `CommandResult` 定義（`ok` → `success`，加上 `aggregateId`、`version`） | ✅ 已完成 | `docs/architecture/ubiquitous-language.md` |
-| 在 `shared` 模組描述中加入 Published Language 說明 | ✅ 已完成 | `docs/architecture/bounded-contexts.md` |
-| 在 `knowledge` 模組描述中標注過渡期狀態與 deprecated 實體 | ✅ 已完成 | `docs/architecture/bounded-contexts.md` |
-| 新增 Wiki 概念所有權對照表 | ✅ 已完成 | `docs/architecture/ubiquitous-language.md`, `bounded-contexts.md` |
-| 新增「過渡期已知問題」段落 | ✅ 已完成 | `docs/architecture/ubiquitous-language.md` |
-| 新增「已知議題與修正路徑」段落 | ✅ 已完成 | `docs/architecture/bounded-contexts.md` |
-| 建立本 ADR | ✅ 已完成 | `docs/architecture/adr/ADR-002-*.md` |
+所有文件修正已在本 ADR 建立時完成，包含：修正 `CommandResult` 定義、在 `shared` 模組加入 Published Language 說明、標注 `ai/` 模組過渡期狀態、新增 Wiki 概念所有權對照表。
 
 ---
 
@@ -41,29 +31,30 @@
 
 **目標：** 移除過渡期殘留，消除因兩個模組定義相同概念而產生的混淆。
 
-#### P1-A：清除 `knowledge` 模組的 deprecated 實體
+#### P1-A：清除 `ai` 模組的 deprecated 實體（**注意：不是 `knowledge` 模組**）
 
-**問題：** `modules/knowledge/domain/entities/graph-node.ts` 與 `link.ts` 為空殼，僅含 `@deprecated` 注解，指向 `knowledge-graph`。
+**問題：** `modules/ai/domain/entities/graph-node.ts` 與 `link.ts` 為空殼，僅含 `@deprecated` 注解，指向 `modules/wiki/`。（`modules/knowledge/domain/entities/` 中的同名檔案已於先前 PR 清理完畢。）
 
 **修正步驟：**
-1. 確認 `knowledge/domain/entities/graph-node.ts` 和 `link.ts` 沒有任何 import 引用（用 `grep -r "knowledge/domain/entities/graph-node\|knowledge/domain/entities/link"` 確認）
-2. 刪除 `modules/knowledge/domain/entities/graph-node.ts`
-3. 刪除 `modules/knowledge/domain/entities/link.ts`
-4. 確認 `modules/knowledge/domain/repositories/GraphRepository.ts` 也無引用後刪除（Graph 操作應透過 `knowledge-graph/api`）
-5. 執行 `npm run lint && npm run build` 確認零錯誤
+1. 確認 `ai/domain/entities/graph-node.ts` 和 `link.ts` 沒有任何 import 引用（用 `grep -r "ai/domain/entities/graph-node\|ai/domain/entities/link"` 確認）
+2. 刪除 `modules/ai/domain/entities/graph-node.ts`
+3. 刪除 `modules/ai/domain/entities/link.ts`
+4. 確認 `modules/ai/domain/repositories/GraphRepository.ts` 也無引用後刪除（Graph 操作應透過 `wiki/api`）
+5. 確認 `modules/ai/application/link-extractor.service.ts` 和 `modules/ai/infrastructure/InMemoryGraphRepository.ts` 無引用後刪除
+6. 執行 `npm run lint && npm run build` 確認零錯誤
 
-**影響範圍：** 僅 `knowledge` 模組內部；預期無其他模組使用這些 deprecated 路徑（eslint boundaries 已防止跨模組直接 import）。
+**影響範圍：** 僅 `ai` 模組內部；預期無其他模組使用這些 deprecated 路徑（eslint boundaries 已防止跨模組直接 import）。
 
 ---
 
 #### P1-B：驗證 Published Language 合約的使用正確性
 
-**問題：** `ContentPageCreatedEvent` 和 `ContentUpdatedEvent` 在 `shared` 中，但使用方式可能不一致。
+**問題：** `ContentPageCreatedEvent` 和 `KnowledgeUpdatedEvent`（實際名稱：`shared/domain/events/knowledge-page-created.event.ts` 和 `shared/domain/events/knowledge-updated.event.ts`）在 `shared` 中，但使用方式可能不一致。
 
 **修正步驟：**
-1. 搜尋所有 import `ContentPageCreatedEvent` 和 `ContentUpdatedEvent` 的地方
-2. 確認發佈者（publish）是 `content` 模組
-3. 確認消費者（subscribe）是 `knowledge-graph` 和/或 `knowledge` 模組
+1. 搜尋所有 import `KnowledgePageCreatedEvent` 和 `KnowledgeUpdatedEvent` 的地方
+2. 確認發佈者（publish）是 `knowledge` 模組
+3. 確認消費者（subscribe）是 `knowledge-base` 和/或 `knowledge` 模組
 4. 如發現其他模組直接使用這些事件，評估是否合理或需要重構
 
 ---
@@ -141,11 +132,11 @@ export interface AccountProfileUpdatedEvent extends DomainEvent {
 
 #### P3-A：評估 `WikiLibrary` 歸屬
 
-**問題：** `asset.WikiLibrary` 是結構化文件庫（類資料庫），語意偏向內容層而非儲存層。
+**問題：** `source.WikiLibrary`（`modules/source/domain/entities/wiki-library.types.ts`）是結構化文件庫（類資料庫），語意偏向內容層而非儲存層。
 
-**選項 A（留在 asset）：** 撰寫 ADR-003 明確說明「asset 擁有所有結構化文件資產，包含檔案和資料庫結構」，並更新術語表。
+**選項 A（留在 source）：** 撰寫 ADR-004 明確說明「source 擁有所有結構化文件資產，包含檔案和資料庫結構（WikiLibrary）」，並更新術語表。
 
-**選項 B（移至 content）：** 將 WikiLibrary 移至 `content` 模組，定義為 `ContentDatabase`，並建立 migration。
+**選項 B（移至 knowledge）：** 將 WikiLibrary 移至 `knowledge` 模組，定義為 `KnowledgeDatabase`，並建立 migration。
 
 **決策觸發條件：** 當 WikiLibrary 需要與 ContentPage 深度整合（如頁面嵌入資料庫視圖）時，再評估遷移。目前維持現狀。
 
@@ -155,7 +146,7 @@ export interface AccountProfileUpdatedEvent extends DomainEvent {
 
 | 決策 | 理由 |
 |------|------|
-| `ContentPageCreatedEvent` / `ContentUpdatedEvent` 繼續放在 `shared` | Published Language 模式，穩定跨模組整合契約，移動會破壞 `knowledge-graph` 和 `knowledge` 的訂閱鏈 |
+| `KnowledgePageCreatedEvent` / `KnowledgeUpdatedEvent` 繼續放在 `shared` | Published Language 模式，穩定跨模組整合契約，移動會破壞 `knowledge-base` 和 `knowledge` 的訂閱鏈 |
 | `WikiContentTree` 留在 `workspace` | 它是 workspace 的導覽模型，不是 wiki 頁面內容本身 |
 | `identity` 不添加 Domain Events | identity 是 Firebase Auth 的薄封裝，事件由 Firebase 本身管理（auth state change），非領域事件 |
 

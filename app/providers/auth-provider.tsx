@@ -132,6 +132,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (process.env.NODE_ENV !== "production") {
         console.warn("[AuthProvider] Firebase sign out failed:", error);
       }
+    } finally {
+      // Always dispatch unauthenticated: onAuthStateChanged will not fire when
+      // there is no real Firebase session (e.g. dev-demo guest mode), so we
+      // cannot rely solely on the listener to clear the auth state.
       dispatch({
         type: "SET_AUTH_STATE",
         payload: { user: null, status: "unauthenticated" },

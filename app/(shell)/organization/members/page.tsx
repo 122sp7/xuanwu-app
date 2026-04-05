@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationMembers } from "@/modules/organization/api";
+import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/organization/api";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -12,7 +13,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
 import { isOrganizationAccount } from "../_utils";
+
+type MemberRole = "Admin" | "Member" | "Guest";
 
 export default function OrganizationMembersPage() {
   const { state: appState } = useApp();
@@ -21,6 +41,26 @@ export default function OrganizationMembersPage() {
 
   const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function loadMembers(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationMembers(organizationId);
+      setMembers(data);
+      setLoadState("loaded");
+    } catch {
+      setMembers([]);
+      setLoadState("error");
+    }
+  }
 
   useEffect(() => {
     if (!activeOrganizationId) return;
@@ -49,6 +89,36 @@ export default function OrganizationMembersPage() {
     };
   }, [activeOrganizationId]);
 
+  async function handleInvite() {
+    if (!activeOrganizationId || !inviteEmail.trim()) return;
+    setInviteSubmitting(true);
+    setInviteError(null);
+    const result = await inviteMember({
+      organizationId: activeOrganizationId,
+      email: inviteEmail.trim(),
+      teamId: "",
+      role: inviteRole,
+      protocol: "email",
+    });
+    setInviteSubmitting(false);
+    if (result.success) {
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("Member");
+      await loadMembers(activeOrganizationId);
+    } else {
+      setInviteError(result.error.message);
+    }
+  }
+
+  async function handleDismiss(memberId: string) {
+    if (!activeOrganizationId) return;
+    setRemovingId(memberId);
+    await dismissMember(activeOrganizationId, memberId);
+    setRemovingId(null);
+    await loadMembers(activeOrganizationId);
+  }
+
   if (!activeOrganizationId) {
     return (
       <div className="">
@@ -59,9 +129,12 @@ export default function OrganizationMembersPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
       </div>
 
       <Card className="border-border/50">
@@ -92,11 +165,64 @@ export default function OrganizationMembersPage() {
                 <div className="flex items-center gap-2">
                   <Badge variant="outline">{member.role}</Badge>
                   <Badge variant="secondary">{member.presence}</Badge>
+                  {member.role !== "Owner" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingId === member.id}
+                      onClick={() => handleDismiss(member.id)}
+                    >
+                      移除
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
         </CardContent>
       </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>邀請成員</DialogTitle>
+            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="invite-email">電子信箱</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="member@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="invite-role">角色</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                  <SelectItem value="Guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
+              {inviteSubmitting ? "邀請中…" : "送出邀請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

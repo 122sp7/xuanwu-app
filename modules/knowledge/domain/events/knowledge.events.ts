@@ -107,6 +107,38 @@ export interface KnowledgeVersionPublishedEvent {
   readonly occurredAtISO: string;
 }
 
+// ── Wiki / Knowledge Base events ──────────────────────────────────────────────
+
+/** Emitted when a wiki page is marked "verified" (up-to-date). */
+export interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  /** Optional expiry — after this ISO timestamp the page auto-transitions to "needs_review". */
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAtISO: string;
+}
+
+/** Emitted when a wiki page is flagged for review (verification expired or manually requested). */
+export interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAtISO: string;
+}
+
+/** Emitted when a wiki page owner is assigned or changed. */
+export interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly assignedByUserId: string;
+  readonly occurredAtISO: string;
+}
+
 export type KnowledgeDomainEvent =
   | KnowledgePageCreatedEvent
   | KnowledgePageRenamedEvent
@@ -116,4 +148,7 @@ export type KnowledgeDomainEvent =
   | KnowledgeBlockAddedEvent
   | KnowledgeBlockUpdatedEvent
   | KnowledgeBlockDeletedEvent
-  | KnowledgeVersionPublishedEvent;
+  | KnowledgeVersionPublishedEvent
+  | KnowledgePageVerifiedEvent
+  | KnowledgePageReviewRequestedEvent
+  | KnowledgePageOwnerAssignedEvent;

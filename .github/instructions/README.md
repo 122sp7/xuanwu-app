@@ -50,6 +50,7 @@ Repository instruction index for `applyTo`-scoped Copilot rules.
 
 - [testing-unit.instructions.md](testing-unit.instructions.md)
 - [testing-e2e.instructions.md](testing-e2e.instructions.md)
+- [playwright-mcp-testing.instructions.md](playwright-mcp-testing.instructions.md)
 
 ## DDD Navigation
 

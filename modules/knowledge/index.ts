@@ -49,6 +49,16 @@ export {
   updateKnowledgeBlock,
   deleteKnowledgeBlock,
   publishKnowledgeVersion,
+  approveKnowledgePage,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
 } from "./interfaces/_actions/knowledge.actions";
 
 // ── Interfaces: Queries ───────────────────────────────────────────────────────
@@ -58,9 +68,17 @@ export {
   getKnowledgePageTree,
   getKnowledgeBlocks,
   getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
 } from "./interfaces/queries/knowledge.queries";
+
+// ── Domain: Collection + Wiki types ──────────────────────────────────────────
+export type {
+  KnowledgeCollection,
+  CollectionSpaceType,
+} from "./domain/entities/knowledge-collection.entity";
+
+export type { PageVerificationState } from "./domain/entities/content-page.entity";
 
 // ── Interfaces: Components ────────────────────────────────────────────────────
 export { BlockEditorView } from "./interfaces/components/BlockEditorView";
-export { PagesView } from "./interfaces/components/PagesView";
-export { PagesDnDView } from "./interfaces/components/PagesDnDView";

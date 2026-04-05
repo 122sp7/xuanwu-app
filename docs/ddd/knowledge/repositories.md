@@ -8,17 +8,36 @@
 
 ## Domain Repository Ports
 
-- `domain/repositories/WikiPageRepository.ts`
 - `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
 
 ## Infrastructure Implementations
 
-- `infrastructure/InMemoryKnowledgeRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
 - `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/index.ts`
-- `infrastructure/repositories/firebase-wiki-page.repository.ts`
-- `infrastructure/repositories/in-memory-wiki-page.repository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
 
 ## 設計規則
 

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { WikiPageTreeNode } from "@/modules/knowledge/api";
-import { listWikiPagesTree } from "@/modules/knowledge/api";
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -25,17 +25,17 @@ const TREE_INDENT_BASE_REM = 0.5;
 /** Additional left-padding (rem) per nesting level. */
 const TREE_INDENT_STEP_REM = 1.25;
 
-function flattenTree(nodes: WikiPageTreeNode[], depth = 0): Array<{ node: WikiPageTreeNode; depth: number }> {
-  const out: Array<{ node: WikiPageTreeNode; depth: number }> = [];
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
+  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
   for (const node of nodes) {
     out.push({ node, depth });
-    out.push(...flattenTree(node.children, depth + 1));
+    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
   }
   return out;
 }
 
 export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
-  const [pages, setPages] = useState<WikiPageTreeNode[]>([]);
+  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
     async function loadPages() {
       setLoadState("loading");
       try {
-        const result = await listWikiPagesTree(workspace.accountId, workspace.id);
+        const result = await getKnowledgePageTree(workspace.accountId);
         if (!cancelled) {
           setPages(result);
           setLoadState("loaded");
@@ -57,7 +57,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
     void loadPages();
 
     return () => { cancelled = true; };
-  }, [workspace.accountId, workspace.id]);
+  }, [workspace.accountId]);
 
   const flatPages = flattenTree(pages);
 
@@ -76,7 +76,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
           </div>
           <Button asChild size="sm" className="shrink-0 gap-1.5">
             <Link
-              href={`/wiki/pages?workspaceId=${workspace.id}`}
+              href={`/knowledge/pages?workspaceId=${workspace.id}`}
             >
               <PlusIcon className="size-3.5" />
               <span className="hidden sm:inline">新增頁面</span>
@@ -110,7 +110,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
                 </p>
               </div>
               <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href={`/wiki/pages?workspaceId=${workspace.id}`}>
+                <Link href={`/knowledge/pages?workspaceId=${workspace.id}`}>
                   <PlusIcon className="size-3.5" />
                   建立第一頁
                 </Link>
@@ -123,7 +123,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
               {flatPages.map(({ node, depth }) => (
                 <li key={node.id}>
                   <Link
-                    href={`/wiki/pages?pageId=${node.id}`}
+                    href={`/knowledge/pages?pageId=${node.id}`}
                     className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
                     style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
                   >
@@ -144,10 +144,10 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
+          <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
         </Button>
         <Button asChild variant="outline" size="sm">
-          <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
+          <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
         </Button>
       </div>
     </div>

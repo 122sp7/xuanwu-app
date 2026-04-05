@@ -1,31 +1,28 @@
 # knowledge — Application Services
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
 ## Application Layer 職責
 
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+管理頁面（Page）與內容區塊（Block）的 CRUD 與排序操作。
 
 ## 實際檔案
 
-- `application/block-service.ts`
 - `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
 - `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-- `application/use-cases/wiki-pages.use-case.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
 
-## 設計對齊
+## Use Cases 清單
 
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+| Use Case 類別 | 操作 |
+|---|---|
+| `CreatePageUseCase` | 建立頁面 |
+| `RenamePageUseCase` | 重新命名頁面 |
+| `MovePageUseCase` | 移動頁面層級 |
+| `ArchivePageUseCase` | 歸檔頁面 |
+| `ReorderPageBlocksUseCase` | 重排頁面 Block |
+| `GetPageUseCase` | 取得單頁 |
+| `ListPagesUseCase` | 取得帳戶所有頁面 |
+| `GetPageTreeUseCase` | 取得頁面樹狀結構 |
+| `AddBlockUseCase` | 新增 Block |
+| `UpdateBlockUseCase` | 更新 Block 內容 |
+| `DeleteBlockUseCase` | 刪除 Block |
+| `ListBlocksUseCase` | 取得頁面所有 Block |

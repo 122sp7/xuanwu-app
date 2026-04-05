@@ -16,55 +16,9 @@ export type {
 
 export { KnowledgeApi } from "./knowledge-api";
 
-// ── Wiki page types (owned by knowledge domain) ────────────────────────────
-export type {
-  WikiPage,
-  WikiPageStatus,
-  WikiPageTreeNode,
-  CreateWikiPageInput,
-  RenameWikiPageInput,
-  MoveWikiPageInput,
-} from "../domain/entities/wiki-page.types";
-
-// ── Wiki page use-cases ────────────────────────────────────────────────────
-import { FirebaseWikiPageRepository } from "../infrastructure/repositories/firebase-wiki-page.repository";
-import {
-  createWikiPage as _createWikiPage,
-  listWikiPagesTree as _listWikiPagesTree,
-  moveWikiPage as _moveWikiPage,
-  renameWikiPage as _renameWikiPage,
-} from "../application/use-cases/wiki-pages.use-case";
-import type {
-  CreateWikiPageInput,
-  MoveWikiPageInput,
-  RenameWikiPageInput,
-  WikiPage,
-  WikiPageTreeNode,
-} from "../domain/entities/wiki-page.types";
-
-const _defaultPageRepository = new FirebaseWikiPageRepository();
-
-export function createWikiPage(input: CreateWikiPageInput): Promise<WikiPage> {
-  return _createWikiPage(input, _defaultPageRepository);
-}
-
-export function listWikiPagesTree(accountId: string, workspaceId?: string): Promise<WikiPageTreeNode[]> {
-  return _listWikiPagesTree(accountId, workspaceId, _defaultPageRepository);
-}
-
-export function moveWikiPage(input: MoveWikiPageInput): Promise<WikiPage> {
-  return _moveWikiPage(input, _defaultPageRepository);
-}
-
-export function renameWikiPage(input: RenameWikiPageInput): Promise<WikiPage> {
-  return _renameWikiPage(input, _defaultPageRepository);
-}
-
 export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
 export type { Block } from "../interfaces/store/block-editor.store";
-export { PagesView } from "../interfaces/components/PagesView";
-export { PagesDnDView } from "../interfaces/components/PagesDnDView";
 
 // ── Server Actions (write-side) ───────────────────────────────────────────────
 
@@ -79,9 +33,48 @@ export {
   deleteKnowledgeBlock,
   publishKnowledgeVersion,
   approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
 } from "../interfaces/_actions/knowledge.actions";
 
 export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
 
 // ── Public event contracts ────────────────────────────────────────────────────
 
@@ -96,3 +89,22 @@ export type {
   ExtractedInvoice,
   KnowledgeEventType,
 } from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+export type { KnowledgePage } from "../domain/entities/content-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";

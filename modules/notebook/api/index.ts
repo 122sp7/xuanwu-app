@@ -12,5 +12,6 @@ export type {
 } from "../domain/entities/AgentGeneration";
 
 export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
 
-export { answerRagQuery, generateNotebookResponse } from "../interfaces/_actions/notebook.actions";
+export { answerRagQuery, generateNotebookResponse, saveThread, loadThread } from "../interfaces/_actions/notebook.actions";

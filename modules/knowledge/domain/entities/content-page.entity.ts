@@ -6,9 +6,12 @@
 
 export type KnowledgePageStatus = "active" | "archived";
 export type KnowledgePageApprovalState = "pending" | "approved";
+/** Notion Wiki page verification state */
+export type PageVerificationState = "verified" | "needs_review";
 
 export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
 export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
+export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
 
 export interface KnowledgePage {
   readonly id: string;
@@ -26,6 +29,22 @@ export interface KnowledgePage {
   readonly approvedAtISO?: string;
   /** Actor who approved the page. */
   readonly approvedByUserId?: string;
+  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
+  /**
+   * Verification state for Wiki (Knowledge Base) pages.
+   * undefined = page is not in wiki verification mode.
+   * "verified" = marked as up-to-date by a verifier.
+   * "needs_review" = flagged for review (may be stale).
+   */
+  readonly verificationState?: PageVerificationState;
+  /** User responsible for keeping this page accurate. */
+  readonly ownerId?: string;
+  /** User who last set verificationState to "verified". */
+  readonly verifiedByUserId?: string;
+  /** ISO timestamp when the page was last verified. */
+  readonly verifiedAtISO?: string;
+  /** ISO timestamp after which the page auto-transitions to "needs_review". */
+  readonly verificationExpiresAtISO?: string;
   readonly createdByUserId: string;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
@@ -71,4 +90,23 @@ export interface ApproveKnowledgePageInput {
   readonly pageId: string;
   readonly approvedByUserId: string;
   readonly approvedAtISO: string;
+}
+
+export interface VerifyKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly verifiedByUserId: string;
+  readonly verificationExpiresAtISO?: string;
+}
+
+export interface RequestPageReviewInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly requestedByUserId: string;
+}
+
+export interface AssignPageOwnerInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly ownerId: string;
 }

@@ -16,11 +16,11 @@ import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWork
 function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
   return [
     { key: "spaces", label: "Wiki", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
-    { key: "pages", label: "Pages", href: "/wiki/pages", enabled: true },
-    { key: "libraries", label: "Libraries", href: "/wiki/libraries", enabled: true },
+    { key: "pages", label: "Pages", href: "/knowledge/pages", enabled: true },
+    { key: "libraries", label: "Libraries", href: "/source/libraries", enabled: true },
     { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/wiki", enabled: false },
-    { key: "rag", label: "RAG", href: "/wiki", enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
+    { key: "rag", label: "RAG", href: "/notebook/rag-query", enabled: true },
     { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
   ];
 }

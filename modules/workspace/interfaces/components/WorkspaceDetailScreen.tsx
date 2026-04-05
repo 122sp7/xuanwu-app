@@ -41,6 +41,8 @@ import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
 import { WorkspaceFilesTab } from "@/modules/source/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
 import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { useApp } from "@/app/providers/app-provider";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -180,6 +182,7 @@ export function WorkspaceDetailScreen({
   initialTab,
 }: WorkspaceDetailScreenProps) {
   const router = useRouter();
+  const { state: appState, dispatch } = useApp();
   const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
@@ -302,6 +305,18 @@ export function WorkspaceDetailScreen({
                     >
                       編輯工作區
                     </Button>
+                    {appState.activeWorkspaceId !== workspace.id && (
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        onClick={() =>
+                          dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+                        }
+                      >
+                        設為目前工作區
+                      </Button>
+                    )}
                   </div>
                 </div>
 
@@ -346,7 +361,7 @@ export function WorkspaceDetailScreen({
                         <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
                           文件
                         </Link>
                       </Button>
@@ -363,7 +378,7 @@ export function WorkspaceDetailScreen({
                         <Link href={`/workspace/${workspace.id}?tab=Wiki`}>工作區 Wiki</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
                           頁面
                         </Link>
                       </Button>
@@ -380,7 +395,7 @@ export function WorkspaceDetailScreen({
                         <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
                           RAG Query
                         </Link>
                       </Button>
@@ -580,6 +595,46 @@ export function WorkspaceDetailScreen({
                 </CardContent>
               </Card>
             </div>
+
+            {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
+              <Card className="border border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle>🚀 開始使用這個工作區</CardTitle>
+                  <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      先把原始文件上傳到 Files 分頁，作為知識基底。
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>前往 Files</Link>
+                    </Button>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      在 Wiki 分頁建立第一個知識頁面，整理結構。
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>前往 Wiki</Link>
+                    </Button>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      用 RAG Query 對工作區知識提問，驗證內容可被檢索。
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        前往 RAG Query
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         );
       case "Members":
@@ -602,6 +657,14 @@ export function WorkspaceDetailScreen({
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       case "Tasks":
         return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
       default:
         return renderWorkspacePlaceholderTab(tab);
     }
