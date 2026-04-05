@@ -51,7 +51,7 @@ export async function createKnowledgePage(input: CreateKnowledgePageDto): Promis
     return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_PAGE_CREATE_FAILED",
+      "KNOWLEDGE_PAGE_CREATE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -62,7 +62,7 @@ export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promis
     return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_PAGE_RENAME_FAILED",
+      "KNOWLEDGE_PAGE_RENAME_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -73,7 +73,7 @@ export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<Co
     return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_PAGE_MOVE_FAILED",
+      "KNOWLEDGE_PAGE_MOVE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -84,7 +84,7 @@ export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Prom
     return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_PAGE_ARCHIVE_FAILED",
+      "KNOWLEDGE_PAGE_ARCHIVE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -97,7 +97,7 @@ export async function reorderKnowledgePageBlocks(
     return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_PAGE_REORDER_FAILED",
+      "KNOWLEDGE_PAGE_REORDER_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -108,7 +108,7 @@ export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<Co
     return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_BLOCK_ADD_FAILED",
+      "KNOWLEDGE_BLOCK_ADD_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -119,7 +119,7 @@ export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Prom
     return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_BLOCK_UPDATE_FAILED",
+      "KNOWLEDGE_BLOCK_UPDATE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -130,7 +130,7 @@ export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Prom
     return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_BLOCK_DELETE_FAILED",
+      "KNOWLEDGE_BLOCK_DELETE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
@@ -140,7 +140,7 @@ export async function publishKnowledgeVersion(
   _input: CreateKnowledgeVersionDto,
 ): Promise<CommandResult> {
   return commandFailureFrom(
-    "CONTENT_VERSION_NOT_IMPLEMENTED",
+    "KNOWLEDGE_VERSION_NOT_IMPLEMENTED",
     "Version persistence is not yet implemented.",
   );
 }
@@ -157,7 +157,7 @@ export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Prom
     ).execute({ ...input, causationId });
   } catch (err) {
     return commandFailureFrom(
-      "CONTENT_PAGE_APPROVE_FAILED",
+      "KNOWLEDGE_PAGE_APPROVE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }

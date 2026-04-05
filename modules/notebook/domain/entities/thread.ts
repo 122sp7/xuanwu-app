@@ -9,4 +9,6 @@ export interface Thread {
   readonly id: ID;
   readonly messages: Message[];
   readonly createdAt: string;
+  /** aggregates.md: Thread has createdAt and updatedAt (ISO 8601) */
+  readonly updatedAt: string;
 }

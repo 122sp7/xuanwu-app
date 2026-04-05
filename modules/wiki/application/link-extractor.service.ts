@@ -49,19 +49,19 @@ export class LinkExtractorService {
       const targetId = slugify(targetLabel);
 
       // Ensure the target node exists in the graph.
-      await this.graphRepo.upsertNode({
+      await this.graphRepo.saveNode({
         id: targetId,
         label: targetLabel.trim(),
         type: "page",
       });
 
       // Create a directed edge from the source page to the target.
-      const linkId = `${event.pageId}→${targetId}`;
-      await this.graphRepo.addLink({
-        id: linkId,
-        sourceId: event.pageId,
-        targetId,
-        type: "explicit",
+      const edgeId = `${event.pageId}→${targetId}`;
+      await this.graphRepo.saveEdge({
+        id: edgeId,
+        sourceNodeId: event.pageId,
+        targetNodeId: targetId,
+        edgeType: "explicit",
       });
     }
   }

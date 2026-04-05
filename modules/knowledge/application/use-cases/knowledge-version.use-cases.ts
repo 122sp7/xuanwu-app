@@ -19,7 +19,7 @@ export class PublishKnowledgeVersionUseCase {
   async execute(input: CreateKnowledgeVersionDto): Promise<CommandResult> {
     const parsed = CreateKnowledgeVersionSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_VERSION_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_VERSION_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, pageId, label, createdByUserId } = parsed.data;

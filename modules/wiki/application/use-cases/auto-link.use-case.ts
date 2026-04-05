@@ -55,19 +55,19 @@ export class AutoLinkUseCase {
    * 2. If the page has a parent, create a "hierarchy" Link.
    */
   async handlePageCreated(event: KnowledgePageCreatedEvent): Promise<void> {
-    await this.graphRepo.upsertNode({
+    await this.graphRepo.saveNode({
       id: event.pageId,
       label: event.title,
       type: "page",
     });
 
     if (event.parentPageId) {
-      const linkId = `${event.parentPageId}→${event.pageId}:hierarchy`;
-      await this.graphRepo.addLink({
-        id: linkId,
-        sourceId: event.parentPageId,
-        targetId: event.pageId,
-        type: "hierarchy",
+      const edgeId = `${event.parentPageId}→${event.pageId}:hierarchy`;
+      await this.graphRepo.saveEdge({
+        id: edgeId,
+        sourceNodeId: event.parentPageId,
+        targetNodeId: event.pageId,
+        edgeType: "hierarchy",
       });
     }
   }

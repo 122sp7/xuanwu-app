@@ -60,7 +60,7 @@ export class CreateKnowledgePageUseCase {
   async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
     const parsed = CreateKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
@@ -83,12 +83,12 @@ export class RenameKnowledgePageUseCase {
   async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
     const parsed = RenameKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, pageId, title } = parsed.data;
     const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (!updated) return commandFailureFrom("KNOWLEDGE_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
@@ -99,17 +99,17 @@ export class MoveKnowledgePageUseCase {
   async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
     const parsed = MoveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, pageId, targetParentPageId } = parsed.data;
 
     if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+      return commandFailureFrom("KNOWLEDGE_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
     }
 
     const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (!updated) return commandFailureFrom("KNOWLEDGE_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
@@ -120,12 +120,12 @@ export class ArchiveKnowledgePageUseCase {
   async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
     const parsed = ArchiveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, pageId } = parsed.data;
     const updated = await this.repo.archive(accountId, pageId);
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (!updated) return commandFailureFrom("KNOWLEDGE_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
@@ -136,12 +136,12 @@ export class ReorderKnowledgePageBlocksUseCase {
   async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
     const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, pageId, blockIds } = parsed.data;
     const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (!updated) return commandFailureFrom("KNOWLEDGE_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
@@ -184,7 +184,7 @@ export class ApproveKnowledgePageUseCase {
   async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
     const parsed = ApproveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
     const {
@@ -203,19 +203,19 @@ export class ApproveKnowledgePageUseCase {
 
     const page = await this.repo.findById(accountId, pageId);
     if (!page) {
-      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+      return commandFailureFrom("KNOWLEDGE_PAGE_NOT_FOUND", "Page not found.");
     }
     if (page.status === "archived") {
-      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+      return commandFailureFrom("KNOWLEDGE_PAGE_ARCHIVED", "Cannot approve an archived page.");
     }
     if (page.approvalState === "approved") {
-      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+      return commandFailureFrom("KNOWLEDGE_PAGE_ALREADY_APPROVED", "Page is already approved.");
     }
 
     const nowISO = new Date().toISOString();
     const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
     if (!approved) {
-      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
+      return commandFailureFrom("KNOWLEDGE_PAGE_APPROVE_FAILED", "Failed to approve page.");
     }
 
     const correlationId = inputCorrelationId ?? generateId();

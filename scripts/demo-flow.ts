@@ -61,18 +61,18 @@ async function main() {
   console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
 
   // ── Step 7: Assert KnowledgeApi reacted ──────────────────────────────────
-  console.log("[7] Asserting KnowledgeApi created a Link to 'world'...");
-  const links = await knowledgeApi.getOutgoingLinks(page.id);
+  console.log("[7] Asserting KnowledgeApi created a GraphEdge to 'world'...");
+  const edges = await knowledgeApi.getOutgoingEdges(page.id);
   const nodes = await knowledgeApi.listNodes();
 
-  if (links.length === 0) {
-    throw new Error("ASSERTION FAILED: expected at least one link, got 0");
+  if (edges.length === 0) {
+    throw new Error("ASSERTION FAILED: expected at least one edge, got 0");
   }
 
-  const targetLink = links.find((l) => l.targetId === "world");
-  if (!targetLink) {
+  const targetEdge = edges.find((e) => e.targetNodeId === "world");
+  if (!targetEdge) {
     throw new Error(
-      `ASSERTION FAILED: expected link with targetId="world", got: ${JSON.stringify(links)}`,
+      `ASSERTION FAILED: expected edge with targetNodeId="world", got: ${JSON.stringify(edges)}`,
     );
   }
 
@@ -83,9 +83,9 @@ async function main() {
     );
   }
 
-  console.log("    ✓ Links created:");
-  for (const l of links) {
-    console.log(`        ${l.sourceId} → ${l.targetId}  (${l.type})`);
+  console.log("    ✓ GraphEdges created:");
+  for (const e of edges) {
+    console.log(`        ${e.sourceNodeId} → ${e.targetNodeId}  (${e.edgeType})`);
   }
   console.log("    ✓ Nodes in graph:");
   for (const n of nodes) {

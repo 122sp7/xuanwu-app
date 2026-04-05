@@ -23,7 +23,7 @@ export class AddKnowledgeBlockUseCase {
   async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = AddKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_BLOCK_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, pageId, content, index } = parsed.data;
@@ -38,12 +38,12 @@ export class UpdateKnowledgeBlockUseCase {
   async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_BLOCK_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, blockId, content } = parsed.data;
     const updated = await this.repo.update({ accountId, blockId, content });
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    if (!updated) return commandFailureFrom("KNOWLEDGE_BLOCK_NOT_FOUND", "Block not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
@@ -54,7 +54,7 @@ export class DeleteKnowledgeBlockUseCase {
   async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
     const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("KNOWLEDGE_BLOCK_INVALID_INPUT", parsed.error.message);
     }
 
     const { accountId, blockId } = parsed.data;
