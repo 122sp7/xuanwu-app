@@ -1,7 +1,7 @@
-﻿/**
+/**
  * Module: source
  * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Asset domain.
+ * Purpose: Public cross-module API boundary for the source domain.
  *
  * Other modules MUST import from here — never from domain/, application/,
  * infrastructure/, or interfaces/ directly.
@@ -12,7 +12,7 @@
 export type { File, FileStatus } from "../domain/entities/File";
 export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
 
-// --- Wiki library entity types (transitional — owned by asset domain) ----
+// --- Wiki library entity types (transitional — owned by source domain) ---
 
 export type {
   WikiLibrary,
@@ -69,10 +69,19 @@ export function listWikiLibraries(accountId: string, workspaceId?: string): Prom
   return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
 }
 
-// --- Document snapshot types (owned by asset) --------------------------------
+// --- Document snapshot types --------------------------------------------------
 
-export type { AssetDocument, AssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
-export { useDocumentsSnapshot, mapToAssetLiveDocument } from "../interfaces/hooks/useDocumentsSnapshot";
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+export {
+  useDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
 
 // --- Query functions ---------------------------------------------------------
 

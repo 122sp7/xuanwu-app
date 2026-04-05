@@ -4,9 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
 
-// ─── Standalone document types (owned by asset module) ───────────────────────
+// ─── Standalone document types (owned by source module) ──────────────────────
 
-export interface AssetDocument {
+export interface SourceDocument {
   readonly id: string;
   readonly filename: string;
   readonly workspaceId: string;
@@ -18,11 +18,14 @@ export interface AssetDocument {
   readonly uploadedAt: Date | null;
 }
 
-export interface AssetLiveDocument extends AssetDocument {
+export interface SourceLiveDocument extends SourceDocument {
   readonly errorMessage: string;
   readonly ragError: string;
   readonly isClientPending?: boolean;
 }
+
+export type AssetDocument = SourceDocument;
+export type AssetLiveDocument = SourceLiveDocument;
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -73,7 +76,7 @@ function resolveFilename(data: Record<string, unknown>): string {
   return "";
 }
 
-export function mapToAssetLiveDocument(id: string, data: Record<string, unknown>): AssetLiveDocument {
+export function mapToSourceLiveDocument(id: string, data: Record<string, unknown>): SourceLiveDocument {
   const source = objectOrEmpty(data.source);
   const parsed = objectOrEmpty(data.parsed);
   const rag = objectOrEmpty(data.rag);
@@ -102,13 +105,15 @@ export function mapToAssetLiveDocument(id: string, data: Record<string, unknown>
   };
 }
 
+export const mapToAssetLiveDocument = mapToSourceLiveDocument;
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export interface UseDocumentsSnapshotResult {
-  readonly docs: AssetLiveDocument[];
+  readonly docs: SourceLiveDocument[];
   readonly loading: boolean;
-  readonly pendingDocs: AssetLiveDocument[];
-  readonly addPending: (doc: AssetLiveDocument) => void;
+  readonly pendingDocs: SourceLiveDocument[];
+  readonly addPending: (doc: SourceLiveDocument) => void;
   readonly removePending: (id: string) => void;
 }
 
@@ -117,12 +122,12 @@ export function useDocumentsSnapshot(
   accountId: string,
   workspaceId?: string,
 ): UseDocumentsSnapshotResult {
-  const [rawDocs, setRawDocs] = useState<AssetLiveDocument[]>([]);
-  const [rawPending, setRawPending] = useState<AssetLiveDocument[]>([]);
+  const [rawDocs, setRawDocs] = useState<SourceLiveDocument[]>([]);
+  const [rawPending, setRawPending] = useState<SourceLiveDocument[]>([]);
   const [receivedKey, setReceivedKey] = useState("");
   const statusMapRef = useRef<Record<string, string>>({});
 
-  const addPending = useCallback((doc: AssetLiveDocument) => {
+  const addPending = useCallback((doc: SourceLiveDocument) => {
     setRawPending((prev) => [doc, ...prev.filter((p) => p.id !== doc.id)]);
   }, []);
 
@@ -143,7 +148,7 @@ export function useDocumentsSnapshot(
       colRef,
       (snapshot) => {
         const mapped = snapshot.docs
-          .map((item) => mapToAssetLiveDocument(item.id, objectOrEmpty(item.data())))
+          .map((item) => mapToSourceLiveDocument(item.id, objectOrEmpty(item.data())))
           .filter((item) => !workspaceId || item.workspaceId === workspaceId)
           .sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
 

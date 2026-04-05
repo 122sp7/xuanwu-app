@@ -25,7 +25,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-s
 import { Input } from "@ui-shadcn/ui/input";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 import { runWikiRagQuery, type WikiCitation } from "../../api";
-import type { AssetLiveDocument as WikiLiveDocument } from "@/modules/source/api";
+import type { SourceLiveDocument as WikiLiveDocument } from "@/modules/source/api";
 import { useDocumentsSnapshot } from "@/modules/source/api";
 
 interface WikiRagViewProps {

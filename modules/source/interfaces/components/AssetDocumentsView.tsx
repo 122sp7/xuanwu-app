@@ -18,7 +18,7 @@ import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { AssetLiveDocument } from "../hooks/useDocumentsSnapshot";
+import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
 import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
 
 const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
@@ -31,7 +31,7 @@ const ACCEPTED_MIME: Record<string, string> = {
 };
 const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
 
-function StatusBadge({ doc }: { doc: AssetLiveDocument }) {
+function StatusBadge({ doc }: { doc: SourceLiveDocument }) {
   if (doc.status === "completed") {
     return (
       <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
@@ -60,7 +60,7 @@ function StatusBadge({ doc }: { doc: AssetLiveDocument }) {
   return <Badge variant="outline">{doc.status || "unknown"}</Badge>;
 }
 
-function RagBadge({ doc }: { doc: AssetLiveDocument }) {
+function RagBadge({ doc }: { doc: SourceLiveDocument }) {
   if (doc.ragStatus === "ready") {
     return (
       <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 text-emerald-700">
@@ -178,7 +178,7 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
     }
   }
 
-  async function handleDelete(doc: AssetLiveDocument) {
+  async function handleDelete(doc: SourceLiveDocument) {
     if (!activeAccountId) return;
     if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
 
@@ -199,7 +199,7 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
     }
   }
 
-  async function handleRename(doc: AssetLiveDocument) {
+  async function handleRename(doc: SourceLiveDocument) {
     if (!activeAccountId) return;
     const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
     if (!nextName || nextName === doc.filename) return;
@@ -222,7 +222,7 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
     }
   }
 
-  async function handleViewOriginal(doc: AssetLiveDocument) {
+  async function handleViewOriginal(doc: SourceLiveDocument) {
     if (!doc.sourceGcsUri) return;
     try {
       const storage = getFirebaseStorage(UPLOAD_BUCKET);

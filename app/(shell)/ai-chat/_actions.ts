@@ -4,8 +4,7 @@ import type {
   GenerateNotebookResponseInput,
   GenerateNotebookResponseResult,
 } from "@/modules/notebook/api";
-import { GenerateNotebookResponseUseCase } from "@/modules/notebook/api";
-import { GenkitNotebookRepository } from "@/modules/notebook/api";
+import { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "@/modules/notebook/api/server";
 
 export async function sendChatMessage(
   input: GenerateNotebookResponseInput,
