@@ -48,6 +48,7 @@
       ".cursor/**",
       ".vscode/**",
       ".serena/**",
+      ".claude/**",
       ".opencode/**",
       ".idea/**",
       ".history/**",
@@ -84,6 +85,7 @@
       ".github/workflows/**",
       ".github/skills/**",
       "docs/architecture/**",
+      "diagrams/**",
 
       "public/**",
       ".tmp-eslint*.json",

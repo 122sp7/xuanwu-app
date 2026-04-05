@@ -73,7 +73,7 @@ export class UpdateArticleUseCase {
       updatedAtISO: now,
     };
     await this.repo.save(updated);
-    return commandSuccess(updated.id, now);
+    return commandSuccess(updated.id, updated.version);
   }
 }
 
@@ -89,7 +89,7 @@ export class PublishArticleUseCase {
     if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
     const now = new Date().toISOString();
     await this.repo.save({ ...existing, status: "published", version: existing.version + 1, updatedAtISO: now });
-    return commandSuccess(parsed.data.id, now);
+    return commandSuccess(parsed.data.id, existing.version + 1);
   }
 }
 
@@ -105,7 +105,7 @@ export class ArchiveArticleUseCase {
     if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
     const now = new Date().toISOString();
     await this.repo.save({ ...existing, status: "archived", updatedAtISO: now });
-    return commandSuccess(parsed.data.id, now);
+    return commandSuccess(parsed.data.id, existing.version);
   }
 }
 
@@ -147,7 +147,7 @@ export class RequestArticleReviewUseCase {
     if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
     const now = new Date().toISOString();
     await this.repo.save({ ...existing, verificationState: "needs_review", updatedAtISO: now });
-    return commandSuccess(parsed.data.id, now);
+    return commandSuccess(parsed.data.id, existing.version);
   }
 }
 
