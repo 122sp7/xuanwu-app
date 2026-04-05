@@ -16,18 +16,21 @@ import {
 
 const NAV_ITEMS = [
   { href: "/workspace", label: "Workspace Hub", group: "導覽" },
-  { href: "/wiki", label: "Account Wiki Bridge", group: "導覽" },
-  { href: "/ai-chat", label: "Notebook / AI", group: "導覽" },
-  { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
-  { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
-  { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
-  { href: "/wiki/rag-query", label: "Ask / Cite", group: "Wiki" },
-  { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
+  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
+  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
+  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
+  { href: "/source/documents", label: "Source Documents", group: "導覽" },
+  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
+  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
+  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
+  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
+  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
 ] as const;
 
 const GROUP_ICONS: Record<string, React.ReactNode> = {
   "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Wiki": <FileText className="size-4 mr-2 opacity-60" />,
+  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
+  "Source": <FileText className="size-4 mr-2 opacity-60" />,
 };
 
 interface GlobalSearchDialogProps {

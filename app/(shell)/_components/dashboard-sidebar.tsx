@@ -10,7 +10,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { BookOpen, Bot, Brain, Building2, ChevronDown, ChevronRight, Database, FileText, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -121,11 +121,16 @@ function getWorkspaceIdFromPath(pathname: string): string | null {
 
 // ── Section helpers ──────────────────────────────────────────────────────────
 
-type NavSection = "workspace" | "wiki" | "ai-chat" | "account" | "organization" | "other";
+type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
 
 function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/wiki")) return "wiki";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/wiki")) return "knowledge";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
   if (pathname.startsWith("/organization")) return "organization";
@@ -136,8 +141,12 @@ function resolveNavSection(pathname: string): NavSection {
 
 const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki": { label: "Account Wiki", icon: <BookOpen className="size-3" /> },
-  "ai-chat": { label: "Notebook", icon: <Bot className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
   account: { label: "Account", icon: <UserRound className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
   other: { label: "導覽", icon: null },
@@ -164,8 +173,7 @@ export function DashboardSidebar({
   onSelectWorkspace,
 }: DashboardSidebarProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [isWikiWorkspacesExpanded, setIsWikiWorkspacesExpanded] = useState(false);
-  const [wikiQuickCreateOpen, setWikiQuickCreateOpen] = useState(false);
+  const [isKnowledgeWorkspacesExpanded, setIsKnowledgeWorkspacesExpanded] = useState(false);
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
   const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
@@ -233,7 +241,7 @@ export function DashboardSidebar({
       return;
     }
 
-    if (typeof window === "undefined" || !pathname.startsWith("/wiki")) {
+    if (typeof window === "undefined" || !pathname.startsWith("/knowledge")) {
       return;
     }
 
@@ -260,8 +268,8 @@ export function DashboardSidebar({
 
   const buildWorkspaceContextHref = useCallback(
     (workspaceId: string): string => {
-      if (pathname.startsWith("/wiki")) {
-        const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
+      if (pathname.startsWith("/knowledge")) {
+        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
         return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
       }
       return `/workspace/${workspaceId}`;
@@ -360,49 +368,31 @@ export function DashboardSidebar({
     };
   }, []);
 
-  async function handleWikiQuickCreate(kind: "page" | "database") {
+  async function handleQuickCreatePage() {
     const accountId = activeAccount?.id ?? "";
     if (!accountId) {
       toast.error("目前沒有 active account，無法建立");
       return;
     }
-
-    setCreatingKind(kind);
+    setCreatingKind("page");
     try {
       const db = getFirebaseFirestore();
-      const collectionName = kind === "page" ? "pages" : "databases";
-      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
-
       const payload: Record<string, unknown> = {
-        title: baseTitle,
-        kind,
+        title: "未命名頁面",
+        kind: "page",
         accountId,
         createdAt: firestoreApi.serverTimestamp(),
         updatedAt: firestoreApi.serverTimestamp(),
       };
-
-      if (activeWorkspaceId) {
-        payload.spaceId = activeWorkspaceId;
-      }
-
-      if (kind === "database") {
-        payload.template = "task-governance";
-        payload.metadata = {
-          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
-          description: "任務依賴與技能門檻分類模板",
-        };
-      }
-
+      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
       await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, collectionName),
+        firestoreApi.collection(db, "accounts", accountId, "pages"),
         payload,
       );
-
-      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
-      setWikiQuickCreateOpen(false);
+      toast.success("已建立頁面");
     } catch (error) {
       console.error(error);
-      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
+      toast.error("建立頁面失敗");
     } finally {
       setCreatingKind(null);
     }
@@ -747,91 +737,38 @@ export function DashboardSidebar({
               </>
             )}
 
-            {section === "wiki" && (
-              <nav className="space-y-0.5" aria-label="Account Wiki navigation">
+            {section === "knowledge" && (
+              <nav className="space-y-0.5" aria-label="Knowledge navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Account Wiki Bridge
+                  知識管理
                 </p>
-                {(
-                  [
-                    { href: "/wiki", label: "Workspace Bridge" },
-                    { href: "/wiki/block-editor", label: "區塊編輯器" },
-                    { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
-                    { href: "/wiki/rag-query", label: "Ask / Cite" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
                 <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
                   <Link
-                    href="/wiki/documents"
-                    aria-current={isActiveRoute("/wiki/documents") ? "page" : undefined}
+                    href="/knowledge/pages"
+                    aria-current={isActiveRoute("/knowledge/pages") ? "page" : undefined}
                     className={`flex-1 ${
-                      isActiveRoute("/wiki/documents")
+                      isActiveRoute("/knowledge/pages")
                         ? "text-primary"
                         : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    Documents
+                    頁面
                   </Link>
                   <button
                     type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setWikiQuickCreateOpen((prev) => !prev);
-                    }}
-                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
-                    aria-label="快速新增頁面或資料庫"
-                    title="快速新增"
+                    onClick={() => void handleQuickCreatePage()}
+                    disabled={creatingKind !== null}
+                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15 disabled:opacity-50"
+                    aria-label="快速新增頁面"
+                    title="新增頁面"
                   >
                     <Plus className="size-3.5" />
                   </button>
-
-                  {wikiQuickCreateOpen ? (
-                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiQuickCreate("page")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiQuickCreate("database")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
-                      </button>
-                    </div>
-                  ) : null}
                 </div>
-
                 {(
                   [
-                    { href: "/wiki/pages", label: "Pages" },
-                    { href: "/wiki/articles", label: "文章" },
-                    { href: "/wiki/databases", label: "資料庫" },
-                    { href: "/wiki/libraries", label: "Libraries" },
-                    { href: "/wiki/rag-reindex", label: "RAG Reindex" },
+                    { href: "/knowledge", label: "Knowledge Hub" },
+                    { href: "/knowledge/block-editor", label: "區塊編輯器" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -850,27 +787,24 @@ export function DashboardSidebar({
                     </Link>
                   );
                 })}
-
                 <div className="my-1.5 border-t border-border/40" />
 
                 <button
                   type="button"
-                  onClick={() => {
-                    setIsWikiWorkspacesExpanded((prev) => !prev);
-                  }}
+                  onClick={() => { setIsKnowledgeWorkspacesExpanded((prev) => !prev); }}
                   className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isWikiWorkspacesExpanded}
+                  aria-expanded={isKnowledgeWorkspacesExpanded}
                 >
                   <span>Workspaces</span>
-                  {isWikiWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                  {isKnowledgeWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
                 </button>
 
-                {isWikiWorkspacesExpanded && (
+                {isKnowledgeWorkspacesExpanded && (
                   <div className="space-y-0.5 pl-2">
                     {!workspacesHydrated ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">\u5de5\u4f5c\u5340\u8f09\u5165\u4e2d...</p>
                     ) : allWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">\u76ee\u524d\u5e33\u865f\u6c92\u6709\u5de5\u4f5c\u5340</p>
                     ) : (
                       allWorkspaceLinks.map((workspace) => {
                         const active = activeWorkspaceId === workspace.id;
@@ -878,9 +812,7 @@ export function DashboardSidebar({
                           <Link
                             key={workspace.id}
                             href={workspace.href}
-                            onClick={() => {
-                              onSelectWorkspace(workspace.id);
-                            }}
+                            onClick={() => { onSelectWorkspace(workspace.id); }}
                             aria-current={active ? "page" : undefined}
                             className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
                               active
@@ -896,6 +828,123 @@ export function DashboardSidebar({
                     )}
                   </div>
                 )}
+              </nav>
+            )}
+
+            {section === "knowledge-base" && (
+              <nav className="space-y-0.5" aria-label="Knowledge Base navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  知識庫
+                </p>
+                {(
+                  [
+                    { href: "/knowledge-base/articles", label: "文章" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "knowledge-database" && (
+              <nav className="space-y-0.5" aria-label="Knowledge Database navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  資料庫
+                </p>
+                {(
+                  [
+                    { href: "/knowledge-database/databases", label: "資料庫" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "source" && (
+              <nav className="space-y-0.5" aria-label="Source navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  來源文件
+                </p>
+                {(
+                  [
+                    { href: "/source/documents", label: "Documents" },
+                    { href: "/source/libraries", label: "Libraries" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "notebook" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook
+                </p>
+                {(
+                  [
+                    { href: "/notebook/rag-query", label: "Ask / Cite" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
               </nav>
             )}
 

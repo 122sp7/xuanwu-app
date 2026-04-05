@@ -1,7 +1,13 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
+export default async function WikiArticleDetailRedirect({
+  params,
+}: {
+  params: Promise<{ articleId: string }>;
+}) {
+  const { articleId } = await params;
+  redirect(`/knowledge-base/articles/${articleId}`);
+}
 import {
   Archive,
   ArrowLeft,
