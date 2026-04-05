@@ -45541,6 +45541,621 @@ Location: .claude/skills/[domain]/[skill-name]/SKILL.md
 }
 ````
 
+## File: app/(shell)/_components/customize-navigation-dialog.tsx
+````typescript
+"use client";
+
+/**
+ * Module: customize-navigation-dialog.tsx
+ * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
+ * Responsibilities: checkbox toggles per item, workspace nav-style radio, show-N-workspaces
+ *   preference, all persisted to localStorage.
+ * Constraints: UI-only; pure preference storage, no backend call.
+ */
+
+import { GripVertical } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import {
+  attachClosestEdge,
+  combine,
+  draggable,
+  DropIndicator,
+  dropTargetForElements,
+  extractClosestEdge,
+  reorder,
+  type Edge,
+} from "@lib-dragdrop";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  /** IDs of personal nav items that are pinned */
+  pinnedPersonal: string[];
+  /** IDs of workspace org-management items that are pinned */
+  pinnedWorkspace: string[];
+  /** Whether to show a limited number of workspaces */
+  showLimitedWorkspaces: boolean;
+  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
+  maxWorkspaces: number;
+  /** Explicit display order of workspace items for sidebar and customize dialog */
+  workspaceOrder: string[];
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
+];
+
+// ── Workspace / org-management items ──────────────────────────────────────
+
+const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
+  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
+  { id: "recent", tabKey: "Recent", fallbackLabel: "Recent" },
+  { id: "favorites", tabKey: "Favorites", fallbackLabel: "Favorites" },
+  { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
+  { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
+  { id: "docs", tabKey: "Docs", fallbackLabel: "Docs" },
+  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
+  { id: "meeting-notes", tabKey: "Meeting Notes", fallbackLabel: "Meeting Notes" },
+  { id: "sop", tabKey: "SOP", fallbackLabel: "SOP" },
+  { id: "engineering", tabKey: "Engineering", fallbackLabel: "Engineering" },
+  { id: "product", tabKey: "Product", fallbackLabel: "Product" },
+  { id: "design", tabKey: "Design", fallbackLabel: "Design" },
+  { id: "databases", tabKey: "Databases", fallbackLabel: "Databases" },
+  { id: "projects", tabKey: "Projects", fallbackLabel: "Projects" },
+  { id: "roadmap", tabKey: "Roadmap", fallbackLabel: "Roadmap" },
+  { id: "notes", tabKey: "Notes", fallbackLabel: "Notes" },
+  { id: "documents", tabKey: "Documents", fallbackLabel: "Documents" },
+  { id: "assets", tabKey: "Assets", fallbackLabel: "Assets" },
+  { id: "crm", tabKey: "CRM", fallbackLabel: "CRM" },
+  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
+  { id: "tags", tabKey: "Tags", fallbackLabel: "Tags" },
+  { id: "templates", tabKey: "Templates", fallbackLabel: "Templates" },
+  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
+  { id: "trash", tabKey: "Trash", fallbackLabel: "Trash" },
+  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
+  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
+  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
+  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
+];
+
+const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [...WORKSPACE_NAV_ITEMS.map((item) => item.id), ...ORGANIZATION_NAV_ITEMS.map((item) => item.id)],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+
+function normalizePinnedIds(
+  ids: unknown,
+  validSet: Set<string>,
+  fallback: string[],
+) {
+  if (!Array.isArray(ids)) {
+    return fallback;
+  }
+
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+function normalizeWorkspaceOrder(order: unknown) {
+  const fallback = DEFAULT_PREFS.workspaceOrder;
+  if (!Array.isArray(order)) {
+    return fallback;
+  }
+
+  const validOrder = order
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
+
+  const deduped = Array.from(new Set(validOrder));
+  for (const id of fallback) {
+    if (!deduped.includes(id)) {
+      deduped.push(id);
+    }
+  }
+
+  return deduped;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: normalizePinnedIds(
+        parsed.pinnedWorkspace,
+        VALID_WORKSPACE_ITEM_IDS,
+        DEFAULT_PREFS.pinnedWorkspace,
+      ),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces: typeof parsed.maxWorkspaces === "number" ? parsed.maxWorkspaces : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+function writeNavPreferences(prefs: NavPreferences) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────
+
+interface CheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  onToggle: () => void;
+}
+
+function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
+  return (
+    <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+      <Checkbox
+        id={`nav-check-${id}`}
+        checked={checked}
+        onCheckedChange={onToggle}
+        className="shrink-0"
+      />
+      <Label
+        htmlFor={`nav-check-${id}`}
+        className="cursor-pointer select-none text-sm font-normal"
+      >
+        {label}
+      </Label>
+    </div>
+  );
+}
+
+interface WorkspaceCheckRowProps {
+  id: string;
+  label: string;
+  checked: boolean;
+  activeDropEdge: Edge | null;
+  isDropTarget: boolean;
+  onToggle: () => void;
+  onDragOverItem: (targetId: string, edge: Edge | null) => void;
+  onDragLeaveItem: (targetId: string) => void;
+  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
+}
+
+function WorkspaceCheckRow({
+  id,
+  label,
+  checked,
+  activeDropEdge,
+  isDropTarget,
+  onToggle,
+  onDragOverItem,
+  onDragLeaveItem,
+  onReorder,
+}: WorkspaceCheckRowProps) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) {
+      return;
+    }
+
+    return combine(
+      draggable({
+        element,
+        getInitialData: () => ({
+          type: "workspace-nav-item",
+          itemId: id,
+        }),
+      }),
+      dropTargetForElements({
+        element,
+        canDrop: ({ source }) => {
+          return source.data.type === "workspace-nav-item" && source.data.itemId !== id;
+        },
+        getData: ({ input, element: dropElement }) => {
+          return attachClosestEdge(
+            {
+              type: "workspace-nav-item",
+              itemId: id,
+            },
+            {
+              input,
+              element: dropElement,
+              allowedEdges: ["top", "bottom"],
+            },
+          );
+        },
+        onDragEnter: ({ self }) => {
+          onDragOverItem(id, extractClosestEdge(self.data));
+        },
+        onDrag: ({ self }) => {
+          onDragOverItem(id, extractClosestEdge(self.data));
+        },
+        onDragLeave: () => {
+          onDragLeaveItem(id);
+        },
+        onDrop: ({ source, self }) => {
+          const sourceId = typeof source.data.itemId === "string" ? source.data.itemId : null;
+          if (!sourceId || sourceId === id) {
+            onDragLeaveItem(id);
+            return;
+          }
+          onReorder(sourceId, id, extractClosestEdge(self.data));
+          onDragLeaveItem(id);
+        },
+      }),
+    );
+  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
+
+  return (
+    <div ref={ref} className="relative">
+      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
+        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
+        <Checkbox
+          id={`nav-check-${id}`}
+          checked={checked}
+          onCheckedChange={onToggle}
+          className="shrink-0"
+        />
+        <Label
+          htmlFor={`nav-check-${id}`}
+          className="cursor-pointer select-none text-sm font-normal"
+        >
+          {label}
+        </Label>
+      </div>
+
+      {isDropTarget && activeDropEdge && (
+        <div className="pointer-events-none absolute inset-x-2">
+          <DropIndicator edge={activeDropEdge} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+
+interface CustomizeNavigationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onPreferencesChange?: (prefs: NavPreferences) => void;
+}
+
+export function CustomizeNavigationDialog({
+  open,
+  onOpenChange,
+  onPreferencesChange,
+}: CustomizeNavigationDialogProps) {
+  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
+  const uiLocale = useMemo<"zh" | "en">(() => {
+    if (typeof navigator === "undefined") {
+      return "zh";
+    }
+    const language = navigator.language?.toLowerCase() ?? "";
+    return language.startsWith("zh") ? "zh" : "en";
+  }, []);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const localeFile = uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
+    let canceled = false;
+
+    fetch(localeFile)
+      .then((res) => {
+        if (!res.ok) {
+          throw new Error(`Failed to load locale file: ${res.status}`);
+        }
+        return res.json() as Promise<SidebarLocaleBundle>;
+      })
+      .then((json) => {
+        if (!canceled) {
+          setLocaleBundle(json);
+        }
+      })
+      .catch(() => {
+        if (!canceled) {
+          setLocaleBundle(null);
+        }
+      });
+
+    return () => {
+      canceled = true;
+    };
+  }, [uiLocale]);
+
+  const text = DIALOG_TEXT[uiLocale];
+
+  const workspaceItemsById = useMemo(
+    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
+    [],
+  );
+
+  const orderedWorkspaceItems = useMemo(() => {
+    return prefs.workspaceOrder
+      .map((id) => workspaceItemsById[id])
+      .filter((item): item is (typeof WORKSPACE_NAV_ITEMS)[number] => item != null);
+  }, [prefs.workspaceOrder, workspaceItemsById]);
+
+  const getWorkspaceLabel = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) => {
+    return localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
+  };
+
+  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) => {
+    return uiLocale === "zh" ? item.zhLabel : item.enLabel;
+  };
+
+  function updatePrefs(update: Partial<NavPreferences>) {
+    const next = { ...prefs, ...update };
+    writeNavPreferences(next);
+    setPrefs(next);
+    onPreferencesChange?.(next);
+  }
+
+  function togglePersonal(id: string) {
+    const next = prefs.pinnedPersonal.includes(id)
+      ? prefs.pinnedPersonal.filter((x) => x !== id)
+      : [...prefs.pinnedPersonal, id];
+    updatePrefs({ pinnedPersonal: next });
+  }
+
+  function toggleWorkspace(id: string) {
+    const next = prefs.pinnedWorkspace.includes(id)
+      ? prefs.pinnedWorkspace.filter((x) => x !== id)
+      : [...prefs.pinnedWorkspace, id];
+    updatePrefs({ pinnedWorkspace: next });
+  }
+
+  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
+    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
+    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
+
+    if (startIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
+    const nextOrder = reorder({
+      list: prefs.workspaceOrder,
+      startIndex,
+      finishIndex: destinationIndex,
+    });
+
+    updatePrefs({ workspaceOrder: nextOrder });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{text.title}</DialogTitle>
+          <DialogDescription>{text.description}</DialogDescription>
+        </DialogHeader>
+
+        {/* ── Personal items ─────────────────────────────────────────── */}
+        <div className="mt-2 space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionPersonal}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {PERSONAL_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={text[item.labelKey]}
+                checked={prefs.pinnedPersonal.includes(item.id)}
+                onToggle={() => {
+                  togglePersonal(item.id);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Workspace items ────────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionWorkspace}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {orderedWorkspaceItems.map((item) => (
+              <WorkspaceCheckRow
+                key={item.id}
+                id={item.id}
+                label={getWorkspaceLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                isDropTarget={dragTarget?.id === item.id}
+                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
+                onToggle={() => {
+                  toggleWorkspace(item.id);
+                }}
+                onDragOverItem={(targetId, edge) => {
+                  setDragTarget({ id: targetId, edge });
+                }}
+                onDragLeaveItem={(targetId) => {
+                  setDragTarget((current) => (current?.id === targetId ? null : current));
+                }}
+                onReorder={reorderWorkspaceItems}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Organization items ──────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionOrganization}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {ORGANIZATION_NAV_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={getOrganizationLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                onToggle={() => {
+                  toggleWorkspace(item.id);
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Display settings ───────────────────────────────────────── */}
+        <div className="space-y-3">
+          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionDisplay}
+          </p>
+
+          {/* Show limited workspaces */}
+          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="nav-limit-workspaces"
+                checked={prefs.showLimitedWorkspaces}
+                onCheckedChange={(checked) => {
+                  updatePrefs({ showLimitedWorkspaces: Boolean(checked) });
+                }}
+              />
+              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
+                {text.limitedLabel}
+              </Label>
+            </div>
+            {prefs.showLimitedWorkspaces && (
+              <div className="space-y-1.5 pl-7">
+                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
+                  {text.limitedInputLabel}
+                </Label>
+                <Input
+                  id="nav-max-workspaces"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={prefs.maxWorkspaces}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1) {
+                      updatePrefs({ maxWorkspaces: Math.min(val, 50) });
+                    }
+                  }}
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer ─────────────────────────────────────────────────── */}
+        <div className="flex justify-end pt-2">
+          <Button
+            type="button"
+            onClick={() => {
+              onOpenChange(false);
+            }}
+          >
+            {text.done}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: app/(shell)/_components/header-user-avatar.tsx
 ````typescript
 "use client";
@@ -53155,260 +53770,313 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 - Deep conceptual essays
 ````
 
-## File: knowledge_mddd_architecture.md
-````markdown
-# Notion + Wiki + NotebookLM × MDDD 架構設計完整總結
-
-## 1. 系統整體定位
-本系統是一個 Knowledge Platform（知識平台），目標是建立：
-- 知識儲存系統
-- 知識關聯圖譜
-- AI 知識推理系統
-- 文件來源管理
-- 搜尋與檢索
-- 外部系統同步（Notion 等）
-
-系統本質不是筆記工具，而是 Knowledge Operating System。
-
-整體分層：
-- Storage / Management → Notion / Knowledge Domain
-- Knowledge Structure → Wiki Domain
-- AI Reasoning → Notebook / AI Domain
-- Retrieval → Search Domain
-- External Sources → Source Domain
-- Integration → Sync Domain
-
-
-## 2. DDD 分層概念
-DDD 層級關係：
-
-Domain
- → Subdomain
- → Bounded Context
- → Module
- → Code
-
-Bounded Context = 模型邊界 + 語言邊界  
-Module = 程式碼邊界  
-
-一個 Bounded Context 對應一個 module。
-
-
-## 3. Bounded Context / Modules 切分
-
-modules/
-  identity/
-  organization/
-  workspace/
-  knowledge/
-  wiki/
-  notebook/
-  source/
-  ai/
-  search/
-  sync/
-  notification/
-  shared/
-
-
-## 4. Domain 類型分類
-
-Core Domain:
-- knowledge
-- wiki
-
-Supporting Domain:
-- notebook
-- ai
-- search
-- source
-- sync
-
-Generic Domain:
-- identity
-- organization
-- notification
-- workspace
-
-
-## 5. Module 標準結構
-
-modules/{context}/
-  api/
-  application/
-  domain/
-  infrastructure/
-
-
-domain/
-  aggregates/
-  entities/
-  value-objects/
-  repositories/
-  domain-services/
-  factories/
-  events/
-
-
-## 6. Context 依賴關係圖
-
-Identity → Organization → Workspace
-                         ↓
-        ┌───────────────┼───────────────┐
-        ↓               ↓               ↓
-     Knowledge        Wiki           Notebook
-        ↓               ↓               ↓
-      Search            │               AI
-        ↓               │               ↑
-        └──── Source ───┘
-                ↑
-               Sync
-
-
-## 7. Knowledge Domain 設計
-
-Aggregate Roots:
-- KnowledgeItem
-- KnowledgeCollection
-- Tag
-
-Entities:
-- Page
-- Document
-- Note
-- Attachment
-- Version
-
-Value Objects:
-- KnowledgeId
-- Title
-- Content
-- TagId
-- AuthorId
-- CreatedAt
-- VersionNumber
-
-Factories:
-- KnowledgeFactory
-  - createPage()
-  - createNote()
-  - createDocument()
-
-
-## 8. Wiki Domain 設計
-
-Aggregate Roots:
-- WikiPage
-- WikiGraph
-
-Entities:
-- WikiPage
-- WikiLink
-- Backlink
-
-Value Objects:
-- PageId
-- LinkType
-- RelationType
-
-Factories:
-- WikiFactory
-  - createWikiPage()
-  - createLink()
-
-
-## 9. Notebook Domain 設計
-
-Aggregate Roots:
-- Notebook
-- ChatSession
-- Summary
-- Insight
-
-Value Objects:
-- Prompt
-- Answer
-- Citation
-- TokenUsage
-
-Factories:
-- NotebookFactory
-  - createNotebook()
-  - createChatSession()
-  - createSummary()
-
-
-## 10. Source Domain 設計
-
-Aggregate Roots:
-- SourceDocument
-- SourceCollection
-
-Value Objects:
-- FileType
-- FileSize
-- URL
-- Hash
-- MimeType
-
-
-## 11. AI Domain 設計
-
-Aggregate Roots:
-- AIQuery
-- Embedding
-- VectorIndex
-
-Value Objects:
-- Prompt
-- Model
-- Temperature
-- TokenCount
-- EmbeddingVector
-
-
-## 12. Search Domain 設計
-
-Aggregate Roots:
-- SearchIndex
-- SearchQuery
-- SearchResult
-
-
-## 13. Sync Domain 設計（Anti-Corruption Layer）
-
-負責：
-- Notion Sync
-- Google Docs Sync
-- Drive Sync
-- Import / Export
-- Webhook
-- ETL Pipeline
-
-Aggregate Roots:
-- SyncJob
-- ExternalIntegration
-- SyncMapping
-
-
-## 14. 系統最重要架構規則
-
-1. Module 之間不能直接引用對方 domain
-2. 只能透過 module/api 呼叫
-3. 每個 Bounded Context 有自己的 Ubiquitous Language
-4. Core Domain 不依賴 Supporting Domain
-5. 外部系統一定透過 Anti-Corruption Layer
-6. Knowledge 是系統核心域
-7. Wiki 是 Knowledge Graph
-8. Notebook / AI 是推理層
-9. Search 是檢索層
-10. Source 是文件來源層
-11. Sync 是整合層
-
-
-## 15. 最終整體架構（一句話）
-
-整個系統是一個以 Knowledge 為核心域、Wiki 為知識圖譜、Notebook 與 AI 為推理層、Search 為檢索層、Source 為文件來源、Sync 為外部系統整合層的 Modular Monolith / Microservice 可演進的 MDDD 架構知識平台。
+## File: firestore.indexes.json
+````json
+{
+  "indexes": [
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceQualityChecks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "accountId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFeedPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowInvoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
 ````
 
 ## File: modules/ai/.gitkeep
@@ -53788,138 +54456,6 @@ export class InMemoryIngestionJobRepository implements IngestionJobRepository {
 }
 ````
 
-## File: modules/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/dto
- * Purpose: Zod-validated input schemas for Content use cases.
- */
-
-import { z } from "@lib-zod";
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import { KNOWLEDGE_PAGE_STATUSES } from "../../domain/entities/content-page.entity";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-export const BlockTypeSchema = z.enum(BLOCK_TYPES);
-
-export const BlockContentSchema = z.object({
-  type: BlockTypeSchema,
-  text: z.string(),
-  properties: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type BlockContentDto = z.infer<typeof BlockContentSchema>;
-
-export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  title: z.string().min(1).max(300),
-  parentPageId: z.string().min(1).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
-
-export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  title: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
-
-export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  targetParentPageId: z.string().min(1).nullable(),
-});
-
-export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
-
-export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-});
-
-export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
-
-export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  blockIds: z.array(z.string().min(1)),
-});
-
-export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
-
-export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  content: BlockContentSchema,
-  index: z.number().int().nonnegative().optional(),
-});
-
-export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
-
-export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-  content: BlockContentSchema,
-});
-
-export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
-
-export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-});
-
-export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
-
-export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  label: z.string().max(100).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
-
-export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
-
-// ── Approve content page ──────────────────────────────────────────────────────
-
-export const ExtractedTaskSchema = z.object({
-  title: z.string().min(1).max(300),
-  dueDate: z.string().optional(),
-  description: z.string().optional(),
-});
-
-export const ExtractedInvoiceSchema = z.object({
-  amount: z.number().positive(),
-  description: z.string().min(1),
-  currency: z.string().optional(),
-});
-
-export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  actorId: z.string().min(1),
-  /**
-   * causationId identifies the command (use-case invocation) that caused the
-   * resulting event.  Generated by the Server Action layer if not provided by
-   * the caller, so that command-event causality is correctly traceable.
-   */
-  causationId: z.string().min(1).optional(),
-  /** Optional: external tasks extracted by AI from this page. */
-  extractedTasks: z.array(ExtractedTaskSchema).default([]),
-  /** Optional: external invoices extracted by AI from this page. */
-  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
-  /**
-   * Correlation ID tracing the entire ingestion → approval → materialization flow.
-   * Generated by the caller if not provided (e.g. first action in the flow).
-   */
-  correlationId: z.string().optional(),
-  /** Optional: workspaceId to include in the published event. */
-  workspaceId: z.string().optional(),
-});
-
-export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
-````
-
 ## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
 ````typescript
 /**
@@ -53993,6 +54529,186 @@ export class ListKnowledgeBlocksUseCase {
   async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
     if (!accountId.trim() || !pageId.trim()) return [];
     return this.repo.listByPageId(accountId, pageId);
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-collection.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: KnowledgeCollection use cases — create, rename, add/remove page, add column, archive, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
+import type { KnowledgeCollectionRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  CreateKnowledgeCollectionSchema,
+  type CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionSchema,
+  type RenameKnowledgeCollectionDto,
+  AddPageToCollectionSchema,
+  type AddPageToCollectionDto,
+  RemovePageFromCollectionSchema,
+  type RemovePageFromCollectionDto,
+  AddCollectionColumnSchema,
+  type AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionSchema,
+  type ArchiveKnowledgeCollectionDto,
+} from "../dto/knowledge.dto";
+
+export class CreateKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, workspaceId, name, description, columns, createdByUserId } = parsed.data;
+
+    const collection = await this.repo.create({
+      accountId,
+      workspaceId,
+      name: name.trim(),
+      description,
+      columns: columns?.map((c) => ({ name: c.name, type: c.type, options: c.options })),
+      createdByUserId,
+    });
+
+    return commandSuccess(collection.id, Date.now());
+  }
+}
+
+export class RenameKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, name } = parsed.data;
+    const result = await this.repo.rename({ accountId, collectionId, name: name.trim() });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AddPageToCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: AddPageToCollectionDto): Promise<CommandResult> {
+    const parsed = AddPageToCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, pageId } = parsed.data;
+    const result = await this.repo.addPage({ accountId, collectionId, pageId });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RemovePageFromCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: RemovePageFromCollectionDto): Promise<CommandResult> {
+    const parsed = RemovePageFromCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, pageId } = parsed.data;
+    const result = await this.repo.removePage({ accountId, collectionId, pageId });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AddCollectionColumnUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: AddCollectionColumnDto): Promise<CommandResult> {
+    const parsed = AddCollectionColumnSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId, column } = parsed.data;
+    const result = await this.repo.addColumn({
+      accountId,
+      collectionId,
+      column,
+    });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgeCollectionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("COLLECTION_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, collectionId } = parsed.data;
+    const result = await this.repo.archive({ accountId, collectionId });
+
+    if (!result) {
+      return commandFailureFrom("COLLECTION_NOT_FOUND", `Collection ${collectionId} not found`);
+    }
+
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class GetKnowledgeCollectionUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    return this.repo.findById(accountId, collectionId);
+  }
+}
+
+export class ListKnowledgeCollectionsByAccountUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgeCollection[]> {
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class ListKnowledgeCollectionsByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgeCollectionRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    return this.repo.listByWorkspaceId(accountId, workspaceId);
   }
 }
 ````
@@ -54291,6 +55007,102 @@ export class ListKnowledgeVersionsUseCase {
 }
 ````
 
+## File: modules/knowledge/domain/entities/knowledge-collection.entity.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/entity
+ * Purpose: KnowledgeCollection — a named grouping / database-view of KnowledgePages.
+ *
+ * A Collection is the "Notion Database" equivalent: it holds a set of page IDs
+ * and an ordered schema of columns that define how those pages are displayed
+ * as a structured table or board.
+ *
+ * Lifecycle:
+ *   active → archived
+ */
+
+// ── Column (schema field) ─────────────────────────────────────────────────────
+
+export type CollectionColumnType =
+  | "text"
+  | "number"
+  | "select"
+  | "multi-select"
+  | "date"
+  | "checkbox"
+  | "url"
+  | "relation";
+
+export interface CollectionColumn {
+  readonly id: string;
+  readonly name: string;
+  readonly type: CollectionColumnType;
+  /** Options for select / multi-select columns */
+  readonly options?: readonly string[];
+}
+
+// ── Aggregate Root ────────────────────────────────────────────────────────────
+
+export type CollectionStatus = "active" | "archived";
+
+export interface KnowledgeCollection {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  /** Ordered list of column schema definitions */
+  readonly columns: readonly CollectionColumn[];
+  /** IDs of KnowledgePages that belong to this collection */
+  readonly pageIds: readonly string[];
+  readonly status: CollectionStatus;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Input types ───────────────────────────────────────────────────────────────
+
+export interface CreateKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly name: string;
+  readonly description?: string;
+  readonly columns?: readonly Omit<CollectionColumn, "id">[];
+  readonly createdByUserId: string;
+}
+
+export interface RenameKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly name: string;
+}
+
+export interface AddPageToCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly pageId: string;
+}
+
+export interface RemovePageFromCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly pageId: string;
+}
+
+export interface AddCollectionColumnInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+  readonly column: Omit<CollectionColumn, "id">;
+}
+
+export interface ArchiveKnowledgeCollectionInput {
+  readonly accountId: string;
+  readonly collectionId: string;
+}
+````
+
 ## File: modules/knowledge/domain/events/knowledge.events.ts
 ````typescript
 /**
@@ -54414,78 +55226,6 @@ export type KnowledgeDomainEvent =
   | KnowledgeVersionPublishedEvent;
 ````
 
-## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/repositories
- * Purpose: Repository port interfaces for Content domain persistence.
- */
-
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-} from "../entities/content-page.entity";
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-} from "../entities/content-block.entity";
-import type {
-  KnowledgeVersion,
-  CreateKnowledgeVersionInput,
-} from "../entities/content-version.entity";
-
-export interface KnowledgePageRepository {
-  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
-  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
-  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
-  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
-  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
-  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
-  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
-}
-
-export interface KnowledgeBlockRepository {
-  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
-  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-  delete(accountId: string, blockId: string): Promise<void>;
-  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
-}
-
-export interface KnowledgeVersionRepository {
-  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
-  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
-}
-````
-
-## File: modules/knowledge/domain/repositories/WikiPageRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/repositories
- * Purpose: Repository port for the Wiki page entity.
- */
-
-import type { WikiPage } from "../entities/wiki-page.types";
-
-export interface WikiPageRepository {
-  listByAccountId(accountId: string): Promise<WikiPage[]>;
-  findById(accountId: string, pageId: string): Promise<WikiPage | null>;
-  create(page: WikiPage): Promise<void>;
-  update(page: WikiPage): Promise<void>;
-}
-````
-
 ## File: modules/knowledge/domain/value-objects/block-content.ts
 ````typescript
 /**
@@ -54547,6 +55287,237 @@ export function blockContentEquals(a: BlockContent, b: BlockContent): boolean {
 
 export function emptyTextBlockContent(): BlockContent {
   return { type: "text", text: "" };
+}
+````
+
+## File: modules/knowledge/infrastructure/firebase/FirebaseContentCollectionRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase Firestore implementation of KnowledgeCollectionRepository.
+ *
+ * Firestore collection: accounts/{accountId}/knowledgeCollections/{collectionId}
+ */
+
+import {
+  arrayRemove,
+  arrayUnion,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionStatus,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../../domain/entities/knowledge-collection.entity";
+import type { KnowledgeCollectionRepository } from "../../domain/repositories/knowledge.repositories";
+
+function collectionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "knowledgeCollections");
+}
+
+function collectionDoc(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  collectionId: string,
+) {
+  return doc(db, "accounts", accountId, "knowledgeCollections", collectionId);
+}
+
+function toKnowledgeCollection(id: string, data: Record<string, unknown>): KnowledgeCollection {
+  const columns: CollectionColumn[] = Array.isArray(data.columns)
+    ? (data.columns as unknown[]).filter(
+        (c): c is Record<string, unknown> => typeof c === "object" && c !== null,
+      ).map((c) => ({
+        id: typeof c.id === "string" ? c.id : generateId(),
+        name: typeof c.name === "string" ? c.name : "",
+        type: (c.type as CollectionColumn["type"]) ?? "text",
+        options: Array.isArray(c.options)
+          ? (c.options as unknown[]).filter((v): v is string => typeof v === "string")
+          : undefined,
+      }))
+    : [];
+
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : undefined,
+    columns,
+    pageIds: Array.isArray(data.pageIds)
+      ? (data.pageIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    status: (data.status as CollectionStatus) === "archived" ? "archived" : "active",
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectionRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection> {
+    const nowISO = new Date().toISOString();
+    const id = generateId();
+
+    const columns: CollectionColumn[] = (input.columns ?? []).map((c) => ({
+      id: generateId(),
+      name: c.name,
+      type: c.type,
+      options: c.options,
+    }));
+
+    const docRef = collectionDoc(this.db, input.accountId, id);
+    const data: Record<string, unknown> = {
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description ?? null,
+      columns,
+      pageIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      _serverTimestamp: serverTimestamp(),
+    };
+
+    if (input.workspaceId) {
+      data.workspaceId = input.workspaceId;
+    }
+
+    await setDoc(docRef, data);
+
+    return toKnowledgeCollection(id, { ...data, createdAtISO: nowISO, updatedAtISO: nowISO });
+  }
+
+  async rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { name: input.name, updatedAtISO: nowISO });
+
+    return toKnowledgeCollection(input.collectionId, {
+      ...snap.data(),
+      name: input.name,
+      updatedAtISO: nowISO,
+    });
+  }
+
+  async addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { pageIds: arrayUnion(input.pageId), updatedAtISO: nowISO });
+
+    const data = snap.data() as Record<string, unknown>;
+    const pageIds = Array.isArray(data.pageIds)
+      ? [...(data.pageIds as string[]), input.pageId]
+      : [input.pageId];
+
+    return toKnowledgeCollection(input.collectionId, { ...data, pageIds, updatedAtISO: nowISO });
+  }
+
+  async removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { pageIds: arrayRemove(input.pageId), updatedAtISO: nowISO });
+
+    const data = snap.data() as Record<string, unknown>;
+    const pageIds = Array.isArray(data.pageIds)
+      ? (data.pageIds as string[]).filter((id) => id !== input.pageId)
+      : [];
+
+    return toKnowledgeCollection(input.collectionId, { ...data, pageIds, updatedAtISO: nowISO });
+  }
+
+  async addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    const newColumn: CollectionColumn = {
+      id: generateId(),
+      name: input.column.name,
+      type: input.column.type,
+      options: input.column.options,
+    };
+
+    await updateDoc(docRef, { columns: arrayUnion(newColumn), updatedAtISO: nowISO });
+
+    const data = snap.data() as Record<string, unknown>;
+    const columns = Array.isArray(data.columns)
+      ? [...(data.columns as CollectionColumn[]), newColumn]
+      : [newColumn];
+
+    return toKnowledgeCollection(input.collectionId, { ...data, columns, updatedAtISO: nowISO });
+  }
+
+  async archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null> {
+    const docRef = collectionDoc(this.db, input.accountId, input.collectionId);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(docRef, { status: "archived", updatedAtISO: nowISO });
+
+    return toKnowledgeCollection(input.collectionId, {
+      ...snap.data(),
+      status: "archived",
+      updatedAtISO: nowISO,
+    });
+  }
+
+  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    const snap = await getDoc(collectionDoc(this.db, accountId, collectionId));
+    if (!snap.exists()) return null;
+    return toKnowledgeCollection(collectionId, snap.data() as Record<string, unknown>);
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
+    const snaps = await getDocs(collectionsCol(this.db, accountId));
+    return snaps.docs.map((d) =>
+      toKnowledgeCollection(d.id, d.data() as Record<string, unknown>),
+    );
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    const q = query(collectionsCol(this.db, accountId), where("workspaceId", "==", workspaceId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) =>
+      toKnowledgeCollection(d.id, d.data() as Record<string, unknown>),
+    );
+  }
 }
 ````
 
@@ -54758,182 +55729,6 @@ export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
-## File: modules/knowledge/infrastructure/repositories/firebase-wiki-page.repository.ts
-````typescript
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-
-import type { WikiPage } from "../../domain/entities/wiki-page.types";
-import type { WikiPageRepository } from "../../domain/repositories/WikiPageRepository";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
-}
-
-function toDateOrNow(value: unknown): Date {
-  if (isRecord(value)) {
-    if (typeof value.toDate === "function") {
-      try {
-        const converted = (value.toDate as () => unknown)();
-        if (converted instanceof Date) {
-          return converted;
-        }
-      } catch {
-        // fall through
-      }
-    }
-  }
-  if (value instanceof Date) {
-    return value;
-  }
-  return new Date();
-}
-
-function mapToPage(id: string, accountId: string, data: Record<string, unknown>): WikiPage {
-  return {
-    id,
-    accountId,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-    title: typeof data.title === "string" ? data.title : "Untitled",
-    slug: typeof data.slug === "string" ? data.slug : id,
-    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
-    order: typeof data.order === "number" ? data.order : 0,
-    status: data.status === "archived" ? "archived" : "active",
-    createdAt: toDateOrNow(data.createdAt),
-    updatedAt: toDateOrNow(data.updatedAt),
-  };
-}
-
-function mapForWrite(page: WikiPage): Record<string, unknown> {
-  return {
-    workspaceId: page.workspaceId ?? null,
-    title: page.title,
-    slug: page.slug,
-    parentPageId: page.parentPageId,
-    order: page.order,
-    status: page.status,
-    createdAt: page.createdAt,
-    updatedAt: page.updatedAt,
-  };
-}
-
-export class FirebaseWikiPageRepository implements WikiPageRepository {
-  async listByAccountId(accountId: string): Promise<WikiPage[]> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.collection(db, "accounts", accountId, "pages");
-    const snap = await firestoreApi.getDocs(ref);
-
-    const pages = snap.docs.map((docSnap) => {
-      const raw = docSnap.data();
-      const data = isRecord(raw) ? raw : {};
-      return mapToPage(docSnap.id, accountId, data);
-    });
-
-    pages.sort((a, b) => {
-      if (a.order !== b.order) {
-        return a.order - b.order;
-      }
-      return a.title.localeCompare(b.title, "zh-Hant");
-    });
-
-    return pages;
-  }
-
-  async findById(accountId: string, pageId: string): Promise<WikiPage | null> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.doc(db, "accounts", accountId, "pages", pageId);
-    const snap = await firestoreApi.getDoc(ref);
-    if (!snap.exists()) {
-      return null;
-    }
-    const raw = snap.data();
-    const data = isRecord(raw) ? raw : {};
-    return mapToPage(snap.id, accountId, data);
-  }
-
-  async create(page: WikiPage): Promise<void> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.doc(db, "accounts", page.accountId, "pages", page.id);
-    await firestoreApi.setDoc(ref, mapForWrite(page));
-  }
-
-  async update(page: WikiPage): Promise<void> {
-    const db = getFirebaseFirestore();
-    const ref = firestoreApi.doc(db, "accounts", page.accountId, "pages", page.id);
-    await firestoreApi.updateDoc(ref, {
-      workspaceId: page.workspaceId ?? null,
-      title: page.title,
-      slug: page.slug,
-      parentPageId: page.parentPageId,
-      order: page.order,
-      status: page.status,
-      updatedAt: page.updatedAt,
-    });
-  }
-}
-````
-
-## File: modules/knowledge/infrastructure/repositories/in-memory-wiki-page.repository.ts
-````typescript
-import type { WikiPageRepository } from "../../domain/repositories/WikiPageRepository";
-import type { WikiPage } from "../../domain/entities/wiki-page.types";
-
-function sortPages(pages: WikiPage[]): WikiPage[] {
-  return [...pages].sort((a, b) => {
-    if (a.order !== b.order) {
-      return a.order - b.order;
-    }
-    return a.title.localeCompare(b.title, "zh-Hant");
-  });
-}
-
-export class InMemoryWikiPageRepository implements WikiPageRepository {
-  private readonly accountPages = new Map<string, Map<string, WikiPage>>();
-
-  async listByAccountId(accountId: string): Promise<WikiPage[]> {
-    const pages = this.accountPages.get(accountId);
-    if (!pages) {
-      return [];
-    }
-    return sortPages(Array.from(pages.values()));
-  }
-
-  async findById(accountId: string, pageId: string): Promise<WikiPage | null> {
-    const pages = this.accountPages.get(accountId);
-    if (!pages) {
-      return null;
-    }
-    return pages.get(pageId) ?? null;
-  }
-
-  async create(page: WikiPage): Promise<void> {
-    const pages = this.getOrCreateAccountMap(page.accountId);
-    if (pages.has(page.id)) {
-      throw new Error(`WikiPage with id ${page.id} already exists`);
-    }
-    pages.set(page.id, page);
-  }
-
-  async update(page: WikiPage): Promise<void> {
-    const pages = this.getOrCreateAccountMap(page.accountId);
-    if (!pages.has(page.id)) {
-      throw new Error(`WikiPage with id ${page.id} not found`);
-    }
-    pages.set(page.id, page);
-  }
-
-  private getOrCreateAccountMap(accountId: string): Map<string, WikiPage> {
-    const existing = this.accountPages.get(accountId);
-    if (existing) {
-      return existing;
-    }
-
-    const created = new Map<string, WikiPage>();
-    this.accountPages.set(accountId, created);
-    return created;
-  }
-}
-````
-
 ## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
 ````typescript
 "use client";
@@ -55131,455 +55926,6 @@ function BlockRow({ block, setBlockRef, onKeyDown, onChange }: BlockRowProps) {
         {block.content}
       </div>
     </div>
-  );
-}
-````
-
-## File: modules/knowledge/interfaces/components/PagesDnDView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, Loader2 } from "lucide-react";
-
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@lib-dragdrop";
-
-import { listWikiPagesTree, moveWikiPage, type WikiPageTreeNode } from "../../api";
-
-interface WikiPagesDnDViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-/**
- * WikiPagesDnDView
- *
- * Flat-list DnD reorder of top-level pages.
- * Dragging a page onto another triggers moveWikiPage to update parent.
- * No over-engineering: single-level DnD with minimal state.
- */
-export function PagesDnDView({ accountId, workspaceId }: WikiPagesDnDViewProps) {
-  const [pages, setPages] = useState<WikiPageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const tree = await listWikiPagesTree(accountId, workspaceId);
-      setPages(tree);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to load pages");
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  // DnD monitor: drop page onto another → reparent
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const draggedId = source.data["pageId"] as string | undefined;
-        const targetId = target.data["pageId"] as string | undefined;
-        if (!draggedId || !targetId || draggedId === targetId) return;
-
-        // Optimistically reorder locally (flat reorder only)
-        setPages((prev) => {
-          const fromIdx = prev.findIndex((p) => p.id === draggedId);
-          const toIdx = prev.findIndex((p) => p.id === targetId);
-          if (fromIdx === -1 || toIdx === -1) return prev;
-          const next = [...prev];
-          const [moved] = next.splice(fromIdx, 1);
-          if (!moved) return prev;
-          next.splice(toIdx, 0, moved);
-          return next;
-        });
-
-        // Persist: move dragged page under target as parent
-        void moveWikiPage({
-          accountId,
-          pageId: draggedId,
-          targetParentPageId: targetId,
-        }).catch((e: unknown) => {
-          setError(e instanceof Error ? e.message : "移動失敗");
-          void refresh();
-        });
-      },
-    });
-  }, [accountId, refresh]);
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Pages DnD</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">頁面樹拖曳重組</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          使用 @atlaskit/pragmatic-drag-and-drop 拖曳頁面至另一個頁面下（重新設定父層）。
-        </p>
-      </div>
-
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          載入頁面中…
-        </div>
-      )}
-
-      {error && (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-          {error}
-        </p>
-      )}
-
-      {!loading && pages.length === 0 && (
-        <p className="text-sm text-muted-foreground">尚無頁面，請先在「頁面」頁面建立頁面。</p>
-      )}
-
-      {pages.length > 0 && (
-        <ul className="space-y-1.5">
-          {pages.map((page) => (
-            <DraggablePage key={page.id} page={page} />
-          ))}
-        </ul>
-      )}
-    </section>
-  );
-}
-
-interface DraggablePageProps {
-  readonly page: WikiPageTreeNode;
-}
-
-function DraggablePage({ page }: DraggablePageProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const itemRef = useRef<HTMLLIElement>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const itemEl = itemRef.current;
-    if (!handleEl || !itemEl) return;
-
-    const cleanupDraggable = draggable({
-      element: handleEl,
-      getInitialData: () => ({ pageId: page.id }),
-    });
-    const cleanupDrop = dropTargetForElements({
-      element: itemEl,
-      getData: () => ({ pageId: page.id }),
-      onDragEnter: () => setIsDragOver(true),
-      onDragLeave: () => setIsDragOver(false),
-      onDrop: () => setIsDragOver(false),
-    });
-    return () => {
-      cleanupDraggable();
-      cleanupDrop();
-    };
-  }, [page.id]);
-
-  return (
-    <li
-      ref={itemRef}
-      className={`flex items-center gap-2 rounded-md border px-3 py-2 transition ${
-        isDragOver
-          ? "border-primary/60 bg-primary/5"
-          : "border-border/60 bg-background"
-      }`}
-    >
-      <button
-        ref={dragHandleRef}
-        type="button"
-        aria-label="拖曳重排"
-        className="cursor-grab touch-none opacity-30 hover:opacity-80 active:cursor-grabbing"
-      >
-        <GripVertical className="size-4 text-muted-foreground" />
-      </button>
-
-      <div className="flex min-w-0 flex-1 items-center gap-2">
-        <span className="truncate text-sm font-medium text-foreground">{page.title}</span>
-        <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-          {page.slug}
-        </span>
-        {page.children.length > 0 && (
-          <span className="shrink-0 text-[10px] text-muted-foreground/60">
-            {page.children.length} 子頁面
-          </span>
-        )}
-      </div>
-    </li>
-  );
-}
-````
-
-## File: modules/knowledge/interfaces/components/PagesView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
-
-import {
-  createWikiPage,
-  listWikiPagesTree,
-  moveWikiPage,
-  renameWikiPage,
-  type WikiPageTreeNode,
-} from "../../api";
-
-interface WikiPagesViewProps {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-}
-
-interface FlatPageOption {
-  id: string;
-  label: string;
-}
-
-function flattenPages(nodes: WikiPageTreeNode[], depth = 0): FlatPageOption[] {
-  const out: FlatPageOption[] = [];
-  for (const node of nodes) {
-    out.push({ id: node.id, label: `${"  ".repeat(depth)}${node.title}` });
-    out.push(...flattenPages(node.children, depth + 1));
-  }
-  return out;
-}
-
-function PageTreeNode({
-  node,
-  onCreateChild,
-  onRename,
-  onMove,
-}: {
-  readonly node: WikiPageTreeNode;
-  readonly onCreateChild: (pageId: string) => void;
-  readonly onRename: (pageId: string, currentTitle: string) => void;
-  readonly onMove: (pageId: string, currentParentId: string | null) => void;
-}) {
-  return (
-    <li className="space-y-2 rounded-md border border-border/60 bg-background p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium text-foreground">{node.title}</p>
-        <span className="rounded-full border border-border/60 px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
-          {node.slug}
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-2 text-xs">
-        <button
-          type="button"
-          onClick={() => onCreateChild(node.id)}
-          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
-        >
-          建立子頁
-        </button>
-        <button
-          type="button"
-          onClick={() => onRename(node.id, node.title)}
-          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
-        >
-          重新命名
-        </button>
-        <button
-          type="button"
-          onClick={() => onMove(node.id, node.parentPageId)}
-          className="rounded-md border border-border/60 px-2 py-1 text-muted-foreground hover:text-foreground"
-        >
-          移動
-        </button>
-      </div>
-
-      {node.children.length > 0 ? (
-        <ul className="space-y-2 border-l border-border/60 pl-3">
-          {node.children.map((child) => (
-            <PageTreeNode
-              key={child.id}
-              node={child}
-              onCreateChild={onCreateChild}
-              onRename={onRename}
-              onMove={onMove}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
-export function PagesView({ accountId, workspaceId }: WikiPagesViewProps) {
-  const [title, setTitle] = useState("");
-  const [parentPageId, setParentPageId] = useState<string>("");
-  const [tree, setTree] = useState<WikiPageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const pageOptions = useMemo(() => flattenPages(tree), [tree]);
-
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await listWikiPagesTree(accountId, workspaceId);
-      setTree(result);
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Unknown error";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  const handleCreate = useCallback(
-    async (targetParentPageId?: string | null) => {
-      const rawTitle = targetParentPageId ? window.prompt("子頁標題") : title;
-      if (!rawTitle) {
-        return;
-      }
-
-      const finalTitle = rawTitle.trim();
-      if (!finalTitle) {
-        return;
-      }
-      try {
-        await createWikiPage({
-          accountId,
-          workspaceId,
-          title: finalTitle,
-          parentPageId: targetParentPageId ?? (parentPageId || null),
-        });
-
-        setTitle("");
-        setParentPageId("");
-        await refresh();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "create page failed";
-        setError(message);
-      }
-    },
-    [accountId, parentPageId, refresh, title, workspaceId],
-  );
-
-  const handleRename = useCallback(
-    async (pageId: string, currentTitle: string) => {
-      const nextTitle = window.prompt("新的頁面標題", currentTitle);
-      if (!nextTitle || !nextTitle.trim()) {
-        return;
-      }
-      try {
-        await renameWikiPage({ accountId, pageId, title: nextTitle });
-        await refresh();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "rename page failed";
-        setError(message);
-      }
-    },
-    [accountId, refresh],
-  );
-
-  const handleMove = useCallback(
-    async (pageId: string, currentParentId: string | null) => {
-      const raw = window.prompt(
-        "輸入新的 parent page id，留空代表 root",
-        currentParentId ?? "",
-      );
-      if (raw === null) {
-        return;
-      }
-      try {
-        await moveWikiPage({
-          accountId,
-          pageId,
-          targetParentPageId: raw.trim() ? raw.trim() : null,
-        });
-        await refresh();
-      } catch (e) {
-        const message = e instanceof Error ? e.message : "move page failed";
-        setError(message);
-      }
-    },
-    [accountId, refresh],
-  );
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Pages MVP</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">Notion-like Page Tree</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          目前為最小可行版本：建立、重新命名、移動頁面。slug 由 namespace policy 推導，操作會發佈 domain event。
-        </p>
-      </div>
-
-      <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 md:grid-cols-[1fr_auto_auto]">
-        <input
-          type="text"
-          value={title}
-          onChange={(event) => setTitle(event.target.value)}
-          placeholder="輸入頁面標題"
-          className="h-9 rounded-md border border-border/60 bg-background px-3 text-sm outline-none focus:border-primary/40"
-        />
-        <select
-          value={parentPageId}
-          onChange={(event) => setParentPageId(event.target.value)}
-          className="h-9 rounded-md border border-border/60 bg-background px-2 text-sm"
-          aria-label="Select parent page"
-        >
-          <option value="">Root</option>
-          {pageOptions.map((option) => (
-            <option key={option.id} value={option.id}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <button
-          type="button"
-          onClick={() => void handleCreate(null)}
-          className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:opacity-90"
-        >
-          建立頁面
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          載入頁面樹中...
-        </div>
-      ) : error ? (
-        <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>
-      ) : tree.length === 0 ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未建立頁面，先新增第一個 root page。
-        </p>
-      ) : (
-        <ul className="space-y-2">
-          {tree.map((node) => (
-            <PageTreeNode
-              key={node.id}
-              node={node}
-              onCreateChild={(pageId) => void handleCreate(pageId)}
-              onRename={(pageId, currentTitle) => void handleRename(pageId, currentTitle)}
-              onMove={(pageId, currentParentId) => void handleMove(pageId, currentParentId)}
-            />
-          ))}
-        </ul>
-      )}
-    </section>
   );
 }
 ````
@@ -59918,6 +60264,1308 @@ export type { PaginationDto, PagedResult } from "../application/dto/pagination.d
 export type { CommandResult } from "@shared-types";
 ````
 
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceRepository.ts
+ * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  increment,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toInvoice } from "../firebase/invoice.converter";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import {
+  WF_INVOICES_COLLECTION,
+  WF_INVOICE_ITEMS_COLLECTION,
+} from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+export class FirebaseInvoiceRepository implements InvoiceRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get invoiceCollectionRef() {
+    return collection(this.db, WF_INVOICES_COLLECTION);
+  }
+
+  private get itemCollectionRef() {
+    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
+  }
+
+  async create(input: CreateInvoiceInput): Promise<Invoice> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      submittedAtISO: null,
+      approvedAtISO: null,
+      paidAtISO: null,
+      closedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.invoiceCollectionRef, docData);
+
+    return {
+      id: docRef.id,
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async delete(invoiceId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+  }
+
+  async findById(invoiceId: string): Promise<Invoice | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+    if (!snap.exists()) return null;
+    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
+    const snaps = await getDocs(
+      query(
+        this.invoiceCollectionRef,
+        where("workspaceId", "==", workspaceId),
+      ),
+    );
+    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+  }
+
+  async transitionStatus(
+    invoiceId: string,
+    to: InvoiceStatus,
+    nowISO: string,
+  ): Promise<Invoice | null> {
+    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
+    const snap = await getDoc(invoiceRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "submitted") patch.submittedAtISO = nowISO;
+    if (validTo === "approved") patch.approvedAtISO = nowISO;
+    if (validTo === "paid") patch.paidAtISO = nowISO;
+    if (validTo === "closed") patch.closedAtISO = nowISO;
+
+    await updateDoc(invoiceRef, patch);
+    const updated = await getDoc(invoiceRef);
+    if (!updated.exists()) return null;
+    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
+    const nowISO = new Date().toISOString();
+    const docRef = await addDoc(this.itemCollectionRef, {
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // Update invoice totalAmount
+    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
+      totalAmount: increment(input.amount),
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      id: docRef.id,
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
+    if (!snap.exists()) return null;
+    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
+
+    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(amount - oldAmount),
+        updatedAtISO: nowISO,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    const updated = await getDoc(itemRef);
+    if (!updated.exists()) return null;
+    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async removeItem(invoiceItemId: string): Promise<void> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data() as Record<string, unknown>;
+    const amount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+
+    await deleteDoc(itemRef);
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(-amount),
+        updatedAtISO: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
+  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
+    const snaps = await getDocs(
+      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
+    );
+    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseTaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskRepository.ts
+ * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @author workspace-flow
+ * @created 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toTask } from "../firebase/task.converter";
+import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+export class FirebaseTaskRepository implements TaskRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get collectionRef() {
+    return collection(this.db, WF_TASKS_COLLECTION);
+  }
+
+  async create(input: CreateTaskInput): Promise<Task> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId ?? null,
+      dueDateISO: input.dueDateISO ?? null,
+      acceptedAtISO: null,
+      archivedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.collectionRef, docData);
+
+    return {
+      id: docRef.id,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId,
+      dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
+    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
+
+    await updateDoc(taskRef, patch);
+    const updated = await getDoc(taskRef);
+    if (!updated.exists()) return null;
+    return toTask(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async delete(taskId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+  }
+
+  async findById(taskId: string): Promise<Task | null> {
+    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+    if (!snap.exists()) return null;
+    return toTask(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
+    const snaps = await getDocs(
+      query(
+        this.collectionRef,
+        where("workspaceId", "==", workspaceId),
+      ),
+    );
+    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
+    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
+    if (validTo === "archived") patch.archivedAtISO = nowISO;
+
+    await updateDoc(taskRef, patch);
+    const updated = await getDoc(taskRef);
+    if (!updated.exists()) return null;
+    return toTask(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+"use client";
+
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @created 2026-03-27
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { Issue } from "../../domain/entities/Issue";
+import type { Task } from "../../domain/entities/Task";
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import {
+  wfApproveInvoice,
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfAssignTask,
+  wfCloseInvoice,
+  wfCloseIssue,
+  wfCreateInvoice,
+  wfCreateTask,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfOpenIssue,
+  wfPassIssueRetest,
+  wfPassTaskQa,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfStartIssue,
+  wfSubmitInvoice,
+  wfSubmitIssueRetest,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import {
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+
+// ── Status display maps ────────────────────────────────────────────────────────
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
+  }
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type FlowSection = "tasks" | "invoices";
+
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+}
+
+// ── Create Task Dialog ─────────────────────────────────────────────────────────
+
+interface CreateTaskDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  workspaceId: string;
+}
+
+function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDateISO, setDueDateISO] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setAssigneeId("");
+    setDueDateISO("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入任務標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfCreateTask({
+        workspaceId,
+        title: t,
+        description: description.trim() || undefined,
+        assigneeId: assigneeId.trim() || undefined,
+        dueDateISO: dueDateISO || undefined,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立任務</DialogTitle>
+          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">標題 *</Label>
+            <Input
+              id="task-title"
+              placeholder="任務名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-description">描述（選填）</Label>
+            <Textarea
+              id="task-description"
+              placeholder="任務詳情或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
+              <Input
+                id="task-assignee"
+                placeholder="用戶 ID"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">截止日期（選填）</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDateISO}
+                onChange={(e) => setDueDateISO(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Assign Task Dialog ─────────────────────────────────────────────────────────
+
+interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Open Issue Dialog ──────────────────────────────────────────────────────────
+
+interface OpenIssueDialogProps {
+  open: boolean;
+  taskId: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setStage("task");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入議題標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfOpenIssue({
+        taskId,
+        stage,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: currentUserId,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>開啟議題</DialogTitle>
+          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-title">標題 *</Label>
+            <Input
+              id="issue-title"
+              placeholder="問題簡述"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-description">描述（選填）</Label>
+            <Textarea
+              id="issue-description"
+              placeholder="問題詳情、重現步驟…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>發生階段</Label>
+            <div className="flex gap-2">
+              {(["task", "qa", "acceptance"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={stage === s ? "default" : "outline"}
+                  onClick={() => setStage(s)}
+                  disabled={submitting}
+                >
+                  {ISSUE_STAGE_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Issue Row ──────────────────────────────────────────────────────────────────
+
+interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Task Row ───────────────────────────────────────────────────────────────────
+
+interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+
+function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoaded, setIssuesLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIssues = useCallback(async () => {
+    try {
+      const data = await getWorkspaceFlowIssues(task.id);
+      setIssues(data);
+      setIssuesLoaded(true);
+    } catch {
+      // non-fatal
+    }
+  }, [task.id]);
+
+  async function toggleIssues() {
+    if (!issuesExpanded && !issuesLoaded) {
+      await loadIssues();
+    }
+    setIssuesExpanded((v) => !v);
+  }
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderTaskAction() {
+    switch (task.status) {
+      case "draft":
+        return (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
+            指派任務
+          </Button>
+        );
+      case "in_progress":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
+      case "qa":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
+      case "acceptance":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
+      case "accepted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
+      {/* ── Task header ─────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+          {task.assigneeId && (
+            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+          {task.dueDateISO && (
+            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Action row ──────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {renderTaskAction()}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={() => setIssueDialogOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          開議題
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground ml-auto"
+          onClick={toggleIssues}
+        >
+          {issuesExpanded ? (
+            <ChevronDown className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+          )}
+          議題{issuesLoaded ? ` (${issues.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Issues sub-list ─────────────────── */}
+      {issuesExpanded && (
+        <div className="space-y-2 pl-1">
+          {issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
+          ) : (
+            issues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onTransitioned={loadIssues}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Dialogs ─────────────────────────── */}
+      <AssignTaskDialog
+        open={assignDialogOpen}
+        taskId={task.id}
+        onClose={() => setAssignDialogOpen(false)}
+        onDone={onTransitioned}
+      />
+      <OpenIssueDialog
+        open={issueDialogOpen}
+        taskId={task.id}
+        currentUserId={currentUserId}
+        onClose={() => setIssueDialogOpen(false)}
+        onCreated={async () => {
+          await loadIssues();
+          if (!issuesExpanded) setIssuesExpanded(true);
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Invoice Row ────────────────────────────────────────────────────────────────
+
+interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>("tasks");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
+      )}
+
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>發票</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
 ````typescript
 /**
@@ -60160,6 +61808,122 @@ interface WorkspaceWikiTabProps {
  */
 export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
   return <WorkspaceWikiView workspace={workspace} />;
+}
+````
+
+## File: modules/workspace/interfaces/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Favorites",
+  "Recent",
+  "Engineering",
+  "Product",
+  "Design",
+  "Docs",
+  "SOP",
+  "Meeting Notes",
+  "Members",
+  "Projects",
+  "Notes",
+  "Documents",
+  "Assets",
+  "CRM",
+  "Roadmap",
+  "Daily",
+  "Tags",
+  "Files",
+  "Templates",
+  "Wiki",
+  "Schedule",
+  "Audit",
+  "Tasks",
+  "Trash",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
+  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
+  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
+  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
+  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
+  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
+  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
+  "Meeting Notes": {
+    label: "Meeting Notes",
+    prefId: "meeting-notes",
+    group: "spaces",
+    status: "🚧",
+  },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
+  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
+  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
+  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
+  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
+  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
+  Wiki: {
+    label: "Wiki",
+    prefId: "wiki",
+    group: "spaces",
+    status: "🏗️",
+  },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
+  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview", "Recent", "Favorites"],
+  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
+  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
+  library: ["Files", "Tags", "Templates", "Members", "Trash"],
+  modules: ["Daily", "Schedule", "Audit", "Tasks"],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
 }
 ````
 
@@ -61581,621 +63345,6 @@ npm run repomix:markdown
 Keep this directory focused on active customizations. Remove stale references, broken links, and unused compatibility notes when the structure changes.
 ````
 
-## File: app/(shell)/_components/customize-navigation-dialog.tsx
-````typescript
-"use client";
-
-/**
- * Module: customize-navigation-dialog.tsx
- * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
- * Responsibilities: checkbox toggles per item, workspace nav-style radio, show-N-workspaces
- *   preference, all persisted to localStorage.
- * Constraints: UI-only; pure preference storage, no backend call.
- */
-
-import { GripVertical } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
-
-import {
-  attachClosestEdge,
-  combine,
-  draggable,
-  DropIndicator,
-  dropTargetForElements,
-  extractClosestEdge,
-  reorder,
-  type Edge,
-} from "@lib-dragdrop";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-// ── Types ──────────────────────────────────────────────────────────────────
-
-export interface NavPreferences {
-  /** IDs of personal nav items that are pinned */
-  pinnedPersonal: string[];
-  /** IDs of workspace org-management items that are pinned */
-  pinnedWorkspace: string[];
-  /** Whether to show a limited number of workspaces */
-  showLimitedWorkspaces: boolean;
-  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
-  maxWorkspaces: number;
-  /** Explicit display order of workspace items for sidebar and customize dialog */
-  workspaceOrder: string[];
-}
-
-const STORAGE_KEY = "xuanwu:nav-preferences";
-
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Workspace / org-management items ──────────────────────────────────────
-
-const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
-  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
-  { id: "recent", tabKey: "Recent", fallbackLabel: "Recent" },
-  { id: "favorites", tabKey: "Favorites", fallbackLabel: "Favorites" },
-  { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
-  { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
-  { id: "docs", tabKey: "Docs", fallbackLabel: "Docs" },
-  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
-  { id: "meeting-notes", tabKey: "Meeting Notes", fallbackLabel: "Meeting Notes" },
-  { id: "sop", tabKey: "SOP", fallbackLabel: "SOP" },
-  { id: "engineering", tabKey: "Engineering", fallbackLabel: "Engineering" },
-  { id: "product", tabKey: "Product", fallbackLabel: "Product" },
-  { id: "design", tabKey: "Design", fallbackLabel: "Design" },
-  { id: "databases", tabKey: "Databases", fallbackLabel: "Databases" },
-  { id: "projects", tabKey: "Projects", fallbackLabel: "Projects" },
-  { id: "roadmap", tabKey: "Roadmap", fallbackLabel: "Roadmap" },
-  { id: "notes", tabKey: "Notes", fallbackLabel: "Notes" },
-  { id: "documents", tabKey: "Documents", fallbackLabel: "Documents" },
-  { id: "assets", tabKey: "Assets", fallbackLabel: "Assets" },
-  { id: "crm", tabKey: "CRM", fallbackLabel: "CRM" },
-  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
-  { id: "tags", tabKey: "Tags", fallbackLabel: "Tags" },
-  { id: "templates", tabKey: "Templates", fallbackLabel: "Templates" },
-  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
-  { id: "trash", tabKey: "Trash", fallbackLabel: "Trash" },
-  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
-  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
-  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
-];
-
-const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [...WORKSPACE_NAV_ITEMS.map((item) => item.id), ...ORGANIZATION_NAV_ITEMS.map((item) => item.id)],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
-
-function normalizePinnedIds(
-  ids: unknown,
-  validSet: Set<string>,
-  fallback: string[],
-) {
-  if (!Array.isArray(ids)) {
-    return fallback;
-  }
-
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-function normalizeWorkspaceOrder(order: unknown) {
-  const fallback = DEFAULT_PREFS.workspaceOrder;
-  if (!Array.isArray(order)) {
-    return fallback;
-  }
-
-  const validOrder = order
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
-
-  const deduped = Array.from(new Set(validOrder));
-  for (const id of fallback) {
-    if (!deduped.includes(id)) {
-      deduped.push(id);
-    }
-  }
-
-  return deduped;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces: typeof parsed.maxWorkspaces === "number" ? parsed.maxWorkspaces : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
-  }
-}
-
-function writeNavPreferences(prefs: NavPreferences) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
-}
-
-// ── Sub-components ─────────────────────────────────────────────────────────
-
-interface CheckRowProps {
-  id: string;
-  label: string;
-  checked: boolean;
-  onToggle: () => void;
-}
-
-function CheckRow({ id, label, checked, onToggle }: CheckRowProps) {
-  return (
-    <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
-      <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
-      <Checkbox
-        id={`nav-check-${id}`}
-        checked={checked}
-        onCheckedChange={onToggle}
-        className="shrink-0"
-      />
-      <Label
-        htmlFor={`nav-check-${id}`}
-        className="cursor-pointer select-none text-sm font-normal"
-      >
-        {label}
-      </Label>
-    </div>
-  );
-}
-
-interface WorkspaceCheckRowProps {
-  id: string;
-  label: string;
-  checked: boolean;
-  activeDropEdge: Edge | null;
-  isDropTarget: boolean;
-  onToggle: () => void;
-  onDragOverItem: (targetId: string, edge: Edge | null) => void;
-  onDragLeaveItem: (targetId: string) => void;
-  onReorder: (sourceId: string, targetId: string, edge: Edge | null) => void;
-}
-
-function WorkspaceCheckRow({
-  id,
-  label,
-  checked,
-  activeDropEdge,
-  isDropTarget,
-  onToggle,
-  onDragOverItem,
-  onDragLeaveItem,
-  onReorder,
-}: WorkspaceCheckRowProps) {
-  const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const element = ref.current;
-    if (!element) {
-      return;
-    }
-
-    return combine(
-      draggable({
-        element,
-        getInitialData: () => ({
-          type: "workspace-nav-item",
-          itemId: id,
-        }),
-      }),
-      dropTargetForElements({
-        element,
-        canDrop: ({ source }) => {
-          return source.data.type === "workspace-nav-item" && source.data.itemId !== id;
-        },
-        getData: ({ input, element: dropElement }) => {
-          return attachClosestEdge(
-            {
-              type: "workspace-nav-item",
-              itemId: id,
-            },
-            {
-              input,
-              element: dropElement,
-              allowedEdges: ["top", "bottom"],
-            },
-          );
-        },
-        onDragEnter: ({ self }) => {
-          onDragOverItem(id, extractClosestEdge(self.data));
-        },
-        onDrag: ({ self }) => {
-          onDragOverItem(id, extractClosestEdge(self.data));
-        },
-        onDragLeave: () => {
-          onDragLeaveItem(id);
-        },
-        onDrop: ({ source, self }) => {
-          const sourceId = typeof source.data.itemId === "string" ? source.data.itemId : null;
-          if (!sourceId || sourceId === id) {
-            onDragLeaveItem(id);
-            return;
-          }
-          onReorder(sourceId, id, extractClosestEdge(self.data));
-          onDragLeaveItem(id);
-        },
-      }),
-    );
-  }, [id, onDragLeaveItem, onDragOverItem, onReorder]);
-
-  return (
-    <div ref={ref} className="relative">
-      <div className="flex items-center gap-3 rounded-md px-2 py-2 transition hover:bg-muted/50">
-        <GripVertical className="size-4 shrink-0 cursor-grab text-muted-foreground/40 active:cursor-grabbing" />
-        <Checkbox
-          id={`nav-check-${id}`}
-          checked={checked}
-          onCheckedChange={onToggle}
-          className="shrink-0"
-        />
-        <Label
-          htmlFor={`nav-check-${id}`}
-          className="cursor-pointer select-none text-sm font-normal"
-        >
-          {label}
-        </Label>
-      </div>
-
-      {isDropTarget && activeDropEdge && (
-        <div className="pointer-events-none absolute inset-x-2">
-          <DropIndicator edge={activeDropEdge} />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main component ─────────────────────────────────────────────────────────
-
-interface CustomizeNavigationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onPreferencesChange?: (prefs: NavPreferences) => void;
-}
-
-export function CustomizeNavigationDialog({
-  open,
-  onOpenChange,
-  onPreferencesChange,
-}: CustomizeNavigationDialogProps) {
-  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
-  const uiLocale = useMemo<"zh" | "en">(() => {
-    if (typeof navigator === "undefined") {
-      return "zh";
-    }
-    const language = navigator.language?.toLowerCase() ?? "";
-    return language.startsWith("zh") ? "zh" : "en";
-  }, []);
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const localeFile = uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
-    let canceled = false;
-
-    fetch(localeFile)
-      .then((res) => {
-        if (!res.ok) {
-          throw new Error(`Failed to load locale file: ${res.status}`);
-        }
-        return res.json() as Promise<SidebarLocaleBundle>;
-      })
-      .then((json) => {
-        if (!canceled) {
-          setLocaleBundle(json);
-        }
-      })
-      .catch(() => {
-        if (!canceled) {
-          setLocaleBundle(null);
-        }
-      });
-
-    return () => {
-      canceled = true;
-    };
-  }, [uiLocale]);
-
-  const text = DIALOG_TEXT[uiLocale];
-
-  const workspaceItemsById = useMemo(
-    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
-    [],
-  );
-
-  const orderedWorkspaceItems = useMemo(() => {
-    return prefs.workspaceOrder
-      .map((id) => workspaceItemsById[id])
-      .filter((item): item is (typeof WORKSPACE_NAV_ITEMS)[number] => item != null);
-  }, [prefs.workspaceOrder, workspaceItemsById]);
-
-  const getWorkspaceLabel = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) => {
-    return localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
-  };
-
-  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) => {
-    return uiLocale === "zh" ? item.zhLabel : item.enLabel;
-  };
-
-  function updatePrefs(update: Partial<NavPreferences>) {
-    const next = { ...prefs, ...update };
-    writeNavPreferences(next);
-    setPrefs(next);
-    onPreferencesChange?.(next);
-  }
-
-  function togglePersonal(id: string) {
-    const next = prefs.pinnedPersonal.includes(id)
-      ? prefs.pinnedPersonal.filter((x) => x !== id)
-      : [...prefs.pinnedPersonal, id];
-    updatePrefs({ pinnedPersonal: next });
-  }
-
-  function toggleWorkspace(id: string) {
-    const next = prefs.pinnedWorkspace.includes(id)
-      ? prefs.pinnedWorkspace.filter((x) => x !== id)
-      : [...prefs.pinnedWorkspace, id];
-    updatePrefs({ pinnedWorkspace: next });
-  }
-
-  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
-    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
-    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
-
-    if (startIndex === -1 || targetIndex === -1) {
-      return;
-    }
-
-    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
-    const nextOrder = reorder({
-      list: prefs.workspaceOrder,
-      startIndex,
-      finishIndex: destinationIndex,
-    });
-
-    updatePrefs({ workspaceOrder: nextOrder });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{text.title}</DialogTitle>
-          <DialogDescription>{text.description}</DialogDescription>
-        </DialogHeader>
-
-        {/* ── Personal items ─────────────────────────────────────────── */}
-        <div className="mt-2 space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionPersonal}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {PERSONAL_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={text[item.labelKey]}
-                checked={prefs.pinnedPersonal.includes(item.id)}
-                onToggle={() => {
-                  togglePersonal(item.id);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Workspace items ────────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionWorkspace}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {orderedWorkspaceItems.map((item) => (
-              <WorkspaceCheckRow
-                key={item.id}
-                id={item.id}
-                label={getWorkspaceLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                isDropTarget={dragTarget?.id === item.id}
-                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
-                onToggle={() => {
-                  toggleWorkspace(item.id);
-                }}
-                onDragOverItem={(targetId, edge) => {
-                  setDragTarget({ id: targetId, edge });
-                }}
-                onDragLeaveItem={(targetId) => {
-                  setDragTarget((current) => (current?.id === targetId ? null : current));
-                }}
-                onReorder={reorderWorkspaceItems}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Organization items ──────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionOrganization}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {ORGANIZATION_NAV_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={getOrganizationLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                onToggle={() => {
-                  toggleWorkspace(item.id);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Display settings ───────────────────────────────────────── */}
-        <div className="space-y-3">
-          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionDisplay}
-          </p>
-
-          {/* Show limited workspaces */}
-          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="nav-limit-workspaces"
-                checked={prefs.showLimitedWorkspaces}
-                onCheckedChange={(checked) => {
-                  updatePrefs({ showLimitedWorkspaces: Boolean(checked) });
-                }}
-              />
-              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
-                {text.limitedLabel}
-              </Label>
-            </div>
-            {prefs.showLimitedWorkspaces && (
-              <div className="space-y-1.5 pl-7">
-                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
-                  {text.limitedInputLabel}
-                </Label>
-                <Input
-                  id="nav-max-workspaces"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={prefs.maxWorkspaces}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 1) {
-                      updatePrefs({ maxWorkspaces: Math.min(val, 50) });
-                    }
-                  }}
-                  className="w-full"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className="flex justify-end pt-2">
-          <Button
-            type="button"
-            onClick={() => {
-              onOpenChange(false);
-            }}
-          >
-            {text.done}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
 ## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -62275,83 +63424,6 @@ export default function WikiLibrariesPage() {
             <LibrariesView accountId={accountId} workspaceId={workspaceId} />
           </>
         ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/pages-dnd/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { PagesDnDView } from "@/modules/knowledge/api";
-
-export default function WikiPagesDnDPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面樹拖曳</h1>
-        <p className="text-sm text-muted-foreground">
-          使用 @atlaskit/pragmatic-drag-and-drop 拖曳重組頁面層級。
-        </p>
-      </header>
-
-      <PagesDnDView accountId={accountId} workspaceId={workspaceId} />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/wiki/pages/page.tsx
-````typescript
-"use client";
-
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { PagesView } from "@/modules/knowledge/api";
-
-export default function WikiPagesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <p className="text-sm text-muted-foreground">頁面樹 MVP，支援層級建立、重新命名與移動。</p>
-      </header>
-
-      <button
-        type="button"
-        onClick={() => router.push("/wiki")}
-        className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        返回 Account Wiki
-      </button>
-
-      {accountId ? (
-        <PagesView accountId={accountId} workspaceId={workspaceId} />
-      ) : (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
           尚未取得帳號情境，請先登入或切換帳號。
         </p>
@@ -65008,313 +66080,289 @@ Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account ro
 | S8 | `npm run lint` 0 errors；`npm run build` 成功 |
 ````
 
-## File: firestore.indexes.json
-````json
-{
-  "indexes": [
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "recipientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "timestamp",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "recipientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "read",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "timestamp",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "recipientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "read",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceTasks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceQualityChecks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceIssues",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "chunks",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "embedding",
-          "vectorConfig": {
-            "dimension": 4,
-            "flat": {}
-          }
-        }
-      ]
-    },
-    {
-      "collectionGroup": "chunks",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "embedding",
-          "vectorConfig": {
-            "dimension": 4,
-            "flat": {}
-          }
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyEntries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "publishedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyEntries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "publishedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyPosts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "accountId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyPosts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFeedPosts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowTasks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowInvoices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowIssues",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "taskId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowIssues",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "taskId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
-      ]
-    }
-  ],
-  "fieldOverrides": []
-}
+## File: knowledge_mddd_architecture.md
+````markdown
+# Knowledge Platform × MDDD 架構設計完整總結
+
+## 1. 系統整體定位
+
+本系統是一個 **Knowledge Operating System**，以 Firebase Firestore + Cloud Storage 為基礎，自行建構所有知識管理能力，不依賴 Notion 等外部平台。
+
+核心能力：
+- 自建 Block Editor 知識界面（Firebase 驅動，取代 Notion）
+- 知識關聯圖譜（Wiki Graph）
+- AI 知識推理與問答（NotebookLM-like）
+- 文件來源管理與 RAG Ingestion
+- 語意搜尋與檢索
+- 外部文件匯入（Google Docs、Drive，透過原生 HTTP API）
+- 工作區協作、任務流程、排程、稽核、動態
+
+整體分層：
+- Knowledge Layer（自建 Block Editor） → `knowledge` module
+- Knowledge Structure Layer → `wiki` module
+- AI Reasoning Layer → `notebook` + `ai` modules
+- Retrieval Layer → `search` module
+- External Source Ingestion → `source` + `sync` modules
+- Workspace Operations → `workspace-flow` / `workspace-scheduling` / `workspace-audit` / `workspace-feed`
+- Platform Foundation → `identity` / `account` / `organization` / `workspace` / `notification` / `shared`
+
+
+## 2. DDD 分層概念
+
+```
+Domain
+ → Subdomain
+ → Bounded Context
+ → Module
+ → Code
+```
+
+Bounded Context = 模型邊界 + 語言邊界  
+Module = 程式碼邊界  
+一個 Bounded Context 對應一個 module。
+
+
+## 3. Bounded Context / Modules 切分（實際存在）
+
+```
+modules/
+  identity/
+  account/
+  organization/
+  workspace/
+  knowledge/
+  wiki/
+  notebook/
+  source/
+  ai/
+  search/
+  sync/
+  notification/
+  shared/
+  workspace-flow/
+  workspace-scheduling/
+  workspace-audit/
+  workspace-feed/
+```
+
+
+## 4. Domain 類型分類
+
+**Core Domain（核心域）：**
+- `knowledge` — 自建 Block Editor、頁面、版本、審批
+- `wiki` — 知識節點、關聯、Backlink、圖譜
+
+**Supporting Domain（支撐域）：**
+- `notebook` — AI 問答、摘要、洞察
+- `ai` — Ingestion Job、Embedding、Worker Handoff
+- `search` — 語意搜尋、RAG 查詢
+- `source` — 文件上傳、來源登記、Ingestion 交接
+- `sync` — 外部文件匯入 ACL（Google Docs、Drive）
+- `workspace-flow` — Task / Issue / Invoice 流程
+- `workspace-scheduling` — 排程、日曆、容量
+- `workspace-audit` — Append-only 稽核追蹤
+- `workspace-feed` — 工作區動態與互動
+
+**Generic Domain（通用域）：**
+- `identity` — Firebase Auth 封裝
+- `account` — 個人帳戶與偏好
+- `organization` — 多租戶治理
+- `workspace` — 協作容器
+- `notification` — 通知分發
+- `shared` — Shared Kernel（事件、值物件、基礎型別）
+
+
+## 5. Module 標準結構
+
+```
+modules/{context}/
+  api/              ← 對外唯一公開邊界
+  application/
+    use-cases/
+    dto/
+  domain/
+    aggregates/
+    entities/
+    value-objects/
+    repositories/   ← 只放 interface
+    domain-services/
+    factories/
+    events/
+  infrastructure/
+    firebase/       ← repository 實作
+  interfaces/
+    components/
+    queries/
+    _actions/
+    hooks/
+```
+
+
+## 6. Context 依賴關係圖
+
+```
+Identity → Account → Organization → Workspace
+                                       ↓
+                    ┌──────────────────┼──────────────────┐
+                    ↓                  ↓                  ↓
+                Knowledge            Wiki             Notebook
+                    ↓                  ↓                  ↓
+                  Search ◄────────────┘                  AI
+                    ↑                                     ↑
+                  Source ──────────────────────────────── ┘
+                    ↑
+                  Sync（外部文件匯入 ACL）
+
+Workspace Operations:
+Workspace → workspace-flow → workspace-audit
+         → workspace-scheduling
+         → workspace-feed → notification
+```
+
+
+## 7. Knowledge Domain 設計
+
+> **這是系統自建的 Block Editor，以 Firestore 儲存，取代 Notion。**
+
+Aggregate Roots:
+- `KnowledgePage` — 一個可編輯的知識頁面（含 Block 樹）
+- `KnowledgeCollection` — 頁面集合 / 資料庫視圖
+- `Tag`
+
+Entities:
+- `Block` — paragraph / heading / list / code / image / table 等
+- `Version` — 頁面版本快照
+- `Attachment` — 附件（指向 Cloud Storage）
+
+Value Objects:
+- `KnowledgeId`, `Title`, `BlockContent`, `BlockType`
+- `AuthorId`, `CreatedAt`, `VersionNumber`
+
+Factories:
+- `KnowledgeFactory`
+  - `createPage()`
+  - `createBlock()`
+  - `createCollection()`
+
+
+## 8. Wiki Domain 設計
+
+Aggregate Roots:
+- `WikiNode` — 知識圖譜中的一個節點
+- `WikiGraph` — 完整圖譜聚合根
+
+Entities:
+- `WikiLink` — 兩個節點之間的有向邊
+- `Backlink` — 反向連結索引
+
+Value Objects:
+- `NodeId`, `LinkType`, `RelationType`
+
+Factories:
+- `WikiFactory`
+  - `createNode()`
+  - `createLink()`
+
+
+## 9. Notebook Domain 設計
+
+Aggregate Roots:
+- `Notebook` — 一個 AI 工作薄
+- `ChatSession` — 對話紀錄
+- `Insight` — AI 生成摘要 / 洞察
+
+Value Objects:
+- `Prompt`, `Answer`, `Citation`, `TokenUsage`
+
+Factories:
+- `NotebookFactory`
+  - `createNotebook()`
+  - `createChatSession()`
+  - `createInsight()`
+
+
+## 10. Source Domain 設計
+
+Aggregate Roots:
+- `SourceDocument` — 已上傳並登記的原始文件
+- `SourceCollection` — 來源集合
+
+Value Objects:
+- `FileType`, `FileSize`, `StorageUrl`, `Hash`, `MimeType`
+
+
+## 11. AI Domain 設計
+
+Aggregate Roots:
+- `IngestionJob` — 攝入工作（parse → chunk → embed）
+- `Embedding` — 向量化結果
+- `VectorIndex` — 索引記錄
+
+Value Objects:
+- `Model`, `Temperature`, `TokenCount`, `EmbeddingVector`
+
+
+## 12. Search Domain 設計
+
+Aggregate Roots:
+- `SearchQuery`
+- `SearchResult`
+
+Value Objects:
+- `QueryText`, `RelevanceScore`, `Citation`
+
+
+## 13. Sync Domain 設計（Anti-Corruption Layer）
+
+> **職責：把外部平台（Google Docs、Drive 等）的文件匯入轉成 `SourceDocument`。**
+> 本系統自建 Knowledge OS，**不需要 Notion Sync**（本系統就是那個 Notion）。
+> 所有外部平台整合均透過**原生 HTTP 呼叫**（`fetch` / `axios`）直接操作官方 REST API，不引入第三方 SDK。
+
+Aggregate Roots:
+- `ImportJob` — 單次匯入任務
+- `ExternalConnection` — 外部平台連線配置（OAuth token、端點）
+- `ImportMapping` — 外部格式 → 內部 `SourceDocument` 的欄位對應
+
+支援的外部來源：
+- Google Docs（REST API）
+- Google Drive（REST API）
+- 純文字 / Markdown 檔案上傳
+
+
+## 14. 系統最重要架構規則
+
+1. Module 之間不能直接引用對方 domain / application / infrastructure
+2. 只能透過 `modules/{target}/api/` 呼叫
+3. 每個 Bounded Context 有自己的 Ubiquitous Language
+4. 依賴方向：`interfaces → application → domain ← infrastructure`
+5. `domain/` 必須保持 framework-free（無 Firebase SDK、無 React）
+6. 外部系統一定透過 Anti-Corruption Layer（Sync Domain）
+7. **Knowledge 是系統核心域，自建 Block Editor，不依賴 Notion**
+8. Wiki 是 Knowledge Graph
+9. Notebook / AI 是推理層
+10. Search 是檢索層
+11. Source 是文件來源登記層
+12. Sync 是外部文件匯入 ACL 層
+
+
+## 15. 技術棧對應
+
+| 能力 | 技術 |
+|------|------|
+| 知識儲存 | Firebase Firestore |
+| 附件 / 圖片 | Firebase Cloud Storage |
+| 即時同步 | Firestore `onSnapshot` |
+| 權限控制 | Firestore Security Rules |
+| Block Editor UI | Knowledge Domain 自建（React + XState） |
+| AI 問答 | Genkit + Google GenAI |
+| 向量搜尋 | pgvector（via py_fn） |
+| Ingestion Worker | Python（py_fn） |
+| 外部文件匯入 | 原生 fetch（無第三方 SDK） |
+
+
+## 16. 最終整體架構（一句話）
+
+整個系統是一個以 **Firebase 為基礎設施、Knowledge 為自建核心編輯器、Wiki 為知識圖譜、Notebook 與 AI 為推理層、Search 為向量檢索層、Source 為來源登記、Sync 為外部匯入 ACL** 的 Modular Monolith 可演進 MDDD 架構知識平台。
 ````
 
 ## File: modules/account/aggregates.md
@@ -66654,6 +67702,205 @@ export class BlockService {
 export { KNOWLEDGE_UPDATED_EVENT_TYPE };
 ````
 
+## File: modules/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for Content use cases.
+ */
+
+import { z } from "@lib-zod";
+import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
+import { KNOWLEDGE_PAGE_STATUSES } from "../../domain/entities/content-page.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const BlockTypeSchema = z.enum(BLOCK_TYPES);
+
+export const BlockContentSchema = z.object({
+  type: BlockTypeSchema,
+  text: z.string(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type BlockContentDto = z.infer<typeof BlockContentSchema>;
+
+export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  title: z.string().min(1).max(300),
+  parentPageId: z.string().min(1).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
+
+export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  title: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
+
+export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  targetParentPageId: z.string().min(1).nullable(),
+});
+
+export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
+
+export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+});
+
+export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
+
+export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  blockIds: z.array(z.string().min(1)),
+});
+
+export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
+
+export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  content: BlockContentSchema,
+  index: z.number().int().nonnegative().optional(),
+});
+
+export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
+
+export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+  content: BlockContentSchema,
+});
+
+export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
+
+export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+});
+
+export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
+
+export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  label: z.string().max(100).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+
+export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
+
+// ── Approve content page ──────────────────────────────────────────────────────
+
+export const ExtractedTaskSchema = z.object({
+  title: z.string().min(1).max(300),
+  dueDate: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const ExtractedInvoiceSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+  currency: z.string().optional(),
+});
+
+export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  actorId: z.string().min(1),
+  /**
+   * causationId identifies the command (use-case invocation) that caused the
+   * resulting event.  Generated by the Server Action layer if not provided by
+   * the caller, so that command-event causality is correctly traceable.
+   */
+  causationId: z.string().min(1).optional(),
+  /** Optional: external tasks extracted by AI from this page. */
+  extractedTasks: z.array(ExtractedTaskSchema).default([]),
+  /** Optional: external invoices extracted by AI from this page. */
+  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
+  /**
+   * Correlation ID tracing the entire ingestion → approval → materialization flow.
+   * Generated by the caller if not provided (e.g. first action in the flow).
+   */
+  correlationId: z.string().optional(),
+  /** Optional: workspaceId to include in the published event. */
+  workspaceId: z.string().optional(),
+});
+
+export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
+
+// ── Collection DTOs ───────────────────────────────────────────────────────────
+
+export const CollectionColumnTypeSchema = z.enum([
+  "text",
+  "number",
+  "select",
+  "multi-select",
+  "date",
+  "checkbox",
+  "url",
+  "relation",
+]);
+
+export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
+
+export const CollectionColumnInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: CollectionColumnTypeSchema,
+  options: z.array(z.string()).optional(),
+});
+
+export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
+
+export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  columns: z.array(CollectionColumnInputSchema).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
+
+export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  name: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
+
+export const AddPageToCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
+
+export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
+
+export const AddCollectionColumnSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  column: CollectionColumnInputSchema,
+});
+
+export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
+
+export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+});
+
+export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
+````
+
 ## File: modules/knowledge/context-map.md
 ````markdown
 # Context Map — knowledge
@@ -66942,112 +68189,79 @@ export interface CreateKnowledgeVersionInput {
 }
 ````
 
-## File: modules/knowledge/domain/entities/wiki-page.types.ts
+## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: domain/entities
- * Purpose: Wiki-style page entity — lightweight page model used by the
- *          wiki interfaces.
- *          Lives in knowledge because pages are a knowledge-domain concern.
+ * Layer: domain/repositories
+ * Purpose: Repository port interfaces for Content domain persistence.
  */
 
-export type WikiPageStatus = "active" | "archived";
-
-export interface WikiPage {
-  id: string;
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  slug: string;
-  parentPageId: string | null;
-  order: number;
-  status: WikiPageStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-export interface WikiPageTreeNode extends WikiPage {
-  children: WikiPageTreeNode[];
-}
-
-export interface CreateWikiPageInput {
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  parentPageId?: string | null;
-}
-
-export interface RenameWikiPageInput {
-  accountId: string;
-  pageId: string;
-  title: string;
-}
-
-export interface MoveWikiPageInput {
-  accountId: string;
-  pageId: string;
-  targetParentPageId?: string | null;
-}
-````
-
-## File: modules/knowledge/domain/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/barrel
- */
-
-export type {
+import type {
   KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
   CreateKnowledgePageInput,
   RenameKnowledgePageInput,
   MoveKnowledgePageInput,
   ReorderKnowledgePageBlocksInput,
-  ArchiveKnowledgePageInput,
-} from "./entities/content-page.entity";
-
-export { KNOWLEDGE_PAGE_STATUSES } from "./entities/content-page.entity";
-
-export type {
+  ApproveKnowledgePageInput,
+} from "../entities/content-page.entity";
+import type {
   KnowledgeBlock,
   AddKnowledgeBlockInput,
   UpdateKnowledgeBlockInput,
-  DeleteKnowledgeBlockInput,
-} from "./entities/content-block.entity";
-
-export type {
+} from "../entities/content-block.entity";
+import type {
   KnowledgeVersion,
-  KnowledgeVersionBlock,
   CreateKnowledgeVersionInput,
-} from "./entities/content-version.entity";
+} from "../entities/content-version.entity";
+import type {
+  KnowledgeCollection,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../entities/knowledge-collection.entity";
 
-export type { BlockContent, BlockType } from "./value-objects/block-content";
-export {
-  BLOCK_TYPES,
-  blockContentEquals,
-  emptyTextBlockContent,
-} from "./value-objects/block-content";
+export interface KnowledgePageRepository {
+  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
+  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
+  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
+  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
+  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
+  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
+  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
+}
 
-export type {
-  KnowledgeDomainEvent,
-  KnowledgePageCreatedEvent,
-  KnowledgePageRenamedEvent,
-  KnowledgePageMovedEvent,
-  KnowledgePageArchivedEvent,
-  KnowledgeBlockAddedEvent,
-  KnowledgeBlockUpdatedEvent,
-  KnowledgeBlockDeletedEvent,
-  KnowledgeVersionPublishedEvent,
-} from "./events/knowledge.events";
+export interface KnowledgeBlockRepository {
+  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
+  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  delete(accountId: string, blockId: string): Promise<void>;
+  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
+}
 
-export type {
-  KnowledgePageRepository,
-  KnowledgeBlockRepository,
-  KnowledgeVersionRepository,
-} from "./repositories/knowledge.repositories";
+export interface KnowledgeVersionRepository {
+  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
+  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
+}
+
+export interface KnowledgeCollectionRepository {
+  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
+  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
+  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
+  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
+  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
+  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
+}
 ````
 
 ## File: modules/knowledge/index.ts
@@ -67497,174 +68711,6 @@ export class FirebaseKnowledgePageRepository implements KnowledgePageRepository 
 }
 ````
 
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Next.js Server Actions for Content domain mutations.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-  ApproveKnowledgePageUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import {
-  AddKnowledgeBlockUseCase,
-  UpdateKnowledgeBlockUseCase,
-  DeleteKnowledgeBlockUseCase,
-} from "../../application/use-cases/knowledge-block.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockDto,
-  CreateKnowledgeVersionDto,
-  ApproveKnowledgePageDto,
-} from "../../application/dto/knowledge.dto";
-
-function makePageRepo() {
-  return new FirebaseKnowledgePageRepository();
-}
-
-function makeBlockRepo() {
-  return new FirebaseKnowledgeBlockRepository();
-}
-
-export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_RENAME_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_MOVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_ARCHIVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function reorderKnowledgePageBlocks(
-  input: ReorderKnowledgePageBlocksDto,
-): Promise<CommandResult> {
-  try {
-    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_REORDER_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_ADD_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_UPDATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_DELETE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function publishKnowledgeVersion(
-  _input: CreateKnowledgeVersionDto,
-): Promise<CommandResult> {
-  return commandFailureFrom(
-    "CONTENT_VERSION_NOT_IMPLEMENTED",
-    "Version persistence is not yet implemented.",
-  );
-}
-
-export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    // causationId is generated at the action layer (command origin) to ensure
-    // proper command-event causality tracing as described in ADR-001.
-    const causationId = input.causationId ?? generateId();
-    return await new ApproveKnowledgePageUseCase(
-      makePageRepo(),
-      new InMemoryEventStoreRepository(),
-      new NoopEventBusRepository(),
-    ).execute({ ...input, causationId });
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_APPROVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-````
-
 ## File: modules/knowledge/interfaces/index.ts
 ````typescript
 /**
@@ -67791,42 +68837,6 @@ export async function getKnowledgeVersions(
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/WikiPageRepository.ts`
-- `domain/repositories/knowledge.repositories.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/InMemoryKnowledgeRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/index.ts`
-- `infrastructure/repositories/firebase-wiki-page.repository.ts`
-- `infrastructure/repositories/in-memory-wiki-page.repository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
 ## File: modules/knowledge/ubiquitous-language.md
@@ -71916,6 +72926,99 @@ draft ──► submitted ──► finance_review ──► approved ──► 
 | `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
 ````
 
+## File: modules/workspace-flow/api/index.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace-flow/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @created 2026-03-24
+ */
+
+// ── Facade (write + summary-read surface) ────────────────────────────────────
+
+export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+
+// ── Public contracts ──────────────────────────────────────────────────────────
+
+export type {
+  // Entities
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  // Value objects
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  // Summary projections
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+  // CRUD / command DTOs
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
+} from "./contracts";
+
+export {
+  // Value object lists (enum arrays)
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  // Summary projection helpers
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "./contracts";
+
+// ── Read queries (server-side) ────────────────────────────────────────────────
+
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "../interfaces/queries/workspace-flow.queries";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
+
+// ── Event listeners (content → workspace-flow integration) ───────────────────
+
+export {
+  createContentToWorkflowListener,
+} from "./listeners";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "./listeners";
+````
+
 ## File: modules/workspace-flow/application-services.md
 ````markdown
 # workspace-flow — Application Services
@@ -72463,371 +73566,6 @@ export function toTask(id: string, data: Record<string, unknown>): Task {
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };
-}
-````
-
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get invoiceCollectionRef() {
-    return collection(this.db, WF_INVOICES_COLLECTION);
-  }
-
-  private get itemCollectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async create(input: CreateInvoiceInput): Promise<Invoice> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      submittedAtISO: null,
-      approvedAtISO: null,
-      paidAtISO: null,
-      closedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.invoiceCollectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async delete(invoiceId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-  }
-
-  async findById(invoiceId: string): Promise<Invoice | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-    if (!snap.exists()) return null;
-    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const snaps = await getDocs(
-      query(
-        this.invoiceCollectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
-    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-  }
-
-  async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-  ): Promise<Invoice | null> {
-    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
-    const snap = await getDoc(invoiceRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "submitted") patch.submittedAtISO = nowISO;
-    if (validTo === "approved") patch.approvedAtISO = nowISO;
-    if (validTo === "paid") patch.paidAtISO = nowISO;
-    if (validTo === "closed") patch.closedAtISO = nowISO;
-
-    await updateDoc(invoiceRef, patch);
-    const updated = await getDoc(invoiceRef);
-    if (!updated.exists()) return null;
-    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.itemCollectionRef, {
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Update invoice totalAmount
-    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
-      totalAmount: increment(input.amount),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-    const nowISO = new Date().toISOString();
-
-    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(amount - oldAmount),
-        updatedAtISO: nowISO,
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    const updated = await getDoc(itemRef);
-    if (!updated.exists()) return null;
-    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async removeItem(invoiceItemId: string): Promise<void> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return;
-
-    const data = snap.data() as Record<string, unknown>;
-    const amount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-
-    await deleteDoc(itemRef);
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(-amount),
-        updatedAtISO: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-  }
-
-  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseTaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-export class FirebaseTaskRepository implements TaskRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_TASKS_COLLECTION);
-  }
-
-  async create(input: CreateTaskInput): Promise<Task> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId ?? null,
-      dueDateISO: input.dueDateISO ?? null,
-      acceptedAtISO: null,
-      archivedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.collectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId,
-      dueDateISO: input.dueDateISO,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
-    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(taskId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-  }
-
-  async findById(taskId: string): Promise<Task | null> {
-    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-    if (!snap.exists()) return null;
-    return toTask(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
-    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
-    if (validTo === "archived") patch.archivedAtISO = nowISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
 }
 ````
 
@@ -77757,6 +78495,36 @@ export default function WikiPage() {
 }
 ````
 
+## File: app/(shell)/wiki/pages-dnd/page.tsx
+````typescript
+export default function WikiPagesDnDPage() {
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面拖曳</h1>
+        <p className="text-sm text-muted-foreground">此功能已移除，由 Knowledge Domain 的 KnowledgePage 統一管理。</p>
+      </header>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/pages/page.tsx
+````typescript
+export default function WikiPagesPage() {
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <p className="text-sm text-muted-foreground">此功能已移除，由 Knowledge Domain 的 KnowledgePage 統一管理。</p>
+      </header>
+    </div>
+  );
+}
+  );
+}
+````
+
 ## File: app/(shell)/wiki/rag-query/page.tsx
 ````typescript
 "use client";
@@ -79281,485 +80049,378 @@ npm run build
 ```
 ````
 
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `WikiPageRepository` | `listByAccountId()`, `findById()`, `create()`, `update()` |
-````
-
-## File: modules/knowledge/api/index.ts
+## File: modules/knowledge/domain/index.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
+ * Layer: domain/barrel
  */
 
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
 export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ArchiveKnowledgePageInput,
+} from "./entities/content-page.entity";
 
-export { KnowledgeApi } from "./knowledge-api";
+export { KNOWLEDGE_PAGE_STATUSES } from "./entities/content-page.entity";
 
-// ── Wiki page types (owned by knowledge domain) ────────────────────────────
 export type {
-  WikiPage,
-  WikiPageStatus,
-  WikiPageTreeNode,
-  CreateWikiPageInput,
-  RenameWikiPageInput,
-  MoveWikiPageInput,
-} from "../domain/entities/wiki-page.types";
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  DeleteKnowledgeBlockInput,
+} from "./entities/content-block.entity";
 
-// ── Wiki page use-cases ────────────────────────────────────────────────────
-import { FirebaseWikiPageRepository } from "../infrastructure/repositories/firebase-wiki-page.repository";
-import {
-  createWikiPage as _createWikiPage,
-  listWikiPagesTree as _listWikiPagesTree,
-  moveWikiPage as _moveWikiPage,
-  renameWikiPage as _renameWikiPage,
-} from "../application/use-cases/wiki-pages.use-case";
-import type {
-  CreateWikiPageInput,
-  MoveWikiPageInput,
-  RenameWikiPageInput,
-  WikiPage,
-  WikiPageTreeNode,
-} from "../domain/entities/wiki-page.types";
+export type {
+  KnowledgeVersion,
+  KnowledgeVersionBlock,
+  CreateKnowledgeVersionInput,
+} from "./entities/content-version.entity";
 
-const _defaultPageRepository = new FirebaseWikiPageRepository();
-
-export function createWikiPage(input: CreateWikiPageInput): Promise<WikiPage> {
-  return _createWikiPage(input, _defaultPageRepository);
-}
-
-export function listWikiPagesTree(accountId: string, workspaceId?: string): Promise<WikiPageTreeNode[]> {
-  return _listWikiPagesTree(accountId, workspaceId, _defaultPageRepository);
-}
-
-export function moveWikiPage(input: MoveWikiPageInput): Promise<WikiPage> {
-  return _moveWikiPage(input, _defaultPageRepository);
-}
-
-export function renameWikiPage(input: RenameWikiPageInput): Promise<WikiPage> {
-  return _renameWikiPage(input, _defaultPageRepository);
-}
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-export { PagesView } from "../interfaces/components/PagesView";
-export { PagesDnDView } from "../interfaces/components/PagesDnDView";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
+export type { BlockContent, BlockType } from "./value-objects/block-content";
 export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
+  BLOCK_TYPES,
+  blockContentEquals,
+  emptyTextBlockContent,
+} from "./value-objects/block-content";
 
 export type {
-  KnowledgePageApprovedEvent,
   KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+} from "./events/knowledge.events";
+
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
+
+export type {
+  KnowledgePageRepository,
+  KnowledgeBlockRepository,
+  KnowledgeVersionRepository,
+} from "./repositories/knowledge.repositories";
 ````
 
-## File: modules/knowledge/application/use-cases/wiki-pages.use-case.ts
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
 ````typescript
+"use server";
+
 /**
  * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Wiki-style page use-cases — create, rename, move, list tree.
- *          Lightweight direct-function API for the knowledge module's
- *          wiki-facing page management surface.
+ * Layer: interfaces/_actions
+ * Purpose: Next.js Server Actions for Content domain mutations.
  */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
 
 import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  deriveSlugCandidate,
-  isValidSlug,
-} from "@/modules/shared/api";
-
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+  ApproveKnowledgePageUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import {
+  AddKnowledgeBlockUseCase,
+  UpdateKnowledgeBlockUseCase,
+  DeleteKnowledgeBlockUseCase,
+} from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  AddCollectionColumnUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
 import type {
-  CreateWikiPageInput,
-  MoveWikiPageInput,
-  RenameWikiPageInput,
-  WikiPage,
-  WikiPageTreeNode,
-} from "../../domain/entities/wiki-page.types";
-import type { WikiPageRepository } from "../../domain/repositories/WikiPageRepository";
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockDto,
+  CreateKnowledgeVersionDto,
+  ApproveKnowledgePageDto,
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../../application/dto/knowledge.dto";
 
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbp_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+function makePageRepo() {
+  return new FirebaseKnowledgePageRepository();
 }
 
-function normalizeTitle(title: string): string {
-  const trimmed = title.trim();
-  if (!trimmed) {
-    throw new Error("title is required");
-  }
-  return trimmed.slice(0, 120);
+function makeBlockRepo() {
+  return new FirebaseKnowledgeBlockRepository();
 }
 
-function sameParent(a: WikiPage, parentPageId: string | null): boolean {
-  return (a.parentPageId ?? null) === parentPageId;
+function makeCollectionRepo() {
+  return new FirebaseKnowledgeCollectionRepository();
 }
 
-function ensureUniqueSlug(baseSlug: string, siblingPages: WikiPage[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "page-node";
-  const existing = new Set(siblingPages.map((page) => page.slug));
-
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this page title");
-}
-
-function toTree(pages: WikiPage[]): WikiPageTreeNode[] {
-  const nodeById = new Map<string, WikiPageTreeNode>();
-  for (const page of pages) {
-    nodeById.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: WikiPageTreeNode[] = [];
-  for (const page of pages) {
-    const node = nodeById.get(page.id);
-    if (!node) continue;
-
-    if (!page.parentPageId) {
-      roots.push(node);
-      continue;
-    }
-
-    const parent = nodeById.get(page.parentPageId);
-    if (!parent) {
-      roots.push(node);
-      continue;
-    }
-    parent.children.push(node);
-  }
-
-  const sortRecursively = (nodes: WikiPageTreeNode[]) => {
-    nodes.sort((a, b) => {
-      if (a.order !== b.order) {
-        return a.order - b.order;
-      }
-      return a.title.localeCompare(b.title, "zh-Hant");
-    });
-    for (const node of nodes) {
-      sortRecursively(node.children);
-    }
-  };
-
-  sortRecursively(roots);
-  return roots;
-}
-
-function assertNoCycle(pages: WikiPage[], pageId: string, targetParentPageId: string | null): void {
-  if (!targetParentPageId) {
-    return;
-  }
-  if (pageId === targetParentPageId) {
-    throw new Error("page cannot be moved under itself");
-  }
-
-  const byId = new Map(pages.map((page) => [page.id, page]));
-  let current: string | null = targetParentPageId;
-  while (current) {
-    if (current === pageId) {
-      throw new Error("invalid move: target parent is a descendant of page");
-    }
-    current = byId.get(current)?.parentPageId ?? null;
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
 }
 
-export async function listWikiPagesTree(
-  accountId: string,
-  workspaceId: string | undefined,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPageTreeNode[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
-
-  const allPages = await pageRepository.listByAccountId(accountId);
-  const pages = workspaceId ? allPages.filter((page) => page.workspaceId === workspaceId) : allPages;
-  return toTree(pages.filter((page) => page.status === "active"));
 }
 
-export async function createWikiPage(
-  input: CreateWikiPageInput,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPage> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_MOVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
-
-  const title = normalizeTitle(input.title);
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const parentPageId = input.parentPageId ?? null;
-
-  if (parentPageId) {
-    const parent = pages.find((page) => page.id === parentPageId);
-    if (!parent) {
-      throw new Error("parent page not found");
-    }
-  }
-
-  const siblingPages = pages.filter((page) => sameParent(page, parentPageId));
-  const rawSlug = deriveSlugCandidate(title);
-  const slug = ensureUniqueSlug(rawSlug, siblingPages);
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
-
-  const now = new Date();
-  const created: WikiPage = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    title,
-    slug,
-    parentPageId,
-    order,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await pageRepository.create(created);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "knowledge.page_created",
-    aggregateType: "content-page",
-    aggregateId: created.id,
-    payload: {
-      accountId: created.accountId,
-      workspaceId: created.workspaceId,
-      parentPageId: created.parentPageId,
-      slug: created.slug,
-    },
-  });
-
-  return created;
 }
 
-export async function renameWikiPage(
-  input: RenameWikiPageInput,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPage> {
-  const title = normalizeTitle(input.title);
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
-
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, existing.parentPageId));
-  const slug = ensureUniqueSlug(deriveSlugCandidate(title), siblingPages);
-
-  const updated: WikiPage = {
-    ...existing,
-    title,
-    slug,
-    updatedAt: new Date(),
-  };
-
-  await pageRepository.update(updated);
-
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "knowledge.page_renamed",
-    aggregateType: "content-page",
-    aggregateId: updated.id,
-    payload: {
-      accountId: updated.accountId,
-      title: updated.title,
-      slug: updated.slug,
-    },
-  });
-
-  return updated;
 }
 
-export async function moveWikiPage(
-  input: MoveWikiPageInput,
-  pageRepository: WikiPageRepository,
-): Promise<WikiPage> {
-  const existing = await pageRepository.findById(input.accountId, input.pageId);
-  if (!existing) {
-    throw new Error("page not found");
+export async function reorderKnowledgePageBlocks(
+  input: ReorderKnowledgePageBlocksDto,
+): Promise<CommandResult> {
+  try {
+    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_REORDER_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
+}
 
-  const pages = await pageRepository.listByAccountId(input.accountId);
-  const targetParentPageId = input.targetParentPageId ?? null;
-  assertNoCycle(pages, existing.id, targetParentPageId);
-
-  if (targetParentPageId) {
-    const targetParent = pages.find((page) => page.id === targetParentPageId);
-    if (!targetParent) {
-      throw new Error("target parent page not found");
-    }
+export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_ADD_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
   }
+}
 
-  const siblingPages = pages.filter((page) => page.id !== existing.id && sameParent(page, targetParentPageId));
-  const order = siblingPages.reduce((max, page) => Math.max(max, page.order), -1) + 1;
+export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_UPDATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
 
-  const moved: WikiPage = {
-    ...existing,
-    parentPageId: targetParentPageId,
-    order,
-    updatedAt: new Date(),
-  };
+export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_DELETE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
 
-  await pageRepository.update(moved);
+export async function publishKnowledgeVersion(
+  _input: CreateKnowledgeVersionDto,
+): Promise<CommandResult> {
+  return commandFailureFrom(
+    "CONTENT_VERSION_NOT_IMPLEMENTED",
+    "Version persistence is not yet implemented.",
+  );
+}
 
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "knowledge.page_moved",
-    aggregateType: "content-page",
-    aggregateId: moved.id,
-    payload: {
-      accountId: moved.accountId,
-      fromParentPageId: existing.parentPageId,
-      toParentPageId: moved.parentPageId,
-    },
-  });
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    // causationId is generated at the action layer (command origin) to ensure
+    // proper command-event causality tracing as described in ADR-001.
+    const causationId = input.causationId ?? generateId();
+    return await new ApproveKnowledgePageUseCase(
+      makePageRepo(),
+      new InMemoryEventStoreRepository(),
+      new NoopEventBusRepository(),
+    ).execute({ ...input, causationId });
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_APPROVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
 
-  return moved;
+// ── Collection actions ────────────────────────────────────────────────────────
+
+export async function createKnowledgeCollection(
+  input: CreateKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function renameKnowledgeCollection(
+  input: RenameKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addPageToCollection(
+  input: AddPageToCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function removePageFromCollection(
+  input: RemovePageFromCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_REMOVE_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addCollectionColumn(
+  input: AddCollectionColumnDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_COLUMN_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function archiveKnowledgeCollection(
+  input: ArchiveKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
 }
 ````
 
-## File: modules/knowledge/infrastructure/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/barrel
- */
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
 
-export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseContentPageRepository";
-export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
-export { FirebaseWikiPageRepository } from "./repositories/firebase-wiki-page.repository";
-export { InMemoryWikiPageRepository } from "./repositories/in-memory-wiki-page.repository";
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts` — `KnowledgePageRepository`, `KnowledgeBlockRepository`, `KnowledgeVersionRepository`, `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+- `infrastructure/index.ts`
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
 ## File: modules/notebook/AGENT.md
@@ -81266,99 +81927,6 @@ npm run build
 ```
 ````
 
-## File: modules/workspace-flow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace-flow/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-
-export { WorkspaceFlowFacade } from "./workspace-flow.facade";
-
-// ── Public contracts ──────────────────────────────────────────────────────────
-
-export type {
-  // Entities
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  // Value objects
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  // Summary projections
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  // CRUD / command DTOs
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  // Query / pagination DTOs
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  // Command result
-  CommandResult,
-} from "./contracts";
-
-export {
-  // Value object lists (enum arrays)
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  // Summary projection helpers
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "./contracts";
-
-// ── Read queries (server-side) ────────────────────────────────────────────────
-
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "../interfaces/queries/workspace-flow.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────────
-
-export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
-
-// ── Event listeners (content → workspace-flow integration) ───────────────────
-
-export {
-  createContentToWorkflowListener,
-} from "./listeners";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "./listeners";
-````
-
 ## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
@@ -81407,943 +81975,6 @@ export interface KnowledgePageApprovedHandler {
 }
 
 export type { KnowledgePageApprovedEvent };
-````
-
-## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
-````typescript
-"use client";
-
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @created 2026-03-27
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import {
-  wfApproveInvoice,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfAssignTask,
-  wfCloseInvoice,
-  wfCloseIssue,
-  wfCreateInvoice,
-  wfCreateTask,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfOpenIssue,
-  wfPassIssueRetest,
-  wfPassTaskQa,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfStartIssue,
-  wfSubmitInvoice,
-  wfSubmitIssueRetest,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-
-// ── Status display maps ────────────────────────────────────────────────────────
-
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
-
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatCurrency(amount: number): string {
-  try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
-  }
-}
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-}
-
-// ── Create Task Dialog ─────────────────────────────────────────────────────────
-
-interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-
-function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDateISO, setDueDateISO] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setDueDateISO("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入任務標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfCreateTask({
-        workspaceId,
-        title: t,
-        description: description.trim() || undefined,
-        assigneeId: assigneeId.trim() || undefined,
-        dueDateISO: dueDateISO || undefined,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立任務</DialogTitle>
-          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">標題 *</Label>
-            <Input
-              id="task-title"
-              placeholder="任務名稱"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-description">描述（選填）</Label>
-            <Textarea
-              id="task-description"
-              placeholder="任務詳情或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
-              <Input
-                id="task-assignee"
-                placeholder="用戶 ID"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="task-due">截止日期（選填）</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={dueDateISO}
-                onChange={(e) => setDueDateISO(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Assign Task Dialog ─────────────────────────────────────────────────────────
-
-interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-
-function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Open Issue Dialog ──────────────────────────────────────────────────────────
-
-interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<IssueStage>("task");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setStage("task");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入議題標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfOpenIssue({
-        taskId,
-        stage,
-        title: t,
-        description: description.trim() || undefined,
-        createdBy: currentUserId,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>開啟議題</DialogTitle>
-          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-title">標題 *</Label>
-            <Input
-              id="issue-title"
-              placeholder="問題簡述"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-description">描述（選填）</Label>
-            <Textarea
-              id="issue-description"
-              placeholder="問題詳情、重現步驟…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>發生階段</Label>
-            <div className="flex gap-2">
-              {(["task", "qa", "acceptance"] as const).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={stage === s ? "default" : "outline"}
-                  onClick={() => setStage(s)}
-                  disabled={submitting}
-                >
-                  {ISSUE_STAGE_LABEL[s]}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Issue Row ──────────────────────────────────────────────────────────────────
-
-interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-
-function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Task Row ───────────────────────────────────────────────────────────────────
-
-interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
-
-function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoaded, setIssuesLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadIssues = useCallback(async () => {
-    try {
-      const data = await getWorkspaceFlowIssues(task.id);
-      setIssues(data);
-      setIssuesLoaded(true);
-    } catch {
-      // non-fatal
-    }
-  }, [task.id]);
-
-  async function toggleIssues() {
-    if (!issuesExpanded && !issuesLoaded) {
-      await loadIssues();
-    }
-    setIssuesExpanded((v) => !v);
-  }
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderTaskAction() {
-    switch (task.status) {
-      case "draft":
-        return (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
-            指派任務
-          </Button>
-        );
-      case "in_progress":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
-      case "qa":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
-      case "acceptance":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
-      case "accepted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
-      {/* ── Task header ─────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-          )}
-          {task.assigneeId && (
-            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
-          {task.dueDateISO && (
-            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── Action row ──────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {renderTaskAction()}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setIssueDialogOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          開議題
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground ml-auto"
-          onClick={toggleIssues}
-        >
-          {issuesExpanded ? (
-            <ChevronDown className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="mr-1 h-3.5 w-3.5" />
-          )}
-          議題{issuesLoaded ? ` (${issues.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Issues sub-list ─────────────────── */}
-      {issuesExpanded && (
-        <div className="space-y-2 pl-1">
-          {issues.length === 0 ? (
-            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
-          ) : (
-            issues.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                onTransitioned={loadIssues}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ── Dialogs ─────────────────────────── */}
-      <AssignTaskDialog
-        open={assignDialogOpen}
-        taskId={task.id}
-        onClose={() => setAssignDialogOpen(false)}
-        onDone={onTransitioned}
-      />
-      <OpenIssueDialog
-        open={issueDialogOpen}
-        taskId={task.id}
-        currentUserId={currentUserId}
-        onClose={() => setIssueDialogOpen(false)}
-        onCreated={async () => {
-          await loadIssues();
-          if (!issuesExpanded) setIssuesExpanded(true);
-        }}
-      />
-    </div>
-  );
-}
-
-// ── Invoice Row ────────────────────────────────────────────────────────────────
-
-interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
-  );
-}
 ````
 
 ## File: modules/workspace-flow/README.md
@@ -82429,122 +82060,6 @@ import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure �
 npm run lint
 npm run build
 ```
-````
-
-## File: modules/workspace/interfaces/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Favorites",
-  "Recent",
-  "Engineering",
-  "Product",
-  "Design",
-  "Docs",
-  "SOP",
-  "Meeting Notes",
-  "Members",
-  "Projects",
-  "Notes",
-  "Documents",
-  "Assets",
-  "CRM",
-  "Roadmap",
-  "Daily",
-  "Tags",
-  "Files",
-  "Templates",
-  "Wiki",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "Trash",
-] as const;
-
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
-  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
-  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
-  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
-  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
-  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
-  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
-  "Meeting Notes": {
-    label: "Meeting Notes",
-    prefId: "meeting-notes",
-    group: "spaces",
-    status: "🚧",
-  },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
-  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
-  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
-  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
-  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
-  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
-  Wiki: {
-    label: "Wiki",
-    prefId: "wiki",
-    group: "spaces",
-    status: "🏗️",
-  },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
-  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
-};
-
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview", "Recent", "Favorites"],
-  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
-  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
-  library: ["Files", "Tags", "Templates", "Members", "Trash"],
-  modules: ["Daily", "Schedule", "Audit", "Tasks"],
-};
-
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
-
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
-}
-
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
-}
-
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
-}
-
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
-}
-
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
-}
-
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
-}
 ````
 
 ## File: modules/workspace/README.md
@@ -84613,6 +84128,135 @@ export async function action(input) { return useCase.execute(input); }
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+---
+
+## 聚合根：KnowledgeCollection（Database / 資料庫視圖）
+
+### 職責
+
+Notion Database 等效結構。以欄位 Schema（`columns`）定義一組 KnowledgePage 的結構化呈現方式（表格、看板等）。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Collection 主鍵 |
+| `name` | `string` | Collection 名稱 |
+| `description` | `string?` | 描述 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `columns` | `CollectionColumn[]` | 欄位 Schema 陣列 |
+| `pageIds` | `string[]` | 納入此 Collection 的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### CollectionColumn Schema
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 欄位主鍵 |
+| `name` | `string` | 欄位顯示名稱 |
+| `type` | `CollectionColumnType` | `text \| number \| select \| multi-select \| date \| checkbox \| url \| relation` |
+| `options` | `string[]?` | select / multi-select 的選項值 |
+
+### Firestore 路徑
+
+`accounts/{accountId}/knowledgeCollections/{collectionId}`
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: modules/knowledge/infrastructure/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/barrel
+ */
+
+export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseContentPageRepository";
+export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
+````
+
 ## File: modules/notebook/application/use-cases/generate-agent-response.use-case.ts
 ````typescript
 import type {
@@ -85445,6 +85089,87 @@ export default function ShellLayout({ children }: { children: React.ReactNode })
 }
 ````
 
+## File: modules/knowledge/api/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+````
+
 ## File: modules/notebook/infrastructure/genkit/index.ts
 ````typescript
 /**
@@ -85769,316 +85494,6 @@ export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
 export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
 export { LibrariesView } from "../interfaces/components/LibrariesView";
 export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-````
-
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- */
-
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { sendChatMessage } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-function generateMsgId() {
-  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-}
-
-export default function AiChatPage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { workspaces },
-  } = useApp();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const currentWorkspace =
-    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? workspaces[requestedWorkspaceId] ?? null
-      : null;
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
-
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    try {
-      const result = await sendChatMessage({ prompt: text });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      // Defer scroll to allow React to flush the new message into the DOM first.
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <FolderKanban className="size-4 text-primary" />
-                Workspace context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              {currentWorkspace ? (
-                <>
-                  <div>
-                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
-                    <p className="mt-1 text-xs">
-                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs">
-                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/wiki/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`/wiki/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                Wiki 頁面樹 / Pages
-              </Link>
-              <Link href={`/wiki/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -87129,6 +86544,316 @@ export function WorkspaceDetailScreen({
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ */
+
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { sendChatMessage } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+function generateMsgId() {
+  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { workspaces },
+  } = useApp();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const currentWorkspace =
+    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? workspaces[requestedWorkspaceId] ?? null
+      : null;
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    try {
+      const result = await sendChatMessage({ prompt: text });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      // Defer scroll to allow React to flush the new message into the DOM first.
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <FolderKanban className="size-4 text-primary" />
+                Workspace context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              {currentWorkspace ? (
+                <>
+                  <div>
+                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
+                    <p className="mt-1 text-xs">
+                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs">
+                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`/wiki/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`/wiki/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                Wiki 頁面樹 / Pages
+              </Link>
+              <Link href={`/wiki/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
     </div>
   );
 }

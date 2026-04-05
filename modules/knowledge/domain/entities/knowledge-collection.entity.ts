@@ -34,6 +34,11 @@ export interface CollectionColumn {
 // ── Aggregate Root ────────────────────────────────────────────────────────────
 
 export type CollectionStatus = "active" | "archived";
+/**
+ * "database" = Notion-style Database (table / board / gallery with column schema).
+ * "wiki"     = Knowledge Base space — pages carry verification + ownership metadata.
+ */
+export type CollectionSpaceType = "database" | "wiki";
 
 export interface KnowledgeCollection {
   readonly id: string;
@@ -46,6 +51,11 @@ export interface KnowledgeCollection {
   /** IDs of KnowledgePages that belong to this collection */
   readonly pageIds: readonly string[];
   readonly status: CollectionStatus;
+  /**
+   * "database" = structured table/board with column schema (Notion Database).
+   * "wiki"     = Knowledge Base space — enables page verification & ownership.
+   */
+  readonly spaceType: CollectionSpaceType;
   readonly createdByUserId: string;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
@@ -60,6 +70,8 @@ export interface CreateKnowledgeCollectionInput {
   readonly description?: string;
   readonly columns?: readonly Omit<CollectionColumn, "id">[];
   readonly createdByUserId: string;
+  /** Defaults to "database" if omitted. */
+  readonly spaceType?: CollectionSpaceType;
 }
 
 export interface RenameKnowledgeCollectionInput {
