@@ -154,15 +154,15 @@ export default function AiChatPage() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/wiki/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
                 <FileText className="size-3.5" />
                 文件來源 / Documents
               </Link>
-              <Link href={`/wiki/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
                 <BookOpen className="size-3.5" />
-                Wiki 頁面樹 / Pages
+                知識頁面 / Pages
               </Link>
-              <Link href={`/wiki/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
                 <Bot className="size-3.5" />
                 Ask / Cite / RAG Query
               </Link>

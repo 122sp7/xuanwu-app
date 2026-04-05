@@ -130,7 +130,6 @@ function resolveNavSection(pathname: string): NavSection {
   if (pathname.startsWith("/knowledge")) return "knowledge";
   if (pathname.startsWith("/source")) return "source";
   if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/wiki")) return "knowledge";
   if (pathname.startsWith("/ai-chat")) return "ai-chat";
   if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
   if (pathname.startsWith("/organization")) return "organization";

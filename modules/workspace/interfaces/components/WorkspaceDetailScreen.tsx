@@ -347,7 +347,7 @@ export function WorkspaceDetailScreen({
                         <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
                           文件
                         </Link>
                       </Button>
@@ -364,7 +364,7 @@ export function WorkspaceDetailScreen({
                         <Link href={`/workspace/${workspace.id}?tab=Wiki`}>工作區 Wiki</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
                           頁面
                         </Link>
                       </Button>
@@ -381,7 +381,7 @@ export function WorkspaceDetailScreen({
                         <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
                           RAG Query
                         </Link>
                       </Button>

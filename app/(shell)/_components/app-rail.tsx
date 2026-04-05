@@ -249,22 +249,22 @@ export function AppRail({
       isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
     },
     {
-      href: "/wiki/pages",
+      href: "/knowledge/pages",
       label: "知識頁面",
       icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/wiki/pages", currentPathname),
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
     },
     {
-      href: "/wiki/articles",
+      href: "/knowledge-base/articles",
       label: "文章庫",
       icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/wiki/articles", currentPathname),
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
     },
     {
-      href: "/wiki/databases",
+      href: "/knowledge-database/databases",
       label: "資料庫",
       icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/wiki/databases", currentPathname),
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
     },
     {
       href: "/dev-tools",
@@ -279,14 +279,6 @@ export function AppRail({
     () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
     [workspaces],
   );
-
-  function buildWikiWorkspaceHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki")) {
-      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
-      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-    }
-    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
 
   const accountName = activeAccount?.name ?? user?.name ?? "—";
 
@@ -423,66 +415,6 @@ export function AppRail({
                       <Plus className="size-3.5 shrink-0" />
                       <span>建立工作區</span>
                     </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            if (item.href === "/wiki") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="Account Wiki: 切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Account Wiki: 切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onSelectWorkspace(null);
-                        router.push("/wiki");
-                      }}
-                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
-                    >
-                      Account Wiki 首頁
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWikiWorkspaceHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               );
