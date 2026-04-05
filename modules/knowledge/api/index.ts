@@ -101,3 +101,5 @@ export {
   getKnowledgeCollection,
   getKnowledgeCollections,
 } from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";

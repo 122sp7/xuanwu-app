@@ -4,8 +4,8 @@ import Link from "next/link";
 import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { WikiPageTreeNode } from "@/modules/knowledge/api";
-import { listWikiPagesTree } from "@/modules/knowledge/api";
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -25,17 +25,17 @@ const TREE_INDENT_BASE_REM = 0.5;
 /** Additional left-padding (rem) per nesting level. */
 const TREE_INDENT_STEP_REM = 1.25;
 
-function flattenTree(nodes: WikiPageTreeNode[], depth = 0): Array<{ node: WikiPageTreeNode; depth: number }> {
-  const out: Array<{ node: WikiPageTreeNode; depth: number }> = [];
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
+  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
   for (const node of nodes) {
     out.push({ node, depth });
-    out.push(...flattenTree(node.children, depth + 1));
+    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
   }
   return out;
 }
 
 export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
-  const [pages, setPages] = useState<WikiPageTreeNode[]>([]);
+  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
     async function loadPages() {
       setLoadState("loading");
       try {
-        const result = await listWikiPagesTree(workspace.accountId, workspace.id);
+        const result = await getKnowledgePageTree(workspace.accountId);
         if (!cancelled) {
           setPages(result);
           setLoadState("loaded");
@@ -57,7 +57,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
     void loadPages();
 
     return () => { cancelled = true; };
-  }, [workspace.accountId, workspace.id]);
+  }, [workspace.accountId]);
 
   const flatPages = flattenTree(pages);
 
