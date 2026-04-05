@@ -391,16 +391,14 @@ export function WorkspaceDetailScreen({
                     <p className="text-sm font-semibold text-foreground">Supporting layers</p>
                     <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground">
                       <li>
-                        <span className="font-medium text-foreground">Search</span>：用 RAG Query
-                        承接查詢、引用與回答。
+                        <span className="font-medium text-foreground">Search</span>：用 RAG Query 承接查詢、引用與回答。
                       </li>
                       <li>
                         <span className="font-medium text-foreground">Source</span>：Files / Documents
                         是來源接入與 metadata 宿主。
                       </li>
                       <li>
-                        <span className="font-medium text-foreground">Sync</span>：upload → ingest →
-                        index 流程持續把來源同步成可查詢知識。
+                        <span className="font-medium text-foreground">Sync</span>：upload → ingest → index 流程持續把來源同步成可查詢知識。
                       </li>
                     </ul>
                   </div>

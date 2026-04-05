@@ -35,7 +35,7 @@ export default function AiChatPage() {
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const workspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceName = workspaceId ? workspaces[workspaceId]?.name ?? workspaceId : null;
+  const workspaceName = workspaceId ? workspaces?.[workspaceId]?.name ?? workspaceId : null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
