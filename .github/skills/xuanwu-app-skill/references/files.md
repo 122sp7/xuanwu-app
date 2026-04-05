@@ -20324,122 +20324,6 @@ export async function getWorkspaceByIdForAccount(
 }
 ````
 
-## File: modules/workspace/interfaces/workspace-tabs.ts
-````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
-
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
-
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Favorites",
-  "Recent",
-  "Engineering",
-  "Product",
-  "Design",
-  "Docs",
-  "SOP",
-  "Meeting Notes",
-  "Members",
-  "Projects",
-  "Notes",
-  "Documents",
-  "Assets",
-  "CRM",
-  "Roadmap",
-  "Daily",
-  "Tags",
-  "Files",
-  "Templates",
-  "Wiki",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "Trash",
-] as const;
-
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
-  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
-  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
-  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
-  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
-  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
-  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
-  "Meeting Notes": {
-    label: "Meeting Notes",
-    prefId: "meeting-notes",
-    group: "spaces",
-    status: "🚧",
-  },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
-  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
-  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
-  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
-  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
-  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
-  Wiki: {
-    label: "Wiki",
-    prefId: "wiki",
-    group: "spaces",
-    status: "🏗️",
-  },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
-  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
-};
-
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview", "Recent", "Favorites"],
-  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
-  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
-  library: ["Files", "Tags", "Templates", "Members", "Trash"],
-  modules: ["Daily", "Schedule", "Audit", "Tasks"],
-};
-
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
-
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
-}
-
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
-}
-
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
-}
-
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
-}
-
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
-}
-
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
-}
-````
-
 ## File: modules/workspace/ports/.gitkeep
 ````
 
@@ -66384,6 +66268,124 @@ export {
 export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
 ````
 
+## File: modules/workspace/interfaces/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Favorites",
+  "Recent",
+  "Engineering",
+  "Product",
+  "Design",
+  "Docs",
+  "SOP",
+  "Meeting Notes",
+  "Members",
+  "Projects",
+  "Notes",
+  "Documents",
+  "Assets",
+  "CRM",
+  "Roadmap",
+  "Daily",
+  "Tags",
+  "Files",
+  "Templates",
+  "Wiki",
+  "Schedule",
+  "Audit",
+  "Tasks",
+  "Feed",
+  "Trash",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
+  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
+  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
+  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
+  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
+  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
+  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
+  "Meeting Notes": {
+    label: "Meeting Notes",
+    prefId: "meeting-notes",
+    group: "spaces",
+    status: "🚧",
+  },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
+  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
+  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
+  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
+  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
+  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
+  Wiki: {
+    label: "Wiki",
+    prefId: "wiki",
+    group: "spaces",
+    status: "🏗️",
+  },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
+  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
+  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview", "Recent", "Favorites"],
+  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
+  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
+  library: ["Files", "Tags", "Templates", "Members", "Trash"],
+  modules: ["Daily", "Schedule", "Audit", "Tasks", "Feed"],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
+}
+````
+
 ## File: package.json
 ````json
 {
@@ -90817,6 +90819,108 @@ export type {
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `PageRepository`（原 KnowledgePageRepository）
+  - `BlockRepository`（原 KnowledgeBlockRepository）
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+
+## PageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排 Block |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## BlockRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `add()` | 新增 Block |
+| `update()` | 更新 Block 內容 |
+| `delete()` | 刪除 Block |
+| `reorder()` | 重排 Block 順序 |
+| `findById()` | 取得單一 Block |
+| `listByPageId()` | 列出頁面所有 Block |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports
+````
+
+## File: modules/notebook/infrastructure/genkit/index.ts
+````typescript
+/**
+ * @module modules/notebook/infrastructure/genkit
+ */
+
+export {
+  agentClient,
+  createGenkitClient,
+  getConfiguredGenkitModel,
+  type GenkitClientOptions,
+} from "./client";
+export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
+export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
+````
+
+## File: modules/notebook/repositories.md
+````markdown
+# notebook — Repositories
+
+> **Canonical bounded context:** `notebook`
+> **模組路徑:** `modules/notebook/`
+> **Domain Type:** Supporting Subdomain
+
+本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/NotebookRepository.ts`
+
+> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
+> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
+> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+
+## Infrastructure Implementations
+
+- `infrastructure/genkit/GenkitNotebookRepository.ts`
+- `infrastructure/genkit/client.ts`
+- `infrastructure/genkit/index.ts`
+- `infrastructure/index.ts`
+
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
+> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/notebook/repositories.md`
+- `../../../docs/ddd/notebook/aggregates.md`
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -90862,6 +90966,7 @@ import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
 import { WorkspaceFilesTab } from "@/modules/source/api";
 import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
 import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
@@ -91423,6 +91528,14 @@ export function WorkspaceDetailScreen({
         return <WorkspaceAuditTab workspaceId={workspace.id} />;
       case "Tasks":
         return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
       default:
         return renderWorkspacePlaceholderTab(tab);
     }
@@ -91868,108 +91981,6 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
-````
-
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `PageRepository`（原 KnowledgePageRepository）
-  - `BlockRepository`（原 KnowledgeBlockRepository）
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-
-## PageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排 Block |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## BlockRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `add()` | 新增 Block |
-| `update()` | 更新 Block 內容 |
-| `delete()` | 刪除 Block |
-| `reorder()` | 重排 Block 順序 |
-| `findById()` | 取得單一 Block |
-| `listByPageId()` | 列出頁面所有 Block |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports
-````
-
-## File: modules/notebook/infrastructure/genkit/index.ts
-````typescript
-/**
- * @module modules/notebook/infrastructure/genkit
- */
-
-export {
-  agentClient,
-  createGenkitClient,
-  getConfiguredGenkitModel,
-  type GenkitClientOptions,
-} from "./client";
-export { GenkitNotebookRepository } from "./GenkitNotebookRepository";
-export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
-````
-
-## File: modules/notebook/repositories.md
-````markdown
-# notebook — Repositories
-
-> **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
-> **Domain Type:** Supporting Subdomain
-
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotebookRepository.ts`
-
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
-
-## Infrastructure Implementations
-
-- `infrastructure/genkit/GenkitNotebookRepository.ts`
-- `infrastructure/genkit/client.ts`
-- `infrastructure/genkit/index.ts`
-- `infrastructure/index.ts`
-
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
 ````
 
 ## File: AGENTS.md

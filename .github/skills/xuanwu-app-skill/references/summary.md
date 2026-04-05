@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1253 files | 87,816 lines
+1253 files | 87,827 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | Markdown | 561 | 33,983 |
-| TypeScript | 412 | 24,077 |
-| TypeScript (TSX) | 128 | 20,988 |
+| TypeScript | 412 | 24,079 |
+| TypeScript (TSX) | 128 | 20,997 |
 | No Extension | 52 | 135 |
 | Python | 49 | 3,532 |
 | MERMAID | 20 | 1,479 |
@@ -55,7 +55,7 @@ This skill contains the following reference files:
 | Other | 4 | 297 |
 
 **Largest files:**
-- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,049 lines)
+- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,058 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (942 lines)
 - `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (933 lines)
