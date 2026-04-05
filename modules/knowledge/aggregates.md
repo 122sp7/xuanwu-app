@@ -67,6 +67,43 @@
 
 ---
 
+---
+
+## 聚合根：KnowledgeCollection（Database / 資料庫視圖）
+
+### 職責
+
+Notion Database 等效結構。以欄位 Schema（`columns`）定義一組 KnowledgePage 的結構化呈現方式（表格、看板等）。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Collection 主鍵 |
+| `name` | `string` | Collection 名稱 |
+| `description` | `string?` | 描述 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `columns` | `CollectionColumn[]` | 欄位 Schema 陣列 |
+| `pageIds` | `string[]` | 納入此 Collection 的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### CollectionColumn Schema
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 欄位主鍵 |
+| `name` | `string` | 欄位顯示名稱 |
+| `type` | `CollectionColumnType` | `text \| number \| select \| multi-select \| date \| checkbox \| url \| relation` |
+| `options` | `string[]?` | select / multi-select 的選項值 |
+
+### Firestore 路徑
+
+`accounts/{accountId}/knowledgeCollections/{collectionId}`
+
+---
+
 ## Repository Interfaces
 
 | 介面 | 主要方法 |
@@ -74,4 +111,4 @@
 | `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
 | `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `WikiPageRepository` | `listByAccountId()`, `findById()`, `create()`, `update()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |

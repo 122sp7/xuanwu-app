@@ -8,17 +8,14 @@
 
 ## Domain Repository Ports
 
-- `domain/repositories/WikiPageRepository.ts`
-- `domain/repositories/knowledge.repositories.ts`
+- `domain/repositories/knowledge.repositories.ts` — `KnowledgePageRepository`, `KnowledgeBlockRepository`, `KnowledgeVersionRepository`, `KnowledgeCollectionRepository`
 
 ## Infrastructure Implementations
 
-- `infrastructure/InMemoryKnowledgeRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
 - `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
 - `infrastructure/index.ts`
-- `infrastructure/repositories/firebase-wiki-page.repository.ts`
-- `infrastructure/repositories/in-memory-wiki-page.repository.ts`
 
 ## 設計規則
 

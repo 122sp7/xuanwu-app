@@ -48,6 +48,21 @@ export type {
   KnowledgeVersionPublishedEvent,
 } from "./events/knowledge.events";
 
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
+
 export type {
   KnowledgePageRepository,
   KnowledgeBlockRepository,

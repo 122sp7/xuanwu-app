@@ -21,8 +21,17 @@ import {
   UpdateKnowledgeBlockUseCase,
   DeleteKnowledgeBlockUseCase,
 } from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  AddCollectionColumnUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
 import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
 import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
 import { v7 as generateId } from "@lib-uuid";
 import type {
@@ -36,6 +45,12 @@ import type {
   DeleteKnowledgeBlockDto,
   CreateKnowledgeVersionDto,
   ApproveKnowledgePageDto,
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
 } from "../../application/dto/knowledge.dto";
 
 function makePageRepo() {
@@ -44,6 +59,10 @@ function makePageRepo() {
 
 function makeBlockRepo() {
   return new FirebaseKnowledgeBlockRepository();
+}
+
+function makeCollectionRepo() {
+  return new FirebaseKnowledgeCollectionRepository();
 }
 
 export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
@@ -158,6 +177,86 @@ export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Prom
   } catch (err) {
     return commandFailureFrom(
       "CONTENT_PAGE_APPROVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+// ── Collection actions ────────────────────────────────────────────────────────
+
+export async function createKnowledgeCollection(
+  input: CreateKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function renameKnowledgeCollection(
+  input: RenameKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addPageToCollection(
+  input: AddPageToCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function removePageFromCollection(
+  input: RemovePageFromCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_REMOVE_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addCollectionColumn(
+  input: AddCollectionColumnDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_COLUMN_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function archiveKnowledgeCollection(
+  input: ArchiveKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ARCHIVE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }
