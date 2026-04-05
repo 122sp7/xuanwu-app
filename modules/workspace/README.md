@@ -7,7 +7,7 @@
 
 外界互動規則：
 - 外界只能透過 `api/` 公開介面存取此模組
-- `FirebaseWikiBetaWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
+- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴），應使用相對路徑直接 import `FirebaseWorkspaceRepository`
 
 ---
 
@@ -47,7 +47,7 @@
 
 ## 重要架構限制
 
-- `FirebaseWikiBetaWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
+- `FirebaseWikiWorkspaceRepository` 不能 import `@/modules/workspace/api`（循環依賴）
 - 使用相對路徑直接 import `FirebaseWorkspaceRepository` 作為替代
 
 ---
@@ -77,7 +77,7 @@ modules/workspace/
 │       └── WikiContentTree.ts
 ├── infrastructure/       # Firebase 適配器
 │   └── firebase/
-│       └── FirebaseWikiBetaWorkspaceRepository.ts
+│       └── FirebaseWikiWorkspaceRepository.ts
 ├── interfaces/           # UI 元件（WorkspaceDetailScreen、WorkspaceTabs）
 │   ├── components/
 │   │   └── WorkspaceDetailScreen.tsx

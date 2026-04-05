@@ -17,7 +17,7 @@
 ## 最重要邊界規則：循環依賴
 
 ```typescript
-// ❌ 禁止：FirebaseWikiBetaWorkspaceRepository 不能 import workspace/api
+// ❌ 禁止：FirebaseWikiWorkspaceRepository 不能 import workspace/api
 import { workspaceApi } from "@/modules/workspace/api"; // 循環依賴！
 
 // ✅ 正確：使用相對路徑直接 import

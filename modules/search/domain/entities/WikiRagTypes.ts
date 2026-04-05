@@ -2,9 +2,8 @@
  * Module: search
  * Layer: domain/entities
  * Purpose: Wiki-style RAG document and query result types — the
- *          lightweight RAG interface types used by the wiki UI components
- *          during the transitional decomposition period. Lives in retrieval
- *          because RAG query/answer is a retrieval-domain concern.
+ *          lightweight RAG interface types used by the wiki UI components.
+ *          Lives in search because RAG query/answer is a search-domain concern.
  */
 
 export interface WikiCitation {

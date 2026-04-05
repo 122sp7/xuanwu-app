@@ -46,7 +46,7 @@ export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-r
 
 export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
 
-// ── Wiki RAG types (transitional — owned by retrieval domain) ─────────────
+// ── Wiki RAG types (owned by search domain) ────────────────────────────────
 export type {
   WikiCitation,
   WikiParsedDocument,
@@ -54,7 +54,7 @@ export type {
   WikiReindexInput,
 } from "../domain/entities/WikiRagTypes";
 
-// ── Wiki RAG use-cases (transitional) ─────────────────────────────────────
+// ── Wiki RAG use-cases ─────────────────────────────────────────────────────
 import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
 import {
   runWikiRagQuery as _runWikiRagQuery,

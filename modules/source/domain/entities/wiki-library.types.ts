@@ -2,8 +2,8 @@
  * Module: source
  * Layer: domain/entities
  * Purpose: Wiki-style library entity — lightweight structured-data model
- *          used by the wiki interfaces during the transitional period.
- *          Lives in asset because libraries are an asset/database-resource concern.
+ *          used by the wiki interfaces.
+ *          Lives in source because libraries are a source/database-resource concern.
  */
 
 export type WikiLibraryStatus = "active" | "archived";

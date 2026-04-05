@@ -2,9 +2,8 @@
  * Module: knowledge
  * Layer: application/use-cases
  * Purpose: Wiki-style page use-cases — create, rename, move, list tree.
- *          Lightweight direct-function API (no DI class wrappers) kept for
- *          backward compatibility with the wiki interfaces during
- *          transitional decomposition.
+ *          Lightweight direct-function API for the knowledge module's
+ *          wiki-facing page management surface.
  */
 
 import {

@@ -12,7 +12,7 @@
 export type { File, FileStatus } from "../domain/entities/File";
 export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
 
-// --- Wiki library entity types (transitional — owned by source domain) ---
+// --- Wiki library entity types (owned by source domain) -------------------
 
 export type {
   WikiLibrary,
@@ -25,7 +25,7 @@ export type {
   CreateWikiLibraryRowInput,
 } from "../domain/entities/wiki-library.types";
 
-// --- Wiki library use-cases (transitional) --------------------------------
+// --- Wiki library use-cases ------------------------------------------------
 
 import { InMemoryWikiLibraryRepository } from "../infrastructure/repositories/in-memory-wiki-library.repository";
 import {

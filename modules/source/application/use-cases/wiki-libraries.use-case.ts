@@ -2,8 +2,8 @@
  * Module: source
  * Layer: application/use-cases
  * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
- *          Direct-function API kept for backward compatibility with wiki
- *          interfaces during transitional decomposition.
+ *          Direct-function API for the source module's wiki-facing library
+ *          management surface.
  */
 
 import {

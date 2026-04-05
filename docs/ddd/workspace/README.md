@@ -26,7 +26,7 @@
 
 ## 特殊邊界規則
 
-`workspace/infrastructure/firebase/FirebaseWikiBetaWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
+`workspace/infrastructure/firebase/FirebaseWikiWorkspaceRepository.ts` **禁止** import `@/modules/workspace/api`（循環依賴）。此檔案用相對路徑直接 import `FirebaseWorkspaceRepository`。
 
 ## 詳細文件
 

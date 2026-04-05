@@ -2,7 +2,7 @@
  * Module: knowledge
  * Layer: api/barrel
  * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the Content domain.
+ * for the knowledge domain.
  */
 
 export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
@@ -16,7 +16,7 @@ export type {
 
 export { KnowledgeApi } from "./knowledge-api";
 
-// ── Wiki page types (transitional — owned by content domain) ──────────────
+// ── Wiki page types (owned by knowledge domain) ────────────────────────────
 export type {
   WikiPage,
   WikiPageStatus,
@@ -26,7 +26,7 @@ export type {
   MoveWikiPageInput,
 } from "../domain/entities/wiki-page.types";
 
-// ── Wiki page use-cases (transitional) ────────────────────────────────────
+// ── Wiki page use-cases ────────────────────────────────────────────────────
 import { FirebaseWikiPageRepository } from "../infrastructure/repositories/firebase-wiki-page.repository";
 import {
   createWikiPage as _createWikiPage,

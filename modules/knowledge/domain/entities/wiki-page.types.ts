@@ -2,8 +2,8 @@
  * Module: knowledge
  * Layer: domain/entities
  * Purpose: Wiki-style page entity — lightweight page model used by the
- *          wiki interfaces during the transitional decomposition period.
- *          Lives in content because pages are a content-domain concern.
+ *          wiki interfaces.
+ *          Lives in knowledge because pages are a knowledge-domain concern.
  */
 
 export type WikiPageStatus = "active" | "archived";

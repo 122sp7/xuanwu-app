@@ -2,8 +2,8 @@
  * Module: search
  * Layer: application/use-cases
  * Purpose: Wiki-style RAG use-cases — run query, reindex document, list documents.
- *          Thin delegation to the FirebaseWikiContentRepository, kept for
- *          backward compatibility during transitional decomposition.
+ *          Thin delegation to the FirebaseWikiContentRepository for the
+ *          search module's public wiki-facing query surface.
  */
 
 import type { WikiContentRepository } from "../../domain/repositories/WikiContentRepository";
