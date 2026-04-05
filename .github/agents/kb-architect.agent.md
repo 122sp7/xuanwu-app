@@ -3,7 +3,6 @@ name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refine Prompt Contracts
     agent: Prompt Engineer

@@ -3,7 +3,6 @@ name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review AI Ownership
     agent: AI Genkit Lead

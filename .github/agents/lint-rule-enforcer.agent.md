@@ -3,7 +3,6 @@ name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Check Domain Boundary
     agent: Domain Lead

@@ -3,7 +3,6 @@ name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Align Ingestion Inputs
     agent: Doc Ingest Agent

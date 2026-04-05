@@ -4,7 +4,6 @@ description: Diagnose and implement Next.js App Router behavior using runtime ev
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refine Parallel Routes
     agent: Parallel Routes Agent

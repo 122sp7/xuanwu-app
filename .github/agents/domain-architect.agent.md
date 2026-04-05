@@ -3,7 +3,6 @@ name: Domain Architect
 description: IDDD 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合 Vaughn Vernon《Implementing Domain-Driven Design》規範。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: 審查模組邊界
     agent: MDDD Architect

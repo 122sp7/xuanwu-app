@@ -3,7 +3,6 @@ name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Normalize Ingestion
     agent: Doc Ingest Agent

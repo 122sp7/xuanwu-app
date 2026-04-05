@@ -3,7 +3,6 @@ name: Schema Migration Agent
 description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Firestore Model
     agent: Firestore Schema Agent

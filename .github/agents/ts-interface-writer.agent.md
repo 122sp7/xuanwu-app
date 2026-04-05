@@ -3,7 +3,6 @@ name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Domain Ownership
     agent: Domain Lead

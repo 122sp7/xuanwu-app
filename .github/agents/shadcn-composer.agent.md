@@ -4,7 +4,6 @@ description: Compose and refactor UI components using shadcn patterns while pres
 argument-hint: Describe component goal, target route, and required interaction states.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Frontend Ownership
     agent: Frontend Lead

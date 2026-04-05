@@ -21217,7 +21217,6 @@ name: AI Genkit Lead
 description: Lead Genkit-oriented AI orchestration with boundary-safe runtime split across Next.js and py_fn pipelines.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refine Genkit Flow
     agent: Genkit Flow Agent
@@ -21260,7 +21259,6 @@ description: Diagnose and implement Next.js App Router behavior using runtime ev
 argument-hint: Provide route segment, expected behavior, and failing symptoms.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'io.github.vercel/next-devtools-mcp/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refine Parallel Routes
     agent: Parallel Routes Agent
@@ -21312,7 +21310,6 @@ name: Chunk Strategist
 description: Design chunking strategies for retrieval quality, context efficiency, and stable document traceability.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Align Ingestion Inputs
     agent: Doc Ingest Agent
@@ -21350,7 +21347,6 @@ name: Doc Ingest Agent
 description: Implement document ingestion flows from source conversion to normalized artifacts for downstream chunking and indexing.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Design Chunk Strategy
     agent: Chunk Strategist
@@ -21389,7 +21385,6 @@ name: Domain Lead
 description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refactor Module Boundary
     agent: MDDD Architect
@@ -21440,7 +21435,6 @@ name: E2E QA Agent
 description: Execute browser-level verification with Playwright MCP and report reproducible release-readiness evidence.
 tools: ['serena/*', 'context7/*', 'read', 'search', 'todo', 'microsoft/playwright-mcp/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Summarize Quality Risk
     agent: Quality Lead
@@ -21491,7 +21485,6 @@ name: Embedding Writer
 description: Implement embedding generation and vector-write workflows with deterministic metadata and quality checks.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Chunk Inputs
     agent: Chunk Strategist
@@ -21529,7 +21522,6 @@ name: Firestore Schema Agent
 description: Design Firestore document models, indexes, and access patterns aligned with module ownership and query workloads.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Plan Migration
     agent: Schema Migration Agent
@@ -21567,7 +21559,6 @@ name: Frontend Lead
 description: Lead app route composition and component architecture while keeping business logic in modules and APIs.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute', 'shadcn/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Diagnose Route Behavior
     agent: App Router Agent
@@ -21609,7 +21600,6 @@ name: Genkit Flow Agent
 description: Design and refine Genkit flow definitions, boundaries, and contract-safe integration with retrieval and worker pipelines.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review AI Ownership
     agent: AI Genkit Lead
@@ -21652,7 +21642,6 @@ name: KB Architect
 description: Plan and optimize knowledge-base documentation structure, deduplication, and retrieval-friendly formatting.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refine Prompt Contracts
     agent: Prompt Engineer
@@ -21701,7 +21690,6 @@ name: Lint Rule Enforcer
 description: Enforce lint and boundary rules, identify violation causes, and propose minimal fixes without broad refactors.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Check Domain Boundary
     agent: Domain Lead
@@ -21744,7 +21732,6 @@ name: MDDD Architect
 description: Design and refactor modules with strict MDDD ownership, layer direction, and API-only cross-module boundaries.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Confirm Domain Ownership
     agent: Domain Lead
@@ -21800,7 +21787,6 @@ name: Prompt Engineer
 description: Create and refine high-signal prompts, templates, and prompt contracts for repeatable delivery workflows.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Organize Knowledge Base
     agent: KB Architect
@@ -21843,7 +21829,6 @@ name: Quality Lead
 description: Drive risk-first review and QA evidence, including regression detection, coverage gaps, and release recommendation.
 tools: ['serena/*', 'context7/*', 'read', 'search', 'execute', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Enforce Lint Rules
     agent: Lint Rule Enforcer
@@ -21900,7 +21885,6 @@ name: RAG Lead
 description: Lead RAG ingest and retrieval contracts, runtime boundaries, and quality gates for chunk and vector pipelines.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo', 'microsoft/markitdown/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Normalize Ingestion
     agent: Doc Ingest Agent
@@ -21943,7 +21927,6 @@ name: Schema Migration Agent
 description: Plan and implement schema evolution with compatibility windows, data backfill steps, and rollback considerations.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Firestore Model
     agent: Firestore Schema Agent
@@ -21981,7 +21964,6 @@ name: Security Rules Agent
 description: Author and review Firestore and Storage security rules with least-privilege, tenancy isolation, and testable access policies.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Firestore Schema
     agent: Firestore Schema Agent
@@ -22023,7 +22005,6 @@ name: Server Action Writer
 description: Write Next.js server actions that validate input, delegate to use cases, and return stable command results.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Update Contracts
     agent: TS Interface Writer
@@ -22062,7 +22043,6 @@ description: Compose and refactor UI components using shadcn patterns while pres
 argument-hint: Describe component goal, target route, and required interaction states.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'shadcn/*']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Frontend Ownership
     agent: Frontend Lead
@@ -22106,7 +22086,6 @@ name: Test Scenario Writer
 description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Quality Risk
     agent: Quality Lead
@@ -22144,7 +22123,6 @@ name: TS Interface Writer
 description: Write and refactor TypeScript interfaces, DTOs, and contracts with stable naming and compatibility-aware changes.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Domain Ownership
     agent: Domain Lead
@@ -29587,7 +29565,6 @@ name: Domain Architect
 description: IDDD 領域架構審查 Agent，專注確保聚合根、限界上下文、通用語言與事件驅動設計符合 Vaughn Vernon《Implementing Domain-Driven Design》規範。
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: 審查模組邊界
     agent: MDDD Architect

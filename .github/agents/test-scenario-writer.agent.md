@@ -3,7 +3,6 @@ name: Test Scenario Writer
 description: Write risk-based scenario suites for unit, integration, and E2E coverage with clear acceptance criteria.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'todo']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Review Quality Risk
     agent: Quality Lead

@@ -3,7 +3,6 @@ name: Domain Lead
 description: Lead domain ownership decisions and enforce module boundaries, dependency direction, and API-only collaboration.
 tools: ['serena/*', 'context7/*', 'read', 'edit', 'search', 'execute']
 model: 'GPT-5.3-Codex'
-target: vscode
 handoffs:
   - label: Refactor Module Boundary
     agent: MDDD Architect
