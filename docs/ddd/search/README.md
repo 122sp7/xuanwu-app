@@ -19,7 +19,7 @@
 ## 與其他 Bounded Context 協作
 
 - `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `wiki` 提供被檢索的知識主體與結構資訊。
+- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
 
 ## 核心聚合 / 核心概念
 

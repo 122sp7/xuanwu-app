@@ -67,9 +67,9 @@ Not every module has every subdirectory — only what it needs.
 
 Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
 
-`account`, `agent`, `asset`, `content`, `identity`, `knowledge`, `knowledge-graph`, `notification`, `organization`, `retrieval`, `shared`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
 
-> **Removed modules:** `wiki` (decomposed into `content`, `asset`, `workspace`, `retrieval`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `ai`, `audit`, `collaboration`, `file`, `graph`, `search`, `storage`.
+> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
 
 ## Package System (21 Packages)
 
@@ -201,12 +201,12 @@ Domain events within a module follow the discriminated-union pattern: `type: "mo
 Inside a module, files use **relative imports** (not the module's own barrel export):
 
 ```typescript
-// ✅ Inside modules/knowledge/application/use-cases/wiki-pages.use-case.ts
-import { WikiPage } from "../../domain/entities/wiki-page.types";
-import type { IWikiPageRepository } from "../../domain/repositories/WikiPageRepository";
+// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+import { KnowledgePage } from "../../domain/entities/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
 
 // ❌ Do NOT self-import via the barrel
-import { WikiPage } from "@/modules/knowledge";
+import { KnowledgePage } from "@/modules/knowledge";
 ```
 
 ### Cross-Module Imports
