@@ -44,6 +44,512 @@
 ../.github/skills
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  FirebaseIdentityRepository,
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+} from "@/modules/identity/api";
+import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => {
+      const identityRepo = new FirebaseIdentityRepository();
+      const accountRepo = new FirebaseAccountRepository();
+      return {
+        signInUseCase: new SignInUseCase(identityRepo),
+        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
+        registerUseCase: new RegisterUseCase(identityRepo),
+        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
+        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
+      };
+    }, []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
+## File: app/(shell)/_components/account-switcher.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import { useApp } from "@/app/providers/app-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+}
+
+export function AccountSwitcher({
+  personalAccount,
+  organizationAccounts,
+  activeAccountId,
+  onSelectPersonal,
+  onSelectOrganization,
+  onOrganizationCreated,
+}: AccountSwitcherProps) {
+  const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
+
+  function resetCreateOrganizationDialog() {
+    setOrganizationName("");
+    setOrganizationError(null);
+    setIsCreatingOrganization(false);
+  }
+
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!personalAccount) {
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+
+    const nextOrganizationName = organizationName.trim();
+    if (!nextOrganizationName) {
+      setOrganizationError("請輸入組織名稱。");
+      return;
+    }
+
+    setIsCreatingOrganization(true);
+    setOrganizationError(null);
+
+    const result = await createOrganization({
+      organizationName: nextOrganizationName,
+      ownerId: personalAccount.id,
+      ownerName: personalAccount.name,
+      ownerEmail: personalAccount.email,
+    });
+
+    if (!result.success) {
+      setOrganizationError(result.error.message);
+      setIsCreatingOrganization(false);
+      return;
+    }
+
+    onOrganizationCreated?.({
+      id: result.aggregateId,
+      name: nextOrganizationName,
+      accountType: "organization",
+      ownerId: personalAccount.id,
+    });
+
+    resetCreateOrganizationDialog();
+    setIsCreateOrganizationOpen(false);
+    router.push("/organization");
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          帳號情境
+        </p>
+        <select
+          aria-label="切換帳號情境"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
+
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
+
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}（組織）
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
+          </p>
+        )}
+      </div>
+
+      <Dialog
+        open={isCreateOrganizationOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrganizationOpen(open);
+          if (!open) {
+            resetCreateOrganizationDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-organization-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="create-organization-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateOrganization}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => {
+                  setOrganizationName(event.target.value);
+                  if (organizationError) {
+                    setOrganizationError(null);
+                  }
+                }}
+                placeholder="例如：Gig Team"
+                autoFocus
+                disabled={isCreatingOrganization}
+                maxLength={80}
+              />
+              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateOrganizationDialog();
+                  setIsCreateOrganizationOpen(false);
+                }}
+                disabled={isCreatingOrganization}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
+                {isCreatingOrganization ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+````
+
 ## File: app/(shell)/_components/header-controls.tsx
 ````typescript
 "use client";
@@ -288,6 +794,60 @@ export function NavUser({ name, email, onSignOut }: NavUserProps) {
       </Button>
     </div>
   );
+}
+````
+
+## File: app/(shell)/_components/shell-guard.tsx
+````typescript
+"use client";
+
+/**
+ * shell-guard.tsx
+ * Client-side auth guard for the authenticated shell.
+ *
+ * Responsibilities:
+ *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
+ *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
+ *  3. Show a loading state while auth is initializing
+ */
+
+import { useEffect, type ReactNode } from "react";
+import { useRouter } from "next/navigation";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { useTokenRefreshListener } from "@/modules/identity/api";
+
+interface ShellGuardProps {
+  children: ReactNode;
+}
+
+export function ShellGuard({ children }: ShellGuardProps) {
+  const { state } = useAuth();
+  const { user, status } = state;
+  const router = useRouter();
+
+  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
+  useTokenRefreshListener(user?.id ?? null);
+
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.replace("/");
+    }
+  }, [status, router]);
+
+  if (status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    return null;
+  }
+
+  return <>{children}</>;
 }
 ````
 
@@ -1283,146 +1843,611 @@ export function formatDateTime(value: string | Date | null | undefined): string 
 }
 ````
 
-## File: app/(shell)/organization/page.tsx
+## File: app/(shell)/organization/audit/page.tsx
 ````typescript
 "use client";
 
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { Button } from "@ui-shadcn/ui/button";
+import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { formatDateTime, isOrganizationAccount } from "../_utils";
 
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
+const MAX_DISPLAYED_AUDIT_LOGS = 50;
 
-export default function OrganizationPage() {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
-
-  const orgList = Object.values(accounts);
+export default function OrganizationAuditPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/organization/members");
-  }
+  const [workspaces, setWorkspaces] = useState<
+    Awaited<ReturnType<typeof getWorkspacesForAccount>>
+  >([]);
+  const [auditLogs, setAuditLogs] = useState<
+    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
-  function handleSwitchToPersonal() {
-    if (user) dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    let cancelled = false;
+    const organizationId = activeOrganizationId;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const nextWorkspaces = await getWorkspacesForAccount(organizationId);
+        const workspaceIds = nextWorkspaces.map((w) => w.id);
+        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
+        if (!cancelled) {
+          setWorkspaces(nextWorkspaces);
+          setAuditLogs(logs);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setWorkspaces([]);
+          setAuditLogs([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  const workspaceNameById = useMemo(
+    () => new Map(workspaces.map((w) => [w.id, w.name])),
+    [workspaces],
+  );
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Organization Governance</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Switch between your personal account and your organizations.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
       </div>
 
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
-            </Button>
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Audit</CardTitle>
+          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
           )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && auditLogs.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
+          )}
+          {loadState === "loaded" &&
+            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
+              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{log.action}</p>
+                  <Badge variant="outline">{log.source}</Badge>
+                  <Badge variant="secondary">
+                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(log.occurredAtISO)}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>稽核時間軸</CardTitle>
+          <CardDescription>
+            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AuditStream logs={auditLogs} height={500} />
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/daily/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceFeedAccountView } from "@/modules/workspace-feed/api";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationDailyPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="mx-auto max-w-4xl space-y-6">
+      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold">Account Workspace Feed</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
+            </p>
+          </div>
+          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+            live
+          </div>
         </div>
-      </section>
+      </header>
 
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
+      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
+    </section>
+  );
+}
+````
 
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+## File: app/(shell)/organization/members/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { getOrganizationMembers } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationMembersPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationMembers(organizationId);
+        if (!cancelled) {
+          setMembers(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>組織成員清單與目前角色。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && members.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
+          )}
+          {loadState === "loaded" &&
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
               >
                 <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
                 </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="secondary">{member.presence}</Badge>
+                </div>
+              </div>
             ))}
-          </ul>
-        )}
-      </section>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
 
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          選擇左側側邊欄的項目以管理組織設定。
+## File: app/(shell)/organization/permissions/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { getOrgPolicies } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationPermissionsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(organizationId);
+        if (!cancelled) {
+          setPolicies(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setPolicies([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">權限</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Permissions</CardTitle>
+          <CardDescription>組織層級政策規則與 scope。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && policies.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
+          )}
+          {loadState === "loaded" &&
+            policies.map((policy) => (
+              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{policy.name}</p>
+                  <Badge variant="outline">{policy.scope}</Badge>
+                  <Badge variant={policy.isActive ? "default" : "secondary"}>
+                    {policy.isActive ? "active" : "inactive"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/schedule/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { AccountSchedulingView } from "@/modules/workspace-scheduling/api";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationSchedulePage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+
+  const activeOrganizationId = isOrganizationAccount(activeAccount)
+    ? activeAccount.id
+    : null;
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <section className="flex flex-col gap-6 px-4 py-6">
+      <header className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
+          Account Scheduling
         </p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+          工作需求總覽
+        </h1>
+      </header>
+
+      <AccountSchedulingView
+        accountId={activeOrganizationId}
+        currentUserId={activeOrganizationId}
+      />
+    </section>
+  );
+}
+````
+
+## File: app/(shell)/organization/teams/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { getOrganizationTeams } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationTeamsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(organizationId);
+        if (!cancelled) {
+          setTeams(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setTeams([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
+        <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>組織團隊與成員關聯。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && teams.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          )}
+          {loadState === "loaded" &&
+            teams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <Badge variant="outline">{team.type}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Members: {team.memberIds.length}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/workspace/[workspaceId]/page.tsx
+````typescript
+"use client";
+
+import { useParams, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceDetailScreen } from "@/modules/workspace/api";
+
+export default function WorkspaceDetailPage() {
+  const params = useParams<{ workspaceId: string }>();
+  const searchParams = useSearchParams();
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
+  const initialTab = searchParams.get("tab") ?? undefined;
+  const {
+    state: { activeAccount, accountsHydrated },
+  } = useApp();
+
+  return (
+    <WorkspaceDetailScreen
+      workspaceId={workspaceId}
+      accountId={activeAccount?.id}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+    />
+  );
+}
+````
+
+## File: app/(shell)/workspace/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceHubScreen } from "@/modules/workspace/api";
+
+function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
+  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
+}
+
+function getActiveAccountType(activeAccount: ActiveAccount | null) {
+  return isOrganizationAccount(activeAccount) ? "organization" : "user";
+}
+
+export default function WorkspacePage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount, accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const context = searchParams.get("context");
+
+  return (
+    <div className="space-y-4">
+      {context === "unavailable" && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          目前帳戶無法存取該工作區，已返回工作區清單。
+        </div>
       )}
+
+      <WorkspaceHubScreen
+        accountId={activeAccount?.id}
+        accountName={activeAccount?.name}
+        accountType={getActiveAccountType(activeAccount)}
+        accountsHydrated={accountsHydrated}
+        isBootstrapSeeded={bootstrapPhase === "seeded"}
+      />
     </div>
   );
 }
@@ -2837,6 +3862,52 @@ If a question is broad, inspect summaries and README indexes before opening deta
 If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
 ````
 
+## File: modules/account/api/index.ts
+````typescript
+/**
+ * account 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
+ */
+
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+
+export type {
+  AccountEntity,
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+} from "../domain/entities/Account";
+
+export type {
+  AccountPolicy,
+  PolicyRule,
+  PolicyEffect,
+} from "../domain/entities/AccountPolicy";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
+export {
+  getUserProfile,
+  subscribeToUserProfile,
+  subscribeToAccountsForUser,
+  getAccountRole,
+  subscribeToAccountRoles,
+  getAccountPolicies,
+  getActiveAccountPolicies,
+} from "../interfaces/queries/account.queries";
+
+// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
+
+export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
+
+// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
+
+export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
+````
+
 ## File: modules/account/application/use-cases/account-policy.use-cases.ts
 ````typescript
 /**
@@ -4169,6 +5240,69 @@ export function subscribeToAccountsForUser(
 
 ````
 
+## File: modules/identity/api/index.ts
+````typescript
+/**
+ * identity 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
+ */
+
+import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
+
+// ─── DTO ──────────────────────────────────────────────────────────────────────
+
+/** 發送 Token Refresh 訊號所需的輸入參數。 */
+export interface EmitTokenRefreshSignalInput {
+  accountId: string;
+  reason: TokenRefreshReason;
+  traceId?: string;
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const identityApi = {
+  /**
+   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
+   * 應在角色或政策變更後呼叫。
+   */
+  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
+  },
+} as const;
+
+// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
+
+export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
+export {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "../application/use-cases/identity.use-cases";
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  signIn,
+  signInAnonymously,
+  register,
+  sendPasswordResetEmail,
+  signOut,
+} from "../interfaces/_actions/identity.actions";
+
+// ─── Client-only hook (import only from "use client" files) ──────────────────
+
+export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
+````
+
 ## File: modules/identity/application/identity-error-message.ts
 ````typescript
 /**
@@ -5139,6 +6273,104 @@ export async function getNotificationsForRecipient(
 ## File: modules/notification/ports/.gitkeep
 ````
 
+````
+
+## File: modules/organization/api/index.ts
+````typescript
+/**
+ * organization 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
+ */
+
+import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
+
+// ─── DTOs ─────────────────────────────────────────────────────────────────────
+
+/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
+export interface OrganizationMemberDTO {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
+  presence: "active" | "away" | "offline";
+  isExternal?: boolean;
+}
+
+/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
+export interface OrganizationTeamDTO {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const organizationApi = {
+  /**
+   * 取得指定組織的所有成員清單。
+   */
+  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
+    const members = await orgRepo.getMembers(organizationId);
+    return members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      presence: m.presence,
+      isExternal: m.isExternal,
+    }));
+  },
+
+  /**
+   * 取得指定組織的所有團隊清單。
+   */
+  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
+    const teams = await orgRepo.getTeams(organizationId);
+    return teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      memberIds: t.memberIds,
+    }));
+  },
+} as const;
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "../interfaces/_actions/organization.actions";
+
+// ─── Query Functions ──────────────────────────────────────────────────────────
+
+export {
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  getOrganizationTeams,
+  subscribeToOrganizationTeams,
+  getPartnerInvites,
+  getOrgPolicies,
+} from "../interfaces/queries/organization.queries";
 ````
 
 ## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
@@ -6874,6 +8106,41 @@ export class NoopEventBusRepository implements IEventBusRepository {
 }
 ````
 
+## File: modules/workspace-audit/api/index.ts
+````typescript
+/**
+ * Module: workspace-audit
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Audit domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
+
+export type {
+  AuditLog,
+  AuditAction,
+  AuditSeverity,
+  ChangeRecord,
+} from "../domain/schema";
+
+export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
+
+// ─── Query functions ──────────────────────────────────────────────────────────
+
+export {
+  getOrganizationAuditLogs,
+  getWorkspaceAuditLogs,
+} from "../interfaces/queries/audit.queries";
+
+export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
+export { AuditStream } from "../interfaces/components/AuditStream";
+````
+
 ## File: modules/workspace-audit/application/.gitkeep
 ````
 
@@ -7469,6 +8736,21 @@ export async function getOrganizationAuditLogs(
 ## File: modules/workspace-audit/ports/.gitkeep
 ````
 
+````
+
+## File: modules/workspace-feed/api/index.ts
+````typescript
+export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
+export type {
+  CreateWorkspaceFeedPostParams,
+  ReplyWorkspaceFeedPostParams,
+  RepostWorkspaceFeedPostParams,
+  WorkspaceFeedInteractionParams,
+} from "./workspace-feed.facade";
+
+// ── UI components (cross-module public) ──────────────────────────────────────
+export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
+export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
 ````
 
 ## File: modules/workspace-feed/api/workspace-feed.facade.ts
@@ -13107,6 +14389,31 @@ flowchart TB
   api_rule -. governs .-> invoice_draft
 ````
 
+## File: modules/workspace-scheduling/api/index.ts
+````typescript
+/**
+ * Module: workspace-scheduling
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer for the WorkDemand API contract.
+ *
+ * Other modules and UI layers import schemas and types from here.
+ * Direct imports into domain/, application/, or infrastructure/ are forbidden.
+ */
+
+export {
+  CreateDemandSchema,
+  AssignMemberSchema,
+} from "./schema";
+
+export type {
+  CreateDemandInput,
+  AssignMemberInput,
+} from "./schema";
+
+export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
+export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";
+````
+
 ## File: modules/workspace-scheduling/api/schema.ts
 ````typescript
 /**
@@ -14392,6 +15699,228 @@ export async function getAccountDemands(accountId: string): Promise<WorkDemand[]
 }
 ````
 
+## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
+````typescript
+"use client";
+
+/**
+ * Module: workspace-scheduling
+ * Layer: interfaces
+ * Purpose: Workspace (tenant) view — submit demands, view own schedule.
+ *
+ * Occam's Razor: calendar + quick-capture form only.
+ * No complex state machines — useState + server actions.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Plus } from "lucide-react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import type { WorkDemand } from "../domain/types";
+import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
+import { submitWorkDemand } from "./_actions/work-demand.actions";
+import { getWorkspaceDemands } from "./queries/work-demand.queries";
+import { CalendarWidget } from "./components/CalendarWidget";
+import { CreateDemandForm } from "./components/CreateDemandForm";
+import type { CreateDemandFormValues } from "./components/CreateDemandForm";
+
+// ── Status badge variant ──────────────────────────────────────────────────────
+
+const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
+  draft: "outline",
+  open: "secondary",
+  in_progress: "default",
+  completed: "default",
+};
+
+const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
+  low: "text-muted-foreground",
+  medium: "text-amber-600",
+  high: "text-red-600",
+};
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+interface WorkspaceSchedulingTabProps {
+  readonly workspace: WorkspaceEntity;
+  /** Account ID for scoping demands. */
+  readonly accountId: string;
+  /** ID of the current user (requesterId). */
+  readonly currentUserId: string;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function WorkspaceSchedulingTab({
+  workspace,
+  accountId,
+  currentUserId,
+}: WorkspaceSchedulingTabProps) {
+  const [demands, setDemands] = useState<WorkDemand[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [formOpen, setFormOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadDemands = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspaceDemands(workspace.id);
+      setDemands(data);
+      setLoadState("loaded");
+    } catch {
+      setLoadState("error");
+    }
+  }, [workspace.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      if (!cancelled) await loadDemands();
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDemands]);
+
+  function handleDayClick(date: Date) {
+    setSelectedDate(date);
+    setFormOpen(true);
+  }
+
+  function handleNewDemand() {
+    setSelectedDate(undefined);
+    setFormOpen(true);
+  }
+
+  async function handleSubmit(values: CreateDemandFormValues) {
+    setActionError(null);
+    const result = await submitWorkDemand({
+      workspaceId: workspace.id,
+      accountId,
+      requesterId: currentUserId,
+      title: values.title,
+      description: values.description,
+      priority: values.priority,
+      scheduledAt: values.scheduledAt,
+    });
+    if (!result.success) {
+      throw new Error(result.error.message);
+    }
+    await loadDemands();
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
+          <p className="text-sm text-muted-foreground">
+            點擊日期或「新增需求」快速建立工作需求。
+          </p>
+        </div>
+        <Button size="sm" onClick={handleNewDemand}>
+          <Plus className="mr-1.5 h-4 w-4" />
+          新增需求
+        </Button>
+      </div>
+
+      {actionError && (
+        <p role="alert" className="text-sm text-destructive">
+          {actionError}
+        </p>
+      )}
+
+      {/* ── Calendar ───────────────────────────────────────────────────── */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
+          <CardDescription className="text-xs">
+            點擊日期快速排程新需求
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loadState === "loading" ? (
+            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
+              載入中…
+            </div>
+          ) : (
+            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── Demand list ────────────────────────────────────────────────── */}
+      <div className="space-y-2">
+        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+          需求列表 ({demands.length})
+        </h3>
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
+        )}
+
+        {loadState === "loaded" && demands.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
+          </div>
+        )}
+
+        {demands.map((demand) => (
+          <div
+            key={demand.id}
+            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium text-sm">{demand.title}</p>
+              {demand.description && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {demand.description}
+                </p>
+              )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                排程日期：{demand.scheduledAt}
+              </p>
+            </div>
+            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
+              <Badge variant={STATUS_VARIANT[demand.status]}>
+                {DEMAND_STATUS_LABELS[demand.status]}
+              </Badge>
+              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
+                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
+              </span>
+              {demand.assignedUserId && (
+                <span className="text-xs text-muted-foreground">已指派</span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Create form dialog ─────────────────────────────────────────── */}
+      <CreateDemandForm
+        open={formOpen}
+        initialDate={selectedDate}
+        onClose={() => setFormOpen(false)}
+        onSubmit={handleSubmit}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
 ````typescript
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
@@ -15334,6 +16863,233 @@ export async function createWorkspaceLocation(
   } catch (err) {
     return commandFailureFrom("WORKSPACE_LOCATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceDailyTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+
+interface WorkspaceDailyTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
+  return (
+    <WorkspaceFeedWorkspaceView
+      accountId={workspace.accountId}
+      workspaceId={workspace.id}
+      workspaceName={workspace.name}
+    />
+  );
+}
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceMembersTab.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { getWorkspaceMembers } from "../queries/workspace-member.queries";
+
+function getMemberInitials(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "??";
+  }
+
+  const tokens = trimmed.split(/\s+/).slice(0, 2);
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number) {
+  return [
+    memberId,
+    channel.source,
+    channel.label,
+    channel.role ?? "",
+    channel.protocol ?? "",
+    channel.teamId ?? "",
+    String(index),
+  ].join("::");
+}
+
+const presenceLabelMap = {
+  active: "Active",
+  away: "Away",
+  offline: "Offline",
+  unknown: "Unknown",
+} as const;
+
+const sourceLabelMap = {
+  owner: "Owner",
+  direct: "Direct",
+  team: "Team",
+  personnel: "Personnel",
+} as const;
+
+interface WorkspaceMembersTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
+  const [members, setMembers] = useState<WorkspaceMemberView[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMembers() {
+      setLoadState("loading");
+
+      try {
+        const nextMembers = await getWorkspaceMembers(workspace.id);
+        if (cancelled) {
+          return;
+        }
+
+        setMembers(nextMembers);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceMembersTab] Failed to load members:", error);
+        }
+
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.id]);
+
+  const directCount = useMemo(
+    () =>
+      members.filter((member) =>
+        member.accessChannels.some((channel) => channel.source === "direct"),
+      ).length,
+    [members],
+  );
+
+  const teamCount = useMemo(
+    () =>
+      members.filter((member) =>
+        member.accessChannels.some((channel) => channel.source === "team"),
+      ).length,
+    [members],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Members</CardTitle>
+        <CardDescription>
+          {workspace.accountType === "organization"
+            ? "組織成員與工作區授權來源的整合檢視。"
+            : "個人工作區目前的共享與聯絡角色摘要。"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Visible members</p>
+            <p className="mt-1 text-xl font-semibold">{members.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Direct access</p>
+            <p className="mt-1 text-xl font-semibold">{directCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Team access</p>
+            <p className="mt-1 text-xl font-semibold">{teamCount}</p>
+          </div>
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading workspace members…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入成員資料，請重新整理頁面或稍後再試。
+          </p>
+        )}
+
+        {loadState === "loaded" && members.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            目前尚未整理出任何工作區成員或授權來源，之後可在這裡持續擴充成員維護流程。
+          </p>
+        )}
+
+        {loadState === "loaded" && members.length > 0 && (
+          <div className="space-y-3">
+            {members.map((member) => (
+              <div
+                key={member.id}
+                className="rounded-xl border border-border/40 px-4 py-4"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <Avatar>
+                      <AvatarFallback>{getMemberInitials(member.displayName)}</AvatarFallback>
+                    </Avatar>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {member.displayName}
+                        </p>
+                        <Badge variant="outline">{presenceLabelMap[member.presence]}</Badge>
+                        {member.organizationRole && (
+                          <Badge variant="secondary">{member.organizationRole}</Badge>
+                        )}
+                        {member.isExternal && <Badge variant="outline">External</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {member.email ?? member.id}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {member.accessChannels.map((channel, index) => (
+                      <Badge
+                        key={getAccessChannelKey(member.id, channel, index)}
+                        variant="outline"
+                      >
+                        {sourceLabelMap[channel.source]} · {channel.label}
+                        {channel.role ? ` · ${channel.role}` : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 ````
 
@@ -43771,512 +45527,6 @@ Location: .claude/skills/[domain]/[skill-name]/SKILL.md
 }
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  FirebaseIdentityRepository,
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-} from "@/modules/identity/api";
-import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
-import {
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => {
-      const identityRepo = new FirebaseIdentityRepository();
-      const accountRepo = new FirebaseAccountRepository();
-      return {
-        signInUseCase: new SignInUseCase(identityRepo),
-        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
-        registerUseCase: new RegisterUseCase(identityRepo),
-        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
-        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
-      };
-    }, []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
-## File: app/(shell)/_components/account-switcher.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import { useApp } from "@/app/providers/app-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-
-export function AccountSwitcher({
-  personalAccount,
-  organizationAccounts,
-  activeAccountId,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
-}: AccountSwitcherProps) {
-  const router = useRouter();
-  const {
-    state: { accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-
-  function resetCreateOrganizationDialog() {
-    setOrganizationName("");
-    setOrganizationError(null);
-    setIsCreatingOrganization(false);
-  }
-
-  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!personalAccount) {
-      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-
-    const nextOrganizationName = organizationName.trim();
-    if (!nextOrganizationName) {
-      setOrganizationError("請輸入組織名稱。");
-      return;
-    }
-
-    setIsCreatingOrganization(true);
-    setOrganizationError(null);
-
-    const result = await createOrganization({
-      organizationName: nextOrganizationName,
-      ownerId: personalAccount.id,
-      ownerName: personalAccount.name,
-      ownerEmail: personalAccount.email,
-    });
-
-    if (!result.success) {
-      setOrganizationError(result.error.message);
-      setIsCreatingOrganization(false);
-      return;
-    }
-
-    onOrganizationCreated?.({
-      id: result.aggregateId,
-      name: nextOrganizationName,
-      accountType: "organization",
-      ownerId: personalAccount.id,
-    });
-
-    resetCreateOrganizationDialog();
-    setIsCreateOrganizationOpen(false);
-    router.push("/organization");
-  }
-
-  return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          帳號情境
-        </p>
-        <select
-          aria-label="切換帳號情境"
-          value={activeAccountId ?? ""}
-          onChange={(event) => {
-            const nextId = event.target.value;
-            if (nextId === "__create_organization__") {
-              setIsCreateOrganizationOpen(true);
-              return;
-            }
-
-            if (!nextId || nextId === personalAccount?.id) {
-              onSelectPersonal();
-              return;
-            }
-
-            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-            if (nextAccount) {
-              onSelectOrganization(nextAccount);
-            }
-          }}
-          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-        >
-          {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
-          )}
-          {organizationAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}（組織）
-            </option>
-          ))}
-          <option value="__create_organization__">+建立組織</option>
-        </select>
-        {!accountsHydrated && (
-          <p className="text-xs text-muted-foreground">
-            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
-          </p>
-        )}
-      </div>
-
-      <Dialog
-        open={isCreateOrganizationOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrganizationOpen(open);
-          if (!open) {
-            resetCreateOrganizationDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-organization-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="create-organization-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateOrganization}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="organization-name"
-                value={organizationName}
-                onChange={(event) => {
-                  setOrganizationName(event.target.value);
-                  if (organizationError) {
-                    setOrganizationError(null);
-                  }
-                }}
-                placeholder="例如：Gig Team"
-                autoFocus
-                disabled={isCreatingOrganization}
-                maxLength={80}
-              />
-              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateOrganizationDialog();
-                  setIsCreateOrganizationOpen(false);
-                }}
-                disabled={isCreatingOrganization}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
-                {isCreatingOrganization ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-````
-
 ## File: app/(shell)/_components/header-user-avatar.tsx
 ````typescript
 "use client";
@@ -44354,60 +45604,6 @@ export function HeaderUserAvatar({ name, email, onSignOut }: HeaderUserAvatarPro
 }
 ````
 
-## File: app/(shell)/_components/shell-guard.tsx
-````typescript
-"use client";
-
-/**
- * shell-guard.tsx
- * Client-side auth guard for the authenticated shell.
- *
- * Responsibilities:
- *  1. Redirect to `/` (public auth page) when auth status is "unauthenticated"
- *  2. Mount useTokenRefreshListener for [S6] Claims refresh (Party 3)
- *  3. Show a loading state while auth is initializing
- */
-
-import { useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { useTokenRefreshListener } from "@/modules/identity/api";
-
-interface ShellGuardProps {
-  children: ReactNode;
-}
-
-export function ShellGuard({ children }: ShellGuardProps) {
-  const { state } = useAuth();
-  const { user, status } = state;
-  const router = useRouter();
-
-  // [S6] Party 3: force-refresh ID token when a TOKEN_REFRESH_SIGNAL is emitted
-  useTokenRefreshListener(user?.id ?? null);
-
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.replace("/");
-    }
-  }, [status, router]);
-
-  if (status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center bg-background">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-      </div>
-    );
-  }
-
-  if (status === "unauthenticated") {
-    return null;
-  }
-
-  return <>{children}</>;
-}
-````
-
 ## File: app/(shell)/dashboard/page.tsx
 ````typescript
 /**
@@ -44420,390 +45616,174 @@ export default function DashboardPage() {
 }
 ````
 
-## File: app/(shell)/organization/audit/page.tsx
+## File: app/(shell)/organization/page.tsx
 ````typescript
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { AuditStream, getOrganizationAuditLogs } from "@/modules/workspace-audit/api";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { formatDateTime, isOrganizationAccount } from "../_utils";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { Button } from "@ui-shadcn/ui/button";
 
-const MAX_DISPLAYED_AUDIT_LOGS = 50;
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
 
-export default function OrganizationAuditPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
+export default function OrganizationPage() {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
+
+  const orgList = Object.values(accounts);
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [auditLogs, setAuditLogs] = useState<
-    Awaited<ReturnType<typeof getOrganizationAuditLogs>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace("/workspace");
+  }
 
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    let cancelled = false;
-    const organizationId = activeOrganizationId;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const nextWorkspaces = await getWorkspacesForAccount(organizationId);
-        const workspaceIds = nextWorkspaces.map((w) => w.id);
-        const logs = await getOrganizationAuditLogs(workspaceIds, MAX_DISPLAYED_AUDIT_LOGS);
-        if (!cancelled) {
-          setWorkspaces(nextWorkspaces);
-          setAuditLogs(logs);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setAuditLogs([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  const workspaceNameById = useMemo(
-    () => new Map(workspaces.map((w) => [w.id, w.name])),
-    [workspaces],
-  );
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
   }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">稽核</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織下所有工作區的 audit log 彙整。</p>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
       </div>
 
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Audit</CardTitle>
-          <CardDescription>組織下所有工作區的 audit log 彙整。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入稽核資料中…</p>
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、Wiki、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
           )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取稽核資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && auditLogs.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的 audit logs。</p>
-          )}
-          {loadState === "loaded" &&
-            auditLogs.slice(0, MAX_DISPLAYED_AUDIT_LOGS).map((log) => (
-              <div key={log.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{log.action}</p>
-                  <Badge variant="outline">{log.source}</Badge>
-                  <Badge variant="secondary">
-                    {workspaceNameById.get(log.workspaceId) ?? log.workspaceId}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{log.detail || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(log.occurredAtISO)}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      {/* ── 稽核時間軸（新版 AuditStream）─────────────────────────────── */}
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>稽核時間軸</CardTitle>
-          <CardDescription>
-            以時間軸視覺化呈現稽核事件；嚴重程度由色點標示（藍 = 中、橘 = 高、紅 = 嚴重）。
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <AuditStream logs={auditLogs} height={500} />
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/daily/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceFeedAccountView } from "@/modules/workspace-feed/api";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationDailyPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-24">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="mx-auto max-w-4xl space-y-6">
-      <header className="rounded-3xl border border-border/60 bg-card/50 p-6">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold">Account Workspace Feed</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              聚合名下所有 workspace 的 feed，並提供 Reply / Repost / Like / View / Bookmark / Share 互動。
-            </p>
-          </div>
-          <div className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
-            live
-          </div>
         </div>
-      </header>
+      </section>
 
-      <WorkspaceFeedAccountView accountId={activeOrganizationId} />
-    </section>
-  );
-}
-````
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
 
-## File: app/(shell)/organization/members/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationMembers } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationMembersPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationMembers(organizationId);
-        if (!cancelled) {
-          setMembers(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>組織成員清單與目前角色。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
           )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && members.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
-          )}
-          {loadState === "loaded" &&
-            members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
               >
                 <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{member.role}</Badge>
-                  <Badge variant="secondary">{member.presence}</Badge>
-                </div>
-              </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
             ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
+          </ul>
+        )}
+      </section>
 
-## File: app/(shell)/organization/permissions/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { getOrgPolicies } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationPermissionsPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrgPolicies(organizationId);
-        if (!cancelled) {
-          setPolicies(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setPolicies([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">權限</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
-          <CardDescription>組織層級政策規則與 scope。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && policies.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
-          )}
-          {loadState === "loaded" &&
-            policies.map((policy) => (
-              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{policy.name}</p>
-                  <Badge variant="outline">{policy.scope}</Badge>
-                  <Badge variant={policy.isActive ? "default" : "secondary"}>
-                    {policy.isActive ? "active" : "inactive"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
     </div>
   );
 }
@@ -44822,59 +45802,17 @@ export default function DispatcherPage() {
 }
 ````
 
-## File: app/(shell)/organization/schedule/page.tsx
+## File: app/(shell)/organization/workspaces/page.tsx
 ````typescript
 "use client";
 
-import { useApp } from "@/app/providers/app-provider";
-import { AccountSchedulingView } from "@/modules/workspace-scheduling/api";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationSchedulePage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-
-  const activeOrganizationId = isOrganizationAccount(activeAccount)
-    ? activeAccount.id
-    : null;
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <section className="flex flex-col gap-6 px-4 py-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-primary">
-          Account Scheduling
-        </p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-          工作需求總覽
-        </h1>
-      </header>
-
-      <AccountSchedulingView
-        accountId={activeOrganizationId}
-        currentUserId={activeOrganizationId}
-      />
-    </section>
-  );
-}
-````
-
-## File: app/(shell)/organization/teams/page.tsx
-````typescript
-"use client";
-
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { getOrganizationTeams } from "@/modules/organization/api";
+import { getWorkspacesForAccount } from "@/modules/workspace/api";
 import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
   CardContent,
@@ -44884,12 +45822,14 @@ import {
 } from "@ui-shadcn/ui/card";
 import { isOrganizationAccount } from "../_utils";
 
-export default function OrganizationTeamsPage() {
+export default function OrganizationWorkspacesPage() {
   const { state: appState } = useApp();
   const { activeAccount } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [workspaces, setWorkspaces] = useState<
+    Awaited<ReturnType<typeof getWorkspacesForAccount>>
+  >([]);
   const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
   useEffect(() => {
@@ -44900,14 +45840,14 @@ export default function OrganizationTeamsPage() {
     async function load() {
       setLoadState("loading");
       try {
-        const data = await getOrganizationTeams(organizationId);
+        const data = await getWorkspacesForAccount(organizationId);
         if (!cancelled) {
-          setTeams(data);
+          setWorkspaces(data);
           setLoadState("loaded");
         }
       } catch {
         if (!cancelled) {
-          setTeams([]);
+          setWorkspaces([]);
           setLoadState("error");
         }
       }
@@ -44930,36 +45870,58 @@ export default function OrganizationTeamsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
-        <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+        <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+        </p>
       </div>
 
       <Card className="border-border/50">
         <CardHeader>
-          <CardTitle>Teams</CardTitle>
-          <CardDescription>組織團隊與成員關聯。</CardDescription>
+          <CardTitle>Workspaces</CardTitle>
+          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
           )}
           {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
           )}
-          {loadState === "loaded" && teams.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
           )}
           {loadState === "loaded" &&
-            teams.map((team) => (
-              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{team.name}</p>
-                  <Badge variant="outline">{team.type}</Badge>
+            workspaces.map((workspace) => (
+              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                    </Button>
+                    <Badge
+                      variant={
+                        workspace.lifecycleState === "active"
+                          ? "default"
+                          : workspace.lifecycleState === "preparatory"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
+                    </Button>
+                  </div>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Members: {team.memberIds.length}
-                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
               </div>
             ))}
         </CardContent>
@@ -45026,215 +45988,6 @@ export default function WikiNamespacesPage() {
 }
 ````
 
-## File: app/(shell)/wiki/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/wiki/pages",
-    title: "Pages",
-    description: "層級頁面結構、命名與移動管理。",
-    icon: FileText,
-  },
-  {
-    href: "/wiki/libraries",
-    title: "Libraries",
-    description: "欄位模型與資料列維護。",
-    icon: Database,
-  },
-  {
-    href: "/wiki/documents",
-    title: "Documents",
-    description: "文件上傳、處理與索引狀態。",
-    icon: BookOpen,
-  },
-  {
-    href: "/wiki/rag-query",
-    title: "RAG Query",
-    description: "知識問答與引用檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function WikiPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Account Wiki</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki</h1>
-        <p className="text-sm text-muted-foreground">入口頁面，聚焦帳號層級知識流程、工作區脈絡與快速進入各子功能。</p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Account Wiki Dashboard</CardTitle>
-          <CardDescription>顯示目前 active account 底下的 Wiki 範圍，並提供 account-level 與 workspace-level 的進入點。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account，點擊後直接進入該 workspace 的 Wiki 範圍。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Link key={workspace.workspaceId} href={workspace.href}>
-                  <Card className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </CardContent>
-                  </Card>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/wiki/rag-reindex/page.tsx
 ````typescript
 "use client";
@@ -45250,80 +46003,6 @@ export default function WikiRagReindexPage() {
   }, [router]);
 
   return null;
-}
-````
-
-## File: app/(shell)/workspace/[workspaceId]/page.tsx
-````typescript
-"use client";
-
-import { useParams, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceDetailScreen } from "@/modules/workspace/api";
-
-export default function WorkspaceDetailPage() {
-  const params = useParams<{ workspaceId: string }>();
-  const searchParams = useSearchParams();
-  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const initialTab = searchParams.get("tab") ?? undefined;
-  const {
-    state: { activeAccount, accountsHydrated },
-  } = useApp();
-
-  return (
-    <WorkspaceDetailScreen
-      workspaceId={workspaceId}
-      accountId={activeAccount?.id}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-    />
-  );
-}
-````
-
-## File: app/(shell)/workspace/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceHubScreen } from "@/modules/workspace/api";
-
-function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
-  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
-}
-
-function getActiveAccountType(activeAccount: ActiveAccount | null) {
-  return isOrganizationAccount(activeAccount) ? "organization" : "user";
-}
-
-export default function WorkspacePage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount, accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const context = searchParams.get("context");
-
-  return (
-    <div className="space-y-4">
-      {context === "unavailable" && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          目前帳戶無法存取該工作區，已返回工作區清單。
-        </div>
-      )}
-
-      <WorkspaceHubScreen
-        accountId={activeAccount?.id}
-        accountName={activeAccount?.name}
-        accountType={getActiveAccountType(activeAccount)}
-        accountsHydrated={accountsHydrated}
-        isBootstrapSeeded={bootstrapPhase === "seeded"}
-      />
-    </div>
-  );
 }
 ````
 
@@ -52940,52 +53619,6 @@ npm run build   # TypeScript type-check
 - `../../docs/ddd/account/README.md`
 ````
 
-## File: modules/account/api/index.ts
-````typescript
-/**
- * account 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-} from "../domain/entities/Account";
-
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-} from "../domain/entities/AccountPolicy";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getUserProfile,
-  subscribeToUserProfile,
-  subscribeToAccountsForUser,
-  getAccountRole,
-  subscribeToAccountRoles,
-  getAccountPolicies,
-  getActiveAccountPolicies,
-} from "../interfaces/queries/account.queries";
-
-// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
-
-export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
-
-// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
-
-export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
-````
-
 ## File: modules/account/application-services.md
 ````markdown
 # account — Application Services
@@ -53863,69 +54496,6 @@ npm run build   # TypeScript type-check
 
 - `../../docs/ddd/identity/aggregates.md`
 - `../../docs/ddd/identity/README.md`
-````
-
-## File: modules/identity/api/index.ts
-````typescript
-/**
- * identity 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
- */
-
-import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
-
-// ─── DTO ──────────────────────────────────────────────────────────────────────
-
-/** 發送 Token Refresh 訊號所需的輸入參數。 */
-export interface EmitTokenRefreshSignalInput {
-  accountId: string;
-  reason: TokenRefreshReason;
-  traceId?: string;
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const identityApi = {
-  /**
-   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
-   * 應在角色或政策變更後呼叫。
-   */
-  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
-  },
-} as const;
-
-// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
-
-export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
-export {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "../application/use-cases/identity.use-cases";
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  signIn,
-  signInAnonymously,
-  register,
-  sendPasswordResetEmail,
-  signOut,
-} from "../interfaces/_actions/identity.actions";
-
-// ─── Client-only hook (import only from "use client" files) ──────────────────
-
-export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
 ````
 
 ## File: modules/identity/application-services.md
@@ -56789,104 +57359,6 @@ npm run build   # TypeScript type-check
 
 - `../../docs/ddd/organization/aggregates.md`
 - `../../docs/ddd/organization/README.md`
-````
-
-## File: modules/organization/api/index.ts
-````typescript
-/**
- * organization 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
- */
-
-import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
-
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
-
-/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
-export interface OrganizationMemberDTO {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
-  presence: "active" | "away" | "offline";
-  isExternal?: boolean;
-}
-
-/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
-export interface OrganizationTeamDTO {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const organizationApi = {
-  /**
-   * 取得指定組織的所有成員清單。
-   */
-  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
-    const members = await orgRepo.getMembers(organizationId);
-    return members.map((m) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-      presence: m.presence,
-      isExternal: m.isExternal,
-    }));
-  },
-
-  /**
-   * 取得指定組織的所有團隊清單。
-   */
-  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
-    const teams = await orgRepo.getTeams(organizationId);
-    return teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      memberIds: t.memberIds,
-    }));
-  },
-} as const;
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "../interfaces/_actions/organization.actions";
-
-// ─── Query Functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "../interfaces/queries/organization.queries";
 ````
 
 ## File: modules/organization/application-services.md
@@ -62202,41 +62674,6 @@ export class InMemoryGraphRepository implements GraphRepository {
 - `../../docs/ddd/workspace-audit/README.md`
 ````
 
-## File: modules/workspace-audit/api/index.ts
-````typescript
-/**
- * Module: workspace-audit
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Audit domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type { AuditLogEntity, AuditLogSource } from "../domain/entities/AuditLog";
-
-export type {
-  AuditLog,
-  AuditAction,
-  AuditSeverity,
-  ChangeRecord,
-} from "../domain/schema";
-
-export { AuditLogSchema, AUDIT_ACTIONS, AUDIT_SEVERITIES } from "../domain/schema";
-
-// ─── Query functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationAuditLogs,
-  getWorkspaceAuditLogs,
-} from "../interfaces/queries/audit.queries";
-
-export { WorkspaceAuditTab } from "../interfaces/components/WorkspaceAuditTab";
-export { AuditStream } from "../interfaces/components/AuditStream";
-````
-
 ## File: modules/workspace-audit/application-services.md
 ````markdown
 # workspace-audit — Application Services
@@ -62468,21 +62905,6 @@ npm run build   # TypeScript type-check
 
 - `../../docs/ddd/workspace-feed/aggregates.md`
 - `../../docs/ddd/workspace-feed/README.md`
-````
-
-## File: modules/workspace-feed/api/index.ts
-````typescript
-export { WorkspaceFeedFacade, workspaceFeedFacade } from "./workspace-feed.facade";
-export type {
-  CreateWorkspaceFeedPostParams,
-  ReplyWorkspaceFeedPostParams,
-  RepostWorkspaceFeedPostParams,
-  WorkspaceFeedInteractionParams,
-} from "./workspace-feed.facade";
-
-// ── UI components (cross-module public) ──────────────────────────────────────
-export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFeedWorkspaceView";
-export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
 ````
 
 ## File: modules/workspace-feed/application-services.md
@@ -63132,31 +63554,6 @@ npm run build   # TypeScript type-check
 - `../../docs/ddd/workspace-scheduling/README.md`
 ````
 
-## File: modules/workspace-scheduling/api/index.ts
-````typescript
-/**
- * Module: workspace-scheduling
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer for the WorkDemand API contract.
- *
- * Other modules and UI layers import schemas and types from here.
- * Direct imports into domain/, application/, or infrastructure/ are forbidden.
- */
-
-export {
-  CreateDemandSchema,
-  AssignMemberSchema,
-} from "./schema";
-
-export type {
-  CreateDemandInput,
-  AssignMemberInput,
-} from "./schema";
-
-export { WorkspaceSchedulingTab } from "../interfaces/WorkspaceSchedulingTab";
-export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";
-````
-
 ## File: modules/workspace-scheduling/application-services.md
 ````markdown
 # workspace-scheduling — Application Services
@@ -63250,228 +63647,6 @@ export { AccountSchedulingView } from "../interfaces/AccountSchedulingView";
 
 - `../../docs/ddd/workspace-scheduling/domain-services.md`
 - `../../docs/ddd/workspace-scheduling/aggregates.md`
-````
-
-## File: modules/workspace-scheduling/interfaces/WorkspaceSchedulingTab.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces
- * Purpose: Workspace (tenant) view — submit demands, view own schedule.
- *
- * Occam's Razor: calendar + quick-capture form only.
- * No complex state machines — useState + server actions.
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Plus } from "lucide-react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import type { WorkDemand } from "../domain/types";
-import { DEMAND_STATUS_LABELS, DEMAND_PRIORITY_LABELS } from "../domain/types";
-import { submitWorkDemand } from "./_actions/work-demand.actions";
-import { getWorkspaceDemands } from "./queries/work-demand.queries";
-import { CalendarWidget } from "./components/CalendarWidget";
-import { CreateDemandForm } from "./components/CreateDemandForm";
-import type { CreateDemandFormValues } from "./components/CreateDemandForm";
-
-// ── Status badge variant ──────────────────────────────────────────────────────
-
-const STATUS_VARIANT: Record<WorkDemand["status"], "default" | "secondary" | "outline" | "destructive"> = {
-  draft: "outline",
-  open: "secondary",
-  in_progress: "default",
-  completed: "default",
-};
-
-const PRIORITY_CLASS: Record<WorkDemand["priority"], string> = {
-  low: "text-muted-foreground",
-  medium: "text-amber-600",
-  high: "text-red-600",
-};
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSchedulingTabProps {
-  readonly workspace: WorkspaceEntity;
-  /** Account ID for scoping demands. */
-  readonly accountId: string;
-  /** ID of the current user (requesterId). */
-  readonly currentUserId: string;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSchedulingTab({
-  workspace,
-  accountId,
-  currentUserId,
-}: WorkspaceSchedulingTabProps) {
-  const [demands, setDemands] = useState<WorkDemand[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [formOpen, setFormOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadDemands = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspaceDemands(workspace.id);
-      setDemands(data);
-      setLoadState("loaded");
-    } catch {
-      setLoadState("error");
-    }
-  }, [workspace.id]);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      if (!cancelled) await loadDemands();
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [loadDemands]);
-
-  function handleDayClick(date: Date) {
-    setSelectedDate(date);
-    setFormOpen(true);
-  }
-
-  function handleNewDemand() {
-    setSelectedDate(undefined);
-    setFormOpen(true);
-  }
-
-  async function handleSubmit(values: CreateDemandFormValues) {
-    setActionError(null);
-    const result = await submitWorkDemand({
-      workspaceId: workspace.id,
-      accountId,
-      requesterId: currentUserId,
-      title: values.title,
-      description: values.description,
-      priority: values.priority,
-      scheduledAt: values.scheduledAt,
-    });
-    if (!result.success) {
-      throw new Error(result.error.message);
-    }
-    await loadDemands();
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{workspace.name} — 工作規劃</h2>
-          <p className="text-sm text-muted-foreground">
-            點擊日期或「新增需求」快速建立工作需求。
-          </p>
-        </div>
-        <Button size="sm" onClick={handleNewDemand}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          新增需求
-        </Button>
-      </div>
-
-      {actionError && (
-        <p role="alert" className="text-sm text-destructive">
-          {actionError}
-        </p>
-      )}
-
-      {/* ── Calendar ───────────────────────────────────────────────────── */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">排程日曆</CardTitle>
-          <CardDescription className="text-xs">
-            點擊日期快速排程新需求
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loadState === "loading" ? (
-            <div className="flex h-48 items-center justify-center text-sm text-muted-foreground">
-              載入中…
-            </div>
-          ) : (
-            <CalendarWidget demands={demands} onDayClick={handleDayClick} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Demand list ────────────────────────────────────────────────── */}
-      <div className="space-y-2">
-        <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          需求列表 ({demands.length})
-        </h3>
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">載入失敗，請重新整理。</p>
-        )}
-
-        {loadState === "loaded" && demands.length === 0 && (
-          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-            目前尚無需求。點擊日曆日期或「新增需求」開始排程。
-          </div>
-        )}
-
-        {demands.map((demand) => (
-          <div
-            key={demand.id}
-            className="flex items-start justify-between rounded-lg border border-border/60 bg-card px-4 py-3"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-medium text-sm">{demand.title}</p>
-              {demand.description && (
-                <p className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {demand.description}
-                </p>
-              )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                排程日期：{demand.scheduledAt}
-              </p>
-            </div>
-            <div className="ml-4 flex shrink-0 flex-col items-end gap-1.5">
-              <Badge variant={STATUS_VARIANT[demand.status]}>
-                {DEMAND_STATUS_LABELS[demand.status]}
-              </Badge>
-              <span className={`text-xs font-medium ${PRIORITY_CLASS[demand.priority]}`}>
-                {DEMAND_PRIORITY_LABELS[demand.priority]}優先
-              </span>
-              {demand.assignedUserId && (
-                <span className="text-xs text-muted-foreground">已指派</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* ── Create form dialog ─────────────────────────────────────────── */}
-      <CreateDemandForm
-        open={formOpen}
-        initialDate={selectedDate}
-        onClose={() => setFormOpen(false)}
-        onSubmit={handleSubmit}
-      />
-    </div>
-  );
-}
 ````
 
 ## File: modules/workspace-scheduling/repositories.md
@@ -63877,230 +64052,22 @@ export class FirebaseWikiWorkspaceRepository implements WikiWorkspaceRepository 
 }
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceDailyTab.tsx
+## File: modules/workspace/interfaces/components/WorkspaceWikiTab.tsx
 ````typescript
 "use client";
 
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
 
-interface WorkspaceDailyTabProps {
+interface WorkspaceWikiTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
-export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
-  return (
-    <WorkspaceFeedWorkspaceView
-      accountId={workspace.accountId}
-      workspaceId={workspace.id}
-      workspaceName={workspace.name}
-    />
-  );
-}
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceMembersTab.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { getWorkspaceMembers } from "../queries/workspace-member.queries";
-
-function getMemberInitials(name: string) {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return "??";
-  }
-
-  const tokens = trimmed.split(/\s+/).slice(0, 2);
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
-}
-
-function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number) {
-  return [
-    memberId,
-    channel.source,
-    channel.label,
-    channel.role ?? "",
-    channel.protocol ?? "",
-    channel.teamId ?? "",
-    String(index),
-  ].join("::");
-}
-
-const presenceLabelMap = {
-  active: "Active",
-  away: "Away",
-  offline: "Offline",
-  unknown: "Unknown",
-} as const;
-
-const sourceLabelMap = {
-  owner: "Owner",
-  direct: "Direct",
-  team: "Team",
-  personnel: "Personnel",
-} as const;
-
-interface WorkspaceMembersTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
-  const [members, setMembers] = useState<WorkspaceMemberView[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMembers() {
-      setLoadState("loading");
-
-      try {
-        const nextMembers = await getWorkspaceMembers(workspace.id);
-        if (cancelled) {
-          return;
-        }
-
-        setMembers(nextMembers);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceMembersTab] Failed to load members:", error);
-        }
-
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadMembers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace.id]);
-
-  const directCount = useMemo(
-    () =>
-      members.filter((member) =>
-        member.accessChannels.some((channel) => channel.source === "direct"),
-      ).length,
-    [members],
-  );
-
-  const teamCount = useMemo(
-    () =>
-      members.filter((member) =>
-        member.accessChannels.some((channel) => channel.source === "team"),
-      ).length,
-    [members],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Members</CardTitle>
-        <CardDescription>
-          {workspace.accountType === "organization"
-            ? "組織成員與工作區授權來源的整合檢視。"
-            : "個人工作區目前的共享與聯絡角色摘要。"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Visible members</p>
-            <p className="mt-1 text-xl font-semibold">{members.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Direct access</p>
-            <p className="mt-1 text-xl font-semibold">{directCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Team access</p>
-            <p className="mt-1 text-xl font-semibold">{teamCount}</p>
-          </div>
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading workspace members…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入成員資料，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
-        {loadState === "loaded" && members.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未整理出任何工作區成員或授權來源，之後可在這裡持續擴充成員維護流程。
-          </p>
-        )}
-
-        {loadState === "loaded" && members.length > 0 && (
-          <div className="space-y-3">
-            {members.map((member) => (
-              <div
-                key={member.id}
-                className="rounded-xl border border-border/40 px-4 py-4"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <Avatar>
-                      <AvatarFallback>{getMemberInitials(member.displayName)}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {member.displayName}
-                        </p>
-                        <Badge variant="outline">{presenceLabelMap[member.presence]}</Badge>
-                        {member.organizationRole && (
-                          <Badge variant="secondary">{member.organizationRole}</Badge>
-                        )}
-                        {member.isExternal && <Badge variant="outline">External</Badge>}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {member.email ?? member.id}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {member.accessChannels.map((channel, index) => (
-                      <Badge
-                        key={getAccessChannelKey(member.id, channel, index)}
-                        variant="outline"
-                      >
-                        {sourceLabelMap[channel.source]} · {channel.label}
-                        {channel.role ? ` · ${channel.role}` : ""}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
+/**
+ * Workspace tab entrypoint delegates rendering to workspace owned view.
+ */
+export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
+  return <WorkspaceWikiView workspace={workspace} />;
 }
 ````
 
@@ -66565,75 +66532,6 @@ npm run repomix:markdown
 Keep this directory focused on active customizations. Remove stale references, broken links, and unused compatibility notes when the structure changes.
 ````
 
-## File: app/(shell)/_components/app-breadcrumbs.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-
-const SEGMENT_LABELS: Record<string, string> = {
-  "organization": "組織",
-  "workspace": "工作區",
-  "wiki": "Wiki",
-  "rag-query": "RAG 查詢",
-  "documents": "文件",
-  "libraries": "Libraries",
-  "pages": "頁面",
-  "pages-dnd": "頁面 (DnD)",
-  "block-editor": "區塊編輯器",
-  "rag-reindex": "RAG 重新索引",
-  "ai-chat": "AI 對話",
-  "dev-tools": "開發工具",
-  "namespaces": "命名空間",
-  "members": "成員",
-  "teams": "團隊",
-  "permissions": "權限",
-  "workspaces": "工作區清單",
-  "schedule": "排程",
-  "daily": "每日",
-  "audit": "稽核",
-};
-
-function segmentLabel(segment: string) {
-  return SEGMENT_LABELS[segment] ?? segment;
-}
-
-export function AppBreadcrumbs() {
-  const pathname = usePathname();
-  const segments = pathname.split("/").filter(Boolean);
-
-  // Only render when there's more than one segment (i.e., not just root page).
-  if (segments.length <= 1) return null;
-
-  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
-    label: segmentLabel(seg),
-    href: "/" + segments.slice(0, idx + 1).join("/"),
-  }));
-
-  return (
-    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-      {crumbs.map((crumb, idx) => (
-        <span key={crumb.href} className="flex items-center gap-1">
-          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
-          {idx < crumbs.length - 1 ? (
-            <Link
-              href={crumb.href}
-              className="transition hover:text-foreground"
-            >
-              {crumb.label}
-            </Link>
-          ) : (
-            <span className="font-medium text-foreground">{crumb.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
-  );
-}
-````
-
 ## File: app/(shell)/_components/customize-navigation-dialog.tsx
 ````typescript
 "use client";
@@ -67249,1045 +67147,6 @@ export function CustomizeNavigationDialog({
 }
 ````
 
-## File: app/(shell)/_components/dashboard-sidebar.tsx
-````typescript
-"use client";
-
-/**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
- */
-
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-
-interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-// ── Section helpers ──────────────────────────────────────────────────────────
-
-type NavSection = "workspace" | "wiki" | "ai-chat" | "account" | "organization" | "other";
-
-function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/wiki")) return "wiki";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-// ── Section icon labels for the title bar ────────────────────────────────────
-
-const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki": { label: "Wiki", icon: <BookOpen className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export function DashboardSidebar({
-  pathname,
-  activeAccount,
-  workspaces,
-  workspacesHydrated,
-  activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
-  onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isWikiWorkspacesExpanded, setIsWikiWorkspacesExpanded] = useState(false);
-  const [wikiQuickCreateOpen, setWikiQuickCreateOpen] = useState(false);
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
-  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
-  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-  const searchParams = useSearchParams();
-
-  function toggleCollapsed() {
-    onToggleCollapsed();
-  }
-
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
-
-  const visibleOrganizationManagementItems = useMemo(() => {
-    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  const visibleAccountItems = useMemo(() => {
-    return ACCOUNT_NAV_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
-
-  // Whether to show recent workspaces section (controlled by personal prefs)
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  // Max workspaces to show (apply user preference)
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  // Track recently visited workspaces in localStorage
-  useEffect(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [activeAccount?.id, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [activeAccount?.id, pathname]);
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (typeof window === "undefined" || !pathname.startsWith("/wiki")) {
-      return;
-    }
-
-    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
-    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(searchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
-
-  const recentWorkspaceLinks = useMemo(() => {
-    return recentWorkspaceIds
-      .map((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/wiki")) {
-        const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(() => {
-    return Object.values(workspacesById)
-      .map((workspace) => ({
-        id: workspace.id,
-        name: workspace.name,
-        href: buildWorkspaceContextHref(workspace.id),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, buildWorkspaceContextHref]);
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
-    ? rawWorkspaceTab
-    : "Overview";
-
-  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
-    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-  }
-
-  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
-    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-  }
-
-  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
-    if (tab === "Wiki") {
-      const status = getWorkspaceTabStatus(tab);
-      return `${status} WorkSpace Wiki`;
-    }
-    const status = getWorkspaceTabStatus(tab);
-    return `${status} ${tWorkspaceTab(tab, fallback)}`;
-  }
-
-  function tWorkspaceGroup(groupKey: string, fallback: string) {
-    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
-  }
-
-  function getWorkspacePrefId(tabValue: string) {
-    if (isWorkspaceTabValue(tabValue)) {
-      return getWorkspaceTabPrefId(tabValue);
-    }
-    return tabValue.toLowerCase().replace(/\s+/g, "-");
-  }
-
-  function isWorkspaceItemEnabled(prefId: string) {
-    return navPrefs.pinnedWorkspace.includes(prefId);
-  }
-
-  function getWorkspaceItemOrder(prefId: string) {
-    const index = navPrefs.workspaceOrder.indexOf(prefId);
-    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-  }
-
-  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
-    return [...items].sort(
-      (left, right) =>
-        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
-        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
-    );
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSidebarLocale() {
-      const isZhHant =
-        typeof navigator !== "undefined" &&
-        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
-      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
-
-      try {
-        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as SidebarLocaleBundle;
-        if (!cancelled) {
-          setLocaleBundle(data);
-        }
-      } catch {
-        // Keep fallback labels when localization files are unavailable.
-      }
-    }
-
-    void loadSidebarLocale();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleWikiQuickCreate(kind: "page" | "database") {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-
-    setCreatingKind(kind);
-    try {
-      const db = getFirebaseFirestore();
-      const collectionName = kind === "page" ? "pages" : "databases";
-      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
-
-      const payload: Record<string, unknown> = {
-        title: baseTitle,
-        kind,
-        accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-
-      if (activeWorkspaceId) {
-        payload.spaceId = activeWorkspaceId;
-      }
-
-      if (kind === "database") {
-        payload.template = "task-governance";
-        payload.metadata = {
-          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
-          description: "任務依賴與技能門檻分類模板",
-        };
-      }
-
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, collectionName),
-        payload,
-      );
-
-      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
-      setWikiQuickCreateOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
-
-  return (
-    <>
-    <aside
-      aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
-      }`}
-    >
-      <>
-          {/* ── Sidebar title bar ──────────────────────────────────── */}
-          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-            {/* Section label */}
-            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-              {sectionMeta.icon}
-              {sectionMeta.label}
-            </span>
-            {/* Customize + collapse buttons grouped on the right */}
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                title="設定"
-                aria-label="設定"
-                onClick={() => {
-                  setCustomizeOpen(true);
-                }}
-                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="收起側欄"
-                title="收起側欄"
-                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
-              >
-                <PanelLeftClose className="size-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ── Scrollable nav body ── section-specific ───────────── */}
-          <div className="flex-1 overflow-y-auto px-3 py-3">
-            {section === "account" && (
-              <>
-                {showAccountManagement && visibleAccountItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Account navigation">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      Account
-                    </p>
-                    {visibleAccountItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看 Account 選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "organization" && (
-              <>
-                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Organization management">
-                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                      組織管理
-                    </p>
-                    {visibleOrganizationManagementItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看管理選項。
-                  </p>
-                )}
-              </>
-            )}
-
-            {section === "workspace" && (
-              <>
-                {workspacePathId ? (
-                  <nav className="space-y-3" aria-label="Workspace navigation">
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                    {isWorkspaceItemEnabled("workspace-modules") && (
-                      <div className="my-1.5 border-t border-border/40" />
-                    )}
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("workspace-modules") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceModulesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceModulesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
-                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceModulesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("spaces") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceSpacesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceSpacesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
-                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceSpacesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
-                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                    .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("databases") && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
-                            }}
-                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                            aria-expanded={isWorkspaceDatabasesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
-                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceDatabasesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                      isActive
-                                        ? "bg-primary/10 text-primary"
-                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              isActive
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                  </nav>
-                ) : (
-                  // ── Workspace hub: show recent workspaces ──────────────
-                  <>
-                    {showRecentWorkspaces && (
-                      <div className="space-y-0.5">
-                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                          最近工作區
-                        </p>
-                        {visibleRecentWorkspaceLinks.length === 0 ? (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                            尚無最近開啟的工作區。
-                          </p>
-                        ) : (
-                          visibleRecentWorkspaceLinks.map((ws) => (
-                            <Link
-                              key={ws.id}
-                              href={ws.href}
-                              onClick={() => {
-                                onSelectWorkspace(ws.id);
-                              }}
-                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                  ? "bg-primary/10 text-primary"
-                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
-                              }`}
-                              title={ws.name}
-                            >
-                              <span className="truncate">{ws.name}</span>
-                            </Link>
-                          ))
-                        )}
-                        {hasOverflow && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsExpanded((prev) => !prev);
-                            }}
-                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                          >
-                            {isExpanded ? "收起" : "顯示更多"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-
-            {section === "wiki" && (
-              <nav className="space-y-0.5" aria-label="Account Wiki navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Account Wiki
-                </p>
-                {(
-                  [
-                    { href: "/wiki", label: "知識總覽" },
-                    { href: "/wiki/block-editor", label: "區塊編輯器" },
-                    { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
-                    { href: "/wiki/rag-query", label: "RAG Query" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
-                  <Link
-                    href="/wiki/documents"
-                    aria-current={isActiveRoute("/wiki/documents") ? "page" : undefined}
-                    className={`flex-1 ${
-                      isActiveRoute("/wiki/documents")
-                        ? "text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    Documents
-                  </Link>
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setWikiQuickCreateOpen((prev) => !prev);
-                    }}
-                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
-                    aria-label="快速新增頁面或資料庫"
-                    title="快速新增"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-
-                  {wikiQuickCreateOpen ? (
-                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiQuickCreate("page")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleWikiQuickCreate("database")}
-                        disabled={creatingKind !== null}
-                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
-                      >
-                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-
-                {(
-                  [
-                    { href: "/wiki/pages", label: "Pages" },
-                    { href: "/wiki/libraries", label: "Libraries" },
-                    { href: "/wiki/rag-reindex", label: "RAG Reindex" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-
-                <div className="my-1.5 border-t border-border/40" />
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsWikiWorkspacesExpanded((prev) => !prev);
-                  }}
-                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
-                  aria-expanded={isWikiWorkspacesExpanded}
-                >
-                  <span>Workspaces</span>
-                  {isWikiWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                </button>
-
-                {isWikiWorkspacesExpanded && (
-                  <div className="space-y-0.5 pl-2">
-                    {!workspacesHydrated ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
-                    ) : allWorkspaceLinks.length === 0 ? (
-                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
-                    ) : (
-                      allWorkspaceLinks.map((workspace) => {
-                        const active = activeWorkspaceId === workspace.id;
-                        return (
-                          <Link
-                            key={workspace.id}
-                            href={workspace.href}
-                            onClick={() => {
-                              onSelectWorkspace(workspace.id);
-                            }}
-                            aria-current={active ? "page" : undefined}
-                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                              active
-                                ? "bg-primary/10 text-primary"
-                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                            }`}
-                            title={workspace.name}
-                          >
-                            <span className="truncate">{workspace.name}</span>
-                          </Link>
-                        );
-                      })
-                    )}
-                  </div>
-                )}
-              </nav>
-            )}
-
-            {section === "ai-chat" && (
-              <nav className="space-y-0.5" aria-label="AI Chat navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  AI Chat
-                </p>
-                {(
-                  [
-                    { href: "/ai-chat", label: "對話紀錄" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-          </div>
-        </>
-    </aside>
-
-    <CustomizeNavigationDialog
-      open={customizeOpen}
-      onOpenChange={setCustomizeOpen}
-      onPreferencesChange={setNavPrefs}
-    />
-    </>
-  );
-}
-````
-
-## File: app/(shell)/_components/global-search-dialog.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-
-const NAV_ITEMS = [
-  { href: "/wiki", label: "Wiki", group: "導覽" },
-  { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
-  { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
-  { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
-  { href: "/wiki/rag-query", label: "RAG 查詢", group: "Wiki" },
-  { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
-] as const;
-
-const GROUP_ICONS: Record<string, React.ReactNode> = {
-  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Wiki": <FileText className="size-4 mr-2 opacity-60" />,
-};
-
-interface GlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
-  const router = useRouter();
-
-  function handleSelect(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
-
-  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
-
-  return (
-    <CommandDialog
-      title="全域搜尋"
-      description="搜尋頁面或功能"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <CommandInput placeholder="搜尋頁面或功能…" />
-      <CommandList>
-        <CommandEmpty>找不到結果。</CommandEmpty>
-        {groups.map((group) => (
-          <CommandGroup key={group} heading={group}>
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-              <CommandItem
-                key={item.href}
-                onSelect={() => handleSelect(item.href)}
-              >
-                {GROUP_ICONS[group]}
-                {item.label}
-                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useGlobalSearch() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  return { open, setOpen };
-}
-````
-
 ## File: app/(shell)/organization/content/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -68299,135 +67158,6 @@ import { redirect } from "next/navigation";
  */
 export default function OrganizationKnowledgePage() {
   redirect("/wiki");
-}
-````
-
-## File: app/(shell)/organization/workspaces/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationWorkspacesPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getWorkspacesForAccount(organizationId);
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-        </p>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Workspaces</CardTitle>
-          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">工作區載入中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
-                    </Button>
-                    <Badge
-                      variant={
-                        workspace.lifecycleState === "active"
-                          ? "default"
-                          : workspace.lifecycleState === "preparatory"
-                            ? "secondary"
-                            : "outline"
-                      }
-                    >
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
 }
 ````
 
@@ -68500,6 +67230,286 @@ export default function WikiLibrariesPage() {
           尚未取得帳號情境，請先登入或切換帳號。
         </p>
       )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/wiki/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { buildWikiContentTree } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/wiki/pages",
+    title: "Pages",
+    description: "維持 account-level 的頁面樹與內容維運工具。",
+    icon: FileText,
+  },
+  {
+    href: "/wiki/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/wiki/documents",
+    title: "Documents",
+    description: "來源文件、upload 與 ingest 狀態檢視。",
+    icon: BookOpen,
+  },
+  {
+    href: "/wiki/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function WikiPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Workspace bridge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Account Wiki Bridge</h1>
+        <p className="text-sm text-muted-foreground">
+          這裡保留 account-level 工具，但真正的產品主流程已收斂成 Workspace → Knowledge / Wiki / Notebook。
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、Wiki、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開 Wiki 與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Wiki</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、Wiki 與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Wiki`}>Wiki</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          Knowledge
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -75860,22 +74870,397 @@ npm run build   # TypeScript type-check
 ```
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceWikiTab.tsx
+## File: modules/workspace/api/index.ts
+````typescript
+/**
+ * workspace 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
+ */
+
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+
+export type {
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+  WorkspacePersonnel,
+} from "../domain/entities/Workspace";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
+export {
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../interfaces/queries/workspace.queries";
+
+// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
+
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
+
+// ─── Wiki content-tree use-case ────────────────────────────────────────────
+
+import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
+import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
+
+const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
+
+export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
+  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
+}
+
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
+
+export { createWorkspace } from "../interfaces/_actions/workspace.actions";
+
+// ─── UI components (cross-module public) ─────────────────────────────────────
+
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
+
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+
+export {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
 
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
+import Link from "next/link";
+import { type FormEvent, useState } from "react";
 
-interface WorkspaceWikiTabProps {
-  readonly workspace: WorkspaceEntity;
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
 }
 
-/**
- * Workspace tab entrypoint delegates rendering to workspace owned view.
- */
-export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
-  return <WorkspaceWikiView workspace={workspace} />;
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+}: WorkspaceHubScreenProps) {
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const result = await createWorkspaceForAccount(workspaceName);
+
+    if (!result.success) {
+      return;
+    }
+
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
+
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Wiki</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href="/organization"
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => (
+            <Link
+              key={workspace.id}
+              href={`/workspace/${workspace.id}`}
+              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {workspace.name}
+                    </p>
+                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Account scope: {workspace.accountType}
+                  </p>
+                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                  <span>Capabilities: {workspace.capabilities.length}</span>
+                  <span>Teams: {workspace.teamIds.length}</span>
+                  <span>Locations: {workspace.locations?.length ?? 0}</span>
+                  <span>Grants: {workspace.grants.length}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) {
+            resetCreateWorkspaceDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+            <DialogDescription id="create-workspace-description">
+              建立後會直接出現在目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium text-foreground"
+                htmlFor="workspace-name"
+              >
+                工作區名稱
+              </label>
+              <Input
+                id="workspace-name"
+                value={workspaceName}
+                onChange={(event) => {
+                  setWorkspaceName(event.target.value);
+                  if (createError) {
+                    clearCreateError();
+                  }
+                }}
+                placeholder="例如：北區營運中心"
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {createError && (
+                <p className="text-sm text-destructive">{createError}</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
 }
 ````
 
@@ -76772,6 +76157,1765 @@ venv/
 .dolt/
 *.db
 .beads-credential-key
+````
+
+## File: app/(shell)/_components/app-breadcrumbs.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChevronRight } from "lucide-react";
+
+const SEGMENT_LABELS: Record<string, string> = {
+  "organization": "組織",
+  "workspace": "工作區",
+  "wiki": "Account Wiki",
+  "rag-query": "Ask / Cite",
+  "documents": "文件",
+  "libraries": "Libraries",
+  "pages": "頁面",
+  "pages-dnd": "頁面 (DnD)",
+  "block-editor": "區塊編輯器",
+  "rag-reindex": "RAG 重新索引",
+  "ai-chat": "Notebook",
+  "dev-tools": "開發工具",
+  "namespaces": "命名空間",
+  "members": "成員",
+  "teams": "團隊",
+  "permissions": "權限",
+  "workspaces": "工作區清單",
+  "schedule": "排程",
+  "daily": "每日",
+  "audit": "稽核",
+};
+
+function segmentLabel(segment: string) {
+  return SEGMENT_LABELS[segment] ?? segment;
+}
+
+export function AppBreadcrumbs() {
+  const pathname = usePathname();
+  const segments = pathname.split("/").filter(Boolean);
+
+  // Only render when there's more than one segment (i.e., not just root page).
+  if (segments.length <= 1) return null;
+
+  const crumbs: { label: string; href: string }[] = segments.map((seg, idx) => ({
+    label: segmentLabel(seg),
+    href: "/" + segments.slice(0, idx + 1).join("/"),
+  }));
+
+  return (
+    <nav aria-label="Breadcrumb" className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+      {crumbs.map((crumb, idx) => (
+        <span key={crumb.href} className="flex items-center gap-1">
+          {idx > 0 && <ChevronRight className="size-3 opacity-40" />}
+          {idx < crumbs.length - 1 ? (
+            <Link
+              href={crumb.href}
+              className="transition hover:text-foreground"
+            >
+              {crumb.label}
+            </Link>
+          ) : (
+            <span className="font-medium text-foreground">{crumb.label}</span>
+          )}
+        </span>
+      ))}
+    </nav>
+  );
+}
+````
+
+## File: app/(shell)/_components/app-rail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  function buildWikiWorkspaceHref(workspaceId: string): string {
+    if (pathname.startsWith("/wiki")) {
+      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
+      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+    }
+    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
+  }
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            if (item.href === "/wiki") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="Account Wiki: 切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">Account Wiki: 切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onSelectWorkspace(null);
+                        router.push("/wiki");
+                      }}
+                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
+                    >
+                      Account Wiki 首頁
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(buildWikiWorkspaceHref(workspace.id));
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        {/* ── User avatar / sign-out ────────────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="開啟使用者選單"
+                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                >
+                  <Avatar size="sm">
+                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                      {getInitial(user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="end" className="w-48">
+            <DropdownMenuLabel className="space-y-0.5">
+              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
+              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
+              登出
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
+  );
+}
+````
+
+## File: app/(shell)/_components/dashboard-sidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { BookOpen, Bot, Building2, ChevronDown, ChevronRight, PanelLeftClose, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import {
+  CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+// ── Section helpers ──────────────────────────────────────────────────────────
+
+type NavSection = "workspace" | "wiki" | "ai-chat" | "account" | "organization" | "other";
+
+function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/wiki")) return "wiki";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+// ── Section icon labels for the title bar ────────────────────────────────────
+
+const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  "wiki": { label: "Account Wiki", icon: <BookOpen className="size-3" /> },
+  "ai-chat": { label: "Notebook", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+export function DashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isWikiWorkspacesExpanded, setIsWikiWorkspacesExpanded] = useState(false);
+  const [wikiQuickCreateOpen, setWikiQuickCreateOpen] = useState(false);
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
+  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
+  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+  const searchParams = useSearchParams();
+
+  function toggleCollapsed() {
+    onToggleCollapsed();
+  }
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(() => {
+    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  const visibleAccountItems = useMemo(() => {
+    return ACCOUNT_NAV_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  // Whether to show recent workspaces section (controlled by personal prefs)
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  // Max workspaces to show (apply user preference)
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  // Track recently visited workspaces in localStorage
+  useEffect(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [activeAccount?.id, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    const accountId = activeAccount?.id;
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [activeAccount?.id, pathname]);
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (typeof window === "undefined" || !pathname.startsWith("/wiki")) {
+      return;
+    }
+
+    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
+    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(searchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+
+  const recentWorkspaceLinks = useMemo(() => {
+    return recentWorkspaceIds
+      .map((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+      })
+      .filter((item): item is { id: string; name: string; href: string } => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/wiki")) {
+        const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
+
+  const allWorkspaceLinks = useMemo(() => {
+    return Object.values(workspacesById)
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        href: buildWorkspaceContextHref(workspace.id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [workspacesById, buildWorkspaceContextHref]);
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
+    ? rawWorkspaceTab
+    : "Overview";
+
+  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
+    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  }
+
+  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
+    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+  }
+
+  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
+    if (tab === "Wiki") {
+      const status = getWorkspaceTabStatus(tab);
+      return `${status} WorkSpace Wiki`;
+    }
+    const status = getWorkspaceTabStatus(tab);
+    return `${status} ${tWorkspaceTab(tab, fallback)}`;
+  }
+
+  function tWorkspaceGroup(groupKey: string, fallback: string) {
+    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
+  }
+
+  function getWorkspacePrefId(tabValue: string) {
+    if (isWorkspaceTabValue(tabValue)) {
+      return getWorkspaceTabPrefId(tabValue);
+    }
+    return tabValue.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function isWorkspaceItemEnabled(prefId: string) {
+    return navPrefs.pinnedWorkspace.includes(prefId);
+  }
+
+  function getWorkspaceItemOrder(prefId: string) {
+    const index = navPrefs.workspaceOrder.indexOf(prefId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
+    return [...items].sort(
+      (left, right) =>
+        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
+        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarLocale() {
+      const isZhHant =
+        typeof navigator !== "undefined" &&
+        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
+      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
+
+      try {
+        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as SidebarLocaleBundle;
+        if (!cancelled) {
+          setLocaleBundle(data);
+        }
+      } catch {
+        // Keep fallback labels when localization files are unavailable.
+      }
+    }
+
+    void loadSidebarLocale();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleWikiQuickCreate(kind: "page" | "database") {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+
+    setCreatingKind(kind);
+    try {
+      const db = getFirebaseFirestore();
+      const collectionName = kind === "page" ? "pages" : "databases";
+      const baseTitle = kind === "page" ? "未命名頁面" : "未命名資料庫";
+
+      const payload: Record<string, unknown> = {
+        title: baseTitle,
+        kind,
+        accountId,
+        createdAt: firestoreApi.serverTimestamp(),
+        updatedAt: firestoreApi.serverTimestamp(),
+      };
+
+      if (activeWorkspaceId) {
+        payload.spaceId = activeWorkspaceId;
+      }
+
+      if (kind === "database") {
+        payload.template = "task-governance";
+        payload.metadata = {
+          model: ["tasks", "task_dependencies", "skills", "task_skill_thresholds"],
+          description: "任務依賴與技能門檻分類模板",
+        };
+      }
+
+      await firestoreApi.addDoc(
+        firestoreApi.collection(db, "accounts", accountId, collectionName),
+        payload,
+      );
+
+      toast.success(kind === "page" ? "已建立頁面" : "已建立資料庫");
+      setWikiQuickCreateOpen(false);
+    } catch (error) {
+      console.error(error);
+      toast.error(kind === "page" ? "建立頁面失敗" : "建立資料庫失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <>
+    <aside
+      aria-label="Secondary navigation"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-52 border-r border-border/50 bg-card/30"
+      }`}
+    >
+      <>
+          {/* ── Sidebar title bar ──────────────────────────────────── */}
+          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+            {/* Section label */}
+            <span className="flex flex-1 items-center gap-1 px-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+              {sectionMeta.icon}
+              {sectionMeta.label}
+            </span>
+            {/* Customize + collapse buttons grouped on the right */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                title="設定"
+                aria-label="設定"
+                onClick={() => {
+                  setCustomizeOpen(true);
+                }}
+                className="flex size-5 items-center justify-center rounded text-muted-foreground/70 transition hover:bg-muted hover:text-foreground"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="收起側欄"
+                title="收起側欄"
+                className="flex size-5 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Scrollable nav body ── section-specific ───────────── */}
+          <div className="flex-1 overflow-y-auto px-3 py-3">
+            {section === "account" && (
+              <>
+                {showAccountManagement && visibleAccountItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Account navigation">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      Account
+                    </p>
+                    {visibleAccountItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看 Account 選項。
+                  </p>
+                )}
+              </>
+            )}
+
+            {section === "organization" && (
+              <>
+                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Organization management">
+                    <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      組織管理
+                    </p>
+                    {visibleOrganizationManagementItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看管理選項。
+                  </p>
+                )}
+              </>
+            )}
+
+            {section === "workspace" && (
+              <>
+                {workspacePathId ? (
+                  <nav className="space-y-3" aria-label="Workspace navigation">
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    {isWorkspaceItemEnabled("workspace-modules") && (
+                      <div className="my-1.5 border-t border-border/40" />
+                    )}
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("workspace-modules") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceModulesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceModulesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
+                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceModulesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("spaces") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceSpacesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceSpacesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
+                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceSpacesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
+                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                    .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("databases") && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
+                            }}
+                            className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                            aria-expanded={isWorkspaceDatabasesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
+                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceDatabasesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                      isActive
+                                        ? "bg-primary/10 text-primary"
+                                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              isActive
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                  </nav>
+                ) : (
+                  // ── Workspace hub: show recent workspaces ──────────────
+                  <>
+                    {showRecentWorkspaces && (
+                      <div className="space-y-0.5">
+                        <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                          最近工作區
+                        </p>
+                        {visibleRecentWorkspaceLinks.length === 0 ? (
+                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                            尚無最近開啟的工作區。
+                          </p>
+                        ) : (
+                          visibleRecentWorkspaceLinks.map((ws) => (
+                            <Link
+                              key={ws.id}
+                              href={ws.href}
+                              onClick={() => {
+                                onSelectWorkspace(ws.id);
+                              }}
+                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                  ? "bg-primary/10 text-primary"
+                                  : "text-foreground/80 hover:bg-muted hover:text-foreground"
+                              }`}
+                              title={ws.name}
+                            >
+                              <span className="truncate">{ws.name}</span>
+                            </Link>
+                          ))
+                        )}
+                        {hasOverflow && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExpanded((prev) => !prev);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {isExpanded ? "收起" : "顯示更多"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+
+            {section === "wiki" && (
+              <nav className="space-y-0.5" aria-label="Account Wiki navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Account Wiki Bridge
+                </p>
+                {(
+                  [
+                    { href: "/wiki", label: "Workspace Bridge" },
+                    { href: "/wiki/block-editor", label: "區塊編輯器" },
+                    { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
+                    { href: "/wiki/rag-query", label: "Ask / Cite" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="relative flex items-center rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground">
+                  <Link
+                    href="/wiki/documents"
+                    aria-current={isActiveRoute("/wiki/documents") ? "page" : undefined}
+                    className={`flex-1 ${
+                      isActiveRoute("/wiki/documents")
+                        ? "text-primary"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Documents
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setWikiQuickCreateOpen((prev) => !prev);
+                    }}
+                    className="ml-1 inline-flex size-5 items-center justify-center rounded transition hover:bg-muted-foreground/15"
+                    aria-label="快速新增頁面或資料庫"
+                    title="快速新增"
+                  >
+                    <Plus className="size-3.5" />
+                  </button>
+
+                  {wikiQuickCreateOpen ? (
+                    <div className="absolute right-0 top-8 z-10 min-w-36 rounded-md border border-border/60 bg-popover p-1 shadow-md">
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiQuickCreate("page")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "page" ? "建立中..." : "新增頁面"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void handleWikiQuickCreate("database")}
+                        disabled={creatingKind !== null}
+                        className="flex w-full items-center rounded px-2 py-1.5 text-left text-xs text-foreground transition hover:bg-muted disabled:opacity-50"
+                      >
+                        {creatingKind === "database" ? "建立中..." : "新增資料庫"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+
+                {(
+                  [
+                    { href: "/wiki/pages", label: "Pages" },
+                    { href: "/wiki/libraries", label: "Libraries" },
+                    { href: "/wiki/rag-reindex", label: "RAG Reindex" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+
+                <div className="my-1.5 border-t border-border/40" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsWikiWorkspacesExpanded((prev) => !prev);
+                  }}
+                  className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+                  aria-expanded={isWikiWorkspacesExpanded}
+                >
+                  <span>Workspaces</span>
+                  {isWikiWorkspacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                </button>
+
+                {isWikiWorkspacesExpanded && (
+                  <div className="space-y-0.5 pl-2">
+                    {!workspacesHydrated ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">工作區載入中...</p>
+                    ) : allWorkspaceLinks.length === 0 ? (
+                      <p className="px-2 py-1.5 text-[11px] text-muted-foreground">目前帳號沒有工作區</p>
+                    ) : (
+                      allWorkspaceLinks.map((workspace) => {
+                        const active = activeWorkspaceId === workspace.id;
+                        return (
+                          <Link
+                            key={workspace.id}
+                            href={workspace.href}
+                            onClick={() => {
+                              onSelectWorkspace(workspace.id);
+                            }}
+                            aria-current={active ? "page" : undefined}
+                            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                              active
+                                ? "bg-primary/10 text-primary"
+                                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                            }`}
+                            title={workspace.name}
+                          >
+                            <span className="truncate">{workspace.name}</span>
+                          </Link>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </nav>
+            )}
+
+            {section === "ai-chat" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook / AI
+                </p>
+                {(
+                  [
+                    { href: "/ai-chat", label: "Notebook shell" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+          </div>
+        </>
+    </aside>
+
+    <CustomizeNavigationDialog
+      open={customizeOpen}
+      onOpenChange={setCustomizeOpen}
+      onPreferencesChange={setNavPrefs}
+    />
+    </>
+  );
+}
+````
+
+## File: app/(shell)/_components/global-search-dialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+
+const NAV_ITEMS = [
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/wiki", label: "Account Wiki Bridge", group: "導覽" },
+  { href: "/ai-chat", label: "Notebook / AI", group: "導覽" },
+  { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
+  { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
+  { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
+  { href: "/wiki/rag-query", label: "Ask / Cite", group: "Wiki" },
+  { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
+] as const;
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
+  "Wiki": <FileText className="size-4 mr-2 opacity-60" />,
+};
+
+interface GlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
+  const router = useRouter();
+
+  function handleSelect(href: string) {
+    onOpenChange(false);
+    router.push(href);
+  }
+
+  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
+
+  return (
+    <CommandDialog
+      title="全域搜尋"
+      description="搜尋頁面或功能"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <CommandInput placeholder="搜尋頁面或功能…" />
+      <CommandList>
+        <CommandEmpty>找不到結果。</CommandEmpty>
+        {groups.map((group) => (
+          <CommandGroup key={group} heading={group}>
+            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={() => handleSelect(item.href)}
+              >
+                {GROUP_ICONS[group]}
+                {item.label}
+                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+export function useGlobalSearch() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return { open, setOpen };
+}
 ````
 
 ## File: app/(shell)/wiki/rag-query/page.tsx
@@ -80589,400 +81733,6 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-  WorkspacePersonnel,
-} from "../domain/entities/Workspace";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../interfaces/queries/workspace.queries";
-
-// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
-
-// ─── Wiki content-tree use-case ────────────────────────────────────────────
-
-import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
-import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";
-import type { WikiAccountContentNode, WikiAccountSeed } from "../domain/entities/WikiContentTree";
-
-const _defaultWorkspaceRepository = new FirebaseWikiWorkspaceRepository();
-
-export function buildWikiContentTree(seeds: WikiAccountSeed[]): Promise<WikiAccountContentNode[]> {
-  return _buildWikiContentTree(seeds, _defaultWorkspaceRepository);
-}
-
-// ─── Server actions (client-callable via Next.js action proxy) ──────────────
-
-export { createWorkspace } from "../interfaces/_actions/workspace.actions";
-
-// ─── UI components (cross-module public) ─────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
-
-// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
-
-export {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export type { WorkspaceTabGroup, WorkspaceTabValue } from "../interfaces/workspace-tabs";
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { type FormEvent, useState } from "react";
-
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-}
-
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-}: WorkspaceHubScreenProps) {
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await createWorkspaceForAccount(workspaceName);
-
-    if (!result.success) {
-      return;
-    }
-
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
-        </Button>
-      </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Wiki</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => (
-            <Link
-              key={workspace.id}
-              href={`/workspace/${workspace.id}`}
-              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                      {workspace.name}
-                    </p>
-                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Account scope: {workspace.accountType}
-                  </p>
-                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                  <span>Capabilities: {workspace.capabilities.length}</span>
-                  <span>Teams: {workspace.teamIds.length}</span>
-                  <span>Locations: {workspace.locations?.length ?? 0}</span>
-                  <span>Grants: {workspace.grants.length}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) {
-            resetCreateWorkspaceDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-            <DialogDescription id="create-workspace-description">
-              建立後會直接出現在目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="workspace-name"
-              >
-                工作區名稱
-              </label>
-              <Input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => {
-                  setWorkspaceName(event.target.value);
-                  if (createError) {
-                    clearCreateError();
-                  }
-                }}
-                placeholder="例如：北區營運中心"
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {createError && (
-                <p className="text-sm text-destructive">{createError}</p>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/interfaces/workspace-tabs.ts
 ````typescript
 export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
@@ -82977,655 +83727,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  function buildWikiWorkspaceHref(workspaceId: string): string {
-    if (pathname.startsWith("/wiki")) {
-      const targetPath = pathname === "/wiki" ? "/wiki/documents" : pathname;
-      return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-    }
-    return `/wiki/documents?workspaceId=${encodeURIComponent(workspaceId)}`;
-  }
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            if (item.href === "/wiki") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="Account Wiki: 切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">Account Wiki: 切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">選擇工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onSelectWorkspace(null);
-                        router.push("/wiki");
-                      }}
-                      className={!activeWorkspaceId ? "bg-primary/10 text-primary" : ""}
-                    >
-                      Account Wiki 首頁
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(buildWikiWorkspaceHref(workspace.id));
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        {/* ── User avatar / sign-out ────────────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="開啟使用者選單"
-                  className="rounded-full ring-offset-background transition hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-                >
-                  <Avatar size="sm">
-                    <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
-                      {getInitial(user?.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              <p className="text-xs font-medium">{user?.name ?? "—"}</p>
-              <p className="text-[10px] text-muted-foreground">{user?.email ?? "—"}</p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="end" className="w-48">
-            <DropdownMenuLabel className="space-y-0.5">
-              <p className="truncate text-sm font-medium">{user?.name ?? "—"}</p>
-              <p className="truncate text-xs text-muted-foreground">{user?.email ?? "—"}</p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onClick={onSignOut}>
-              登出
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
-  );
-}
-````
-
 ## File: app/(shell)/ai-chat/_actions.ts
 ````typescript
 "use server";
@@ -83641,326 +83742,6 @@ export async function sendChatMessage(
 ): Promise<GenerateNotebookResponseResult> {
   const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
   return useCase.execute(input);
-}
-````
-
-## File: app/(shell)/layout.tsx
-````typescript
-"use client";
-
-/**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
- */
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
-
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/wiki": "Wiki",
-  "/wiki/rag-query": "Account Wiki · RAG 查詢",
-  "/wiki/documents": "Account Wiki · 文件",
-  "/ai-chat": "AI 對話",
-  "/dev-tools": "開發工具",
-};
-
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
-
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
-export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
-  }
-
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
-  useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
-      return;
-    }
-
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
-
-  async function handleLogout() {
-    setLogoutError(null);
-    try {
-      await logout();
-    } catch {
-      setLogoutError("登出失敗，請稍後再試。");
-    }
-  }
-
-  return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
-
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
-            )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
-
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
-          )}
-
-          <main className="flex-1 overflow-auto p-6">{children}</main>
-        </div>
-      </div>
-    </ShellGuard>
-  );
 }
 ````
 
@@ -84559,6 +84340,326 @@ Repository prompt set for repeatable planning, implementation, review, and docum
 - [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 ````
 
+## File: app/(shell)/layout.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
+
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
+  "/workspace": "工作區中心",
+  "/wiki": "Account Wiki Bridge",
+  "/wiki/rag-query": "Notebook / AI · Ask / Cite",
+  "/wiki/documents": "Knowledge · 文件來源",
+  "/ai-chat": "Notebook / AI",
+  "/dev-tools": "開發工具",
+};
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
+
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export default function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <DashboardSidebar
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
+  );
+}
+````
+
 ## File: modules/notebook/infrastructure/genkit/index.ts
 ````typescript
 /**
@@ -84726,198 +84827,6 @@ For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS
 See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- */
-
-import { Bot, Loader2, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useRef, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { sendChatMessage } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-function generateMsgId() {
-  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-}
-
-export default function AiChatPage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { workspaces },
-  } = useApp();
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceName =
-    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? workspaces[requestedWorkspaceId]?.name ?? "目前工作區"
-      : null;
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    try {
-      const result = await sendChatMessage({ prompt: text });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      // Defer scroll to allow React to flush the new message into the DOM first.
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-        <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-          <Bot className="size-4 text-primary" />
-        </div>
-        <div>
-          <h1 className="text-sm font-semibold leading-none">AI 對話</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">智慧助理 · 知識問答 · 任務協助</p>
-        </div>
-      </div>
-
-      {workspaceName && (
-        <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-          目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span>{" "}
-          進入；若需要帶引用來源的工作區查詢，可切換到 RAG Query。
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-4">
-        {messages.length === 0 && !isPending && (
-          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-              <Bot className="size-6 text-primary" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">有什麼我可以幫你的？</p>
-              <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                詢問工作區任務、知識問答或文件摘要等。
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="mx-auto max-w-2xl space-y-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-            >
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                  msg.role === "user"
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-foreground",
-                )}
-              >
-                <p className="whitespace-pre-wrap">{msg.content}</p>
-              </div>
-            </div>
-          ))}
-
-          {isPending && (
-            <div className="flex justify-start">
-              <div className="rounded-2xl bg-muted px-4 py-2.5">
-                <Loader2 className="size-4 animate-spin text-muted-foreground" />
-              </div>
-            </div>
-          )}
-
-          {error && (
-            <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-              {error}
-            </div>
-          )}
-
-          <div ref={bottomRef} />
-        </div>
-      </div>
-
-      {/* Input */}
-      <form
-        onSubmit={(e) => void handleSubmit(e)}
-        className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-      >
-        <div className="mx-auto flex max-w-2xl items-end gap-2">
-          <textarea
-            rows={1}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="輸入訊息… (Enter 送出，Shift+Enter 換行)"
-            disabled={isPending}
-            className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-            style={{ maxHeight: "120px" }}
-          />
-          <Button
-            type="submit"
-            size="sm"
-            disabled={isPending || !input.trim()}
-            className="shrink-0 gap-1.5"
-          >
-            {isPending ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <SendHorizonal className="size-4" />
-            )}
-            <span className="hidden sm:inline">送出</span>
-          </Button>
-        </div>
-      </form>
-    </div>
-  );
-}
-````
-
 ## File: modules/notebook/api/index.ts
 ````typescript
 /**
@@ -85035,6 +84944,316 @@ export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
 export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
 export { LibrariesView } from "../interfaces/components/LibrariesView";
 export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+````
+
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ */
+
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { sendChatMessage } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+function generateMsgId() {
+  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { workspaces },
+  } = useApp();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const currentWorkspace =
+    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? workspaces[requestedWorkspaceId] ?? null
+      : null;
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    setMessages((prev) => [...prev, userMsg]);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    try {
+      const result = await sendChatMessage({ prompt: text });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      // Defer scroll to allow React to flush the new message into the DOM first.
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、Wiki 與查詢消費層收斂成單一 notebook shell，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <FolderKanban className="size-4 text-primary" />
+                Workspace context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              {currentWorkspace ? (
+                <>
+                  <div>
+                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
+                    <p className="mt-1 text-xs">
+                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs">
+                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`/wiki/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`/wiki/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                Wiki 頁面樹 / Pages
+              </Link>
+              <Link href={`/wiki/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook thread</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
