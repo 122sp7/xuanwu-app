@@ -13,6 +13,11 @@
  *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
  *   - UI mutations                    → Server Actions below
  *   - UI reads                        → Query functions below
+ *
+ * Current boundary note:
+ *   - `Page` / `Block` are owned by this module.
+ *   - `KnowledgeCollection` is still exported here as a transitional surface.
+ *   - `Article` / `Category` belong to `knowledge-base`.
  */
 
 // ── API: Facade (cross-domain entry point) ────────────────────────────────────
@@ -82,3 +87,5 @@ export type { PageVerificationState } from "./domain/entities/content-page.entit
 
 // ── Interfaces: Components ────────────────────────────────────────────────────
 export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PageTreeView } from "./interfaces/components/PageTreeView";
+export { PageDialog } from "./interfaces/components/PageDialog";

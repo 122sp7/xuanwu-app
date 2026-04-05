@@ -11,6 +11,7 @@
 | `workspace` | **Conformist** | Page 必須屬於 Workspace |
 | `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
 | `identity` | **Conformist** | 驗證 createdByUserId 是否存在 |
+| `shared` | **Shared Kernel** | `CommandResult`、事件發佈基礎型別 |
 
 ---
 
@@ -20,9 +21,10 @@
 |---|---|---|
 | `knowledge-base` | **Customer / Supplier** | Page 可透過 Promote 流程成為 Article（跨 BC 操作） |
 | `knowledge-collaboration` | **Customer / Supplier** | 使用 pageId 作為 contentId，提供 Comment / Version / Permission |
-| `workspace-feed` | **Published Language** | `knowledge.page_published` 推送工作區動態 |
-| `workspace-audit` | **Published Language** | `knowledge.page_approved` 寫入稽核紀錄 |
-| `notification` | **Published Language** | Page 審核相關事件觸發通知 |
+| `knowledge-database` | **Split / Transitional Boundary** | `KnowledgeCollection` 仍在本模組，最終 database 能力應收斂到此 BC |
+| `workspace-audit` | **Published Language** | `knowledge.page_approved` 可被稽核流程消費 |
+| `notification` | **Published Language** | 審核或複核事件未來可觸發通知 |
+| `workspace-feed` | **Published Language** | 目前尚未看到 `knowledge.page_published` 的實際 publish |
 
 ---
 
@@ -35,20 +37,22 @@
 | `knowledge-collaboration` | **協作基礎設施** - Comment / Permission / Version |
 | `knowledge-database` | **結構化資料** - Database / Record / View |
 
+> 目前 code 上 `KnowledgeCollection` 仍在 `knowledge`，這是過渡狀態，不表示最終 ownership 已經定案。
+
 ---
 
 ## 整合事件流
 
 ```
 knowledge.page_created
-  → (auto) knowledge-collaboration.version_created (initial snapshot)
+  → (planned) knowledge-collaboration.version_created (initial snapshot)
 
 knowledge.page_approved
-  → workspace-audit (append-only log)
-  → notification (author notified)
+  → (contract-ready) workspace-audit
+  → (contract-ready) notification
 
-knowledge.page_published (optional)
-  → workspace-feed (activity)
+knowledge.page_verified / knowledge.page_review_requested / knowledge.page_owner_assigned
+  → (planned) wiki governance / notification flows
 
 user action: Promote Page → Article
   → knowledge-base.article_created (new article with page content)
@@ -61,4 +65,4 @@ user action: Promote Page → Article
 
 - `knowledge` **不得** import `knowledge-base`、`knowledge-collaboration`、`knowledge-database` 的 domain 層。
 - `knowledge-collaboration` 透過 `modules/knowledge/api` 取得 pageId，不讀取 Page 內部。
-- `approvalState` 屬於 Page 生命週期，保留在此 BC（非 collaboration 的 Permission 概念）。
+- `approvalState`、`verificationState`、`ownerId` 目前仍保留在 `Page`；若日後重新切分 ownership，必須連同 API contract 一起搬移。
