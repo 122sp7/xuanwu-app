@@ -7,6 +7,7 @@
  * Section pages live under /organization/[section].
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -36,21 +37,48 @@ export default function OrganizationPage() {
 
   function handleSwitch(account: AccountEntity) {
     dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/organization/members");
+    router.replace("/workspace");
   }
 
   function handleSwitchToPersonal() {
-    if (user) dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
   }
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Organization Governance</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Switch between your personal account and your organizations.
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
         </p>
       </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、Wiki、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
 
       {!accountsHydrated && (
         <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
@@ -133,7 +161,7 @@ export default function OrganizationPage() {
 
       {activeOrganizationId && (
         <p className="text-sm text-muted-foreground">
-          選擇左側側邊欄的項目以管理組織設定。
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
         </p>
       )}
     </div>

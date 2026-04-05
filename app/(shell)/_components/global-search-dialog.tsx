@@ -15,11 +15,13 @@ import {
 } from "@ui-shadcn/ui/command";
 
 const NAV_ITEMS = [
-  { href: "/wiki", label: "Wiki", group: "導覽" },
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/wiki", label: "Account Wiki Bridge", group: "導覽" },
+  { href: "/ai-chat", label: "Notebook / AI", group: "導覽" },
   { href: "/wiki/block-editor", label: "區塊編輯器", group: "Wiki" },
   { href: "/wiki/pages-dnd", label: "頁面樹 (DnD)", group: "Wiki" },
   { href: "/wiki/libraries", label: "Libraries 表格", group: "Wiki" },
-  { href: "/wiki/rag-query", label: "RAG 查詢", group: "Wiki" },
+  { href: "/wiki/rag-query", label: "Ask / Cite", group: "Wiki" },
   { href: "/wiki/documents", label: "文件管理", group: "Wiki" },
 ] as const;
 

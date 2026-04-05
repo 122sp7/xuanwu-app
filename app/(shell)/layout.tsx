@@ -31,10 +31,10 @@ const routeTitles: Record<string, string> = {
   "/organization/schedule/dispatcher": "Account · 調度台",
   "/organization/audit": "Account · 稽核",
   "/workspace": "工作區中心",
-  "/wiki": "Wiki",
-  "/wiki/rag-query": "Account Wiki · RAG 查詢",
-  "/wiki/documents": "Account Wiki · 文件",
-  "/ai-chat": "AI 對話",
+  "/wiki": "Account Wiki Bridge",
+  "/wiki/rag-query": "Notebook / AI · Ask / Cite",
+  "/wiki/documents": "Knowledge · 文件來源",
+  "/ai-chat": "Notebook / AI",
   "/dev-tools": "開發工具",
 };
 

@@ -136,8 +136,8 @@ function resolveNavSection(pathname: string): NavSection {
 
 const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
   workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  "wiki": { label: "Wiki", icon: <BookOpen className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  "wiki": { label: "Account Wiki", icon: <BookOpen className="size-3" /> },
+  "ai-chat": { label: "Notebook", icon: <Bot className="size-3" /> },
   account: { label: "Account", icon: <UserRound className="size-3" /> },
   organization: { label: "組織", icon: <Users className="size-3" /> },
   other: { label: "導覽", icon: null },
@@ -750,14 +750,14 @@ export function DashboardSidebar({
             {section === "wiki" && (
               <nav className="space-y-0.5" aria-label="Account Wiki navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Account Wiki
+                  Account Wiki Bridge
                 </p>
                 {(
                   [
-                    { href: "/wiki", label: "知識總覽" },
+                    { href: "/wiki", label: "Workspace Bridge" },
                     { href: "/wiki/block-editor", label: "區塊編輯器" },
                     { href: "/wiki/pages-dnd", label: "頁面 (DnD)" },
-                    { href: "/wiki/rag-query", label: "RAG Query" },
+                    { href: "/wiki/rag-query", label: "Ask / Cite" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
@@ -898,13 +898,13 @@ export function DashboardSidebar({
             )}
 
             {section === "ai-chat" && (
-              <nav className="space-y-0.5" aria-label="AI Chat navigation">
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
                 <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  AI Chat
+                  Notebook / AI
                 </p>
                 {(
                   [
-                    { href: "/ai-chat", label: "對話紀錄" },
+                    { href: "/ai-chat", label: "Notebook shell" },
                   ] as const
                 ).map((item) => {
                   const active = isActiveRoute(item.href);
