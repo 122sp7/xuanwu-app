@@ -1,0 +1,12 @@
+- Active Serena project: xuanwu-app.
+- Sync date: 2026-04-06.
+- Git working tree was clean at sync time (no staged or unstaged changes).
+- Current docs entrypoints: docs/README.md for navigation and docs/SOURCE-OF-TRUTH.md for docs IA skeleton.
+- Current domain/source-of-truth docs: docs/ddd/subdomains.md and docs/ddd/bounded-contexts.md; modules/ root mirrors these with modules/subdomains.md and modules/bounded-contexts.md.
+- Current modules/ root shows 18 bounded contexts plus modules/system.ts.
+- Cross-module collaboration remains API-only via each module's api/ boundary.
+- .vscode/mcp.json currently defines: sequential-thinking, chrome-devtools, filesystem, context7, shadcn, mongodb, next-devtools, mcp-run-python, supabase-mcp, markitdown, playwright-mcp, serena.
+- llms.txt exists but has routing drift to outdated docs trees and root agents/* paths; verify against current workspace before treating it as canonical.
+- Current agent documentation lives under .github/agents/*; root agents/ is a separate customization tree.
+- Historical wiki-beta references should be treated as migration history, not current module topology.
+- Repo memory corrections made during sync: docs-root-organization, architecture-source-of-truth, ai-doc-entrypoints, and wiki-beta-view-migration were updated or normalized to current structure.
