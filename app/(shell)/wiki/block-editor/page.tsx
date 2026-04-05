@@ -1,6 +1,6 @@
 "use client";
 
-import { BlockEditorView } from "@/modules/content/api";
+import { BlockEditorView } from "@/modules/knowledge/api";
 
 export default function WikiBlockEditorPage() {
   return (

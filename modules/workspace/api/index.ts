@@ -20,7 +20,7 @@ export {
   subscribeToWorkspacesForAccount,
 } from "../interfaces/queries/workspace.queries";
 
-// ─── Wiki content-tree types (transitional — workspace-owned) ─────────────
+// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
 
 export type {
   WikiAccountContentNode,
@@ -31,7 +31,7 @@ export type {
   WikiWorkspaceRef,
 } from "../domain/entities/WikiContentTree";
 
-// ─── Wiki content-tree use-case (transitional) ────────────────────────────
+// ─── Wiki content-tree use-case ────────────────────────────────────────────
 
 import { FirebaseWikiWorkspaceRepository } from "../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
 import { buildWikiContentTree as _buildWikiContentTree } from "../application/use-cases/wiki-content-tree.use-case";

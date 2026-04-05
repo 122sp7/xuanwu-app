@@ -124,13 +124,13 @@ rejected → closed      (CLOSE)
 
 ### 上傳完成領域服務
 
-**代碼位置：** `modules/asset/domain/services/complete-upload-file.ts`
+**代碼位置：** `modules/source/domain/services/complete-upload-file.ts`
 
 職責：驗證上傳完成後的 metadata 合法性，決定 File 實體的初始狀態。
 
 ### 組織 ID 解析服務
 
-**代碼位置：** `modules/asset/domain/services/resolve-file-organization-id.ts`
+**代碼位置：** `modules/source/domain/services/resolve-file-organization-id.ts`
 
 職責：從 ActorFileContext 中解析出檔案所屬的 organizationId（跨 Port 協調）。
 
@@ -158,7 +158,7 @@ export function isValidSlug(slug: string): boolean;
 
 ### LinkExtractor 服務（Auto-link）
 
-**代碼位置：** `modules/knowledge-graph/application/` （service 存在，觸發管道待建）
+**代碼位置：** `modules/wiki/application/` （service 存在，觸發管道待建）
 
 職責：分析頁面 ContentBlock 文字，自動識別 `[[頁面標題]]` 或 `[[page-slug]]` 格式的隱式連結，建立 `LinkType = "implicit"` 的有向邊。
 

@@ -25,7 +25,7 @@ export interface ExtractedInvoiceItem {
 
 export interface MaterializeFromContentDto {
   readonly workspaceId: string;
-  /** ID of the ContentPage that was approved (same as sourceReference.id). */
+  /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
   readonly contentPageId: string;
   /** Pre-built SourceReference value object to attach to every created entity. */
   readonly sourceReference: SourceReference;

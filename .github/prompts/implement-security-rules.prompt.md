@@ -15,5 +15,4 @@ argument-hint: Provide access scenarios, actor roles, and constrained resources.
 4. Report residual access risks.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-development-contracts

@@ -1,15 +1,14 @@
 "use server";
 
 import type {
-  GenerateAgentResponseInput,
-  GenerateAgentResponseResult,
-} from "@/modules/agent/api";
-import { GenerateAgentResponseUseCase } from "@/modules/agent/api";
-import { GenkitAgentRepository } from "@/modules/agent/api";
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "@/modules/notebook/api";
+import { GenerateNotebookResponseUseCase, GenkitNotebookRepository } from "@/modules/notebook/api/server";
 
 export async function sendChatMessage(
-  input: GenerateAgentResponseInput,
-): Promise<GenerateAgentResponseResult> {
-  const useCase = new GenerateAgentResponseUseCase(new GenkitAgentRepository());
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
   return useCase.execute(input);
 }

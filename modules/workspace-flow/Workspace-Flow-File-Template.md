@@ -12,7 +12,7 @@
 ```
 
 * `<模組路徑>`: 如 `workspace-flow/domain/entities`
-* `<檔案名稱>`: 如 `Task.ts`
+ * `<檔案名稱>`: 如 `modules/workspace-flow/domain/entities/Task.ts`
 * `<檔案用途簡述>`: 簡單一句話說明這個檔案做什麼
 * `@todo` 可以先留空
 

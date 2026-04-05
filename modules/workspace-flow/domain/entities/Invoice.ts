@@ -22,7 +22,7 @@ export interface Invoice {
   readonly paidAtISO?: string;
   readonly closedAtISO?: string;
   /**
-   * Present when this Invoice was materialized from a ContentPage via the
+   * Present when this Invoice was materialized from a KnowledgePage via the
    * `content.page_approved` event.  Provides full provenance traceability.
    */
   readonly sourceReference?: SourceReference;

@@ -28,7 +28,6 @@ Use this instruction for work in `app/`.
 - If routing or public API usage changes, update affected docs or prompt/instruction references in the same change.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill app-router-parallel-routes
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices

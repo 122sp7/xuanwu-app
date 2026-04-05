@@ -24,7 +24,15 @@ jobs:
       - name: Run broken link checker
         uses: lycheeverse/lychee-action@v2
         with:
-          args: --root-dir "$(pwd)" --verbose --no-progress './**/*.md'
+          args: >-
+            --root-dir "$(pwd)"
+            --verbose
+            --no-progress
+            --exclude-path '.claude/**'
+            --exclude-path '.github/skills/**'
+            --exclude-path '.serena/**'
+            --exclude-path 'docs/templates/**'
+            './**/*.md'
           token: ${{ secrets.GITHUB_TOKEN }}
           fail: true
           jobSummary: true

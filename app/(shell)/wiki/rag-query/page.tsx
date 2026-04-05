@@ -3,12 +3,16 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/retrieval";
+import { RagQueryView } from "@/modules/search";
 
 export default function WikiRagQueryPage() {
   const searchParams = useSearchParams();
   const { state: appState } = useApp();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || appState.activeWorkspaceId || undefined;
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : appState.activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">

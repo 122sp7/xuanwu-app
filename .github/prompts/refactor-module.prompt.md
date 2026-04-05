@@ -15,6 +15,5 @@ argument-hint: Provide module name, refactor goal, and boundary risks.
 4. Update tests/docs alongside code changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries

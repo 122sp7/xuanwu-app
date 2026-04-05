@@ -2,11 +2,19 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { AssetDocumentsView } from "@/modules/asset/api";
+import { useApp } from "@/app/providers/app-provider";
+import { SourceDocumentsView } from "@/modules/source/api";
 
 export default function WikiDocumentsPage() {
   const searchParams = useSearchParams();
-  const workspaceId = searchParams.get("workspaceId")?.trim() || undefined;
+  const {
+    state: { workspaces, activeWorkspaceId },
+  } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">
@@ -16,7 +24,7 @@ export default function WikiDocumentsPage() {
         <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
       </header>
 
-      <AssetDocumentsView workspaceId={workspaceId} />
+      <SourceDocumentsView workspaceId={workspaceId} />
     </div>
   );
 }

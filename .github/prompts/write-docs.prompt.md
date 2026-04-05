@@ -15,5 +15,4 @@ argument-hint: Provide target docs scope and expected documentation outcome.
 4. Update folder index/README after leaf updates.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill documentation-writer

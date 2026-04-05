@@ -15,6 +15,5 @@ argument-hint: Provide route/feature scope, observed slowness, and baseline expe
 4. Define validation for improvement claims.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill vercel-react-best-practices
 #use skill next-devtools-mcp

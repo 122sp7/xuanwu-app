@@ -30,7 +30,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## 上下文地圖 (Context Map)
 
-完整模組地圖請查閱：**[`docs/architecture/bounded-contexts.md`](../../docs/architecture/bounded-contexts.md)**
+完整模組地圖請查閱：**[`docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)**
 
 > 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
 
@@ -48,6 +48,5 @@ interfaces/ → application/ → domain/ ← infrastructure/
 - ✅ `import { X } from '@/modules/other-context/api'`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries

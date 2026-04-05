@@ -66,7 +66,7 @@ export { contentFacade } from "./facade";
 
 | 模組 | 特殊規則 |
 |------|---------|
-| `retrieval/api` | **禁止**匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 root barrel `modules/retrieval` 匯出 |
+| `retrieval/api` | **禁止**匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 root barrel `modules/search` 匯出 |
 | `identity/api` | **禁止**匯出 `"use client"` hooks/components，因 `account/application` 在 Server 端 import identity/api |
 | `workspace/infrastructure` | `FirebaseWikiWorkspaceRepository` **禁止** import `@/modules/workspace/api`（循環依賴），改用 relative import `FirebaseWorkspaceRepository` |
 
@@ -78,7 +78,7 @@ export { contentFacade } from "./facade";
 
 ```typescript
 // 跨模組：走 api/ 邊界
-import { createContentPage } from "@/modules/content/api";
+import { createContentPage } from "@/modules/knowledge/api";
 import { getWorkspaceById } from "@/modules/workspace/api";
 import { deriveSlugCandidate } from "@/modules/shared/api";
 
@@ -97,7 +97,7 @@ import { FirebaseContentPageRepository } from "../infrastructure/firebase/Fireba
 
 ```typescript
 // ❌ 跨模組直接 import 他模組內部層
-import { ContentPage } from "@/modules/content/domain/entities/content-page.entity";
+import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
 import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
 
 // ❌ 使用舊版 @/ 直接 import shared/libs
@@ -135,7 +135,7 @@ Next.js App Router 的 `"use server"` 與 `"use client"` 邊界與模組 API 邊
 
 "use client" 代碼（Client Components、Hooks）
   └── 可 import: modules/<any>/api（一般用途）
-  └── 特殊：modules/retrieval UI 元件從 modules/retrieval（root barrel）import
+  └── 特殊：modules/search UI 元件從 modules/search（root barrel）import
   └── 禁止 import: "use server" 函式（Server Actions 除外）
 ```
 
@@ -202,10 +202,10 @@ rules: {
 
 `content` 與 `workspace-flow` 之間的事件驅動整合必須透過各自的 `api/` 公開邊界，以下為公開介面範例：
 
-### `modules/content/api/events.ts`（計畫中）
+### `modules/knowledge/api/events.ts`（計畫中）
 
 ```typescript
-// modules/content/api/events.ts
+// modules/knowledge/api/events.ts
 // 匯出 content 模組的公開事件契約，供其他模組（如 workspace-flow）訂閱
 
 export type {
@@ -229,7 +229,7 @@ export const CONTENT_EVENT_TYPES = {
 // 定義 workspace-flow 模組對外暴露的事件監聽介面
 // 供 Process Manager、Cloud Functions Trigger 或 Event Bus 使用
 
-import type { ContentPageApprovedEvent } from "@/modules/content/api/events";
+import type { ContentPageApprovedEvent } from "@/modules/knowledge/api/events";
 import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
 
 /**
@@ -258,7 +258,7 @@ export const WORKSPACE_FLOW_EVENT_LISTENERS = [
 ```
 
 **使用規則：**
-- `workspace-flow` 只能從 `@/modules/content/api/events` import 事件型別，**不得**直接 import `content/domain/`。
+- `workspace-flow` 只能從 `@/modules/knowledge/api/events` import 事件型別，**不得**直接 import `content/domain/`。
 - `content` 不得直接呼叫 `workspace-flow` 的 Use Case，只能透過 Event Bus 解耦。
 - `listeners.ts` 是 `workspace-flow/api` 的一部分，供外部（Cloud Functions、Trigger、tests）安全呼叫。
 

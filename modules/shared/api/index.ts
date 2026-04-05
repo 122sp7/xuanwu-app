@@ -6,16 +6,16 @@
 export type { BaseEntity, CreatedBy, QueryScope } from "../domain/types";
 export { BaseEntitySchema } from "../domain/types";
 export type { DomainEvent } from "../domain/events";
-export type { ContentUpdatedEvent } from "../domain/events/content-updated.event";
+export type { KnowledgeUpdatedEvent } from "../domain/events/knowledge-updated.event";
 export {
-  CONTENT_UPDATED_EVENT_TYPE,
-  createContentUpdatedEvent,
-} from "../domain/events/content-updated.event";
-export type { ContentPageCreatedEvent } from "../domain/events/content-page-created.event";
+  KNOWLEDGE_UPDATED_EVENT_TYPE,
+  createKnowledgeUpdatedEvent,
+} from "../domain/events/knowledge-updated.event";
+export type { KnowledgePageCreatedEvent } from "../domain/events/knowledge-page-created.event";
 export {
-  CONTENT_PAGE_CREATED_EVENT_TYPE,
-  createContentPageCreatedEvent,
-} from "../domain/events/content-page-created.event";
+  KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
+  createKnowledgePageCreatedEvent,
+} from "../domain/events/knowledge-page-created.event";
 export { SimpleEventBus } from "../infrastructure/SimpleEventBus";
 export type { EventHandler } from "../infrastructure/SimpleEventBus";
 

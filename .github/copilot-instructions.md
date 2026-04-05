@@ -18,28 +18,30 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 Read these in order before making non-trivial decisions:
 
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology and naming.
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
 2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
 3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](../agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](../agents/commands.md) for build, lint, test, and deployment commands.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
 6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
 
-## IDDD Document Authority (Single Source of Truth)
+## DDD Reference Authority
 
-DDD knowledge is owned exclusively by `docs/architecture/`. Always consult these files — never copy their content into instructions, agents, or other docs:
+DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the matching bounded-context reference set.
 
 | Query | Canonical Document |
 |-------|-------------------|
-| Ubiquitous Language / term definitions | [`docs/architecture/ubiquitous-language.md`](../docs/architecture/ubiquitous-language.md) |
-| Bounded Context boundaries / module map | [`docs/architecture/bounded-contexts.md`](../docs/architecture/bounded-contexts.md) |
-| Aggregate Root / Entity / Value Object design | [`docs/architecture/domain-model.md`](../docs/architecture/domain-model.md) |
-| Domain Events catalogue | [`docs/architecture/domain-events.md`](../docs/architecture/domain-events.md) |
-| Context Map (inter-context relationships) | [`docs/architecture/context-map.md`](../docs/architecture/context-map.md) |
-| Repository pattern | [`docs/architecture/repository-pattern.md`](../docs/architecture/repository-pattern.md) |
-| Use Cases / Application Services | [`docs/architecture/use-cases.md`](../docs/architecture/use-cases.md) |
+| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Context terminology | `docs/ddd/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `docs/ddd/<context>/aggregates.md` |
+| Context domain events | `docs/ddd/<context>/domain-events.md` |
+| Context map | `docs/ddd/<context>/context-map.md` |
+| Context repositories | `docs/ddd/<context>/repositories.md` |
+| Context application services | `docs/ddd/<context>/application-services.md` |
+| Context domain services | `docs/ddd/<context>/domain-services.md` |
 
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/architecture/` files contain **knowledge** (what the domain looks like). Never duplicate knowledge into instructions — link instead.
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains the repository's DDD knowledge set. Link instead of copying.
 
 ## Workspace-Wide Operating Rules
 
@@ -77,18 +79,19 @@ Serena is mandatory for project memory, index management, and any `.serena/` ope
 ## Skill And Agent Routing
 
 - Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
 - Use boundary or contract skills only when the task actually crosses those concerns.
 - Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
 
 ## Validation
 
-- Run the matching validation for changed files by using [agents/commands.md](../agents/commands.md).
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
 - Do not close work until required lint, build, test, and documentation updates are complete.
 
 ## Terminology
 
-- Terminology is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
 - Treat glossary terminology as canonical naming and vocabulary authority.
 - Do not introduce new terms if an equivalent glossary term already exists.
 - When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and architecture docs.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.

@@ -12,6 +12,5 @@ applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
 - Separate confirmed defects from enhancement suggestions.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill vscode-testing-debugging-browser
 #use skill next-devtools-mcp

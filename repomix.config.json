@@ -82,8 +82,11 @@
 
       ".git/**",
       ".github/workflows/**",
+      ".github/skills/**",
+      "docs/architecture/**",
 
       "public/**",
+      ".tmp-eslint*.json",
       "*.png",
       "*.jpg",
       "*.jpeg",

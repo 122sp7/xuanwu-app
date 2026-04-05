@@ -15,6 +15,5 @@ argument-hint: Provide flow intent, inputs/outputs, and target runtime.
 4. Validate flow behavior and fallback paths.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-rag-runtime-boundary
 #use skill next-devtools-mcp

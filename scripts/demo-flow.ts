@@ -11,7 +11,7 @@
  *
  * Expected output:
  *   [1] Initialising event bus...           ✓
- *   [2] Creating ContentApi...              ✓
+ *   [2] Creating KnowledgeApi...              ✓
  *   [3] Creating KnowledgeApi (subscribed)  ✓
  *   [4] Creating page "Hello World"...      ✓  pageId=<uuid>
  *   [5] Adding block to page...             ✓  blockId=<uuid>
@@ -21,8 +21,8 @@
  */
 
 import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { ContentApi } from "../modules/content/api/content-api";
-import { KnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+import { KnowledgeApi as GraphKnowledgeApi } from "../modules/ai/api/knowledge-api";
 
 async function main() {
   const ACCOUNT_ID = "demo-account";
@@ -33,13 +33,13 @@ async function main() {
   const eventBus = new SimpleEventBus();
   console.log("    ✓ SimpleEventBus ready\n");
 
-  // ── Step 2 & 3: Wire ContentApi and KnowledgeApi ──────────────────────────
-  console.log("[2] Creating ContentApi...");
-  const contentApi = new ContentApi(eventBus);
-  console.log("    ✓ ContentApi ready\n");
+  // ── Step 2 & 3: Wire KnowledgeApi and KnowledgeApi ──────────────────────────
+  console.log("[2] Creating KnowledgeApi...");
+  const contentApi = new ContentKnowledgeApi(eventBus);
+  console.log("    ✓ KnowledgeApi ready\n");
 
   console.log("[3] Creating KnowledgeApi (subscribing to event bus)...");
-  const knowledgeApi = new KnowledgeApi(eventBus);
+  const knowledgeApi = new GraphKnowledgeApi(eventBus);
   console.log("    ✓ KnowledgeApi ready — LinkExtractorService subscribed\n");
 
   // ── Step 4: Create a Page ─────────────────────────────────────────────────

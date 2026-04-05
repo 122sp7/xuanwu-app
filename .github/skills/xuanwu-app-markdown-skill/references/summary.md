@@ -32,27 +32,27 @@ This skill contains the following reference files:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: **/*.md
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-338 files | 260,134 lines
+525 files | 32,285 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 338 | 260,134 |
+| Markdown | 525 | 32,285 |
 
 **Largest files:**
-- `.github/skills/xuanwu-app-skill/references/files.md` (225,632 lines)
-- `.github/skills/xuanwu-app-skill/references/project-structure.md` (998 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
-- `modules/asset/README.md` (902 lines)
-- `docs/architecture/domain-model.md` (546 lines)
 - `.claude/skills/languages/framer-motion/SKILL.md` (514 lines)
 - `.claude/skills/languages/kotlin/SKILL.md` (478 lines)
-- `.github/agents/workspace-flow.agent.md` (447 lines)
 - `.claude/templates/artifacts/system_design.template.md` (446 lines)
+- `.claude/skills/languages/swift/SKILL.md` (405 lines)
+- `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)
+- `.claude/skills/languages/hono/SKILL.md` (343 lines)
+- `docs/guides/how-to/ui-ux/wireframes.md` (337 lines)
+- `.claude/templates/artifacts/security_audit.template.md` (321 lines)

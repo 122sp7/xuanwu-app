@@ -7,15 +7,15 @@
  * by the contentToWorkflowMaterializer Process Manager in response to a
  * `content.page_approved` event.  It provides full audit traceability:
  *
- *   Task → sourceReference → ContentPage → IngestionJob → source PDF
+ *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
  */
 
-export type SourceReferenceType = "ContentPage";
+export type SourceReferenceType = "KnowledgePage";
 
 export interface SourceReference {
   /** The type of the source aggregate. */
   readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. ContentPage.id). */
+  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
   readonly id: string;
   /**
    * causationId from the `content.page_approved` event that triggered

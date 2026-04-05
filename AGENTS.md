@@ -25,9 +25,9 @@ Use the following status flow for issues, tasks, and features:
 
 ## Quick Start
 
-1. Read [`agents/README.md`](agents/README.md) — rules index and overview
-2. Read [`agents/knowledge-base.md`](agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`agents/commands.md`](agents/commands.md) — build, lint, deploy commands
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
 4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
 ## Key Rules
@@ -136,7 +136,7 @@ This repository also maintains a formal Copilot delivery chain for non-trivial w
 3. Reviewer
 4. QA
 
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/development-reference/reference/ai/handoff-matrix.md`](docs/development-reference/reference/ai/handoff-matrix.md) for the formal stage transitions.
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
 
 ## Permissions
 
@@ -144,4 +144,4 @@ For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS
 
 ## Full Rules
 
-See [`agents/rules/`](agents/rules/) for the complete set of architecture, quality, data, API, and CI rules.
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.

@@ -13,13 +13,13 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │  AI Layer（AI 層）                                                    │
-│  modules/agent · modules/knowledge · modules/retrieval               │
+│  modules/notebook · modules/knowledge · modules/search               │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Knowledge Graph Layer（知識圖譜層）                                  │
-│  modules/knowledge-graph                                             │
+│  modules/wiki                                             │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Content / UI Layer（內容層）                                         │
-│  modules/content · modules/asset                                     │
+│  modules/knowledge · modules/source                                     │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Platform Foundation Layer（平台基礎層）                              │
 │  modules/identity · modules/account · modules/organization           │
@@ -250,7 +250,7 @@ Platform Foundation Layer
 | Repository | `RagRetrievalRepository` | 向量檢索端（Firestore） |
 | Repository | `WikiContentRepository` | Wiki 內容倉儲（RAG 用） |
 
-**邊界規則：** `retrieval/api` 由 `"use server"` 代碼 import，**禁止**在 `api/index.ts` 匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 `modules/retrieval`（root barrel）import。
+**邊界規則：** `retrieval/api` 由 `"use server"` 代碼 import，**禁止**在 `api/index.ts` 匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 `modules/search`（root barrel）import。
 
 ---
 

@@ -82,28 +82,28 @@
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **頁面** | ContentPage | 內容聚合根，含 title、slug、parentPageId、blockIds | `content` | `modules/content/domain/entities/content-page.entity.ts` |
+| **頁面** | ContentPage | 內容聚合根，含 title、slug、parentPageId、blockIds | `content` | `modules/knowledge/domain/entities/content-page.entity.ts` |
 | **頁面狀態** | ContentPageStatus | `"active" \| "archived"` | `content` | `content-page.entity.ts` |
 | **頁面樹節點** | ContentPageTreeNode | 包含 children 陣列的頁面節點，遞迴表示層級結構 | `content` | `content-page.entity.ts` |
 | **頁面樹** | PageTree | ContentPage 依 parentPageId 構成的層級樹，根節點的 parentPageId 為 null | `content` | 由 use-case 組裝 |
-| **區塊** | ContentBlock | 頁面內的原子內容單元（id、pageId、content、order） | `content` | `modules/content/domain/entities/content-block.entity.ts` |
-| **區塊類型** | BlockType | `"text" \| "heading-1" \| "heading-2" \| "heading-3" \| "image" \| "code" \| "bullet-list" \| "numbered-list" \| "divider" \| "quote"` | `content` | `modules/content/domain/value-objects/block-content.ts` |
-| **區塊內容** | BlockContent | 依 BlockType 多型的值物件（type、text、properties?） | `content` | `modules/content/domain/value-objects/block-content.ts` |
-| **版本** | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `content` | `modules/content/domain/entities/content-version.entity.ts` |
-| **版本發佈事件** | ContentVersionPublishedEvent | 使用者手動觸發版本快照時發出的領域事件（type: `content.version_published`） | `content` | `modules/content/domain/events/content.events.ts` |
-| **內容 Facade** | ContentFacade | `content` 模組的公開 API 門面，供其他模組或 app 層調用 | `content` | `modules/content/api/content-facade.ts` |
+| **區塊** | ContentBlock | 頁面內的原子內容單元（id、pageId、content、order） | `content` | `modules/knowledge/domain/entities/content-block.entity.ts` |
+| **區塊類型** | BlockType | `"text" \| "heading-1" \| "heading-2" \| "heading-3" \| "image" \| "code" \| "bullet-list" \| "numbered-list" \| "divider" \| "quote"` | `content` | `modules/knowledge/domain/value-objects/block-content.ts` |
+| **區塊內容** | BlockContent | 依 BlockType 多型的值物件（type、text、properties?） | `content` | `modules/knowledge/domain/value-objects/block-content.ts` |
+| **版本** | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `content` | `modules/knowledge/domain/entities/content-version.entity.ts` |
+| **版本發佈事件** | ContentVersionPublishedEvent | 使用者手動觸發版本快照時發出的領域事件（type: `content.version_published`） | `content` | `modules/knowledge/domain/events/content.events.ts` |
+| **內容 Facade** | ContentFacade | `content` 模組的公開 API 門面，供其他模組或 app 層調用 | `content` | `modules/knowledge/api/content-facade.ts` |
 
 ### 資產
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **檔案** | File | 上傳至 Firebase Storage 的資產聚合根 | `asset` | `modules/asset/domain/entities/File.ts` |
-| **檔案版本** | FileVersion | 檔案的歷史版本記錄 | `asset` | `modules/asset/domain/entities/FileVersion.ts` |
-| **Wiki Library** | WikiLibrary | 工作區下的結構化文件庫聚合根 | `asset` | `modules/asset/domain/entities/wiki-library.types.ts` |
-| **RAG 文件** | RagDocument | 已上傳並準備攝入 RAG 管線的文件 | `asset` | `modules/asset/domain/repositories/RagDocumentRepository.ts` |
+| **檔案** | File | 上傳至 Firebase Storage 的資產聚合根 | `asset` | `modules/source/domain/entities/File.ts` |
+| **檔案版本** | FileVersion | 檔案的歷史版本記錄 | `asset` | `modules/source/domain/entities/FileVersion.ts` |
+| **Wiki Library** | WikiLibrary | 工作區下的結構化文件庫聚合根 | `asset` | `modules/source/domain/entities/wiki-library.types.ts` |
+| **RAG 文件** | RagDocument | 已上傳並準備攝入 RAG 管線的文件 | `asset` | `modules/source/domain/repositories/RagDocumentRepository.ts` |
 | **文件狀態** | DocumentStatus | `uploaded → processing → ready → failed → archived` | `asset` | `FirebaseRagDocumentRepository.ts` |
-| **稽核記錄** | AuditRecord | 資產存取的稽核日誌條目（操作者、動作、時間） | `asset` | `modules/asset/domain/entities/AuditRecord.ts` |
-| **保留政策** | RetentionPolicy | 資產的生命週期保留規則 | `asset` | `modules/asset/domain/entities/RetentionPolicy.ts` |
+| **稽核記錄** | AuditRecord | 資產存取的稽核日誌條目（操作者、動作、時間） | `asset` | `modules/source/domain/entities/AuditRecord.ts` |
+| **保留政策** | RetentionPolicy | 資產的生命週期保留規則 | `asset` | `modules/source/domain/entities/RetentionPolicy.ts` |
 
 ---
 
@@ -111,14 +111,14 @@
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **知識圖節點** | GraphNode | 知識圖中的頂點，id 通常等於 PageId | `knowledge-graph` | `modules/knowledge-graph/domain/entities/graph-node.ts` |
+| **知識圖節點** | GraphNode | 知識圖中的頂點，id 通常等於 PageId | `knowledge-graph` | `modules/wiki/domain/entities/graph-node.ts` |
 | **節點類型** | GraphNodeType | `"page" \| "tag" \| "attachment"` | `knowledge-graph` | `graph-node.ts` |
-| **知識圖邊** | Link | 兩個節點之間的有向關係（sourceId → targetId） | `knowledge-graph` | `modules/knowledge-graph/domain/entities/link.ts` |
+| **知識圖邊** | Link | 兩個節點之間的有向關係（sourceId → targetId） | `knowledge-graph` | `modules/wiki/domain/entities/link.ts` |
 | **連結類型** | LinkType | `"explicit"（手動）\| "implicit"（AI 推斷）\| "hierarchy"（父子層級）` | `knowledge-graph` | `link.ts` |
 | **反向連結** | Backlink | 所有指向特定 targetId 的 Link 集合（入度查詢） | `knowledge-graph` | `GraphRepository` |
 | **自動連結** | Auto-link | 由 LinkExtractor 分析頁面內容自動建立的隱式 Link（計畫中） | `knowledge-graph` | `link-extractor.service.ts`（service 存在，觸發管道待建） |
 | **圖譜遍歷** | Graph Traversal | BFS / DFS 走訪知識圖的節點集合（聯通性分析） | `knowledge-graph` | `InMemoryGraphRepository` |
-| **視圖配置** | ViewConfig | 知識圖視覺化的佈局與過濾器設定 | `knowledge-graph` | `modules/knowledge-graph/domain/entities/view-config.ts` |
+| **視圖配置** | ViewConfig | 知識圖視覺化的佈局與過濾器設定 | `knowledge-graph` | `modules/wiki/domain/entities/view-config.ts` |
 
 ---
 
@@ -137,21 +137,21 @@
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **RAG 查詢** | RagQuery | 使用者的自然語言問題，附帶組織/工作區範圍與過濾條件 | `retrieval` | `modules/retrieval/domain/entities/RagQuery.ts` |
+| **RAG 查詢** | RagQuery | 使用者的自然語言問題，附帶組織/工作區範圍與過濾條件 | `retrieval` | `modules/search/domain/entities/RagQuery.ts` |
 | **檢索片段** | RagRetrievedChunk | Vector Search 返回的候選分塊（chunkId、score、text） | `retrieval` | `RagQuery.ts → RagRetrievedChunk` |
 | **引用** | RagCitation | AI 答案所依據的來源片段（docId、chunkIndex、page、reason） | `retrieval` | `RagQuery.ts → RagCitation` |
 | **來源佐證** | Source Grounding | 答案每個陳述均可追溯到具體文件片段的能力；以 `RagCitation[]` 實現 | `retrieval` | `AnswerRagQueryOutput.citations` |
 | **串流事件** | RagStreamEvent | AI 生成過程中的即時事件（type: token / citation / done / error） | `retrieval` | `RagQuery.ts → RagStreamEvent` |
-| **向量存儲埠** | VectorStorePort | 向量資料庫的抽象埠（Similarity Search 介面） | `retrieval` | `modules/retrieval/domain/ports/vector-store.ts` |
+| **向量存儲埠** | VectorStorePort | 向量資料庫的抽象埠（Similarity Search 介面） | `retrieval` | `modules/search/domain/ports/vector-store.ts` |
 | **檢索摘要** | RagRetrievalSummary | 一次 RAG 查詢的檢索統計（mode、scope、retrievedChunkCount、topK） | `retrieval` | `RagQuery.ts → RagRetrievalSummary` |
 
 ### AI 代理
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **代理生成** | AgentGeneration | 一次 AI 代理的完整輸入/輸出記錄（model、traceId） | `agent` | `modules/agent/domain/entities/AgentGeneration.ts` |
-| **對話執行緒** | Thread | 一段多輪對話的 Message 集合 | `agent` | `modules/agent/domain/entities/thread.ts` |
-| **訊息** | Message | 對話中的單一訊息（role: user/assistant、content） | `agent` | `modules/agent/domain/entities/message.ts` |
+| **代理生成** | AgentGeneration | 一次 AI 代理的完整輸入/輸出記錄（model、traceId） | `agent` | `modules/notebook/domain/entities/AgentGeneration.ts` |
+| **對話執行緒** | Thread | 一段多輪對話的 Message 集合 | `agent` | `modules/notebook/domain/entities/thread.ts` |
+| **訊息** | Message | 對話中的單一訊息（role: user/assistant、content） | `agent` | `modules/notebook/domain/entities/message.ts` |
 
 ---
 
@@ -248,13 +248,13 @@
 
 ```typescript
 // ✅ 跨模組：走 api/ 邊界
-import { createContentPage } from "@/modules/content/api";
+import { createContentPage } from "@/modules/knowledge/api";
 
 // ✅ Package alias
 import type { CommandResult } from "@shared-types";
 
 // ❌ 禁止：跨模組直接 import 內部層
-import { ContentPage } from "@/modules/content/domain/entities/content-page.entity";
+import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
 
 // ❌ 禁止：舊路徑
 import { cn } from "@/shared/utils";

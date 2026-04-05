@@ -4,8 +4,8 @@ import Link from "next/link";
 import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { WikiPageTreeNode } from "@/modules/content/api";
-import { listWikiPagesTree } from "@/modules/content/api";
+import type { WikiPageTreeNode } from "@/modules/knowledge/api";
+import { listWikiPagesTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -144,10 +144,10 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
 
       <div className="flex flex-wrap gap-2">
         <Button asChild variant="outline" size="sm">
-          <Link href="/wiki">前往 Account Wiki</Link>
+          <Link href={`/wiki/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
         </Button>
         <Button asChild variant="outline" size="sm">
-          <Link href="/wiki/rag-query">RAG 知識查詢</Link>
+          <Link href={`/wiki/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
         </Button>
       </div>
     </div>

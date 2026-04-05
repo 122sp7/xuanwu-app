@@ -10,7 +10,17 @@
  */
 
 import Link from "next/link";
-import { BookOpen, Bot, Building2, CalendarDays, ClipboardList, FlaskConical, NotebookText, Plus, SlidersHorizontal, UserRound, Users } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
 import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -192,16 +202,6 @@ export function AppRail({
       href: "/workspace",
       label: "工作區中心",
       icon: <Building2 className="size-[18px]" />,
-    },
-    {
-      href: "/wiki",
-      label: "Wiki",
-      icon: <BookOpen className="size-[18px]" />,
-    },
-    {
-      href: "/ai-chat",
-      label: "AI 對話",
-      icon: <Bot className="size-[18px]" />,
     },
     {
       href: "/organization/members",

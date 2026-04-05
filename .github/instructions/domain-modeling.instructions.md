@@ -5,7 +5,7 @@ applyTo: 'modules/**/domain/**/*.{ts,tsx}'
 
 # 領域模型設計規範 (Domain Modeling)
 
-> 完整知識參考：**[`docs/architecture/domain-model.md`](../../docs/architecture/domain-model.md)**
+> 完整知識參考：**對應 bounded context 的 `docs/ddd/<context>/aggregates.md`**
 > 此文件只包含**行為約束與程式碼範例**，不複製領域知識。
 
 ## 聚合根 (Aggregate Root)
@@ -121,6 +121,5 @@ modules/<context>/domain/
 ```
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill modules-mddd-api-surface
 #use skill xuanwu-mddd-boundaries

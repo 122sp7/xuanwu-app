@@ -14,7 +14,6 @@ applyTo: 'app/**/*.{ts,tsx}'
 - Keep `app/` as composition ownership, not domain-rule ownership.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill next-devtools-mcp
 #use skill vercel-react-best-practices
 #use skill vercel-composition-patterns

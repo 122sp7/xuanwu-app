@@ -31,37 +31,37 @@ This skill contains the following reference files:
 
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, public/**, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
+- Files matching these patterns are excluded: node_modules/**, .next/**, out/**, build/**, dist/**, coverage/**, .turbo/**, .vercel/**, .firebase/**, .output/**, .parcel-cache/**, .cursor/**, .vscode/**, .serena/**, .opencode/**, .idea/**, .history/**, .cache/**, .temp/**, .tmp/**, tmp/**, temp/**, *.log, logs/**, firebase-debug.log, .env*, *.pem, *.key, *.crt, .DS_Store, Thumbs.db, *.lock, package-lock.json, pnpm-lock.yaml, yarn.lock, skills-lock.json, *.tsbuildinfo, .eslintcache, .stylelintcache, .git/**, .github/workflows/**, .github/skills/**, docs/architecture/**, public/**, .tmp-eslint*.json, *.png, *.jpg, *.jpeg, *.gif, *.webp, *.mp4, *.zip, *.tar, *.gz, *.sqlite, *.db
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
 
 ## Statistics
 
-994 files | 221,655 lines
+1178 files | 82,173 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 376 | 21,398 |
-| Markdown | 337 | 169,420 |
-| TypeScript (TSX) | 119 | 19,129 |
-| No Extension | 53 | 134 |
+| Markdown | 525 | 32,285 |
+| TypeScript | 376 | 21,218 |
+| TypeScript (TSX) | 119 | 19,493 |
+| No Extension | 53 | 135 |
 | Python | 49 | 3,532 |
 | MERMAID | 25 | 1,888 |
-| JSON | 14 | 3,654 |
-| Shell | 13 | 1,847 |
+| JSON | 12 | 1,724 |
+| Shell | 11 | 1,245 |
+| Text | 2 | 105 |
 | JavaScript (ESM) | 2 | 338 |
-| RULES | 2 | 18 |
-| Other | 4 | 297 |
+| Other | 4 | 210 |
 
 **Largest files:**
-- `.github/skills/xuanwu-app-markdown-skill/references/files.md` (135,601 lines)
-- `.tmp-eslint-config.json` (1,932 lines)
-- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (971 lines)
+- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,049 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (940 lines)
 - `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (933 lines)
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
-- `modules/asset/README.md` (902 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
+- `modules/search/interfaces/components/RagView.tsx` (659 lines)
+- `app/(shell)/_components/app-rail.tsx` (645 lines)
+- `.claude/skills/skill-rules.json` (614 lines)

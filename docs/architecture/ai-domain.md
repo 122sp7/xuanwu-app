@@ -99,7 +99,7 @@ citations = chunks.map(chunk => ({
 | `GenerateAgentResponseUseCase` | 對話生成（無 RAG 上下文） |
 | `AnswerRagQueryUseCase` | RAG 增強的代理查詢（委派至 retrieval/api） |
 | `AgentRepository` | 代理生成介面 |
-| `GenkitAgentRepository` | Genkit 實作：自由對話生成 |
+| `GenkitNotebookRepository` | Genkit 實作：自由對話生成 |
 | `Thread` / `Message` | 對話歷程實體 |
 
 ---
@@ -109,8 +109,8 @@ citations = chunks.map(chunk => ({
 ### Client 工廠
 
 ```typescript
-// modules/agent/infrastructure/genkit/client.ts
-// modules/retrieval/infrastructure/genkit/client.ts
+// modules/notebook/infrastructure/genkit/client.ts
+// modules/search/infrastructure/genkit/client.ts
 
 const DEFAULT_MODEL = "googleai/gemini-2.5-flash";
 

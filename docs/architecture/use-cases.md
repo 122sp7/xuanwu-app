@@ -128,10 +128,10 @@ export class VerbNounUseCase {
      └── correlationId = input.correlationId ?? generateId()
   5. 返回 CommandResult { success: true, aggregateId: pageId }
 
-代碼位置（計畫中）: modules/content/application/use-cases/approve-content-page.use-case.ts
+代碼位置（計畫中）: modules/knowledge/application/use-cases/approve-content-page.use-case.ts
 ```
 
-**代碼位置：** `modules/content/application/use-cases/`
+**代碼位置：** `modules/knowledge/application/use-cases/`
 
 ---
 
@@ -146,7 +146,7 @@ export class VerbNounUseCase {
 | `CreateWikiLibraryUseCase` | 建立 Wiki Library | `WikiLibraryRepository` |
 | `ListWikiLibrariesUseCase` | 列出 Wiki Libraries | `WikiLibraryRepository` |
 
-**代碼位置：** `modules/asset/application/use-cases/`
+**代碼位置：** `modules/source/application/use-cases/`
 
 ---
 
@@ -168,7 +168,7 @@ export class VerbNounUseCase {
 | `AnswerRagQueryUseCase` | 執行 RAG 查詢並返回答案 + 引用 | `RagRetrievalRepository`, `RagGenerationRepository` |
 | `GetWikiRagChunksUseCase` | 取得 Wiki RAG 分塊結果 | `WikiContentRepository` |
 
-**代碼位置：** `modules/retrieval/application/use-cases/`
+**代碼位置：** `modules/search/application/use-cases/`
 
 ### `AnswerRagQueryUseCase` 詳解
 
@@ -199,7 +199,7 @@ export class VerbNounUseCase {
 | `GenerateAgentResponseUseCase` | 對話式 AI 代理生成回應 | `AgentRepository` |
 | `AnswerRagQueryUseCase` | 透過 agent 執行 RAG 查詢 | `RagRetrievalRepository`, `RagGenerationRepository` |
 
-**代碼位置：** `modules/agent/application/use-cases/`
+**代碼位置：** `modules/notebook/application/use-cases/`
 
 ---
 

@@ -141,10 +141,55 @@ export function WorkspaceHubScreen({
 
       <Card className="border border-border/50">
         <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Wiki</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
           <CardTitle>Workspace Records</CardTitle>
           <CardDescription>
-            Lifecycle, capabilities, locations, and grant counts come directly
-            from the workspace module.
+            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -162,22 +207,14 @@ export function WorkspaceHubScreen({
 
           {loadState === "loaded" && workspaces.length === 0 && (
             <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              No workspace records are linked to this account yet. You can keep
-              shaping the account context from{" "}
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
               <Link
                 href="/organization"
                 className="font-medium text-primary hover:underline"
               >
-                organization
+                組織情境
               </Link>{" "}
-              or{" "}
-              <Link
-                href="/settings"
-                className="font-medium text-primary hover:underline"
-              >
-                account settings
-              </Link>
-              .
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
             </div>
           )}
 

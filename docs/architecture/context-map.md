@@ -192,6 +192,6 @@ asset ──RAG document→ knowledge
 | 通訊類型 | 方式 | 範例 |
 |---------|------|------|
 | **同步查詢** | 透過目標模組的 `api/index.ts` | `import { getWorkspaceById } from "@/modules/workspace/api"` |
-| **命令觸發** | 透過目標模組的 `api/index.ts` Server Action | `import { createContentPage } from "@/modules/content/api"` |
+| **命令觸發** | 透過目標模組的 `api/index.ts` Server Action | `import { createContentPage } from "@/modules/knowledge/api"` |
 | **非同步事件** | `shared` 模組的 Event Store + Event Bus | `PublishDomainEventUseCase.execute()` |
 | **Python 管線** | Firestore 文件狀態機（`uploaded → processing → ready`） | `IngestionJob.status` 輪詢/訂閱 |

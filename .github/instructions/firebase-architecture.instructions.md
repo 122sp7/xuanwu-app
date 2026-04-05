@@ -22,6 +22,5 @@ applyTo: '{app,modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
 - Preserve source and chunk metadata traceability for audit and citation needs.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
 #use skill xuanwu-rag-runtime-boundary
 #use skill xuanwu-development-contracts

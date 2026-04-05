@@ -12,4 +12,3 @@ applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
 - Record rollback path for production-impacting changes.
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill slavingia-skills-mvp
