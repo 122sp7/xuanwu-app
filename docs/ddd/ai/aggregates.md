@@ -1,68 +1,68 @@
-# Aggregates — ai
+# Aggregates ??ai
 
-## 聚合根：IngestionJob
+## ???對?IngestionJob
 
-### 職責
-管理 RAG 攝入管線的單一工作記錄。追蹤從上傳到 indexed 的完整狀態機。
+### ?瑁痊
+蝞∠? RAG ?蝞∠??銝撌乩?閮??蕭頩文?銝??indexed ???渡?????
 
-### 生命週期狀態機
+### ??望????
 ```
-uploaded ──► parsing ──► embedding ──► indexed
-                │                         │
-                └──────► failed ◄─────────┘
+uploaded ????parsing ????embedding ????indexed
+                ??                        ??
+                ?????????failed ????????????
 ```
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | Job 主鍵 |
-| `documentId` | `string` | 關聯 SourceDocument ID |
-| `organizationId` | `string` | 所屬組織 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `status` | `IngestionStatus` | 當前狀態 |
-| `startedAt` | `string \| null` | ISO 8601 開始時間 |
-| `completedAt` | `string \| null` | ISO 8601 完成時間 |
-| `errorMessage` | `string \| null` | 失敗原因 |
+| `id` | `string` | Job 銝駁 |
+| `documentId` | `string` | ? SourceDocument ID |
+| `organizationId` | `string` | ?撅祉?蝜?|
+| `workspaceId` | `string` | ?撅砍極雿? |
+| `status` | `IngestionStatus` | ?嗅????|
+| `startedAt` | `string \| null` | ISO 8601 ???? |
+| `completedAt` | `string \| null` | ISO 8601 摰??? |
+| `errorMessage` | `string \| null` | 憭望??? |
 
-### 不變數
+### 銝???
 
-- `indexed` 狀態後不可再轉換回其他狀態
-- `failed` 狀態的 errorMessage 不可為空
+- `indexed` ???銝?????嗡????
+- `failed` ??? errorMessage 銝?箇征
 
 ---
 
-## 實體：IngestionDocument
+## 撖阡?嚗ngestionDocument
 
-### 職責
-交付給攝入管線的文件元資料，提供 `py_fn/` worker 所需的來源資訊。
+### ?瑁痊
+鈭支?蝯行??亦恣蝺??辣?????? `py_fn/` worker ????皞?閮?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 文件主鍵 |
-| `sourceFileId` | `string` | 關聯 SourceDocument ID |
-| `mimeType` | `string` | 檔案 MIME type |
+| `id` | `string` | ?辣銝駁 |
+| `sourceFileId` | `string` | ? SourceDocument ID |
+| `mimeType` | `string` | 瑼? MIME type |
 | `storageUrl` | `string` | Firebase Storage URL |
 
 ---
 
-## 值物件：IngestionChunk
+## ?潛隞塚?IngestionChunk
 
-### 職責
-文件切分後的向量化 chunk，由 `py_fn/` 生成後寫入 Firestore。
+### ?瑁痊
+?辣??敺?????chunk嚗 `py_fn/` ??敺神??Firestore??
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | Chunk 主鍵 |
-| `documentId` | `string` | 所屬文件 ID |
-| `chunkIndex` | `number` | Chunk 在文件中的序號 |
-| `content` | `string` | Chunk 文字內容 |
-| `embedding` | `number[]` | 向量嵌入（由 py_fn/ 寫入） |
+| `id` | `string` | Chunk 銝駁 |
+| `documentId` | `string` | ?撅祆?隞?ID |
+| `chunkIndex` | `number` | Chunk ?冽?隞嗡葉????|
+| `content` | `string` | Chunk ???批捆 |
+| `embedding` | `number[]` | ??撋嚗 py_fn/ 撖怠嚗?|
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `IngestionJobRepository` | `save()`, `findByDocumentId()`, `listByWorkspace()`, `updateStatus()` |

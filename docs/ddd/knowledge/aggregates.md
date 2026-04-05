@@ -1,113 +1,113 @@
-# Aggregates — knowledge
+# Aggregates ??knowledge
 
-## 聚合根：KnowledgePage（ContentPage）
+## ???對?KnowledgePage嚗ontentPage嚗?
 
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+### ?瑁痊
+?詨??亥??桀?????恣???Ｘ?憿摮惜蝝?靽?parentPageId嚗?憛??典?銵剁?blockIds嚗?撖拇???
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `id` | `string` | ?銝駁 |
+| `title` | `string` | ?璅? |
+| `slug` | `string` | URL-safe 霅蝚?|
+| `parentPageId` | `string \| null` | ?園???ID嚗邦?撅斤?嚗?|
+| `blockIds` | `string[]` | ???ContentBlock ID ?” |
+| `accountId` | `string` | ?撅砍董??|
+| `workspaceId` | `string?` | ?撅砍極雿?嚗?賂? |
 | `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`嚗I ???阮雿輻嚗?|
+| `approvedByUserId` | `string?` | 撖拇??ID |
+| `approvedAtISO` | `string?` | 撖拇?? |
+| `createdByUserId` | `string` | 撱箇???ID |
+| `createdAtISO` | `string` | ISO 8601 撱箇??? |
+| `updatedAtISO` | `string` | ISO 8601 ?湔?? |
 
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+### Wiki/Knowledge Base 撽?撅祆改?spaceType="wiki" ?舐嚗?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`嚗ndefined = ??wiki 璅∪?嚗?|
+| `ownerId` | `string?` | ?鞎痊鈭綽?靽??批捆皞Ⅱ?蝙?刻? |
+| `verifiedByUserId` | `string?` | ?敺?霅?ID |
+| `verifiedAtISO` | `string?` | ?敺?霅???|
+| `verificationExpiresAtISO` | `string?` | 撽??唳???嚗???芸?頧 `needs_review`嚗?|
 
-### KnowledgePageStatus 與 UI 標籤對照
+### KnowledgePageStatus ??UI 璅惜撠
 
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+| `status` 撅祆批? | 摮?閰?| UI 憿舐內璅惜 | 隤芣? |
 |--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` | 瘣餉? | 嚗迤撣賊＊蝷綽? | ?身???|
+| `"archived"` | 撌脫飛瑼?| 蝘餉?獢塚?撌脫飛瑼? | ??`archiveKnowledgePage` 閫貊嚗I 璅惜?箝宏?喳??暹▲??|
 
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+> **霅血?嚗?* 銝??啣? `"trash"` ??archived` ?喟撠? Notion "Move to Trash" ??domain 撖虫???蝣箄?頠?歹???ADR 瘙箄??耨?寞迨?辣??
 
-### 不變數
+### 銝???
 
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- `slug` ?典?銝 accountId 銝??銝
+- archived ?銝?啣? ContentBlock
+- archived ???`PageTreeView` 銝＊蝷綽?撅內撅日?瞈?`status === "active"`嚗?
 
 ---
 
-## 實體：ContentBlock（KnowledgeBlock）
+## 撖阡?嚗ontentBlock嚗nowledgeBlock嚗?
 
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
+### ?瑁痊
+??抒????批捆?桀?嚗?摨??耦???Ｗ摰嫘?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
+| `id` | `string` | ?憛蜓??|
+| `pageId` | `string` | ?撅祇???ID |
+| `accountId` | `string` | ?撅砍董??|
+| `content` | `BlockContent` | ??摰對???`type: BlockType` 甈?嚗?|
+| `order` | `number` | ???? |
 | `createdAtISO` | `string` | ISO 8601 |
 | `updatedAtISO` | `string` | ISO 8601 |
 
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
+> `BlockContent.type` ??`BlockType`嚗text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`嚗?
+> 隞?Ⅳ雿蔭嚗domain/value-objects/block-content.ts`
 
 ---
 
-## 實體：ContentVersion（KnowledgeVersion）
+## 撖阡?嚗ontentVersion嚗nowledgeVersion嚗?
 
-### 職責
-頁面的歷史版本快照，append-only。
+### ?瑁痊
+??風?脩??砍翰?改?append-only??
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `id` | `string` | ?銝駁 |
+| `pageId` | `string` | ?撅祇???|
+| `accountId` | `string` | ?撅砍董??|
+| `label` | `string` | ?璅惜嚗犖憿霈?膩嚗?|
+| `titleSnapshot` | `string` | ?撱箇????璅?敹怎 |
+| `blocks` | `KnowledgeVersionBlock[]` | ???暺??憛翰?批?銵?|
+| `createdByUserId` | `string` | 撱箇??董??ID |
 | `createdAtISO` | `string` | ISO 8601 |
 
 ---
 
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
+## ???對?KnowledgeCollection嚗atabase / Wiki Space嚗?
 
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
+### ?瑁痊
+Notion-like ???征??靘?`spaceType` ??拍車璅∪?嚗?
+- **`spaceType="database"`**嚗otion Database ??撣嗆?雿?Schema嚗olumns嚗????嚗?渲”???閬?
+- **`spaceType="wiki"`**嚗otion Wiki / Knowledge Base ??撣園??ａ?霅?????霅澈蝛粹?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
+| `id` | `string` | ??銝駁 |
+| `accountId` | `string` | ?撅砍董??|
+| `workspaceId` | `string?` | ?撅砍極雿? |
+| `name` | `string` | ???迂 |
+| `description` | `string?` | 隤芣??? |
 | `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `columns` | `CollectionColumn[]` | 甈?摰儔嚗atabase 璅∪?雿輻嚗?|
+| `pageIds` | `string[]` | ???KnowledgePage ID ?” |
 | `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
+| `createdByUserId` | `string` | 撱箇???|
 | `createdAtISO` | `string` | ISO 8601 |
 | `updatedAtISO` | `string` | ISO 8601 |
 
@@ -115,7 +115,7 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |

@@ -1,31 +1,31 @@
-# Context Map — organization
+# Context Map ??organization
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### account → organization（Customer/Supplier）
+### account ??organization嚗ustomer/Supplier嚗?
 
-- `organization.members[]` 中的 `MemberReference.id` 參照 `account` 的 accountId
-- 查詢成員 profile 時呼叫 `account/api`
-
----
-
-## 下游（被依賴）
-
-### organization → workspace（Customer/Supplier）
-
-- `Workspace.accountId + accountType="organization"` 關聯至 Organization
-- 工作區列表依 organizationId 篩選
-
-### organization → workspace-audit（Published Language）
-
-- 成員加入/移除事件供 `workspace-audit` 消費（未來事件 sink 完成後）
+- `organization.members[]` 銝剔? `MemberReference.id` ? `account` ??accountId
+- ?亥岷? profile ???`account/api`
 
 ---
 
-## IDDD 整合模式總結
+## 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+### organization ??workspace嚗ustomer/Supplier嚗?
+
+- `Workspace.accountId + accountType="organization"` ???Organization
+- 撌乩???”靘?organizationId 蝭拚
+
+### organization ??workspace-audit嚗ublished Language嚗?
+
+- ??/蝘駁鈭辣靘?`workspace-audit` 瘨祥嚗靘?隞?sink 摰?敺?
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| account → organization | account | organization | Customer/Supplier |
-| organization → workspace | organization | workspace | Customer/Supplier |
-| organization → workspace-audit | organization | workspace-audit | Published Language (Events) |
+| account ??organization | account | organization | Customer/Supplier |
+| organization ??workspace | organization | workspace | Customer/Supplier |
+| organization ??workspace-audit | organization | workspace-audit | Published Language (Events) |

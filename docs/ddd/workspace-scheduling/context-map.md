@@ -1,35 +1,35 @@
-# Context Map — workspace-scheduling
+# Context Map ??workspace-scheduling
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### workspace → workspace-scheduling（Conformist）
+### workspace ??workspace-scheduling嚗onformist嚗?
 
-- WorkDemand 隸屬 `workspaceId`
-- `WorkspaceSchedulingTab` 接收 `workspaceId` 作為 props
+- WorkDemand ?詨惇 `workspaceId`
+- `WorkspaceSchedulingTab` ?交 `workspaceId` 雿 props
 
-### account → workspace-scheduling（Customer/Supplier）
+### account ??workspace-scheduling嚗ustomer/Supplier嚗?
 
-- `AccountSchedulingView` 按 `accountId` 聚合跨工作區排程視圖
-
----
-
-## 下游（被依賴）
-
-### workspace-scheduling → notification（Published Language）
-
-- 需求建立/狀態變更事件觸發通知
-
-### workspace-scheduling → workspace-audit（Published Language）
-
-- 排程操作供稽核紀錄消費
+- `AccountSchedulingView` ??`accountId` ??頝典極雿???閬?
 
 ---
 
-## IDDD 整合模式總結
+## 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+### workspace-scheduling ??notification嚗ublished Language嚗?
+
+- ?瘙遣蝡?????港?隞嗉孛?潮
+
+### workspace-scheduling ??workspace-audit嚗ublished Language嚗?
+
+- ????靘里?貊???鞎?
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
-| account → workspace-scheduling | account | workspace-scheduling | Customer/Supplier |
-| workspace-scheduling → notification | workspace-scheduling | notification | Published Language |
-| workspace-scheduling → workspace-audit | workspace-scheduling | workspace-audit | Published Language |
+| workspace ??workspace-scheduling | workspace | workspace-scheduling | Conformist |
+| account ??workspace-scheduling | account | workspace-scheduling | Customer/Supplier |
+| workspace-scheduling ??notification | workspace-scheduling | notification | Published Language |
+| workspace-scheduling ??workspace-audit | workspace-scheduling | workspace-audit | Published Language |

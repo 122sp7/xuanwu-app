@@ -1,35 +1,35 @@
-# Aggregates — organization
+# Aggregates ??organization
 
-## 聚合根：Organization
+## ???對?Organization
 
-### 職責
-代表一個企業或團隊租戶。管理所有成員、隊伍與合作夥伴邀請的生命週期。
+### ?瑁痊
+隞?”銝??璆剜???蝘?恣?????～?隡???憭乩撈?隢???望???
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 組織主鍵 |
-| `name` | `string` | 組織名稱 |
-| `members` | `MemberReference[]` | 成員列表（含 role） |
-| `teams` | `Team[]` | 子隊伍列表 |
-| `partnerInvites` | `PartnerInvite[]` | 未完成的邀請列表 |
+| `id` | `string` | 蝯?銝駁 |
+| `name` | `string` | 蝯??迂 |
+| `members` | `MemberReference[]` | ??”嚗 role嚗?|
+| `teams` | `Team[]` | 摮?隡?銵?|
+| `partnerInvites` | `PartnerInvite[]` | ?芸????隢?銵?|
 
-### 不變數
+### 銝???
 
-- 同一 accountId 在同一 Organization 中只能有一個 MemberReference
-- `Owner` 角色至少需要一位（不可移除最後一個 Owner）
-- 過期的 PartnerInvite（`expired`）不能再被接受
+- ?? accountId ?典?銝 Organization 銝剖?賣?銝??MemberReference
+- `Owner` 閫?喳??閬?雿?銝蝘駁?敺???Owner嚗?
+- ????PartnerInvite嚗expired`嚗??賢?鋡急??
 
 ---
 
-## 值物件
+## ?潛隞?
 
-| 值物件 | 說明 |
+| ?潛隞?| 隤芣? |
 |--------|------|
-| `MemberReference` | 成員快照（id, name, email, role, presence） |
-| `Team` | 子群組（id, name, type, memberIds） |
-| `PartnerInvite` | 邀請記錄（email, role, inviteState, invitedAt） |
+| `MemberReference` | ?敹怎嚗d, name, email, role, presence嚗?|
+| `Team` | 摮黎蝯?id, name, type, memberIds嚗?|
+| `PartnerInvite` | ?隢???email, role, inviteState, invitedAt嚗?|
 | `OrganizationRole` | `"Owner" \| "Admin" \| "Member" \| "Guest"` |
 | `Presence` | `"active" \| "away" \| "offline"` |
 | `InviteState` | `"pending" \| "accepted" \| "expired"` |
@@ -38,6 +38,6 @@
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `OrganizationRepository` | `save()`, `findById()`, `findByMemberId()` |

@@ -1,39 +1,39 @@
-# Aggregates — search
+# Aggregates ??search
 
-## 聚合根：RagQueryFeedback
+## ???對?RagQueryFeedback
 
-### 職責
-收集並持久化使用者對 RAG 查詢答案品質的反饋。支援持續改善 RAG 品質。
+### ?瑁痊
+?園?銝行?銋?雿輻?? RAG ?亥岷蝑??釭??擖?湔?蝥??RAG ?釭??
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `feedbackId` | `string` | 反饋主鍵 |
-| `queryId` | `string` | 關聯的查詢 ID |
-| `helpful` | `boolean` | 是否有用 |
-| `comment` | `string \| null` | 文字評論（可選） |
+| `feedbackId` | `string` | ??銝駁 |
+| `queryId` | `string` | ??閰?ID |
+| `helpful` | `boolean` | ?臬? |
+| `comment` | `string \| null` | ??閰?嚗?賂? |
 | `submittedAt` | `string` | ISO 8601 |
 
 ---
 
-## 值物件
+## ?潛隞?
 
-| 值物件 | 說明 |
+| ?潛隞?| 隤芣? |
 |--------|------|
-| `RagRetrievedChunk` | 檢索到的 chunk（chunkId, docId, chunkIndex, text, score, taxonomy） |
-| `RagCitation` | 引用資訊（chunkId, docId, text, score） |
-| `VectorDocument` | 向量索引文件（id, content, metadata, embedding） |
-| `WikiCitation` | Wiki RAG 引用（pageId, pageTitle, text, score） |
+| `RagRetrievedChunk` | 瑼Ｙ揣?啁? chunk嚗hunkId, docId, chunkIndex, text, score, taxonomy嚗?|
+| `RagCitation` | 撘鞈?嚗hunkId, docId, text, score嚗?|
+| `VectorDocument` | ??蝝Ｗ??辣嚗d, content, metadata, embedding嚗?|
+| `WikiCitation` | Wiki RAG 撘嚗ageId, pageTitle, text, score嚗?|
 
 ---
 
-## Ports（Hexagonal Architecture）
+## Ports嚗exagonal Architecture嚗?
 
-| Port | 說明 |
+| Port | 隤芣? |
 |------|------|
-| `IVectorStore` | 向量資料庫抽象（`index()`, `search()`, `deleteByDocId()`） |
-| `RagRetrievalRepository` | Chunk 向量搜尋操作 |
-| `RagGenerationRepository` | AI 答案生成（組合 chunks + Genkit 呼叫） |
-| `RagQueryFeedbackRepository` | 反饋持久化 |
-| `WikiContentRepository` | Wiki 整合 RAG 查詢（`queryWikiRag()`, `reindexWikiDocument()`） |
+| `IVectorStore` | ??鞈?摨急鞊∴?`index()`, `search()`, `deleteByDocId()`嚗?|
+| `RagRetrievalRepository` | Chunk ?????? |
+| `RagGenerationRepository` | AI 蝑???嚗???chunks + Genkit ?澆嚗?|
+| `RagQueryFeedbackRepository` | ??????|
+| `WikiContentRepository` | Wiki ?游? RAG ?亥岷嚗queryWikiRag()`, `reindexWikiDocument()`嚗?|

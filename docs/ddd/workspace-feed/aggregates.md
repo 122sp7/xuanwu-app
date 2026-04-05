@@ -1,21 +1,21 @@
-# Aggregates — workspace-feed
+# Aggregates ??workspace-feed
 
-## 聚合根：WorkspaceFeedPost
+## ???對?WorkspaceFeedPost
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 貼文主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `authorAccountId` | `string` | 作者帳戶 ID |
+| `id` | `string` | 鞎潭?銝駁 |
+| `workspaceId` | `string` | ?撅砍極雿? |
+| `authorAccountId` | `string` | 雿董??ID |
 | `type` | `WorkspaceFeedPostType` | `post \| reply \| repost` |
-| `content` | `string` | 貼文內容 |
-| `replyToPostId` | `string \| null` | 回覆目標 |
-| `repostOfPostId` | `string \| null` | 轉貼目標 |
-| `likeCount` | `number` | 按讚數 |
-| `viewCount` | `number` | 瀏覽數 |
+| `content` | `string` | 鞎潭??批捆 |
+| `replyToPostId` | `string \| null` | ???格? |
+| `repostOfPostId` | `string \| null` | 頧票?格? |
+| `likeCount` | `number` | ????|
+| `viewCount` | `number` | ?汗??|
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `WorkspaceFeedRepository` | `save()`, `findById()`, `listByWorkspace()` |

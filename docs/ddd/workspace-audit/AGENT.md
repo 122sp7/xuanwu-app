@@ -1,43 +1,43 @@
-# AGENT.md — workspace-audit BC
+# AGENT.md ??workspace-audit BC
 
-## 模組定位
+## 璅∠?摰?
 
-`workspace-audit` 是稽核紀錄支援域，維護 Append-Only 的 AuditLog，查詢工作區與組織稽核軌跡。
+`workspace-audit` ?舐里?貊???游?嚗雁霅?Append-Only ??AuditLog嚗閰Ｗ極雿???蝜里?貉?頝～?
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `AuditLog` | Log、Record、History、ActivityLog |
-| `auditEventType` | EventType、ActionType |
-| `actorId` | UserId、PerformerId |
-| `workspaceId` / `organizationId` | Scope（作為稽核範圍） |
+| `AuditLog` | Log?ecord?istory?ctivityLog |
+| `auditEventType` | EventType?ctionType |
+| `actorId` | UserId?erformerId |
+| `workspaceId` / `organizationId` | Scope嚗??箇里?貊??? |
 
-## 最重要規則：Append-Only
+## ???閬?嚗ppend-Only
 
 ```typescript
-// ✅ 只允許追加新記錄
+// ???芸?閮梯蕭?閮?
 await auditRepository.append(newAuditLog);
 
-// ❌ 禁止修改或刪除
-await auditRepository.update(id, changes);  // 違反 Append-Only
-await auditRepository.delete(id);           // 違反 Append-Only
+// ??蝳迫靽格???
+await auditRepository.update(id, changes);  // ?? Append-Only
+await auditRepository.delete(id);           // ?? Append-Only
 ```
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { workspaceAuditApi } from "@/modules/workspace-audit/api";
 import type { AuditLogDTO } from "@/modules/workspace-audit/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { AuditLog } from "@/modules/workspace-audit/domain/entities/AuditLog";
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

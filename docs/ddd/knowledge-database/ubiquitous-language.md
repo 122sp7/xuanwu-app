@@ -1,9 +1,9 @@
-| Database | 結構化資料容器（≠ KnowledgeCollection） |
-| Field | 欄位定義（≠ Column）|
-| Record | 資料行（≠ Row, Item, Entry）|
-| Property | 某 Field 的具體值（Map） |
-| View | 視圖配置 — 不持有資料 |
+| Database | 蝯????捆?剁???KnowledgeCollection嚗?|
+| Field | 甈?摰儔嚗? Column嚗
+| Record | 鞈?銵???Row, Item, Entry嚗
+| Property | ??Field ?擃潘?Map嚗?|
+| View | 閬??蔭 ??銝?????|
 | ViewType | table/board/list/calendar/timeline/gallery |
-| Relation | 跨 Database 的 Record 連結欄位 |
+| Relation | 頝?Database ??Record ???甈? |
 
-→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
+??[`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)

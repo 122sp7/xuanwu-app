@@ -1,37 +1,37 @@
-# Context Map — source
+# Context Map ??source
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### identity → source（Customer/Supplier）
-- `ActorContextPort` 透過 `identity/api` 驗證上傳者身分
+### identity ??source嚗ustomer/Supplier嚗?
+- `ActorContextPort` ?? `identity/api` 撽?銝?澈??
 
-### workspace → source（Customer/Supplier）
-- 文件隸屬 `workspaceId`，需透過 `WorkspaceGrantPort` 驗證授權
+### workspace ??source嚗ustomer/Supplier嚗?
+- ?辣?詨惇 `workspaceId`嚗??? `WorkspaceGrantPort` 撽???
 
-### organization → source（Customer/Supplier）
-- `OrganizationPolicyPort` 解算組織層級保留政策
-
----
-
-## 下游（被依賴）
-
-### source → ai（Customer/Supplier）
-
-- `source.upload_completed` 觸發 `ai` 域建立 IngestionJob
-- **Runtime 邊界**：Next.js 端執行 upload-init/complete；`py_fn/` 執行 Embedding
-
-### source → knowledge（Published Language）
-
-- 文件關聯知識頁面時通知 `knowledge` 域
+### organization ??source嚗ustomer/Supplier嚗?
+- `OrganizationPolicyPort` 閫??蝯?撅斤?靽??輻?
 
 ---
 
-## IDDD 整合模式總結
+## 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+### source ??ai嚗ustomer/Supplier嚗?
+
+- `source.upload_completed` 閫貊 `ai` ?遣蝡?IngestionJob
+- **Runtime ??**嚗ext.js 蝡臬銵?upload-init/complete嚗py_fn/` ?瑁? Embedding
+
+### source ??knowledge嚗ublished Language嚗?
+
+- ?辣??亥??? `knowledge` ??
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| identity → source | identity | source | Customer/Supplier（Port） |
-| workspace → source | workspace | source | Customer/Supplier（Port） |
-| organization → source | organization | source | Customer/Supplier（Port） |
-| source → ai | source | ai | Published Language (Events) |
-| source → knowledge | source | knowledge | Published Language (Events) |
+| identity ??source | identity | source | Customer/Supplier嚗ort嚗?|
+| workspace ??source | workspace | source | Customer/Supplier嚗ort嚗?|
+| organization ??source | organization | source | Customer/Supplier嚗ort嚗?|
+| source ??ai | source | ai | Published Language (Events) |
+| source ??knowledge | source | knowledge | Published Language (Events) |

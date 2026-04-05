@@ -1,10 +1,10 @@
-# search — Repositories
+# search ??Repositories
 
 > **Canonical bounded context:** `search`
-> **模組路徑:** `modules/search/`
+> **璅∠?頝臬?:** `modules/search/`
 > **Domain Type:** Supporting Subdomain
 
-本文件整理 `search` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+?祆?隞嗆??`search` ??repository ports ??infrastructure 撖虫?嚗???`domain/` ??`infrastructure/` ??撠銵具?
 
 ## Domain Repository Ports
 
@@ -21,13 +21,13 @@
 - `infrastructure/genkit/GenkitRagGenerationRepository.ts`
 - `infrastructure/genkit/client.ts`
 
-## 設計規則
+## 閮剛?閬?
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+- Repository 隞摰儔??`domain/repositories/`
+- Repository 撖虫??曉 `infrastructure/`
+- `application/` ?芾靘陷 repository ports嚗??湔靘陷 infrastructure 撖虫?
 
-## 模組內對應文件
+## 璅∠??批???隞?
 
 - `../../../modules/search/repositories.md`
 - `../../../docs/ddd/search/aggregates.md`

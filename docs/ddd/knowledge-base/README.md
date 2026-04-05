@@ -1,28 +1,28 @@
-# knowledge-base — DDD Reference
+# knowledge-base ??DDD Reference
 
 > **Domain Type:** Core Domain
 > **Module:** `modules/knowledge-base/`
-> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
+> **閰喟敦璅∠??辣:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
 
-## 戰略定位
+## ?啁摰?
 
-`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
+`knowledge-base` ??Xuanwu ?洵鈭敹?嚗? `knowledge` 銝血?嚗???蝯?蝝?霅澈?賢???雿輻霅像?啣??犖蝑??脣??箇?蝜?曹澈?撽??蝯????亥?蝬脰楝??
 
-## Bounded Context 邊界
+## Bounded Context ??
 
-- **擁有：** Article（文章）、Category（分類）
-- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
+- **??嚗?* Article嚗?蝡??ategory嚗?憿?
+- **銝???** ?犖 Page嚗? `knowledge`嚗??祆風?莎???`knowledge-collaboration`嚗?瑽?鞈?嚗? `knowledge-database`嚗?
 
-## 核心聚合
+## ?詨???
 
-詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
+閰唾? [aggregates.md](../../modules/knowledge-base/aggregates.md)
 
-- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
-- **Category** — 層級分類目錄（最多 5 層）
+- **Article** ??蝯??亥???嚗OP / Wiki嚗??瑕? VerificationState ??ArticleOwner
+- **Category** ??撅斤????桅?嚗?憭?5 撅歹?
 
-## 主要領域事件
+## 銝餉???鈭辣
 
-詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
+閰唾? [domain-events.md](../../modules/knowledge-base/domain-events.md)
 
 - `knowledge-base.article_created`
 - `knowledge-base.article_published`
@@ -30,21 +30,21 @@
 - `knowledge-base.article_review_requested`
 - `knowledge-base.category_created`
 
-## 通用語言
+## ?隤?
 
-詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+閰唾? [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
 
-- **Article** ≠ Page（個人筆記）≠ Document（泛型）
-- **VerificationState** ≠ ApprovalState（knowledge 的審核）
-- **Backlink** = `[[Article Title]]` wikilink 解析結果
+- **Article** ??Page嚗犖蝑?嚗? Document嚗???
+- **VerificationState** ??ApprovalState嚗nowledge ?祟?賂?
+- **Backlink** = `[[Article Title]]` wikilink 閫??蝯?
 
-## 上下文關係
+## 銝???靽?
 
-詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+閰唾? [context-map.md](../../modules/knowledge-base/context-map.md)
 
-| 關係 | BC | 類型 |
+| ?? | BC | 憿? |
 |---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 下游 | `knowledge` (promote) | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed` | Published Language |
+| 銝虜 | `workspace`, `identity`, `organization` | Conformist |
+| 銝虜 | `knowledge-collaboration` | Customer/Supplier |
+| 銝虜 | `knowledge` (promote) | Customer/Supplier |
+| 銝虜 | `notification`, `workspace-feed` | Published Language |

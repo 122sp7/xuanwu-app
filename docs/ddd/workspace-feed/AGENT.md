@@ -1,18 +1,18 @@
-# AGENT.md — workspace-feed BC
+# AGENT.md ??workspace-feed BC
 
-## 通用語言
+## ?隤?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `WorkspaceFeedPost` | Post、Tweet、Message |
-| `WorkspaceFeedPostType` | Type、PostType |
-| `authorAccountId` | authorId、userId |
+| `WorkspaceFeedPost` | Post?weet?essage |
+| `WorkspaceFeedPostType` | Type?ostType |
+| `authorAccountId` | authorId?serId |
 
-## 邊界規則
+## ??閬?
 
 ```typescript
-// ✅
+// ??
 import { workspaceFeedApi } from "@/modules/workspace-feed/api";
-// ❌
+// ??
 import { WorkspaceFeedPost } from "@/modules/workspace-feed/domain/entities/WorkspaceFeedPost";
 ```

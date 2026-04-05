@@ -1,19 +1,19 @@
-# Domain Events — workspace-feed
+# Domain Events ??workspace-feed
 
-## 發出事件
+## ?澆鈭辣
 
-| 事件 | 觸發條件 |
+| 鈭辣 | 閫貊璇辣 |
 |------|---------|
-| `WorkspaceFeedPostCreated` | 新貼文發布 |
-| `WorkspaceFeedReplyCreated` | 回覆發布 |
-| `WorkspaceFeedRepostCreated` | 轉貼發布 |
-| `WorkspaceFeedPostLiked` | 按讚 |
-| `WorkspaceFeedPostViewed` | 瀏覽 |
-| `WorkspaceFeedPostBookmarked` | 收藏 |
-| `WorkspaceFeedPostShared` | 分享 |
+| `WorkspaceFeedPostCreated` | ?啗票?撣?|
+| `WorkspaceFeedReplyCreated` | ???澆? |
+| `WorkspaceFeedRepostCreated` | 頧票?澆? |
+| `WorkspaceFeedPostLiked` | ?? |
+| `WorkspaceFeedPostViewed` | ?汗 |
+| `WorkspaceFeedPostBookmarked` | ?嗉? |
+| `WorkspaceFeedPostShared` | ?澈 |
 
-所有事件繼承 `WorkspaceFeedBaseEvent`（`accountId`, `workspaceId`, `postId`, `actorAccountId`, `occurredAtISO`）。
+???隞嗥匱??`WorkspaceFeedBaseEvent`嚗accountId`, `workspaceId`, `postId`, `actorAccountId`, `occurredAtISO`嚗?
 
-## 訂閱事件
+## 閮鈭辣
 
-`workspace-feed` 不訂閱其他 BC 的事件。
+`workspace-feed` 銝??勗隞?BC ??隞嗚?

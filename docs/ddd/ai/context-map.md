@@ -1,40 +1,40 @@
-# Context Map — ai
+# Context Map ??ai
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### source → ai（Customer/Supplier）
+### source ??ai嚗ustomer/Supplier嚗?
 
-- `source.upload_completed` 觸發 `ai` 建立 IngestionJob
-- `ai` 依賴 `source/api` 取得 SourceDocument 元資料（storageUrl、mimeType）
-
----
-
-## 下游（被依賴）
-
-### ai → search（Customer/Supplier）
-
-- `ai.ingestion_completed` 通知 `search` 更新向量索引
-- `search` 的 RAG 查詢依賴 `ai` 生成的 IngestionChunk
-
-### ai → py_fn（Runtime Boundary）
-
-**這不是 BC 間的 DDD 整合，而是 runtime 邊界分割：**
-
-```
-Next.js ai module ──[Firestore Job Record]──► py_fn/ worker
-                   ──[Firebase Storage URL]──► py_fn/ worker
-py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
-```
-
-- Next.js 端：Job 建立、狀態查詢、API
-- `py_fn/`：parse / chunk / embed 實際執行
+- `source.upload_completed` 閫貊 `ai` 撱箇? IngestionJob
+- `ai` 靘陷 `source/api` ?? SourceDocument ????storageUrl?imeType嚗?
 
 ---
 
-## IDDD 整合模式總結
+## 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+### ai ??search嚗ustomer/Supplier嚗?
+
+- `ai.ingestion_completed` ? `search` ?湔??蝝Ｗ?
+- `search` ??RAG ?亥岷靘陷 `ai` ????IngestionChunk
+
+### ai ??py_fn嚗untime Boundary嚗?
+
+**????BC ?? DDD ?游?嚗 runtime ???嚗?*
+
+```
+Next.js ai module ??[Firestore Job Record]????py_fn/ worker
+                   ??[Firebase Storage URL]????py_fn/ worker
+py_fn/ worker ??[Chunk + Embedding 撖怠? Firestore]????Next.js reads
+```
+
+- Next.js 蝡荔?Job 撱箇????閰ＵPI
+- `py_fn/`嚗arse / chunk / embed 撖阡??瑁?
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| source → ai | source | ai | Published Language (Events) |
-| ai → search | ai | search | Published Language (Events) |
-| ai → py_fn | Next.js | py_fn | Runtime Boundary（非 DDD 邊界） |
+| source ??ai | source | ai | Published Language (Events) |
+| ai ??search | ai | search | Published Language (Events) |
+| ai ??py_fn | Next.js | py_fn | Runtime Boundary嚗? DDD ??嚗?|

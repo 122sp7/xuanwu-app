@@ -1,18 +1,18 @@
-# notebook — Repositories
+# notebook ??Repositories
 
 > **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
+> **璅∠?頝臬?:** `modules/notebook/`
 > **Domain Type:** Supporting Subdomain
 
-本文件整理 `notebook` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+?祆?隞嗆??`notebook` ??repository ports ??infrastructure 撖虫?嚗???`domain/` ??`infrastructure/` ??撠銵具?
 
 ## Domain Repository Ports
 
 - `domain/repositories/NotebookRepository.ts`
 
-> `RagGenerationRepository` 與 `RagRetrievalRepository` 已移至 `modules/search`，
-> `domain/repositories/RagGenerationRepository.ts` 與 `domain/repositories/RagRetrievalRepository.ts`
-> 為 `@deprecated` re-export stub，不屬於 notebook domain ports。
+> `RagGenerationRepository` ??`RagRetrievalRepository` 撌脩宏??`modules/search`嚗?
+> `domain/repositories/RagGenerationRepository.ts` ??`domain/repositories/RagRetrievalRepository.ts`
+> ??`@deprecated` re-export stub嚗?撅祆 notebook domain ports??
 
 ## Infrastructure Implementations
 
@@ -21,16 +21,16 @@
 - `infrastructure/genkit/index.ts`
 - `infrastructure/index.ts`
 
-> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 屬於 `search` BC，
-> 雖然目前物理上仍在 notebook infrastructure 目錄下，應視為過渡性存放。
+> `infrastructure/firebase/FirebaseRagRetrievalRepository.ts` 撅祆 `search` BC嚗?
+> ??桀??拍?銝???notebook infrastructure ?桅?銝????粹?皜⊥批??整?
 
-## 設計規則
+## 閮剛?閬?
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+- Repository 隞摰儔??`domain/repositories/`
+- Repository 撖虫??曉 `infrastructure/`
+- `application/` ?芾靘陷 repository ports嚗??湔靘陷 infrastructure 撖虫?
 
-## 模組內對應文件
+## 璅∠??批???隞?
 
 - `../../../modules/notebook/repositories.md`
 - `../../../docs/ddd/notebook/aggregates.md`

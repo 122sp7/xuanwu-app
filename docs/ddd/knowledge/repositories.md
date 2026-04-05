@@ -1,15 +1,15 @@
-# knowledge — Repositories
+# knowledge ??Repositories
 
 > **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
+> **璅∠?頝臬?:** `modules/knowledge/`
 > **Domain Type:** Core Domain
 
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+?祆?隞嗆??`knowledge` ??repository ports ??infrastructure 撖虫?嚗???`domain/` ??`infrastructure/` ??撠銵具?
 
 ## Domain Repository Ports
 
 - `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgePageRepository` ????`verify()`, `requestReview()`, `assignOwner()` 蝑?Wiki Space ?寞?
   - `KnowledgeBlockRepository`
   - `KnowledgeVersionRepository`
   - `KnowledgeCollectionRepository`
@@ -17,35 +17,35 @@
 ## Infrastructure Implementations
 
 - `infrastructure/firebase/FirebaseContentPageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+  - 撖虫? `KnowledgePageRepository`嚗 `verify()`, `requestReview()`, `assignOwner()` 銝?寞?
 - `infrastructure/firebase/FirebaseContentBlockRepository.ts`
 - `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+  - 撖虫? `KnowledgeCollectionRepository`嚗toKnowledgeCollection()` mapper 撌脣???`spaceType` 甈?
 
-## KnowledgePageRepository 方法對照
+## KnowledgePageRepository ?寞?撠
 
-| 方法 | 說明 |
+| ?寞? | 隤芣? |
 |------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
+| `create()` | 撱箇?? |
+| `rename()` | ???|
+| `move()` | 蝘餃?撅斤? |
+| `archive()` | 甇豢? |
+| `reorderBlocks()` | ???憛?|
+| `approve()` | 撖拇嚗I ?阮璅∪?嚗?|
+| `verify()` | 撽??嚗iki Space 璅∪?嚗?|
+| `requestReview()` | 璅??箏?撖拚嚗iki Space 璅∪?嚗?|
+| `assignOwner()` | ???鞎痊鈭?|
+| `findById()` | ???桅? |
+| `listByAccountId()` | ?撣單?????|
+| `listByWorkspaceId()` | ?撌乩???????|
 
-## 設計規則
+## 閮剛?閬?
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+- Repository 隞摰儔??`domain/repositories/`
+- Repository 撖虫??曉 `infrastructure/`
+- `application/` ?芾靘陷 repository ports嚗??湔靘陷 infrastructure 撖虫?
 
-## 模組內對應文件
+## 璅∠??批???隞?
 
 - `../../../modules/knowledge/repositories.md`
 - `../../../docs/ddd/knowledge/aggregates.md`

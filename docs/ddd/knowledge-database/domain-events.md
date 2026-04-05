@@ -4,4 +4,4 @@
 - `knowledge-database.record_linked`
 - `knowledge-database.view_created` / `view_updated`
 
-→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
+??[`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)

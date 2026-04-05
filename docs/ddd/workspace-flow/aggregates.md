@@ -1,71 +1,71 @@
-# Aggregates — workspace-flow
+# Aggregates ??workspace-flow
 
-## 聚合根：Task
+## ???對?Task
 
-### 職責
-可追蹤的工作單元，管理完整的任務生命週期狀態機。
+### ?瑁痊
+?航蕭頩斤?撌乩??桀?嚗恣???渡?隞餃???望??????
 
-### 生命週期狀態機
+### ??望????
 ```
-draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
+draft ????in_progress ????qa ????acceptance ????accepted ????archived
 ```
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | Task 主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `title` | `string` | 任務標題 |
-| `status` | `TaskStatus` | 當前狀態 |
-| `assigneeId` | `string \| null` | 負責人帳戶 ID |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
-| `currentUserId` | `string` | 當前操作者 ID |
+| `id` | `string` | Task 銝駁 |
+| `workspaceId` | `string` | ?撅砍極雿? |
+| `title` | `string` | 隞餃?璅? |
+| `status` | `TaskStatus` | ?嗅????|
+| `assigneeId` | `string \| null` | 鞎痊鈭箏董??ID |
+| `dueDate` | `string \| null` | ?芣迫?交? ISO 8601 |
+| `sourceReference` | `SourceReference \| null` | ?拙?靘?嚗ageId, causationId嚗?|
+| `currentUserId` | `string` | ?嗅?????ID |
 
 ---
 
-## 聚合根：Issue
+## ???對?Issue
 
-### 生命週期狀態機
+### ??望????
 ```
-open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
+open ????investigating ????fixing ????retest ????resolved ????closed
 ```
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 說明 |
+| 撅祆?| 隤芣? |
 |------|------|
-| `id`, `workspaceId`, `title` | 基本屬性 |
+| `id`, `workspaceId`, `title` | ?箸撅祆?|
 | `status` | `IssueStatus` |
-| `severity` | `IssueStatus` 嚴重程度 |
-| `reporterId` | 報告者帳戶 ID |
-| `assigneeId` | 負責人帳戶 ID（可選） |
+| `severity` | `IssueStatus` ?湧?蝔漲 |
+| `reporterId` | ?勗??董??ID |
+| `assigneeId` | 鞎痊鈭箏董??ID嚗?賂? |
 
 ---
 
-## 聚合根：Invoice
+## ???對?Invoice
 
-### 生命週期狀態機
+### ??望????
 ```
-draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
+draft ????submitted ????finance_review ????approved ????paid ????closed
 ```
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 說明 |
+| 撅祆?| 隤芣? |
 |------|------|
-| `id`, `workspaceId` | 基本屬性 |
+| `id`, `workspaceId` | ?箸撅祆?|
 | `status` | `InvoiceStatus` |
 | `amount` | `number` |
-| `currency` | `string`（預設 "TWD"） |
-| `sourceReference` | 物化來源（可選） |
+| `currency` | `string`嚗?閮?"TWD"嚗?|
+| `sourceReference` | ?拙?靘?嚗?賂? |
 
 ---
 
-## 值物件
+## ?潛隞?
 
-| 值物件 | 說明 |
+| ?潛隞?| 隤芣? |
 |--------|------|
 | `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
 | `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
@@ -76,16 +76,16 @@ draft ──► submitted ──► finance_review ──► approved ──► 
 
 ## Repository Interfaces
 
-| 介面 | 說明 |
+| 隞 | 隤芣? |
 |------|------|
-| `TaskRepository` | Task CRUD + 狀態查詢 |
-| `IssueRepository` | Issue CRUD + 狀態查詢 |
-| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
+| `TaskRepository` | Task CRUD + ??閰?|
+| `IssueRepository` | Issue CRUD + ??閰?|
+| `InvoiceRepository` | Invoice CRUD + ??閰?|
 
 ---
 
 ## Domain Services
 
-| 服務 | 說明 |
+| ?? | 隤芣? |
 |------|------|
-| `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
+| `ContentToWorkflowMaterializer` | Process Manager嚗???`knowledge.page_approved`嚗遣蝡?MaterializedTask ??Invoice |

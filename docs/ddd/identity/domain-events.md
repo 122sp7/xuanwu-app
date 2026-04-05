@@ -1,26 +1,26 @@
-# Domain Events — identity
+# Domain Events ??identity
 
-## 發出事件
+## ?澆鈭辣
 
-`identity` 域目前不發出 DomainEvent（Firebase Auth 事件由 SDK 直接處理，不經過領域事件匯流排）。
+`identity` ????澆 DomainEvent嚗irebase Auth 鈭辣??SDK ?湔??嚗?蝬???鈭辣?舀?????
 
-未來如需追蹤登入稽核，可考慮加入：
+?芯?憒?餈質馱?餃蝔賣嚗??嚗?
 
-| 潛在事件 | 觸發條件 | 說明 |
+| 瞏鈭辣 | 閫貊璇辣 | 隤芣? |
 |---------|---------|------|
-| `identity.signed_in` | 使用者成功登入 | 供 `workspace-audit` 消費 |
-| `identity.signed_out` | 使用者登出 | 供稽核紀錄消費 |
+| `identity.signed_in` | 雿輻?????| 靘?`workspace-audit` 瘨祥 |
+| `identity.signed_out` | 雿輻???| 靘里?貊???鞎?|
 
-## 訂閱事件
+## 閮鈭辣
 
-`identity` 不訂閱其他 BC 的事件。
+`identity` 銝??勗隞?BC ??隞嗚?
 
-## TokenRefreshSignal（非正式事件）
+## TokenRefreshSignal嚗?甇??鈭辣嚗?
 
-`TokenRefreshSignal` 是透過 `TokenRefreshRepository.listenToTokenRefresh()` 的 Observable 訊號，不是正式的 DomainEvent，但語意上扮演事件角色：
+`TokenRefreshSignal` ?舫? `TokenRefreshRepository.listenToTokenRefresh()` ??Observable 閮?嚗??舀迤撘? DomainEvent嚗?隤?銝瞍?隞嗉??莎?
 
 ```typescript
-// account use-case 消費此訊號
+// account use-case 瘨祥甇方???
 identityApi.listenToTokenRefresh()
   .subscribe(() => accountApi.refreshCustomClaims(uid));
 ```

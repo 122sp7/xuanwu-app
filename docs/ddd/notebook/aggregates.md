@@ -1,52 +1,52 @@
-# Aggregates — notebook
+# Aggregates ??notebook
 
-## 聚合根：Thread
+## ???對?Thread
 
-### 職責
-代表一個 AI 對話串。持有有序的 Message 列表，管理對話歷史。
+### ?瑁痊
+隞?”銝??AI 撠店銝脯???摨? Message ?”嚗恣??閰望風?脯?
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `ID` | Thread 主鍵 |
-| `messages` | `Message[]` | 有序訊息列表 |
+| `id` | `ID` | Thread 銝駁 |
+| `messages` | `Message[]` | ??閮?” |
 | `createdAt` | `string` | ISO 8601 |
 | `updatedAt` | `string` | ISO 8601 |
 
-### 不變數
+### 銝???
 
-- messages 列表維持追加順序，不可重新排序
-- Thread 不可刪除 Message（只能追加）
+- messages ?”蝬剜?餈賢???嚗??舫??唳?摨?
+- Thread 銝?芷 Message嚗?質蕭??
 
 ---
 
-## 值物件：Message
+## ?潛隞塚?Message
 
-### 職責
-Thread 中的單則訊息，不可變（immutable）。
+### ?瑁痊
+Thread 銝剔??桀?閮嚗??航?嚗mmutable嚗?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `ID` | 訊息主鍵 |
+| `id` | `ID` | 閮銝駁 |
 | `role` | `MessageRole` | `"user" \| "assistant" \| "system"` |
-| `content` | `string` | 訊息內容文字 |
+| `content` | `string` | 閮?批捆?? |
 | `createdAt` | `string` | ISO 8601 |
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 說明 |
+| 隞 | 隤芣? |
 |------|------|
-| `NotebookRepository` | 封裝 Genkit AI 呼叫：`generateResponse(input)` |
+| `NotebookRepository` | 撠? Genkit AI ?澆嚗generateResponse(input)` |
 
 ### GenerateNotebookResponseInput
 
 ```typescript
 interface GenerateNotebookResponseInput {
   readonly prompt: string;
-  readonly model?: string;    // 預設 Gemini 2.0 flash
+  readonly model?: string;    // ?身 Gemini 2.0 flash
   readonly system?: string;   // System prompt
 }
 ```

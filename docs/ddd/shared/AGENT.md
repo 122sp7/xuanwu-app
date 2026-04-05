@@ -1,39 +1,39 @@
-# AGENT.md — shared BC
+# AGENT.md ??shared BC
 
-## 模組定位
+## 璅∠?摰?
 
-`shared` 是 Shared Kernel，提供所有 BC 共同依賴的最小基礎型別集。修改任何 shared/ 型別前，需確認所有消費方的影響。
+`shared` ??Shared Kernel嚗?靘???BC ?勗?靘陷??撠蝷??仿??耨?嫣遙雿?shared/ ????蝣箄????鞎餅?蔣?踴?
 
-## 最重要規則：DomainEvent 欄位名稱
+## ???閬?嚗omainEvent 甈??迂
 
 ```typescript
-// ✅ 正確：occurredAt（ISO string）
+// ??甇?Ⅱ嚗ccurredAt嚗SO string嚗?
 interface MyEvent {
   readonly type: "module.action";
   readonly occurredAt: string;  // ISO 8601
 }
 
-// ❌ 錯誤：不存在 occurredAtISO 欄位
+// ???航炊嚗?摮 occurredAtISO 甈?
 interface WrongEvent {
-  readonly occurredAtISO: string;  // 不正確
+  readonly occurredAtISO: string;  // 銝迤蝣?
 }
 ```
 
-## 通用語言
+## ?隤?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
 | `DomainEvent` | BaseEvent, Event |
-| `occurredAt` | occurredAtISO, timestamp（作為 DomainEvent 欄位） |
-| `EventRecord` | AuditRecord（在此 BC 內） |
+| `occurredAt` | occurredAtISO, timestamp嚗???DomainEvent 甈?嚗?|
+| `EventRecord` | AuditRecord嚗甇?BC ?改? |
 
-## 邊界規則
+## ??閬?
 
-- `shared/` 內不放業務邏輯
-- 只放多個 BC 都需要的最小型別
-- 任何新增需要全域共識
+- `shared/` ?找??暹平??頛?
+- ?芣憭?BC ?賡?閬??撠???
+- 隞颱??啣??閬?霅?
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

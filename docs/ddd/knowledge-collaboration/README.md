@@ -1,41 +1,41 @@
-# knowledge-collaboration — DDD Reference
+# knowledge-collaboration ??DDD Reference
 
 > **Domain Type:** Supporting Subdomain + Generic Subdomain
 > **Module:** `modules/knowledge-collaboration/`
-> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+> **閰喟敦璅∠??辣:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
 
-## 戰略定位
+## ?啁摰?
 
-`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
+`knowledge-collaboration` ??`knowledge` ??`knowledge-base` ?????箇?閮剜嚗?閮閮??敦蝎漲摮?甈????砍翰?扼?銝??霅摰對??芣?靘?雿??
 
-## 核心聚合
+## ?詨???
 
-- **Comment** — 線程式留言，透過 `contentId` 引用內容
-- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
-- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
+- **Comment** ??蝺?撘?閮嚗? `contentId` 撘?批捆
+- **Permission** ??`(subjectId, principalId)` ????甈?蝝嚗iew < comment < edit < full
+- **Version** ??Block 敹怎嚗mmutable嚗?憭???100 ???瑕???文?嚗?
 
-## 主要領域事件
+## 銝餉???鈭辣
 
 - `knowledge-collaboration.comment_created` / `comment_resolved`
 - `knowledge-collaboration.permission_granted` / `permission_revoked`
 - `knowledge-collaboration.version_created` / `version_restored`
 - `knowledge-collaboration.page_locked`
 
-## 通用語言
+## ?隤?
 
-| 術語 | 定義 |
+| 銵? | 摰儔 |
 |---|---|
-| **Comment** | 針對 contentId 的留言（root 或 reply） |
-| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **Comment** | ?? contentId ??閮嚗oot ??reply嚗?|
+| **Permission** | ?桐? (subject, principal) ????甈???|
 | **PermissionLevel** | `view` < `comment` < `edit` < `full` |
-| **Version** | immutable Block 快照 |
-| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
-| **contentId** | opaque reference 到任意知識內容 |
+| **Version** | immutable Block 敹怎 |
+| **NamedVersion** | ?瑟?鈭箏極璅惜????穿?銝??歹? |
+| **contentId** | opaque reference ?唬遙?霅摰?|
 
-## 上下文關係
+## 銝???靽?
 
-| 關係 | BC | 類型 |
+| ?? | BC | 憿? |
 |---|---|---|
-| 上游 | `workspace`, `identity` | Conformist |
-| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
+| 銝虜 | `workspace`, `identity` | Conformist |
+| 銝虜 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 銝虜 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |

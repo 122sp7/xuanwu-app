@@ -1,28 +1,28 @@
-# search — Application Services
+# search ??Application Services
 
 > **Canonical bounded context:** `search`
-> **模組路徑:** `modules/search/`
+> **璅∠?頝臬?:** `modules/search/`
 > **Domain Type:** Supporting Subdomain
 
-本文件記錄 `search` 的 application layer 服務與 use cases。內容與 `modules/search/application/` 實作保持一致。
+?祆?隞嗉???`search` ??application layer ????use cases?摰寡? `modules/search/application/` 撖虫?靽?銝?氬?
 
-## Application Layer 職責
+## Application Layer ?瑁痊
 
-提供向量檢索、RAG answer 生成與查詢反饋收集。
+????瑼Ｙ揣?AG answer ???閰Ｗ?擖??
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+Application layer ?芾?鞎穿?
+- ?矽 use cases / DTO / process manager
+- ?澆 domain repository ports ??domain services
+- 銝頛?UI / framework-specific concerns
 
-## 實際檔案
+## 撖阡?瑼?
 
 - `application/use-cases/answer-rag-query.use-case.ts`
 - `application/use-cases/submit-rag-feedback.use-case.ts`
 - `application/use-cases/wiki-rag.use-case.ts`
 
-## 設計對齊
+## 閮剛?撠?
 
-- 模組 README：`../../../modules/search/README.md`
-- 模組 AGENT：`../../../modules/search/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/search/application-services.md`
+- 璅∠? README嚗../../../modules/search/README.md`
+- 璅∠? AGENT嚗../../../modules/search/AGENT.md`
+- ??application layer ???芋蝯撠勗?辣嚗../../../modules/search/application-services.md`

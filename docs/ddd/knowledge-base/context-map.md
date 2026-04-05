@@ -1,15 +1,15 @@
-# knowledge-base — Context Map
+# knowledge-base ??Context Map
 
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
+> 閰喟敦??閬?[`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
 
-## 上游
+## 銝虜
 
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+- `workspace` / `identity` / `organization` ??Conformist
+- `knowledge-collaboration` ??Customer/Supplier嚗ermission 鞈?嚗?
 
-## 下游
+## 銝虜
 
-- `knowledge` — 頁面可提升（Promote）為 Article
-- `knowledge-database` — Article 可與 Record 連結（ACL）
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
+- `knowledge` ????舀???Promote嚗 Article
+- `knowledge-database` ??Article ?航? Record ???嚗CL嚗?
+- `notification` / `workspace-feed` ??Published Language嚗?隞嗆?鞎鳴?
+- `workspace-audit` ??Published Language嚗祟閮???

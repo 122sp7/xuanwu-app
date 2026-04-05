@@ -1,44 +1,44 @@
-# Context Map — search
+# Context Map ??search
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### ai → search（Customer/Supplier）
+### ai ??search嚗ustomer/Supplier嚗?
 
-- `ai.ingestion_completed` 通知 `search` 更新向量索引
-- `search` 依賴 `ai` 生成的 IngestionChunk（embedding 向量）
+- `ai.ingestion_completed` ? `search` ?湔??蝝Ｗ?
+- `search` 靘陷 `ai` ????IngestionChunk嚗mbedding ??嚗?
 
-### wiki → search（Customer/Supplier）
+### wiki ??search嚗ustomer/Supplier嚗?
 
-- `wiki.node_activated` 觸發 `search` 更新節點向量表示
-
----
-
-## 下游（被依賴）
-
-### search → notebook（Customer/Supplier）
-
-- `notebook` 呼叫 `search/api.answerRagQuery()` 取得 RAG chunks 與答案
-- 這是同步查詢，不是事件
-
-### search → Wiki UI（Interfaces）
-
-- `RagView`, `RagQueryView` 從 `modules/search` root barrel 匯出（非 /api）
-- Wiki 頁面直接呼叫 `search/api` Server Actions
+- `wiki.node_activated` 閫貊 `search` ?湔蝭暺??”蝷?
 
 ---
 
-## Import 路由
+## 銝虜嚗◤靘陷嚗?
+
+### search ??notebook嚗ustomer/Supplier嚗?
+
+- `notebook` ?澆 `search/api.answerRagQuery()` ?? RAG chunks ??獢?
+- ??郊?亥岷嚗??臭?隞?
+
+### search ??Wiki UI嚗nterfaces嚗?
+
+- `RagView`, `RagQueryView` 敺?`modules/search` root barrel ?臬嚗? /api嚗?
+- Wiki ??湔?澆 `search/api` Server Actions
+
+---
+
+## Import 頝舐
 
 ```
-server code (Server Action, API route) → import from @/modules/search/api
-client code (React Component)          → import from @/modules/search (root barrel)
+server code (Server Action, API route) ??import from @/modules/search/api
+client code (React Component)          ??import from @/modules/search (root barrel)
 ```
 
-## IDDD 整合模式總結
+## IDDD ?游?璅∪?蝮賜?
 
-| 關係 | 上游 | 下游 | 模式 |
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| ai → search | ai | search | Published Language (Events) |
-| wiki → search | wiki | search | Published Language (Events) |
-| search → notebook | search | notebook | Customer/Supplier（同步） |
-| search → Wiki UI | search | app/ | Conformist |
+| ai ??search | ai | search | Published Language (Events) |
+| wiki ??search | wiki | search | Published Language (Events) |
+| search ??notebook | search | notebook | Customer/Supplier嚗?甇伐? |
+| search ??Wiki UI | search | app/ | Conformist |

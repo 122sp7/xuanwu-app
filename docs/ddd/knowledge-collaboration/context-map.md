@@ -1,4 +1,4 @@
-上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
-下游消費者: `notification`, `workspace-feed`, `workspace-audit`
+銝虜: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
+銝虜瘨祥?? `notification`, `workspace-feed`, `workspace-audit`
 
-→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
+??閰喟敦閮剛?: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)

@@ -1,46 +1,46 @@
-# Context Map — workspace-flow
+# Context Map ??workspace-flow
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### knowledge → workspace-flow（Published Language）
+### knowledge ??workspace-flow嚗ublished Language嚗?
 
-**這是 workspace-flow 最重要的上游整合。**
+**? workspace-flow ?????皜豢??*
 
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
-- 從 `extractedTasks[]` 建立 MaterializedTask
-- 從 `extractedInvoices[]` 建立 Invoice
-- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
+- `workspace-flow` ??`ContentToWorkflowMaterializer` 閮 `knowledge.page_approved`
+- 敺?`extractedTasks[]` 撱箇? MaterializedTask
+- 敺?`extractedInvoices[]` 撱箇? Invoice
+- 瘥?祕擃葉閮? `sourceReference`嚗ageId + causationId嚗?
 
 ```
-knowledge.page_approved ──► ContentToWorkflowMaterializer
-                            ├─► Task.create（extractedTask）
-                            └─► Invoice.create（extractedInvoice）
+knowledge.page_approved ????ContentToWorkflowMaterializer
+                            ????Task.create嚗xtractedTask嚗?
+                            ????Invoice.create嚗xtractedInvoice嚗?
 ```
 
-### workspace → workspace-flow（Conformist）
+### workspace ??workspace-flow嚗onformist嚗?
 
-- Task/Issue/Invoice 都隸屬 `workspaceId`
-- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
+- Task/Issue/Invoice ?賡撅?`workspaceId`
+- `WorkspaceFlowTab` ?交 `workspaceId` + `currentUserId` 雿 props
 
 ---
 
-## 下游（被依賴）
+## 銝虜嚗◤靘陷嚗?
 
-### workspace-flow → notification（Published Language）
+### workspace-flow ??notification嚗ublished Language嚗?
 
-- 狀態變更事件觸發通知（如 task_assigned）
+- ????港?隞嗉孛?潮嚗? task_assigned嚗?
 
-### workspace-flow → workspace-audit（Published Language）
+### workspace-flow ??workspace-audit嚗ublished Language嚗?
 
-- 狀態轉換事件供稽核紀錄消費
+- ?????隞嗡?蝔賣蝝??鞎?
 
 ---
 
-## IDDD 整合模式總結
+## IDDD ?游?璅∪?蝮賜?
 
-| 關係 | 上游 | 下游 | 模式 |
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| workspace → workspace-flow | workspace | workspace-flow | Conformist |
-| workspace-flow → notification | workspace-flow | notification | Published Language |
-| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |
+| knowledge ??workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| workspace ??workspace-flow | workspace | workspace-flow | Conformist |
+| workspace-flow ??notification | workspace-flow | notification | Published Language |
+| workspace-flow ??workspace-audit | workspace-flow | workspace-audit | Published Language |

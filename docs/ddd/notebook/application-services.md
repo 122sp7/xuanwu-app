@@ -1,28 +1,28 @@
-# notebook — Application Services
+# notebook ??Application Services
 
 > **Canonical bounded context:** `notebook`
-> **模組路徑:** `modules/notebook/`
+> **璅∠?頝臬?:** `modules/notebook/`
 > **Domain Type:** Supporting Subdomain
 
-本文件記錄 `notebook` 的 application layer 服務與 use cases。內容與 `modules/notebook/application/` 實作保持一致。
+?祆?隞嗉???`notebook` ??application layer ????use cases?摰寡? `modules/notebook/application/` 撖虫?靽?銝?氬?
 
-## Application Layer 職責
+## Application Layer ?瑁痊
 
-管理 AI 對話 Thread/Message，並封裝模型生成回應。
+蝞∠? AI 撠店 Thread/Message嚗蒂撠?璅∪???????
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+Application layer ?芾?鞎穿?
+- ?矽 use cases / DTO / process manager
+- ?澆 domain repository ports ??domain services
+- 銝頛?UI / framework-specific concerns
 
-## 實際檔案
+## 撖阡?瑼?
 
 - `application/index.ts`
 - `application/use-cases/answer-rag-query.use-case.ts`
 - `application/use-cases/generate-agent-response.use-case.ts`
 
-## 設計對齊
+## 閮剛?撠?
 
-- 模組 README：`../../../modules/notebook/README.md`
-- 模組 AGENT：`../../../modules/notebook/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/notebook/application-services.md`
+- 璅∠? README嚗../../../modules/notebook/README.md`
+- 璅∠? AGENT嚗../../../modules/notebook/AGENT.md`
+- ??application layer ???芋蝯撠勗?辣嚗../../../modules/notebook/application-services.md`

@@ -1,28 +1,28 @@
-# knowledge-collaboration — DDD Reference
+# knowledge-collaboration ??DDD Reference
 
 > **Domain Type:** Supporting Subdomain
 > **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+> **閰喟敦璅∠??辣:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
 
-## 戰略定位
+## ?啁摰?
 
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+`knowledge-database` 撠? Notion Database ?賢?嚗?靘?瑽?鞈??脣???閬?撅內?蝙?刻摰儔甈? Schema嚗誑銝?閬?嚗able/Board/Calendar/Timeline/Gallery嚗蝝Ｙ????
 
-## 核心聚合
+## ?詨???
 
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
+- **Database** ??甈? Schema 摰孵 + 閬?皜嚗nvariant ??
+- **Record** ???株?鞈?嚗roperties Map嚗ieldId ??value嚗?
+- **View** ??閬??蔭嚗ype + filters + sorts + groupBy
 
-## 視圖類型
+## 閬?憿?
 
 `table` | `board` | `list` | `calendar` | `timeline` | `gallery`
 
-## 欄位類型
+## 甈?憿?
 
 `text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
 
-## 主要領域事件
+## 銝餉???鈭辣
 
 - `knowledge-database.database_created`
 - `knowledge-database.field_added` / `field_deleted`
@@ -30,22 +30,22 @@
 - `knowledge-database.record_linked`
 - `knowledge-database.view_created` / `view_updated`
 
-## 通用語言
+## ?隤?
 
-| 術語 | 定義 |
+| 銵? | 摰儔 |
 |---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+| **Database** | 蝯????捆?剁???KnowledgeCollection嚗?|
+| **Field** | Schema 甈?摰儔嚗? Column嚗?|
+| **Record** | 鞈?銵???Row, Item嚗?|
+| **Property** | Record 銝剜? Field ?擃?|
+| **View** | 閬??蔭嚗???鞈?嚗?|
+| **Relation** | 頝?Database ??Record ???甈?憿? |
 
-## 上下文關係
+## 銝???靽?
 
-| 關係 | BC | 類型 |
+| ?? | BC | 憿? |
 |---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
-| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
+| 銝虜 | `workspace`, `identity`, `organization` | Conformist |
+| 銝虜 | `knowledge-collaboration` | Customer/Supplier嚗ermission嚗?|
+| 銝虜 | `workspace-feed`, `notification` | Published Language |
+| ?? | `knowledge`, `knowledge-base` | Open Host Service |

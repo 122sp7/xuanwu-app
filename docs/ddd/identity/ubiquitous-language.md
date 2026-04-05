@@ -1,21 +1,21 @@
-# Ubiquitous Language — identity
+# Ubiquitous Language ??identity
 
-> **範圍：** 僅限 `modules/identity/` 有界上下文內
+> **蝭?嚗?* ?? `modules/identity/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 | 代碼位置 |
+| 銵? | ?望? | 摰儔 | 隞?Ⅳ雿蔭 |
 |------|------|------|---------|
-| 身份 | Identity | Firebase Auth 驗證後的使用者記錄，以 `uid` 為唯一識別碼 | `modules/identity/domain/entities/` |
-| 唯一身份碼 | uid | Firebase Authentication 產生的使用者全域唯一 ID | `Identity.uid` |
-| Token 刷新訊號 | TokenRefreshSignal | 代表 Firebase ID token 需要更新的訊號物件 | `domain/entities/` |
-| 登入 | signIn | 透過 Email 或 OAuth 建立 Firebase Auth session | `IdentityRepository.signIn()` |
-| 登出 | signOut | 終止 Firebase Auth session | `IdentityRepository.signOut()` |
+| 頨思遢 | Identity | Firebase Auth 撽?敺?雿輻????隞?`uid` ?箏銝霅蝣?| `modules/identity/domain/entities/` |
+| ?臭?頨思遢蝣?| uid | Firebase Authentication ?Ｙ??蝙?刻?銝 ID | `Identity.uid` |
+| Token ?瑟閮? | TokenRefreshSignal | 隞?” Firebase ID token ?閬?啁?閮??拐辣 | `domain/entities/` |
+| ?餃 | signIn | ?? Email ??OAuth 撱箇? Firebase Auth session | `IdentityRepository.signIn()` |
+| ?餃 | signOut | 蝯迫 Firebase Auth session | `IdentityRepository.signOut()` |
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `Identity` | `User`, `AuthUser`, `CurrentUser` |
-| `uid` | `userId`, `id`, `accountId`（在此 BC 內） |
+| `uid` | `userId`, `id`, `accountId`嚗甇?BC ?改? |
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |

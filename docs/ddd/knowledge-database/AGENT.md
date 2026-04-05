@@ -1,7 +1,7 @@
-# knowledge-database — DDD Agent
+# knowledge-database ??DDD Agent
 
 **Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
 
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
+??蝯????澈?賢?嚗atabase / Record / View嚗???Notion Database?????亥????批捆嚗?瘜冽蝯????? Schema 蝞∠???閬?撅內??
 
-→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
+??閰喟敦?辣: [`modules/knowledge-database/`](../../modules/knowledge-database/)

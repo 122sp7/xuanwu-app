@@ -1,41 +1,41 @@
-# knowledge — 知識內容上下文
+# knowledge ???亥??批捆銝???
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
+> **Domain Type:** **Core Domain**嚗敹?嚗? 
+> **璅∠?頝臬?:** `modules/knowledge/`  
+> **????** ? Developing ??蝛扔?銝?
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+`knowledge` ??Xuanwu ??Notion-like ?詨??批捆撅歹?鞎痊?亥???摰孵?憛??祈?撖拇??望????舀??Knowledge Platform / Second Brain ?葉敹?瘙箏??亥?憒?鋡怠遣蝡?摮??脰?鈭支?蝯虫?皜詨?雿?
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+| Knowledge Page ??望? | 撱箇??楊頛胯??砍??飛瑼?撖拇?亥?? |
+| ?批捆?憛恣??| 蝬剛風????憿?擃?銵函??批捆?憛?瑽?|
+| Database嚗霅??澈嚗?| KnowledgeCollection with spaceType="database"嚗?靘??澈甈????Ｗ惇?抒恣??撠? Notion Database嚗?|
+| Wiki / Knowledge Base嚗霅澈嚗?| KnowledgeCollection with spaceType="wiki"嚗?湧??ａ?霅????Ｘ??????祟?梧?撠? Notion Wiki嚗?|
+| 撖拇敺?雿???| ?澆 `knowledge.page_approved` 蝑?隞塚?撽?敺?撌乩?瘚??霅?頧?|
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+- `workspace` ???亥??批捆?飛撅砍捆?剁?`source` ??憭?辣?亙??
+- `wiki` ?霅摰寡???瑽???嚗workspace-flow` 隞亙祟?嫣?隞嗥?遙???潛巨??
+- `search` ??`notebook` 瘨祥?亥??批捆?炎蝝Ｕ?閬?????
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`KnowledgePage`**
 - **`ContentBlock`**
 - **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+- **`KnowledgeCollection`**嚗paceType: "database" | "wiki"嚗?
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

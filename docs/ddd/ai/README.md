@@ -1,37 +1,37 @@
-# ai — AI 攝入上下文
+# ai ??AI ?銝???
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/ai/`  
-> **開發狀態:** 🏗️ Midway
+> **Domain Type:** Supporting Subdomain嚗?游?嚗? 
+> **璅∠?頝臬?:** `modules/ai/`  
+> **????** ??儭?Midway
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`ai` 是 NotebookLM-like 推理能力的攝入協調層，負責把 `source` 交付的來源文件轉成可供 `search` 與 `notebook` 消費的結構化索引材料。它不直接承載使用者問答體驗，而是保證後續推理層有可靠、可追溯的資料基礎。
+`ai` ??NotebookLM-like ?函??賢????亙?隤踹惜嚗?鞎祆? `source` 鈭支???皞?隞嗉??靘?`search` ??`notebook` 瘨祥??瑽?蝝Ｗ?????銝?交頛蝙?刻?蝑?撽??靽?敺??函?撅斗??舫??餈賣滲???蝷?
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| Ingestion Job 管理 | 追蹤 uploaded → parsing → embedding → indexed / failed 狀態生命週期 |
-| Worker Handoff | 協調 Next.js 與 `py_fn/` 之間的重型 ingestion 工作交接 |
-| Chunk / Index 前處理 | 接收文件切塊與索引前資料，為檢索層準備輸入 |
+| Ingestion Job 蝞∠? | 餈質馱 uploaded ??parsing ??embedding ??indexed / failed ????賡望? |
+| Worker Handoff | ?矽 Next.js ??`py_fn/` 銋?????ingestion 撌乩?鈭斗 |
+| Chunk / Index ????| ?交?辣???揣撘?鞈?嚗瑼Ｙ揣撅斗??撓??|
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `source` 是上游，提供來源文件與交接事件。
-- `search` 消費 `ai` 產生的索引就緒資料；`notebook` 間接建立在這個攝入基礎上。
+- `source` ?臭?皜賂???靘??辣?漱?乩?隞嗚?
+- `search` 瘨祥 `ai` ?Ｙ??揣撘停蝺???`notebook` ?撱箇??券??亙蝷???
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`IngestionJob`**
 - **`IngestionDocument`**
 - **`IngestionChunk`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

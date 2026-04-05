@@ -1,37 +1,37 @@
-# account — 帳戶上下文
+# account ??撣單銝???
 
 > **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/account/`  
-> **開發狀態:** ✅ Done — 穩定
+> **璅∠?頝臬?:** `modules/account/`  
+> **????** ??Done ??蝛拙?
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
+`account` ?踵 `identity` ?歇撽?頨思遢嚗恣?犖瑼???憟質身摰?撣單?輻?嚗?撟喳?瑕?雿輻?惜蝝??犖??甈??賡???雿撟喳?箇?撅歹?鞎痊??亥澈隞賬??????撣單隤???
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
-| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
-| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
+| 撣單閮剖?瑼?| 蝬剛風憿舐內?迂???憟質??嗡??犖鞈? |
+| 撣單?輻? | 蝞∠? AccountPolicy?ustom claims ????嗉??抵?閮?|
+| ?犖???| ?箇?蝜極雿????雿輻?閮剖??箇? |
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `identity` 提供身份與 token 上下文。
-- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
+- `identity` ??頨思遢??token 銝???
+- `organization`?workspace` ??`notification` 隞亙董?嗉????箔蝙?刻???皞?
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`Account`**
 - **`AccountPolicy`**
 - **`AccountProfile`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

@@ -1,37 +1,37 @@
-# workspace-feed — 工作區動態上下文
+# workspace-feed ??撌乩????銝???
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-feed/`  
-> **開發狀態:** 🏗️ Midway
+> **Domain Type:** Supporting Subdomain嚗?游?嚗? 
+> **璅∠?頝臬?:** `modules/workspace-feed/`  
+> **????** ??儭?Midway
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`workspace-feed` 是工作區的動態流與互動層，把知識、任務與協作事件轉成團隊可感知的貼文、回覆與互動紀錄。它提升知識平台的協作流動性與可見性。
+`workspace-feed` ?臬極雿????????惜嚗??亥??遙????鈭辣頧????舀??亦?鞎潭???閬?鈭?蝝?????亥?撟喳??雿??扯??航??扼?
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 動態貼文 | 管理 post / reply / repost 等工作區動態內容 |
-| 互動紀錄 | 記錄 like / view / bookmark / share 等互動 |
-| 事件可見化 | 把協作行為轉成工作區成員可追蹤的活動流 |
+| ??鞎潭? | 蝞∠? post / reply / repost 蝑極雿????批捆 |
+| 鈭?蝝??| 閮? like / view / bookmark / share 蝑???|
+| 鈭辣?航???| ??雿??箄??極雿???航蕭頩斤?瘣餃?瘚?|
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `workspace` 提供動態的歸屬邊界。
-- `workspace-flow`、`knowledge`、`notification` 可與動態流形成聯動。
+- `workspace` ?????飛撅祇???
+- `workspace-flow`?knowledge`?notification` ?航???瘚耦???
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`WorkspaceFeedPost`**
 - **`FeedReaction`**
 - **`FeedThread`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

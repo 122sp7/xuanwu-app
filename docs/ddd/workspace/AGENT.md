@@ -1,38 +1,38 @@
-# AGENT.md — workspace BC
+# AGENT.md ??workspace BC
 
-## 模組定位
+## 璅∠?摰?
 
-`workspace` 是協作容器有界上下文，負責工作區生命週期、成員管理與 Wiki 內容樹。在 WorkspaceDetailScreen 中組合多個 workspace-* 子模組的 UI tab。
+`workspace` ?臬?雿捆?冽???銝?嚗?鞎砍極雿???望????∠恣?? Wiki ?批捆璅嫘 WorkspaceDetailScreen 銝剔?????workspace-* 摮芋蝯? UI tab??
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceMember` | Member、Participant |
-| `WikiContentTree` | PageTree、ContentHierarchy |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 Workspace 上下文中） |
+| `Workspace` | Project?pace?oom |
+| `WorkspaceMember` | Member?articipant |
+| `WikiContentTree` | PageTree?ontentHierarchy |
+| `workspaceId` | projectId?paceId |
+| `accountId` | ownerId嚗 Workspace 銝??葉嚗?|
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { workspaceApi } from "@/modules/workspace/api";
 import type { WorkspaceDTO } from "@/modules/workspace/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
-// workspace/infrastructure 禁止 import workspace/api（循環依賴）
-import { workspaceApi } from "@/modules/workspace/api"; // 在 infrastructure 層
+// workspace/infrastructure 蝳迫 import workspace/api嚗儐?唬?鞈湛?
+import { workspaceApi } from "@/modules/workspace/api"; // ??infrastructure 撅?
 ```
 
-## 循環依賴守衛
+## 敺芰靘陷摰?
 
-`FirebaseWikiWorkspaceRepository` 使用相對路徑 import `FirebaseWorkspaceRepository`，絕對不能改為 `@/modules/workspace/api`。
+`FirebaseWikiWorkspaceRepository` 雿輻?詨?頝臬? import `FirebaseWorkspaceRepository`嚗?撠??賣??`@/modules/workspace/api`??
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

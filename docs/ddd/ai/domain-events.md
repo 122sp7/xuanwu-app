@@ -1,23 +1,23 @@
-# Domain Events — ai
+# Domain Events ??ai
 
-## 發出事件
+## ?澆鈭辣
 
-| 事件 | 觸發條件 | 關鍵欄位 |
+| 鈭辣 | 閫貊璇辣 | ?甈? |
 |------|---------|---------|
-| `ai.ingestion_job_created` | 新 IngestionJob 建立 | `jobId`, `documentId`, `workspaceId`, `occurredAt` |
-| `ai.ingestion_completed` | Job 狀態達到 `indexed` | `jobId`, `documentId`, `chunkCount`, `occurredAt` |
-| `ai.ingestion_failed` | Job 狀態轉為 `failed` | `jobId`, `documentId`, `errorMessage`, `occurredAt` |
+| `ai.ingestion_job_created` | ??IngestionJob 撱箇? | `jobId`, `documentId`, `workspaceId`, `occurredAt` |
+| `ai.ingestion_completed` | Job ?????`indexed` | `jobId`, `documentId`, `chunkCount`, `occurredAt` |
+| `ai.ingestion_failed` | Job ?????`failed` | `jobId`, `documentId`, `errorMessage`, `occurredAt` |
 
-## 訂閱事件
+## 閮鈭辣
 
-| 來源 BC | 訂閱事件 | 行動 |
+| 靘? BC | 閮鈭辣 | 銵? |
 |---------|---------|------|
-| `source` | `source.upload_completed` | 建立 IngestionJob，啟動攝入管線 |
+| `source` | `source.upload_completed` | 撱箇? IngestionJob嚗????亦恣蝺?|
 
-## 消費 ai 事件的其他 BC
+## 瘨祥 ai 鈭辣?隞?BC
 
-| 消費 BC | 事件 | 行動 |
+| 瘨祥 BC | 鈭辣 | 銵? |
 |---------|------|------|
-| `search` | `ai.ingestion_completed` | 更新向量索引，RagDocument 標記為可查詢 |
-| `source` | `ai.ingestion_completed` | 更新 SourceDocument 狀態為 ready |
-| `workspace-audit` | `ai.ingestion_completed / failed` | 記錄攝入稽核軌跡 |
+| `search` | `ai.ingestion_completed` | ?湔??蝝Ｗ?嚗agDocument 璅??箏?亥岷 |
+| `source` | `ai.ingestion_completed` | ?湔 SourceDocument ?? ready |
+| `workspace-audit` | `ai.ingestion_completed / failed` | 閮??蝔賣頠楚 |

@@ -1,21 +1,21 @@
-# knowledge — Application Services
+# knowledge ??Application Services
 
 > **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
+> **璅∠?頝臬?:** `modules/knowledge/`
 > **Domain Type:** Core Domain
 
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
+?祆?隞嗉???`knowledge` ??application layer ????use cases?摰寡? `modules/knowledge/application/` 撖虫?靽?銝?氬?
 
-## Application Layer 職責
+## Application Layer ?瑁痊
 
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+蝞∠??亥???摰孵?憛??甇瑕嚗撟喳?敹霅摰寥???
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+Application layer ?芾?鞎穿?
+- ?矽 use cases / DTO / process manager
+- ?澆 domain repository ports ??domain services
+- 銝頛?UI / framework-specific concerns
 
-## 實際檔案
+## 撖阡?瑼?
 
 - `application/block-service.ts`
 - `application/dto/knowledge.dto.ts`
@@ -24,34 +24,34 @@ Application layer 只負責：
 - `application/use-cases/knowledge-page.use-cases.ts`
 - `application/use-cases/knowledge-version.use-cases.ts`
 
-## Use Cases 清單
+## Use Cases 皜
 
-| Use Case 類別 | 操作 | UI 入口 |
+| Use Case 憿 | ?? | UI ?亙 |
 |---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+| `CreateKnowledgePageUseCase` | 撱箇??亥?? | PageTreeView `+` ?? / "?啣??" |
+| `RenameKnowledgePageUseCase` | ??賢?? | PageTreeView `?圳 ?詨 ??銵 inline 頛詨獢?|
+| `MoveKnowledgePageUseCase` | 蝘餃??撅斤? | PageTreeView `?圳 ?詨 ???宏???敺祕雿? |
+| `ArchiveKnowledgePageUseCase` | 甇豢??嚗I嚗宏?喳??暹▲嚗?| PageTreeView `?圳 ?詨 ???宏?喳??暹▲??|
+| `ReorderKnowledgePageBlocksUseCase` | ????憛?|
+| `ApproveKnowledgePageUseCase` | 撖拇?嚗孛?潭??隞塚? |
+| `VerifyKnowledgePageUseCase` | 撽??嚗iki Space 璅∪?嚗?|
+| `RequestPageReviewUseCase` | 閬??撖拚嚗iki Space 璅∪?嚗?|
+| `AssignPageOwnerUseCase` | ???鞎痊鈭綽?Wiki Space 璅∪?嚗?|
+| `GetKnowledgePageUseCase` | ???桅? |
+| `ListKnowledgePagesUseCase` | ??撣單?????|
+| `GetKnowledgePageTreeUseCase` | ???璅寧?蝯? |
+| `CreateKnowledgeCollectionUseCase` | 撱箇???嚗atabase / Wiki Space嚗?|
+| `RenameKnowledgeCollectionUseCase` | ??賢??? |
+| `AddPageToCollectionUseCase` | 撠??Ｗ??仿???|
+| `RemovePageFromCollectionUseCase` | 敺??宏?日???|
+| `AddCollectionColumnUseCase` | ?啣?甈?嚗atabase 璅∪?嚗?|
+| `ArchiveKnowledgeCollectionUseCase` | 甇豢??? |
+| `GetKnowledgeCollectionUseCase` | ???桐??? |
+| `ListKnowledgeCollectionsByAccountUseCase` | ??撣單?????|
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | ??撌乩???????|
 
-## 設計對齊
+## 閮剛?撠?
 
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+- 璅∠? README嚗../../../modules/knowledge/README.md`
+- 璅∠? AGENT嚗../../../modules/knowledge/AGENT.md`
+- ??application layer ???芋蝯撠勗?辣嚗../../../modules/knowledge/application-services.md`

@@ -1,39 +1,39 @@
-# AGENT.md — workspace-scheduling BC
+# AGENT.md ??workspace-scheduling BC
 
-## 模組定位
+## 璅∠?摰?
 
-`workspace-scheduling` 是工作需求排程支援域，管理 WorkDemand 生命週期與日曆視圖。
+`workspace-scheduling` ?臬極雿?瘙?蝔?游?嚗恣??WorkDemand ??望??????
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `WorkDemand` | Demand、Request、Ticket、Requirement |
-| `DemandStatus` | Status（單獨使用）、State |
-| `DemandPriority` | Priority（單獨使用）、Urgency |
-| `CalendarWidget` | Calendar、Scheduler |
+| `WorkDemand` | Demand?equest?icket?equirement |
+| `DemandStatus` | Status嚗?其蝙?剁??tate |
+| `DemandPriority` | Priority嚗?其蝙?剁??rgency |
+| `CalendarWidget` | Calendar?cheduler |
 
-## 狀態機（必須遵守）
+## ???嚗??摰?
 
 ```
-DemandStatus: draft → open → in_progress → completed
+DemandStatus: draft ??open ??in_progress ??completed
 DemandPriority: low | medium | high
 ```
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { workspaceSchedulingApi } from "@/modules/workspace-scheduling/api";
 import type { WorkDemandDTO } from "@/modules/workspace-scheduling/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { WorkDemand } from "@/modules/workspace-scheduling/domain/types";
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

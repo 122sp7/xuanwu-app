@@ -1,20 +1,20 @@
-# Domain Events — organization
+# Domain Events ??organization
 
-## 發出事件
+## ?澆鈭辣
 
-| 事件 | 觸發條件 | 關鍵欄位 |
+| 鈭辣 | 閫貊璇辣 | ?甈? |
 |------|---------|---------|
-| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
-| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
-| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
-| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
-| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
+| `organization.created` | ?啁?蝜遣蝡? | `organizationId`, `name`, `ownerId`, `occurredAt` |
+| `organization.member_invited` | ?鋡恍?隢???| `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
+| `organization.member_joined` | ?隢◤?亙?嚗??∪???| `organizationId`, `accountId`, `role`, `occurredAt` |
+| `organization.member_removed` | ?鋡怎宏??| `organizationId`, `accountId`, `occurredAt` |
+| `organization.team_created` | ??Team 撱箇? | `organizationId`, `teamId`, `occurredAt` |
 
-## 訂閱事件
+## 閮鈭辣
 
-`organization` 不訂閱其他 BC 的事件（被動，等待 account 操作觸發）。
+`organization` 銝??勗隞?BC ??隞塚?鋡怠?嚗?敺?account ??閫貊嚗?
 
-## 事件格式範例
+## 鈭辣?澆?蝭?
 
 ```typescript
 interface OrganizationMemberJoinedEvent {

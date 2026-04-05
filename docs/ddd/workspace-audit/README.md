@@ -1,37 +1,37 @@
-# workspace-audit — 工作區稽核上下文
+# workspace-audit ??撌乩??蝔賣銝???
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-audit/`  
-> **開發狀態:** 🏗️ Midway
+> **Domain Type:** Supporting Subdomain嚗?游?嚗? 
+> **璅∠?頝臬?:** `modules/workspace-audit/`  
+> **????** ??儭?Midway
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`workspace-audit` 是工作區治理的追溯層，透過 append-only 稽核紀錄保存重要操作的事後可查性。它不是直接創造知識價值的核心域，但對信任、治理與合規至關重要。
+`workspace-audit` ?臬極雿?瘝餌??蕭皞臬惜嚗? append-only 蝔賣蝝??摮?閬?雿?鈭??舀?扼?銝?湔?菟霅?潛??詨???雿?靽∩遙?祥?????喲?????
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 稽核寫入 | 接收重要行為或事件並追加紀錄 |
-| 稽核查詢 | 依工作區或組織範圍提供可查詢的 audit trail |
-| 治理可見性 | 支援事後追查、責任歸屬與決策證據 |
+| 蝔賣撖怠 | ?交??銵??隞嗡蒂餈賢?蝝??|
+| 蝔賣?亥岷 | 靘極雿???蝜???靘?亥岷??audit trail |
+| 瘝餌??航???| ?舀鈭?餈賣?痊隞餅飛撅祈?瘙箇?霅? |
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `workspace` 與 `organization` 提供查詢與可見性範圍。
-- `workspace-flow`、`workspace-feed` 與其他上下文可作為稽核事件來源。
+- `workspace` ??`organization` ???亥岷?閬抒???
+- `workspace-flow`?workspace-feed` ?隞?銝??臭??箇里?訾?隞嗡?皞?
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`AuditLog`**
 - **`AuditActor`**
 - **`AuditScope`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

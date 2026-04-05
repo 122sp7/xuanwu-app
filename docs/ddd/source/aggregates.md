@@ -1,61 +1,61 @@
-# Aggregates — source
+# Aggregates ??source
 
-## 聚合根：SourceDocument（File.ts）
+## ???對?SourceDocument嚗ile.ts嚗?
 
-### 職責
-管理文件的上傳生命週期，從上傳初始化到完成確認，以及版本快照與保留政策。
+### ?瑁痊
+蝞∠??辣???喟??賡望?嚗?銝???摰?蝣箄?嚗誑???砍翰?扯?靽??輻???
 
-### 生命週期狀態機
+### ??望????
 ```
-pending_upload ──[upload_complete]──► uploaded ──[archive]──► archived
+pending_upload ??[upload_complete]????uploaded ??[archive]????archived
 ```
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 文件主鍵 |
-| `name` | `string` | 檔案名稱 |
-| `organizationId` | `string` | 所屬組織 |
-| `workspaceId` | `string \| null` | 所屬工作區 |
+| `id` | `string` | ?辣銝駁 |
+| `name` | `string` | 瑼??迂 |
+| `organizationId` | `string` | ?撅祉?蝜?|
+| `workspaceId` | `string \| null` | ?撅砍極雿? |
 | `status` | `FileStatus` | `pending_upload \| uploaded \| archived` |
-| `versions` | `FileVersion[]` | 版本列表 |
-| `retentionPolicy` | `RetentionPolicy \| null` | 保留政策 |
-| `permissionSnapshot` | `PermissionSnapshot` | 上傳時授權快照 |
+| `versions` | `FileVersion[]` | ??” |
+| `retentionPolicy` | `RetentionPolicy \| null` | 靽??輻? |
+| `permissionSnapshot` | `PermissionSnapshot` | 銝??甈翰??|
 
 ---
 
-## 聚合根：WikiLibrary
+## ???對?WikiLibrary
 
-### 職責
-RAG 文件的邏輯集合容器，對應使用者在 UI 看到的「知識庫」概念。
+### ?瑁痊
+RAG ?辣??頛舫??捆?剁?撠?雿輻? UI ??霅澈??敹萸?
 
 ---
 
-## 值物件
+## ?潛隞?
 
-| 值物件 | 說明 |
+| ?潛隞?| 隤芣? |
 |--------|------|
-| `FileVersion` | 版本快照（versionId, fileUrl, createdAt） |
-| `RetentionPolicy` | 保留規則（retainDays, deleteAfterExpiry） |
-| `PermissionSnapshot` | 上傳時的授權快照（不可變） |
-| `AuditRecord` | 操作稽核記錄（append-only） |
+| `FileVersion` | ?敹怎嚗ersionId, fileUrl, createdAt嚗?|
+| `RetentionPolicy` | 靽?閬?嚗etainDays, deleteAfterExpiry嚗?|
+| `PermissionSnapshot` | 銝????敹怎嚗??航?嚗?|
+| `AuditRecord` | ??蝔賣閮?嚗ppend-only嚗?|
 
 ---
 
-## Ports（Hexagonal Architecture）
+## Ports嚗exagonal Architecture嚗?
 
-| Port | 說明 |
+| Port | 隤芣? |
 |------|------|
-| `ActorContextPort` | 解析操作者身分與授權 |
-| `OrganizationPolicyPort` | 查詢組織層級政策 |
-| `WorkspaceGrantPort` | 驗證工作區授權 |
+| `ActorContextPort` | 閫?????澈???? |
+| `OrganizationPolicyPort` | ?亥岷蝯?撅斤??輻? |
+| `WorkspaceGrantPort` | 撽?撌乩???? |
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `FileRepository` | `save()`, `findById()`, `listByWorkspace()` |
 | `RagDocumentRepository` | `save()`, `findByDocumentId()` |

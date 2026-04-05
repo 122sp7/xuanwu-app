@@ -1,43 +1,43 @@
-# Aggregates — identity
+# Aggregates ??identity
 
-## 聚合根：Identity
+## ???對?Identity
 
-### 職責
-代表一個已通過 Firebase Authentication 驗證的使用者。提供讀取身份資訊的能力。
+### ?瑁痊
+隞?”銝?歇?? Firebase Authentication 撽??蝙?刻?靘??澈隞質?閮??賢???
 
-### 屬性
+### 撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `uid` | `string` | Firebase UID（主鍵） |
-| `email` | `string \| null` | 使用者 Email |
-| `displayName` | `string \| null` | 顯示名稱 |
-| `photoURL` | `string \| null` | 頭像 URL |
+| `uid` | `string` | Firebase UID嚗蜓?蛛? |
+| `email` | `string \| null` | 雿輻??Email |
+| `displayName` | `string \| null` | 憿舐內?迂 |
+| `photoURL` | `string \| null` | ?剖? URL |
 
-### 不變數
+### 銝???
 
-- `uid` 永遠不為空（由 Firebase 保證）
-- `Identity` 物件是唯讀的（由 Firebase Auth SDK 產生）
+- `uid` 瘞賊?銝蝛綽???Firebase 靽?嚗?
+- `Identity` ?拐辣?臬霈????Firebase Auth SDK ?Ｙ?嚗?
 
 ---
 
-## 值物件：TokenRefreshSignal
+## ?潛隞塚?TokenRefreshSignal
 
-### 職責
-代表「token 需要刷新」的事件訊號，觸發 `account` 域更新 custom claims。
+### ?瑁痊
+隞?”?oken ?閬?啜?鈭辣閮?嚗孛??`account` ???custom claims??
 
-### 屬性
+### 撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `uid` | `string` | 需要刷新 token 的使用者 UID |
-| `occurredAt` | `string` | ISO 8601 時間戳 |
+| `uid` | `string` | ?閬??token ?蝙?刻?UID |
+| `occurredAt` | `string` | ISO 8601 ????|
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 | 說明 |
+| 隞 | 銝餉??寞? | 隤芣? |
 |------|---------|------|
-| `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作 |
-| `TokenRefreshRepository` | `listenToTokenRefresh()` | 監聽 token 刷新事件 |
+| `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth ?? |
+| `TokenRefreshRepository` | `listenToTokenRefresh()` | ?? token ?瑟鈭辣 |

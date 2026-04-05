@@ -1,23 +1,23 @@
-# Domain Events — notebook
+# Domain Events ??notebook
 
-## 發出事件
+## ?澆鈭辣
 
-`notebook` 域目前不發出 DomainEvent。AI 對話是使用者互動的即時回應，不需要下游事件消費。
+`notebook` ????澆 DomainEvent?I 撠店?臭蝙?刻????單???嚗??閬?皜訾?隞嗆?鞎颯?
 
-未來可考慮：
+?芯??航嚗?
 
-| 潛在事件 | 觸發條件 | 說明 |
+| 瞏鈭辣 | 閫貊璇辣 | 隤芣? |
 |---------|---------|------|
-| `notebook.thread_created` | 新 Thread 建立 | 供 workspace-audit 記錄 |
-| `notebook.response_generated` | AI 回應完成 | 供 token 使用量追蹤 |
+| `notebook.thread_created` | ??Thread 撱箇? | 靘?workspace-audit 閮? |
+| `notebook.response_generated` | AI ??摰? | 靘?token 雿輻?蕭頩?|
 
-## 訂閱事件
+## 閮鈭辣
 
-`notebook` 不訂閱其他 BC 的事件。
+`notebook` 銝??勗隞?BC ??隞嗚?
 
-## 整合說明
+## ?游?隤芣?
 
-`notebook` 透過**同步查詢**（非事件）消費其他 BC 的能力：
+`notebook` ??**?郊?亥岷**嚗?鈭辣嚗?鞎餃隞?BC ???
 
-- **`search`**：呼叫 `search/api.answerRagQuery()` 取得語意相關 chunks（用於 RAG-augmented 對話）
-- **`wiki`**：可查詢 wiki 圖譜以取得知識上下文（未來）
+- **`search`**嚗??`search/api.answerRagQuery()` ??隤??賊? chunks嚗??RAG-augmented 撠店嚗?
+- **`wiki`**嚗?亥岷 wiki ??隞亙?敺霅?銝?嚗靘?

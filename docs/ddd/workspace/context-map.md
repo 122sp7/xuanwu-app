@@ -1,44 +1,44 @@
-# Context Map — workspace
+# Context Map ??workspace
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### account / organization → workspace（Customer/Supplier）
+### account / organization ??workspace嚗ustomer/Supplier嚗?
 
-- `workspace.accountId` 關聯 account 或 organization
-- workspace 查詢時驗證 accountId 歸屬
-
----
-
-## 下游（被依賴）
-
-`workspace` 是多個 workspace-* 子模組的**組合宿主**：
-
-### workspace → workspace-flow（Conformist）
-- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`（Tasks tab）
-- 傳入 `workspaceId`, `currentUserId`
-
-### workspace → workspace-scheduling（Conformist）
-- `WorkspaceDetailScreen` 組合 `WorkspaceSchedulingTab`
-
-### workspace → workspace-audit（Conformist）
-- `WorkspaceDetailScreen` 組合 `WorkspaceAuditTab`
-
-### workspace → workspace-feed（Conformist）
-- `WorkspaceDetailScreen` 組合 feed 動態牆 tab
-
-### workspace → knowledge（Customer/Supplier）
-- 知識頁面（WikiPage）隸屬於 workspaceId
-- Wiki 內容樹（WikiContentTree）按工作區組織
+- `workspace.accountId` ? account ??organization
+- workspace ?亥岷??霅?accountId 甇詨惇
 
 ---
 
-## IDDD 整合模式總結
+## 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+`workspace` ?臬???workspace-* 摮芋蝯?**蝯?摰蹂蜓**嚗?
+
+### workspace ??workspace-flow嚗onformist嚗?
+- `WorkspaceDetailScreen` 蝯? `WorkspaceFlowTab`嚗asks tab嚗?
+- ?喳 `workspaceId`, `currentUserId`
+
+### workspace ??workspace-scheduling嚗onformist嚗?
+- `WorkspaceDetailScreen` 蝯? `WorkspaceSchedulingTab`
+
+### workspace ??workspace-audit嚗onformist嚗?
+- `WorkspaceDetailScreen` 蝯? `WorkspaceAuditTab`
+
+### workspace ??workspace-feed嚗onformist嚗?
+- `WorkspaceDetailScreen` 蝯? feed ????tab
+
+### workspace ??knowledge嚗ustomer/Supplier嚗?
+- ?亥??嚗ikiPage嚗撅祆 workspaceId
+- Wiki ?批捆璅對?WikiContentTree嚗?撌乩??蝯?
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| account → workspace | account | workspace | Customer/Supplier |
-| organization → workspace | organization | workspace | Customer/Supplier |
-| workspace → workspace-flow | workspace | workspace-flow | Conformist（workspaceId） |
-| workspace → workspace-scheduling | workspace | workspace-scheduling | Conformist |
-| workspace → workspace-audit | workspace | workspace-audit | Conformist |
-| workspace → workspace-feed | workspace | workspace-feed | Conformist |
+| account ??workspace | account | workspace | Customer/Supplier |
+| organization ??workspace | organization | workspace | Customer/Supplier |
+| workspace ??workspace-flow | workspace | workspace-flow | Conformist嚗orkspaceId嚗?|
+| workspace ??workspace-scheduling | workspace | workspace-scheduling | Conformist |
+| workspace ??workspace-audit | workspace | workspace-audit | Conformist |
+| workspace ??workspace-feed | workspace | workspace-feed | Conformist |

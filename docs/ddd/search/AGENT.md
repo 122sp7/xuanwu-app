@@ -1,43 +1,43 @@
-# AGENT.md — search BC
+# AGENT.md ??search BC
 
-## 模組定位
+## 璅∠?摰?
 
-`search` 是 RAG 語意檢索的支援域，提供向量搜尋、RAG answer 生成與查詢反饋收集。
+`search` ??RAG 隤?瑼Ｙ揣??游?嚗?靘???撠AG answer ???閰Ｗ?擖??
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `RagQuery` | Query、SearchQuery、VectorQuery |
-| `RagQueryFeedback` | Feedback、Rating |
-| `RagRetrievedChunk` | Chunk、SearchResult |
-| `RagCitation` | Citation、Source、Reference |
-| `VectorStore` | VectorDB、EmbeddingStore |
-| `RagRetrievalRepository` | RetrievalRepo、SearchRepo |
-| `RagGenerationRepository` | GenerationRepo、AIRepo |
+| `RagQuery` | Query?earchQuery?ectorQuery |
+| `RagQueryFeedback` | Feedback?ating |
+| `RagRetrievedChunk` | Chunk?earchResult |
+| `RagCitation` | Citation?ource?eference |
+| `VectorStore` | VectorDB?mbeddingStore |
+| `RagRetrievalRepository` | RetrievalRepo?earchRepo |
+| `RagGenerationRepository` | GenerationRepo?IRepo |
 
-## 最重要邊界規則：Server vs Client Import
+## ?????閬?嚗erver vs Client Import
 
 ```typescript
-// ✅ server code（Server Action、API route）
+// ??server code嚗erver Action?PI route嚗?
 import { searchApi } from "@/modules/search/api";
 
-// ✅ client code（React Component）
+// ??client code嚗eact Component嚗?
 import { RagView } from "@/modules/search"; // root barrel
 
-// ❌ 禁止：在 /api barrel 匯出 "use client" UI 元件
-// RagView, RagQueryView 只能從 root barrel 匯出
+// ??蝳迫嚗 /api barrel ?臬 "use client" UI ?辣
+// RagView, RagQueryView ?芾敺?root barrel ?臬
 ```
 
-## 邊界規則
+## ??閬?
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
-// api/index.ts 不得 re-export "use client" 元件
-export { RagView } from "./interfaces/components/RagView"; // 禁止在 api/
+// api/index.ts 銝? re-export "use client" ?辣
+export { RagView } from "./interfaces/components/RagView"; // 蝳迫??api/
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

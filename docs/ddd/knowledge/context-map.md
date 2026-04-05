@@ -1,48 +1,48 @@
-# Context Map — knowledge
+# Context Map ??knowledge
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
+### identity ??knowledge嚗ustomer/Supplier嚗?
+- ???撽? `createdByUserId`
 
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+### workspace ??knowledge嚗ustomer/Supplier嚗?
+- ??詨惇??`workspaceId`嚗?撽?撌乩??甇詨惇
 
 ---
 
-## 下游（被依賴）
+## 銝虜嚗◤靘陷嚗?
 
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
+### knowledge ??workspace-flow嚗ublished Language / Customer-Supplier嚗?
 
-**這是平台最重要的跨 BC 整合點。**
+**?撟喳????楊 BC ?游?暺?*
 
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+- ?游??孵?嚗knowledge.page_approved` ??鈭辣嚗ublished Language嚗?
+- `workspace-flow` ??`ContentToWorkflowMaterializer` Process Manager 閮甇支?隞?
+- 敺?`extractedTasks[]` 撱箇? Task嚗? `extractedInvoices[]` 撱箇? Invoice
 
 ```
-knowledge ─── knowledge.page_approved ───► workspace-flow
+knowledge ??? knowledge.page_approved ?????workspace-flow
                                           (ContentToWorkflowMaterializer)
 ```
 
-### knowledge → wiki（Customer/Supplier）
+### knowledge ??wiki嚗ustomer/Supplier嚗?
 
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
+- `wiki` 閮 `knowledge.page_created` / `knowledge.block_updated` 隞亙?甇?GraphNode
+- `wiki.GraphNode.id` 撠? `knowledge.KnowledgePage.id`
 
-### knowledge → ai（Customer/Supplier）
+### knowledge ??ai嚗ustomer/Supplier嚗?
 
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
+- `knowledge.page_approved` 閫貊 `ai` ?? IngestionJob
+- RAG ?蝞∠??絲暺?
 
 ---
 
-## IDDD 整合模式總結
+## IDDD ?游?璅∪?蝮賜?
 
-| 關係 | 上游 | 下游 | 模式 |
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| identity ??knowledge | identity | knowledge | Customer/Supplier |
+| workspace ??knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge ??workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge ??wiki | knowledge | wiki | Customer/Supplier嚗vents嚗?|
+| knowledge ??ai | knowledge | ai | Customer/Supplier嚗vents嚗?|

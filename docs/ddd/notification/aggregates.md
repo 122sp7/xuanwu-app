@@ -1,33 +1,33 @@
-# Aggregates — notification
+# Aggregates ??notification
 
-## 聚合根：NotificationEntity
+## ???對?NotificationEntity
 
-### 職責
-代表一則系統通知記錄。管理通知的發送與讀取狀態。
+### ?瑁痊
+隞?”銝?頂蝯梢閮??恣????霈????
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 通知主鍵 |
-| `recipientId` | `string` | 接收者帳戶 ID |
-| `title` | `string` | 通知標題 |
-| `message` | `string` | 通知內容 |
+| `id` | `string` | ?銝駁 |
+| `recipientId` | `string` | ?交?董??ID |
+| `title` | `string` | ?璅? |
+| `message` | `string` | ??批捆 |
 | `type` | `NotificationType` | `info \| alert \| success \| warning` |
-| `read` | `boolean` | 是否已讀 |
-| `timestamp` | `number` | Unix timestamp（毫秒） |
-| `sourceEventType` | `string?` | 觸發此通知的事件類型 |
-| `metadata` | `Record<string, unknown>?` | 附加元資料 |
+| `read` | `boolean` | ?臬撌脰? |
+| `timestamp` | `number` | Unix timestamp嚗神蝘? |
+| `sourceEventType` | `string?` | 閫貊甇日??隞園???|
+| `metadata` | `Record<string, unknown>?` | ??????|
 
-### 不變數
+### 銝???
 
-- `recipientId` 不可為空
-- `title` 不可為空
+- `recipientId` 銝?箇征
+- `title` 銝?箇征
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `NotificationRepository` | `save()`, `findByRecipient()`, `markAsRead()` |

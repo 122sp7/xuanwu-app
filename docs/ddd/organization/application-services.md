@@ -1,27 +1,27 @@
-# organization — Application Services
+# organization ??Application Services
 
 > **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
+> **璅∠?頝臬?:** `modules/organization/`
 > **Domain Type:** Generic Subdomain
 
-本文件記錄 `organization` 的 application layer 服務與 use cases。內容與 `modules/organization/application/` 實作保持一致。
+?祆?隞嗉???`organization` ??application layer ????use cases?摰寡? `modules/organization/application/` 撖虫?靽?銝?氬?
 
-## Application Layer 職責
+## Application Layer ?瑁痊
 
-管理多租戶組織、成員、隊伍與邀請流程。
+蝞∠?憭??嗥?蝜??～?隡??隢?蝔?
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+Application layer ?芾?鞎穿?
+- ?矽 use cases / DTO / process manager
+- ?澆 domain repository ports ??domain services
+- 銝頛?UI / framework-specific concerns
 
-## 實際檔案
+## 撖阡?瑼?
 
 - `application/use-cases/organization-policy.use-cases.ts`
 - `application/use-cases/organization.use-cases.ts`
 
-## 設計對齊
+## 閮剛?撠?
 
-- 模組 README：`../../../modules/organization/README.md`
-- 模組 AGENT：`../../../modules/organization/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/organization/application-services.md`
+- 璅∠? README嚗../../../modules/organization/README.md`
+- 璅∠? AGENT嚗../../../modules/organization/AGENT.md`
+- ??application layer ???芋蝯撠勗?辣嚗../../../modules/organization/application-services.md`

@@ -1,37 +1,37 @@
-# identity — 身份驗證上下文
+# identity ??頨思遢撽?銝???
 
 > **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/identity/`  
-> **開發狀態:** ✅ Done — 穩定
+> **璅∠?頝臬?:** `modules/identity/`  
+> **????** ??Done ??蝛拙?
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`identity` 是整個平台的身份入口，封裝 Firebase Authentication 與 session 起點。它對產品價值並不差異化，但所有工作區、知識與 AI 互動都建立在正確的身份語意之上。
+`identity` ?舀?像?啁?頨思遢?亙嚗?鋆?Firebase Authentication ??session 韏琿???撠??潔蒂銝榆?啣?嚗???極雿??霅? AI 鈭??賢遣蝡甇?Ⅱ?澈隞質???銝?
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 登入 / 登出 | 處理 signIn、signOut 與身份狀態切換 |
-| Token 生命週期 | 管理 token refresh 與相關身份訊號 |
-| 身份上下文供應 | 向 `account`、`organization`、`workspace` 提供穩定的身份讀取入口 |
+| ?餃 / ?餃 | ?? signIn?ignOut ?澈隞賜?????|
+| Token ??望? | 蝞∠? token refresh ??澈隞質???|
+| 頨思遢銝?????| ??`account`?organization`?workspace` ??蝛拙??澈隞質????|
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `account` 直接消費 `identity/api` 提供的身份上下文。
-- `organization` 與 `workspace` 依賴身份語意建立成員與存取規則。
+- `account` ?湔瘨祥 `identity/api` ???澈隞賭?銝???
+- `organization` ??`workspace` 靘陷頨思遢隤?撱箇????????
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`Identity`**
 - **`AuthenticatedUser`**
 - **`TokenRefreshSignal`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

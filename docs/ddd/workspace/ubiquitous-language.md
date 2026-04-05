@@ -1,21 +1,21 @@
-# Ubiquitous Language — workspace
+# Ubiquitous Language ??workspace
 
-> **範圍：** 僅限 `modules/workspace/` 有界上下文內
+> **蝭?嚗?* ?? `modules/workspace/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 |
+| 銵? | ?望? | 摰儔 |
 |------|------|------|
-| 工作區 | Workspace | 協作容器，所有知識、任務、討論歸屬於此 |
-| 工作區成員 | WorkspaceMember | 帳戶在工作區中的參與記錄（含角色） |
-| Wiki 內容樹 | WikiContentTree | 工作區內 Wiki 頁面的樹狀層級結構 |
-| 工作區 ID | workspaceId | Workspace 的業務主鍵 |
-| 帳戶 ID | accountId | 擁有此工作區的帳戶或組織 ID |
-| 工作區狀態 | WorkspaceStatus | `active \| archived` |
+| 撌乩?? | Workspace | ??摰孵嚗??霅遙??隢飛撅祆甇?|
+| 撌乩??? | WorkspaceMember | 撣單?典極雿?銝剔???閮?嚗閫嚗?|
+| Wiki ?批捆璅?| WikiContentTree | 撌乩????Wiki ??邦?撅斤?蝯? |
+| 撌乩?? ID | workspaceId | Workspace ?平?蜓??|
+| 撣單 ID | accountId | ??甇文極雿??董?嗆?蝯? ID |
+| 撌乩?????| WorkspaceStatus | `active \| archived` |
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `Workspace` | `Project`, `Space` |
 | `WorkspaceMember` | `Member`, `Participant` |

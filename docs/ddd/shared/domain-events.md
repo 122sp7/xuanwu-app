@@ -1,34 +1,34 @@
-# Domain Events — shared
+# Domain Events ??shared
 
-## 說明
+## 隤芣?
 
-`shared` 是 Shared Kernel，本身不發出或訂閱業務領域事件。
+`shared` ??Shared Kernel嚗頨思??澆???望平????隞嗚?
 
-它提供的是**所有 BC 發出事件所需的基礎介面**：
+摰?靘???*???BC ?澆鈭辣???蝷???*嚗?
 
 ```typescript
-// 所有模組的領域事件都遵循此結構
+// ??芋蝯???鈭辣?賡敺芣迨蝯?
 interface DomainEvent {
-  readonly type: string;        // "module.entity.action" 格式
+  readonly type: string;        // "module.entity.action" ?澆?
   readonly occurredAt: string;  // ISO 8601
 }
 ```
 
-## 事件命名規範（全域）
+## 鈭辣?賢?閬?嚗??
 
-| 規則 | 範例 |
+| 閬? | 蝭? |
 |------|------|
-| 格式 | `<module>.<entity>.<action>` 或 `<module>.<action>` |
-| 大小寫 | 全小寫，底線分隔 |
-| 時態 | **過去式**（代表已發生的事實） |
+| ?澆? | `<module>.<entity>.<action>` ??`<module>.<action>` |
+| 憭批?撖?| ?典?撖恬?摨??? |
+| ?? | **?撘?*嚗誨銵典歇?潛???撖佗? |
 
 ```typescript
-// ✅ 正確命名
+// ??甇?Ⅱ?賢?
 "knowledge.page_created"
 "workspace.member_joined"
 "workspace-flow.task_status_changed"
 
-// ❌ 錯誤命名
-"CreatePage"         // 現在式、大寫
-"PageCreatedEvent"   // 有 Event 後綴
+// ???航炊?賢?
+"CreatePage"         // ?曉撘之撖?
+"PageCreatedEvent"   // ??Event 敺韌
 ```

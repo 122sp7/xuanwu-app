@@ -1,37 +1,37 @@
-# source — 文件來源上下文
+# source ???辣靘?銝???
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
+> **Domain Type:** Supporting Subdomain嚗?游?嚗? 
+> **璅∠?頝臬?:** `modules/source/`  
+> **????** ? Developing
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+`source` ??Knowledge Platform ??隞嗅????踵 Notion-like ?批捆蝟餌絞銋????冽?隞嗚?隞嗉?靘?瘝餌???鞎痊霈霅脣撟喳嚗蒂摰?唬漱蝯?`ai` ?蝞∠?????
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+| 靘??辣??望? | 蝞∠?銝?????喳????砍翰?扯?靽??輻? |
+| 靘???蝞∠? | 蝬剛風?辣???ibrary ??workspace 蝭???皞???|
+| ?鈭斗 | ?歇摰?銝??皞??漱隞?`ai` ?脣?瘚? |
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
+- `workspace` ??靘??辣?飛撅祇???`knowledge` ?航撘??撖思?皞摰嫘?
+- `ai` ?交靘??辣銝血遣蝡?ingestion job嚗knowledge-base` ??`search` ?蝯?鞎颱?皞???蝯??揣撘?
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`SourceDocument`**
 - **`SourceCollection`**
 - **`WikiLibrary`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

@@ -1,23 +1,23 @@
-# source — Domain Services
+# source ??Domain Services
 
 > **Canonical bounded context:** `source`
-> **模組路徑:** `modules/source/`
+> **璅∠?頝臬?:** `modules/source/`
 > **Domain Type:** Supporting Subdomain
 
-本文件整理 `source` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
+?祆?隞嗆??`source` ??domain services??芋蝯???蝡? domain service嚗”蝷箏閬?銝餉?撠???aggregate methods?alue objects ??application layer orchestration 銝准?
 
-## Domain Services 檔案
+## Domain Services 瑼?
 
 - `domain/services/complete-upload-file.ts`
 - `domain/services/resolve-file-organization-id.ts`
 
-## 設計規則
+## 閮剛?閬?
 
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
+- domain services ?芣頛??楊???楊?潛隞嗥?蝝平????
+- 銝?撘 React?irebase SDK?TTP client 蝑?framework-specific 靘陷
+- ?亥??撅祆?桐? aggregate嚗????domain service
 
-## 模組內對應文件
+## 璅∠??批???隞?
 
 - `../../../modules/source/domain-services.md`
 - `../../../docs/ddd/source/aggregates.md`

@@ -1,25 +1,25 @@
-# Ubiquitous Language — source
+# Ubiquitous Language ??source
 
-> **範圍：** 僅限 `modules/source/` 有界上下文內
+> **蝭?嚗?* ?? `modules/source/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 |
+| 銵? | ?望? | 摰儔 |
 |------|------|------|
-| 來源文件 | SourceDocument | 上傳的原始文件聚合根（對應 File.ts） |
-| 知識庫 | WikiLibrary | RAG 文件的邏輯集合容器 |
-| 檔案版本 | FileVersion | SourceDocument 的版本快照 |
-| RAG 文件 | RagDocument | 已登記進入 RAG 管線的文件記錄 |
-| 授權快照 | PermissionSnapshot | 上傳時的授權狀態快照（不可變） |
-| 保留政策 | RetentionPolicy | 文件的保留期限與刪除規則 |
-| 稽核記錄 | AuditRecord | 文件操作的不可變稽核軌跡 |
-| 攝入交付 | IngestionHandoff | 上傳完成後交付 py_fn worker 的觸發信號 |
-| 演員上下文 | ActorContext | 操作者身分與授權上下文（透過 ActorContextPort） |
-| 工作區授權 | WorkspaceGrant | 工作區層級的授權快照（透過 WorkspaceGrantPort） |
+| 靘??辣 | SourceDocument | 銝??憪?隞嗉??嚗???File.ts嚗?|
+| ?亥?摨?| WikiLibrary | RAG ?辣??頛舫??捆??|
+| 瑼?? | FileVersion | SourceDocument ???砍翰??|
+| RAG ?辣 | RagDocument | 撌脩閮脣 RAG 蝞∠???隞嗉???|
+| ??敹怎 | PermissionSnapshot | 銝??????翰?改?銝霈? |
+| 靽??輻? | RetentionPolicy | ?辣???????芷閬? |
+| 蝔賣閮? | AuditRecord | ?辣?????航?蝔賣頠楚 |
+| ?鈭支? | IngestionHandoff | 銝摰?敺漱隞?py_fn worker ?孛?潔縑??|
+| 瞍銝???| ActorContext | ???澈????銝????? ActorContextPort嚗?|
+| 撌乩???? | WorkspaceGrant | 撌乩??撅斤???甈翰?改??? WorkspaceGrantPort嚗?|
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `SourceDocument` | `File`, `Document`, `Asset` |
 | `WikiLibrary` | `Library`, `Folder`, `Collection` |

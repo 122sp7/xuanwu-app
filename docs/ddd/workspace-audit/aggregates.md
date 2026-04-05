@@ -1,40 +1,40 @@
-# Aggregates — workspace-audit
+# Aggregates ??workspace-audit
 
-## 聚合根：AuditLog（Append-Only）
+## ???對?AuditLog嚗ppend-Only嚗?
 
-### 職責
-記錄工作區或組織範圍內重要操作的不可變稽核軌跡。一旦寫入，永不修改或刪除。
+### ?瑁痊
+閮?撌乩????蝜?????????航?蝔賣頠楚???血神?伐?瘞訾?靽格??扎?
 
-### Append-Only 約束
+### Append-Only 蝝?
 
-> **核心不變數：** AuditLog 只能被建立，不能被更新或刪除。
+> **?詨?銝??賂?** AuditLog ?芾鋡怠遣蝡?銝鋡急?唳??芷??
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 記錄主鍵（UUID） |
-| `workspaceId` | `string \| null` | 所屬工作區（可選，組織級記錄可能無 workspaceId） |
-| `organizationId` | `string` | 所屬組織 |
-| `actorId` | `string` | 操作者帳戶 ID |
-| `auditEventType` | `string` | 操作類型（如 `workspace.member_joined`） |
-| `targetId` | `string \| null` | 操作對象 ID（可選） |
-| `targetType` | `string \| null` | 操作對象類型（可選） |
-| `metadata` | `Record<string, unknown>` | 附加資訊 |
-| `auditedAt` | `string` | ISO 8601 操作時間 |
+| `id` | `string` | 閮?銝駁嚗UID嚗?|
+| `workspaceId` | `string \| null` | ?撅砍極雿?嚗?賂?蝯?蝝???賜 workspaceId嚗?|
+| `organizationId` | `string` | ?撅祉?蝜?|
+| `actorId` | `string` | ???董??ID |
+| `auditEventType` | `string` | ??憿?嚗? `workspace.member_joined`嚗?|
+| `targetId` | `string \| null` | ??撠情 ID嚗?賂? |
+| `targetType` | `string \| null` | ??撠情憿?嚗?賂? |
+| `metadata` | `Record<string, unknown>` | ??鞈? |
+| `auditedAt` | `string` | ISO 8601 ???? |
 
-### 不變數
+### 銝???
 
-- `id` 建立後不可變
-- `auditedAt` 使用記錄建立時的系統時間，不可後期修改
-- 所有欄位建立後均不可修改（immutable record）
+- `id` 撱箇?敺??航?
+- `auditedAt` 雿輻閮?撱箇???蝟餌絞??嚗??臬??耨??
+- ???雿遣蝡????臭耨?對?immutable record嚗?
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `AuditLogRepository` | `append()`, `listByWorkspace()`, `listByOrganization()` |
 
-**注意：** `AuditLogRepository` 不提供 `update()` 或 `delete()` 方法，強制執行 Append-Only。
+**瘜冽?嚗?* `AuditLogRepository` 銝?靘?`update()` ??`delete()` ?寞?嚗撥?嗅銵?Append-Only??

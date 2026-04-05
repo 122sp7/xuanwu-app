@@ -1,43 +1,43 @@
-# Context Map — workspace-audit
+# Context Map ??workspace-audit
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-`workspace-audit` 訂閱所有業務 BC 的事件，但**不依賴**任何 BC 的 api。它是純事件消費者。
+`workspace-audit` 閮??平??BC ??隞塚?雿?*銝?鞈?*隞颱? BC ??api???舐?鈭辣瘨祥??
 
 ```
-所有業務 BC ──[Domain Events]──► workspace-audit（Terminal Sink）
+??平??BC ??[Domain Events]????workspace-audit嚗erminal Sink嚗?
 ```
 
-### 主要事件來源
+### 銝餉?鈭辣靘?
 
-| 來源 BC | 整合模式 |
+| 靘? BC | ?游?璅∪? |
 |---------|---------|
-| `workspace` | Published Language（被動消費） |
-| `organization` | Published Language（被動消費） |
-| `workspace-flow` | Published Language（被動消費） |
-| `workspace-scheduling` | Published Language（被動消費） |
-| `source` | Published Language（被動消費） |
-| `ai` | Published Language（被動消費） |
+| `workspace` | Published Language嚗◤??鞎鳴? |
+| `organization` | Published Language嚗◤??鞎鳴? |
+| `workspace-flow` | Published Language嚗◤??鞎鳴? |
+| `workspace-scheduling` | Published Language嚗◤??鞎鳴? |
+| `source` | Published Language嚗◤??鞎鳴? |
+| `ai` | Published Language嚗◤??鞎鳴? |
 
 ---
 
-## 下游（被依賴）
+## 銝虜嚗◤靘陷嚗?
 
-### workspace-audit → WorkspaceDetailScreen（Interfaces）
+### workspace-audit ??WorkspaceDetailScreen嚗nterfaces嚗?
 
-- `workspace-audit/api` 提供稽核查詢 API 給 `workspace` 的 WorkspaceDetailScreen tab
-
----
-
-## Terminal Sink 原則
-
-`workspace-audit` 是事件消費的**終點**，不向其他 BC 發出事件。業務流程不應等待或依賴稽核記錄的完成。
+- `workspace-audit/api` ??蝔賣?亥岷 API 蝯?`workspace` ??WorkspaceDetailScreen tab
 
 ---
 
-## IDDD 整合模式總結
+## Terminal Sink ??
 
-| 關係 | 上游 | 下游 | 模式 |
+`workspace-audit` ?臭?隞嗆?鞎餌?**蝯?**嚗??隞?BC ?澆鈭辣?平??蝔???敺?靘陷蝔賣閮?????
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| 所有 BC → workspace-audit | 各 BC | workspace-audit | Published Language (Terminal Sink) |
-| workspace-audit → workspace UI | workspace-audit | app/ | Customer/Supplier（查詢） |
+| ???BC ??workspace-audit | ??BC | workspace-audit | Published Language (Terminal Sink) |
+| workspace-audit ??workspace UI | workspace-audit | app/ | Customer/Supplier嚗閰ｇ? |

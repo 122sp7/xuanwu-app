@@ -1,25 +1,25 @@
-# knowledge-base — DDD Agent
+# knowledge-base ??DDD Agent
 
-## 戰略分類
+## ?啁??
 
-| 屬性 | 值 |
+| 撅祆?| ??|
 |---|---|
-| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Domain Type** | **Core Domain** ???Ｗ?撌桃?敹?|
 | **Module** | `modules/knowledge-base/` |
 | **Aggregates** | Article, Category |
 | **Key Events** | article_created / published / verified, category_created |
 
-## 為何是 Core Domain
+## ?箔???Core Domain
 
-組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+蝯??亥?摨恬?SOP / Wiki嚗?交頛霅像?啁??臭縑摨西???瘛勗漲嚗? `knowledge`嚗犖蝑?嚗????Xuanwu ?榆?啣?蝡嗥憯???
 
-## 關鍵設計決策
+## ?閮剛?瘙箇?
 
-1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
-2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
-3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
-4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+1. **Article ??Page** ???Ⅱ??犖嚗nowledge嚗?蝯?嚗nowledge-base嚗霅???
+2. **VerificationState** ??蝯??亥???蝣箸扳祥??閮剛???BC ?批遣?賢??????辣
+3. **Backlink** ????`BacklinkExtractorService` 敺?markdown ?芸?閫??嚗???Article ??銝?湔?
+4. **Category 瘛勗漲? 5 撅?* ???脫迫?楛?霅?蝜?瑽?雿??芣???
 
-## 詳細實作文件
+## 閰喟敦撖虫??辣
 
-→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+??[`modules/knowledge-base/`](../../modules/knowledge-base/)

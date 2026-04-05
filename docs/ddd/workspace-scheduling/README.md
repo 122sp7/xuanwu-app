@@ -1,37 +1,37 @@
-# workspace-scheduling — 工作區排程上下文
+# workspace-scheduling ??撌乩????銝???
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/workspace-scheduling/`  
-> **開發狀態:** 🏗️ Midway
+> **Domain Type:** Supporting Subdomain嚗?游?嚗? 
+> **璅∠?頝臬?:** `modules/workspace-scheduling/`  
+> **????** ??儭?Midway
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`workspace-scheduling` 讓知識與流程成果進一步進入時間與容量管理，將工作需求落入日曆、截止與排程視角。它支援團隊把抽象工作轉成可安排的協作負載。
+`workspace-scheduling` 霈霅?瘚????脖?甇仿脣???捆?恣??撠極雿?瘙?交?甇Ｚ???閬????舀???鞊∪極雿??摰???雿?頛?
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 需求排程 | 建立與管理 WorkDemand 的狀態生命週期 |
-| 時間視圖 | 提供日曆、截止與安排視角 |
-| 容量協調 | 讓工作需求能與流程與工作區情境一起被安排 |
+| ?瘙?蝔?| 撱箇??恣??WorkDemand ?????賡望? |
+| ??閬? | ???交??甇Ｚ?摰?閬? |
+| 摰寥??矽 | 霈極雿?瘙??蝔?撌乩????銝韏瑁◤摰? |
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `workspace-flow` 可作為排程需求來源。
-- `workspace` 提供排程歸屬與成員範圍。
+- `workspace-flow` ?臭??箸?蝔?瘙?皞?
+- `workspace` ????甇詨惇???∠???
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`WorkDemand`**
 - **`ScheduleWindow`**
 - **`CapacityAllocation`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

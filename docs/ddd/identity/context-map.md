@@ -1,33 +1,33 @@
-# Context Map — identity
+# Context Map ??identity
 
-## 此 BC 的整合模式
+## 甇?BC ??芋撘?
 
-### 上游（依賴）
+### 銝虜嚗?鞈湛?
 
-`identity` 是最基礎的 Generic Subdomain，不依賴任何其他業務 BC。
+`identity` ?舀??箇???Generic Subdomain嚗?靘陷隞颱??嗡?璆剖? BC??
 
-**外部依賴：** Firebase Authentication SDK（第三方服務，Anti-Corruption Layer 在 infrastructure 層）
-
----
-
-### 下游（被依賴）
-
-#### `account` ← identity（Customer/Supplier）
-
-- **模式：** Customer/Supplier
-- **方向：** `identity` 是 Supplier（上游），`account` 是 Customer（下游）
-- **整合方式：** `account` application use-cases 在 server 端 import `identity/api` 取得身份上下文
-- **關鍵規則：** `identity/api` 不得含任何 `"use client"` 匯出
-
-```
-identity/api ──import──► account/application/use-cases/*.ts（server-side）
-```
+**憭靘陷嚗?* Firebase Authentication SDK嚗洵銝??嚗nti-Corruption Layer ??infrastructure 撅歹?
 
 ---
 
-## IDDD 整合模式總結
+### 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+#### `account` ??identity嚗ustomer/Supplier嚗?
+
+- **璅∪?嚗?* Customer/Supplier
+- **?孵?嚗?* `identity` ??Supplier嚗?皜賂?嚗account` ??Customer嚗?皜賂?
+- **?游??孵?嚗?* `account` application use-cases ??server 蝡?import `identity/api` ??頨思遢銝???
+- **?閬?嚗?* `identity/api` 銝??思遙雿?`"use client"` ?臬
+
+```
+identity/api ??import????account/application/use-cases/*.ts嚗erver-side嚗?
+```
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| Firebase Auth → identity | Firebase | identity | Anti-Corruption Layer |
+| identity ??account | identity | account | Customer/Supplier |
+| Firebase Auth ??identity | Firebase | identity | Anti-Corruption Layer |

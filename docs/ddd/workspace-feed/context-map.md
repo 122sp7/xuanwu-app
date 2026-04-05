@@ -1,25 +1,25 @@
-# Context Map — workspace-feed
+# Context Map ??workspace-feed
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### workspace → workspace-feed（Conformist）
+### workspace ??workspace-feed嚗onformist嚗?
 
-- `WorkspaceFeedPost.workspaceId` 隸屬工作區
+- `WorkspaceFeedPost.workspaceId` ?詨惇撌乩??
 
-## 下游（被依賴）
+## 銝虜嚗◤靘陷嚗?
 
-### workspace-feed → notification（Published Language）
+### workspace-feed ??notification嚗ublished Language嚗?
 
-- `WorkspaceFeedPostCreated` 可觸發通知
+- `WorkspaceFeedPostCreated` ?航孛?潮
 
-### workspace-feed → workspace-audit（Published Language）
+### workspace-feed ??workspace-audit嚗ublished Language嚗?
 
-- 貼文操作記錄稽核軌跡
+- 鞎潭???閮?蝔賣頠楚
 
-## IDDD 整合模式總結
+## IDDD ?游?璅∪?蝮賜?
 
-| 關係 | 上游 | 下游 | 模式 |
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| workspace → workspace-feed | workspace | workspace-feed | Conformist |
-| workspace-feed → notification | workspace-feed | notification | Published Language |
-| workspace-feed → workspace-audit | workspace-feed | workspace-audit | Published Language |
+| workspace ??workspace-feed | workspace | workspace-feed | Conformist |
+| workspace-feed ??notification | workspace-feed | notification | Published Language |
+| workspace-feed ??workspace-audit | workspace-feed | workspace-audit | Published Language |

@@ -1,38 +1,38 @@
-# AGENT.md — account BC
+# AGENT.md ??account BC
 
-## 模組定位
+## 璅∠?摰?
 
-`account` 是 Xuanwu 平台的**帳戶管理**有界上下文，負責用戶 profile 與存取控制政策。在伺服器端消費 `identity/api`。
+`account` ??Xuanwu 撟喳??*撣單蝞∠?**??銝???鞎痊?冽 profile ????嗆蝑隡箸??函垢瘨祥 `identity/api`??
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `Account` | User、Profile、Member（在此 BC 內） |
-| `AccountPolicy` | Permission、AccessRule、Role（作為存取控制） |
-| `customClaims` | Claims、FirebaseClaims |
-| `accountId` | userId、uid（在此 BC 之外的引用應使用 accountId） |
+| `Account` | User?rofile?ember嚗甇?BC ?改? |
+| `AccountPolicy` | Permission?ccessRule?ole嚗??箏???塚? |
+| `customClaims` | Claims?irebaseClaims |
+| `accountId` | userId?id嚗甇?BC 銋????冽?雿輻 accountId嚗?|
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { accountApi } from "@/modules/account/api";
 import type { AccountDTO, AccountPolicyDTO } from "@/modules/account/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { Account } from "@/modules/account/domain/entities/Account";
-// account use-cases 在 server 端 — 不要在 use-cases 中 import React/client hooks
+// account use-cases ??server 蝡???銝???use-cases 銝?import React/client hooks
 ```
 
-## 關鍵依賴規則
+## ?靘陷閬?
 
-- `modules/account/application/use-cases/account.use-cases.ts` 與 `modules/account/application/use-cases/account-policy.use-cases.ts` 在 server 端執行，可 import `identity/api`
-- 不要在 application 層 import 任何含 `"use client"` 的模組
+- `modules/account/application/use-cases/account.use-cases.ts` ??`modules/account/application/use-cases/account-policy.use-cases.ts` ??server 蝡臬銵???import `identity/api`
+- 銝???application 撅?import 隞颱???`"use client"` ?芋蝯?
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

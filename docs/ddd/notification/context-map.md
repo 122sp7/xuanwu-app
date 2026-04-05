@@ -1,23 +1,23 @@
-# Context Map — notification
+# Context Map ??notification
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### 所有業務 BC → notification（Published Language）
+### ??平??BC ??notification嚗ublished Language嚗?
 
-`notification` 訂閱各 BC 的業務事件，轉換為使用者通知。不直接依賴任何 BC 的 api。
-
----
-
-## 下游（被依賴）
-
-`notification` 不被其他 BC 依賴（通知是終端輸出，無下游）。
+`notification` 閮??BC ?平??隞塚?頧??箔蝙?刻???湔靘陷隞颱? BC ??api??
 
 ---
 
-## IDDD 整合模式總結
+## 銝虜嚗◤靘陷嚗?
 
-| 關係 | 上游 | 下游 | 模式 |
+`notification` 銝◤?嗡? BC 靘陷嚗?舐?蝡航撓?綽??∩?皜賂???
+
+---
+
+## IDDD ?游?璅∪?蝮賜?
+
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| workspace → notification | workspace | notification | Published Language (Events) |
-| workspace-flow → notification | workspace-flow | notification | Published Language (Events) |
-| 其他 BC → notification | 各 BC | notification | Published Language (Events) |
+| workspace ??notification | workspace | notification | Published Language (Events) |
+| workspace-flow ??notification | workspace-flow | notification | Published Language (Events) |
+| ?嗡? BC ??notification | ??BC | notification | Published Language (Events) |

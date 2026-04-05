@@ -1,50 +1,50 @@
-# AGENT.md — knowledge BC
+# AGENT.md ??knowledge BC
 
-## 模組定位
+## 璅∠?摰?
 
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+`knowledge` ??Core Domain嚗恣??KnowledgePage ???渡??賡望??knowledge.page_approved` ?臬像?啁??詨??游?鈭辣嚗孛??workspace-flow ?拙?瘚???
 
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
+`knowledge` 撠? Notion ?敹??賡?嚗ages嚗nowledgePage嚗locks嚗ontentBlock嚗atabases嚗nowledgeCollection with spaceType="database"嚗iki/Knowledge Base嚗nowledgeCollection with spaceType="wiki"嚗葆?撽?????嚗?
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
+| `KnowledgePage` | Page?ocument |
+| `ContentBlock` | Block?ode?lement |
+| `ContentVersion` | Version?napshot?istory |
+| `BlockType` | Type?ontentType |
+| `KnowledgeCollection` | Database?ollection?able |
+| `WikiSpace` | KB?nowledgeBase嚗?亦迂?潘? |
+| `PageVerificationState` | verified?eeds_review嚗????嚗?|
+| `PageOwner` (`ownerId`) | Owner?esponsible |
 
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+> `WikiPage` ??`wiki` BC ??隤?`knowledge` BC 銝蝙??`WikiPage` 雿?隤???
+> `WikiSpace` ??`knowledge` BC 隞?” `spaceType="wiki"` ??`KnowledgeCollection`嚗? `wiki` 璅∠?嚗?霅???摰銝???
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { knowledgeApi } from "@/modules/knowledge/api";
 import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
 import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
 import type { WikiPage } from "@/modules/wiki/domain/entities/...";
 ```
 
-## page_approved 事件規則
+## page_approved 鈭辣閬?
 
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+`knowledge.page_approved` 敹??嚗?
+- `extractedTasks[]` ??靘?workspace-flow 撱箇? Task
+- `extractedInvoices[]` ??靘?workspace-flow 撱箇? Invoice
+- `actorId`, `causationId`, `correlationId` ??餈質馱??
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

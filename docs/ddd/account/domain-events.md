@@ -1,19 +1,19 @@
-# Domain Events — account
+# Domain Events ??account
 
-## 發出事件
+## ?澆鈭辣
 
-| 事件 | 觸發條件 | 關鍵欄位 |
+| 鈭辣 | 閫貊璇辣 | ?甈? |
 |------|---------|---------|
-| `account.created` | 新帳戶建立時 | `accountId`, `email`, `occurredAt` |
-| `account.policy_updated` | AccountPolicy 更新時，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
+| `account.created` | ?啣董?嗅遣蝡? | `accountId`, `email`, `occurredAt` |
+| `account.policy_updated` | AccountPolicy ?湔??閫貊 custom claims ?瑟 | `accountId`, `policyId`, `occurredAt` |
 
-## 訂閱事件
+## 閮鈭辣
 
-| 來源 BC | 事件 | 行動 |
+| 靘? BC | 鈭辣 | 銵? |
 |---------|------|------|
-| `identity` | `TokenRefreshSignal` | 觸發 custom claims 重新計算與 Firebase token 更新 |
+| `identity` | `TokenRefreshSignal` | 閫貊 custom claims ?閮???Firebase token ?湔 |
 
-## 事件格式
+## 鈭辣?澆?
 
 ```typescript
 interface AccountCreatedEvent {

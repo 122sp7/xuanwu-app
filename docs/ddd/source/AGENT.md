@@ -1,46 +1,46 @@
-# AGENT.md — source BC
+# AGENT.md ??source BC
 
-## 模組定位
+## 璅∠?摰?
 
-`source` 是文件來源的支援域，負責上傳生命週期、版本快照與 RAG 文件登記。是 RAG ingestion pipeline 的業務入口。
+`source` ?舀?隞嗡?皞??舀??鞎痊銝??望????砍翰?扯? RAG ?辣?餉?? RAG ingestion pipeline ?平????
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `SourceDocument` | File、Document、Asset、Attachment |
-| `WikiLibrary` | Library、Folder、Collection |
-| `FileVersion` | Version、Snapshot、Revision |
-| `RagDocument` | RagFile、IngestionDoc |
-| `RetentionPolicy` | Policy、ExpiryRule |
-| `AuditRecord` | Log、Event、History |
-| `ActorContext` | User、CurrentUser |
-| `IngestionHandoff` | Trigger、Signal |
+| `SourceDocument` | File?ocument?sset?ttachment |
+| `WikiLibrary` | Library?older?ollection |
+| `FileVersion` | Version?napshot?evision |
+| `RagDocument` | RagFile?ngestionDoc |
+| `RetentionPolicy` | Policy?xpiryRule |
+| `AuditRecord` | Log?vent?istory |
+| `ActorContext` | User?urrentUser |
+| `IngestionHandoff` | Trigger?ignal |
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { sourceApi } from "@/modules/source/api";
 import type { SourceDocumentDTO, WikiLibraryDTO } from "@/modules/source/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { File } from "@/modules/source/domain/entities/File";
 ```
 
-## Firestore Timestamp 規則
+## Firestore Timestamp 閬?
 
 ```typescript
-// ✅ 安全的調用方式
+// ??摰?矽?冽撘?
 const date = (value.toDate as () => unknown)() as Date;
 
-// ❌ 禁止解構賦值
-const { toDate } = value; toDate(); // 'this' binding 失效
+// ??蝳迫閫??鞈血?
+const { toDate } = value; toDate(); // 'this' binding 憭望?
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

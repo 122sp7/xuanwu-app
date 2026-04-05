@@ -3,4 +3,4 @@
 - `knowledge-collaboration.version_created` / `version_restored`
 - `knowledge-collaboration.page_locked`
 
-→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
+??閰喟敦閮剛?: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)

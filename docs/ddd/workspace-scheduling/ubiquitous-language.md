@@ -1,32 +1,32 @@
-# Ubiquitous Language — workspace-scheduling
+# Ubiquitous Language ??workspace-scheduling
 
-> **範圍：** 僅限 `modules/workspace-scheduling/` 有界上下文內
+> **蝭?嚗?* ?? `modules/workspace-scheduling/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 |
+| 銵? | ?望? | 摰儔 |
 |------|------|------|
-| 工作需求 | WorkDemand | 一個已排程或待排程的工作請求，含標題、截止日期與優先級 |
-| 需求狀態 | DemandStatus | WorkDemand 的生命週期狀態：`draft \| open \| in_progress \| completed` |
-| 需求優先級 | DemandPriority | 工作緊急程度：`low \| medium \| high` |
-| 日曆控件 | CalendarWidget | 顯示工作需求排程的日曆 UI 元件 |
-| 帳戶排程視圖 | AccountSchedulingView | 跨工作區的帳戶級別排程總覽頁面 |
+| 撌乩??瘙?| WorkDemand | 銝?歇???????極雿?瘙??急?憿甇Ｘ???芸?蝝?|
+| ?瘙???| DemandStatus | WorkDemand ???賡望????`draft \| open \| in_progress \| completed` |
+| ?瘙?? | DemandPriority | 撌乩?蝺亦?摨佗?`low \| medium \| high` |
+| ?交??找辣 | CalendarWidget | 憿舐內撌乩??瘙?蝔??交? UI ?辣 |
+| 撣單??閬? | AccountSchedulingView | 頝典極雿??董?嗥??交?蝔蜇閬賡???|
 
-## 狀態標籤（顯示文字）
+## ???蝐歹?憿舐內??嚗?
 
-| 狀態 | 中文標籤 |
+| ???| 銝剜?璅惜 |
 |------|---------|
-| `draft` | 草稿 |
-| `open` | 待處理 |
-| `in_progress` | 進行中 |
-| `completed` | 已完成 |
-| `low` | 低 |
-| `medium` | 中 |
-| `high` | 高 |
+| `draft` | ?阮 |
+| `open` | 敺???|
+| `in_progress` | ?脰?銝?|
+| `completed` | 撌脣???|
+| `low` | 雿?|
+| `medium` | 銝?|
+| `high` | 擃?|
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `WorkDemand` | `Demand`, `Request`, `Ticket` |
 | `DemandStatus` | `Status`, `WorkStatus` |

@@ -1,45 +1,45 @@
-# AGENT.md — ai BC
+# AGENT.md ??ai BC
 
-## 模組定位
+## 璅∠?摰?
 
-`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
+`ai` ??RAG ?蝞∠???Job ?矽?舀?恣??IngestionJob ??望?嚗?隤?py_fn/ Python worker??
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
-| `IngestionDocument` | Document、File（在此 BC 內）|
-| `IngestionChunk` | Chunk、VectorChunk |
+| `IngestionJob` | Job?ask嚗甇?BC ?改??arseJob |
+| `IngestionDocument` | Document?ile嚗甇?BC ?改?|
+| `IngestionChunk` | Chunk?ectorChunk |
 | `IngestionStatus` | Status, JobStatus |
 
-## 棄用檔案守衛
+## 璉瑼?摰?
 
-以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
+隞乩?瑼??賣 `@deprecated` stubs嚗歇?券?瑽??宏?歹?**蝯?銝?** import嚗?
+- `modules/ai/domain/entities/graph-node.ts` ??撌脣?歹????撌脩宏?歹?
+- `modules/ai/domain/entities/link.ts` ??撌脣?歹????撌脩宏?歹?
+- `modules/ai/domain/repositories/GraphRepository.ts` ??撌脣?歹????撌脩宏?歹?
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { aiApi } from "@/modules/ai/api";
 import type { IngestionJobDTO } from "@/modules/ai/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
 import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
 ```
 
-## Runtime 邊界規則
+## Runtime ??閬?
 
-- `ai` 模組只在 Next.js 端做 Job 協調
-- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
+- `ai` 璅∠??芸 Next.js 蝡臬? Job ?矽
+- Embedding ????`py_fn/` ?瑁?嚗?閬 `ai` module ? heavy ML ?摩
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

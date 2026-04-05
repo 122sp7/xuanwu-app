@@ -1,17 +1,17 @@
-# knowledge-base — 領域事件
+# knowledge-base ????鈭辣
 
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+> 閰喟敦鈭辣摰儔閬?[`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
 
-## 事件清單
+## 鈭辣皜
 
-| 事件 | 觸發條件 |
+| 鈭辣 | 閫貊璇辣 |
 |---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft） |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
+| `knowledge-base.article_created` | ??撱箇?嚗???draft嚗?|
+| `knowledge-base.article_updated` | ???批捆?湔 |
+| `knowledge-base.article_published` | draft ??published |
+| `knowledge-base.article_archived` | ??撠? |
+| `knowledge-base.article_verified` | ?亥?蝞∠??⊿?霅?蝡?|
+| `knowledge-base.article_review_requested` | 璅???needs_review |
+| `knowledge-base.article_owner_assigned` | ?晷??鞎痊鈭?|
+| `knowledge-base.category_created` | 撱箇????桅? |
+| `knowledge-base.category_moved` | ??蝘餃??唳?嗥?暺?|

@@ -1,14 +1,14 @@
-# shared — Repositories
+# shared ??Repositories
 
 > **Canonical bounded context:** `shared`
-> **模組路徑:** `modules/shared/`
+> **璅∠?頝臬?:** `modules/shared/`
 > **Domain Type:** Shared Kernel
 
-本文件整理 `shared` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+?祆?隞嗆??`shared` ??repository ports ??infrastructure 撖虫?嚗???`domain/` ??`infrastructure/` ??撠銵具?
 
 ## Domain Repository Ports
 
-- 目前沒有對應檔案。
+- ?桀?瘝?撠?瑼???
 
 ## Infrastructure Implementations
 
@@ -16,13 +16,13 @@
 - `infrastructure/NoopEventBusRepository.ts`
 - `infrastructure/SimpleEventBus.ts`
 
-## 設計規則
+## 閮剛?閬?
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+- Repository 隞摰儔??`domain/repositories/`
+- Repository 撖虫??曉 `infrastructure/`
+- `application/` ?芾靘陷 repository ports嚗??湔靘陷 infrastructure 撖虫?
 
-## 模組內對應文件
+## 璅∠??批???隞?
 
 - `../../../modules/shared/repositories.md`
 - `../../../docs/ddd/shared/aggregates.md`

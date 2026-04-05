@@ -1,37 +1,37 @@
-# workspace — 工作區上下文
+# workspace ??撌乩??銝???
 
 > **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **開發狀態:** ✅ Done — 穩定
+> **璅∠?頝臬?:** `modules/workspace/`  
+> **????** ??Done ??蝛拙?
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`workspace` 是整個平台的協作容器，所有知識、來源、任務、稽核與動態都歸屬於某個工作區。它不是產品差異化來源，但決定知識平台如何被團隊實際操作與組合。
+`workspace` ?舀?像?啁???摰孵嚗??霅?皞遙?里?貉????賣飛撅祆?極雿???銝?Ｗ?撌桃??皞?雿捱摰霅像?啣?雿◤??撖阡???????
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| Workspace 容器管理 | 建立、更新、歸檔工作區 |
-| 成員與角色 | 管理工作區成員、角色與協作可見性 |
-| 內容結構入口 | 維護內容樹與子模組在工作區中的組合方式 |
+| Workspace 摰孵蝞∠? | 撱箇???啜飛瑼極雿? |
+| ?????| 蝞∠?撌乩??????脰????航???|
+| ?批捆蝯??亙 | 蝬剛風?批捆璅寡?摮芋蝯撌乩??銝剔?蝯??孵? |
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `organization` 是主要上游，提供多租戶歸屬。
-- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
+- `organization` ?臭蜓閬?皜賂???憭??嗆飛撅研?
+- `knowledge`?wiki`?source` ????`workspace-*` 璅∠??賭?鞈游極雿?雿??????
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`Workspace`**
 - **`WorkspaceMember`**
 - **`WikiContentTree`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

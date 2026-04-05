@@ -1,19 +1,19 @@
-# Domain Events — workspace
+# Domain Events ??workspace
 
-## 發出事件
+## ?澆鈭辣
 
-| 事件 | 觸發條件 | 關鍵欄位 |
+| 鈭辣 | 閫貊璇辣 | ?甈? |
 |------|---------|---------|
-| `workspace.created` | 新工作區建立時 | `workspaceId`, `accountId`, `name`, `occurredAt` |
-| `workspace.archived` | 工作區歸檔時 | `workspaceId`, `accountId`, `occurredAt` |
-| `workspace.member_joined` | 成員加入工作區 | `workspaceId`, `accountId`, `role`, `occurredAt` |
-| `workspace.member_removed` | 成員被移除 | `workspaceId`, `accountId`, `occurredAt` |
+| `workspace.created` | ?啣極雿?撱箇???| `workspaceId`, `accountId`, `name`, `occurredAt` |
+| `workspace.archived` | 撌乩??甇豢???| `workspaceId`, `accountId`, `occurredAt` |
+| `workspace.member_joined` | ??撌乩?? | `workspaceId`, `accountId`, `role`, `occurredAt` |
+| `workspace.member_removed` | ?鋡怎宏??| `workspaceId`, `accountId`, `occurredAt` |
 
-## 訂閱事件
+## 閮鈭辣
 
-`workspace` 不直接訂閱其他 BC 的事件，由 app/ 路由層協調各 tab 組合。
+`workspace` 銝?亥??勗隞?BC ??隞塚???app/ 頝舐撅文?隤踹? tab 蝯???
 
-## 事件格式範例
+## 鈭辣?澆?蝭?
 
 ```typescript
 interface WorkspaceCreatedEvent {

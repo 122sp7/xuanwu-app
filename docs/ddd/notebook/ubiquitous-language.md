@@ -1,29 +1,29 @@
-# Ubiquitous Language — notebook
+# Ubiquitous Language ??notebook
 
-> **範圍：** 僅限 `modules/notebook/` 有界上下文內
+> **蝭?嚗?* ?? `modules/notebook/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 |
+| 銵? | ?望? | 摰儔 |
 |------|------|------|
-| 對話串 | Thread | 一組有序的對話訊息集合，是 AI 對話的持久化單元 |
-| 訊息 | Message | Thread 中的單則訊息（含 role 和 content） |
-| 訊息角色 | MessageRole | 訊息發出者的角色：`"user" \| "assistant" \| "system"` |
-| 筆記本回應 | NotebookResponse | AI 模型對一次 prompt 的回應結果（含 text、model） |
-| 生成輸入 | GenerateNotebookResponseInput | 呼叫 AI 生成的輸入（prompt、model?、system?） |
-| 筆記本庫 | NotebookRepository | 封裝 Genkit AI 呼叫的 Repository port |
+| 撠店銝?| Thread | 銝蝯?摨?撠店閮??嚗 AI 撠店??銋??桀? |
+| 閮 | Message | Thread 銝剔??桀?閮嚗 role ??content嚗?|
+| 閮閫 | MessageRole | 閮?澆??閫嚗"user" \| "assistant" \| "system"` |
+| 蝑??砍???| NotebookResponse | AI 璅∪?撠?甈?prompt ????????text?odel嚗?|
+| ??頛詨 | GenerateNotebookResponseInput | ?澆 AI ???撓?伐?prompt?odel??ystem?嚗?|
+| 蝑??砍澈 | NotebookRepository | 撠? Genkit AI ?澆??Repository port |
 
-## 棄用術語（已移至 search）
+## 璉銵?嚗歇蝘餉 search嚗?
 
-| 棄用術語 | 新位置 |
+| 璉銵? | ?唬?蝵?|
 |----------|--------|
 | `RagQuery` / `RagCitation` | `modules/search/domain/entities/RagQuery.ts` |
 | `RagGenerationRepository` | `modules/search/domain/repositories/RagGenerationRepository.ts` |
 | `RagRetrievalRepository` | `modules/search/domain/repositories/RagRetrievalRepository.ts` |
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `Thread` | `Conversation`, `Chat`, `Session` |
 | `Message` | `ChatMessage`, `Turn` |

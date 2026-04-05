@@ -1,9 +1,9 @@
-# Ubiquitous Language — workspace-feed
+# Ubiquitous Language ??workspace-feed
 
-| 術語 | 英文 | 定義 |
+| 銵? | ?望? | 摰儔 |
 |------|------|------|
-| 動態貼文 | WorkspaceFeedPost | 工作區社交動態貼文（post / reply / repost） |
-| 貼文類型 | WorkspaceFeedPostType | `"post" \| "reply" \| "repost"` |
-| 作者帳戶 ID | authorAccountId | 發文者帳戶 ID |
-| 回覆目標 | replyToPostId | 此貼文回覆的原貼文 ID |
-| 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |
+| ??鞎潭? | WorkspaceFeedPost | 撌乩??蝷曆漱??鞎潭?嚗ost / reply / repost嚗?|
+| 鞎潭?憿? | WorkspaceFeedPostType | `"post" \| "reply" \| "repost"` |
+| 雿董??ID | authorAccountId | ?潭??董??ID |
+| ???格? | replyToPostId | 甇方票??閬??票??ID |
+| 頧票?格? | repostOfPostId | 甇方票??鞎潛??票??ID |

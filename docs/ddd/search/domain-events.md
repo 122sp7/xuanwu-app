@@ -1,25 +1,25 @@
-# Domain Events — search
+# Domain Events ??search
 
-## 發出事件
+## ?澆鈭辣
 
-| 事件 | 觸發條件 | 關鍵欄位 |
+| 鈭辣 | 閫貊璇辣 | ?甈? |
 |------|---------|---------|
-| `search.feedback_submitted` | 使用者提交 RagQueryFeedback | `feedbackId`, `queryId`, `helpful`, `occurredAt` |
-| `search.index_updated` | 向量索引更新完成（文件重新索引） | `documentId`, `chunkCount`, `occurredAt` |
+| `search.feedback_submitted` | 雿輻??鈭?RagQueryFeedback | `feedbackId`, `queryId`, `helpful`, `occurredAt` |
+| `search.index_updated` | ??蝝Ｗ??湔摰?嚗?隞園??啁揣撘? | `documentId`, `chunkCount`, `occurredAt` |
 
-## 訂閱事件
+## 閮鈭辣
 
-| 來源 BC | 訂閱事件 | 行動 |
+| 靘? BC | 閮鈭辣 | 銵? |
 |---------|---------|------|
-| `ai` | `ai.ingestion_completed` | 新 chunks 的 embedding 已就緒，觸發向量索引更新 |
-| `wiki` | `wiki.node_activated` | 同步更新節點內容到向量索引 |
+| `ai` | `ai.ingestion_completed` | ??chunks ??embedding 撌脣停蝺?閫貊??蝝Ｗ??湔 |
+| `wiki` | `wiki.node_activated` | ?郊?湔蝭暺摰孵??蝝Ｗ? |
 
-## 消費 search 事件的其他 BC
+## 瘨祥 search 鈭辣?隞?BC
 
-`search` 主要提供**同步查詢服務**（非事件），被 `notebook` 和 wiki RAG UI 直接呼叫：
+`search` 銝餉???**?郊?亥岷??**嚗?鈭辣嚗?鋡?`notebook` ??wiki RAG UI ?湔?澆嚗?
 
 ```typescript
-// notebook 呼叫 search 的同步查詢
+// notebook ?澆 search ??甇交閰?
 const result = await searchApi.answerRagQuery({
   organizationId,
   userQuery,

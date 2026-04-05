@@ -1,5 +1,5 @@
-**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
-**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
-**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
+**Comment** ??contentId + authorId + body嚗??parentCommentId嚗?撅?thread嚗?
+**Permission** ??subjectId + principalId + level嚗iew/comment/edit/full嚗?upsert 隤?
+**Version** ??contentId + snapshotBlocks嚗mmutable嚗?憭?100 蝑??瑕???文?嚗?
 
-→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
+??閰喟敦閮剛?: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)

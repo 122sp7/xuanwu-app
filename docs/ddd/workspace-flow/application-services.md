@@ -1,21 +1,21 @@
-# workspace-flow — Application Services
+# workspace-flow ??Application Services
 
 > **Canonical bounded context:** `workspace-flow`
-> **模組路徑:** `modules/workspace-flow/`
+> **璅∠?頝臬?:** `modules/workspace-flow/`
 > **Domain Type:** Supporting Subdomain
 
-本文件記錄 `workspace-flow` 的 application layer 服務與 use cases。內容與 `modules/workspace-flow/application/` 實作保持一致。
+?祆?隞嗉???`workspace-flow` ??application layer ????use cases?摰寡? `modules/workspace-flow/application/` 撖虫?靽?銝?氬?
 
-## Application Layer 職責
+## Application Layer ?瑁痊
 
-管理 Task / Issue / Invoice 三條工作流程狀態機與流程物化。
+蝞∠? Task / Issue / Invoice 銝?撌乩?瘚??????蝔??
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+Application layer ?芾?鞎穿?
+- ?矽 use cases / DTO / process manager
+- ?澆 domain repository ports ??domain services
+- 銝頛?UI / framework-specific concerns
 
-## 實際檔案
+## 撖阡?瑼?
 
 - `application/dto/add-invoice-item.dto.ts`
 - `application/dto/create-task.dto.ts`
@@ -60,8 +60,8 @@ Application layer 只負責：
 - `application/use-cases/update-invoice-item.use-case.ts`
 - `application/use-cases/update-task.use-case.ts`
 
-## 設計對齊
+## 閮剛?撠?
 
-- 模組 README：`../../../modules/workspace-flow/README.md`
-- 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
+- 璅∠? README嚗../../../modules/workspace-flow/README.md`
+- 璅∠? AGENT嚗../../../modules/workspace-flow/AGENT.md`
+- ??application layer ???芋蝯撠勗?辣嚗../../../modules/workspace-flow/application-services.md`

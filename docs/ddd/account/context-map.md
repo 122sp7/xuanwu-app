@@ -1,35 +1,35 @@
-# Context Map — account
+# Context Map ??account
 
-## 上游（依賴）
+## 銝虜嚗?鞈湛?
 
-### identity → account（Customer/Supplier）
+### identity ??account嚗ustomer/Supplier嚗?
 
-- `account` 依賴 `identity/api` 取得 uid 與 TokenRefreshSignal
-- `modules/account/application/use-cases/account.use-cases.ts` 在 server 端 import `identity/api`
+- `account` 靘陷 `identity/api` ?? uid ??TokenRefreshSignal
+- `modules/account/application/use-cases/account.use-cases.ts` ??server 蝡?import `identity/api`
 
 ```
-identity/api ──► account/application (server-side use-cases)
+identity/api ????account/application (server-side use-cases)
 ```
 
 ---
 
-## 下游（被依賴）
+## 銝虜嚗◤靘陷嚗?
 
-### account → organization（Customer/Supplier）
+### account ??organization嚗ustomer/Supplier嚗?
 
-- `organization` 的 `MemberReference` 使用 `accountId` 參照 Account
-- Organization 成員列表以 `accountId` 為主鍵
+- `organization` ??`MemberReference` 雿輻 `accountId` ? Account
+- Organization ??”隞?`accountId` ?箔蜓??
 
-### account → workspace（Customer/Supplier）
+### account ??workspace嚗ustomer/Supplier嚗?
 
-- `Workspace.accountId` 關聯帳戶或組織
+- `Workspace.accountId` ?撣單??蝜?
 
 ---
 
-## IDDD 整合模式總結
+## IDDD ?游?璅∪?蝮賜?
 
-| 關係 | 上游 | 下游 | 模式 |
+| ?? | 銝虜 | 銝虜 | 璅∪? |
 |------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| account → organization | account | organization | Customer/Supplier |
-| account → workspace | account | workspace | Customer/Supplier |
+| identity ??account | identity | account | Customer/Supplier |
+| account ??organization | account | organization | Customer/Supplier |
+| account ??workspace | account | workspace | Customer/Supplier |

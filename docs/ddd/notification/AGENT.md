@@ -1,32 +1,32 @@
-# AGENT.md — notification BC
+# AGENT.md ??notification BC
 
-## 模組定位
+## 璅∠?摰?
 
-`notification` 是通知分發的通用子域，負責系統通知的建立、發送與讀取。
+`notification` ?舫??摮?嚗?鞎祉頂蝯梢?遣蝡??霈??
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `NotificationEntity` | Notification（作為 class 名），Alert, Message（作為通知） |
+| `NotificationEntity` | Notification嚗???class ??嚗lert, Message嚗??粹嚗?|
 | `recipientId` | userId, receiverId |
 | `NotificationType` | Type, AlertLevel |
 | `DispatchNotificationInput` | CreateNotification, SendNotification |
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { notificationApi } from "@/modules/notification/api";
 import type { NotificationDTO } from "@/modules/notification/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { NotificationEntity } from "@/modules/notification/domain/entities/Notification";
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

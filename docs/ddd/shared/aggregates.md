@@ -1,33 +1,33 @@
-# Aggregates — shared
+# Aggregates ??shared
 
-## 注意
+## 瘜冽?
 
-`shared` 是 Shared Kernel，不包含業務聚合根。它只提供基礎型別定義。
+`shared` ??Shared Kernel嚗??璆剖????嫘??芣?靘蝷??亙?蝢押?
 
 ---
 
-## 基礎介面：DomainEvent
+## ?箇?隞嚗omainEvent
 
 ```typescript
 // modules/shared/domain/events.ts
 interface DomainEvent {
   readonly type: string;       // discriminant: "module.action"
-  readonly occurredAt: string; // ISO 8601 — 不是 Date，不是 occurredAtISO
+  readonly occurredAt: string; // ISO 8601 ??銝 Date嚗???occurredAtISO
 }
 ```
 
-**所有模組的領域事件介面都繼承此基礎介面。**
+**??芋蝯???鈭辣隞?賜匱?踵迨?箇?隞??*
 
 ---
 
-## 基礎介面：EventRecord
+## ?箇?隞嚗ventRecord
 
 ```typescript
 // modules/shared/domain/event-record.ts
 interface EventRecord {
   readonly eventId: string;    // UUID v4
   readonly occurredAt: string; // ISO 8601
-  readonly actorId?: string;   // 操作者 ID（可選）
+  readonly actorId?: string;   // ????ID嚗?賂?
   readonly correlationId?: string;
   readonly causationId?: string;
 }
@@ -35,10 +35,10 @@ interface EventRecord {
 
 ---
 
-## 工具型別
+## 撌亙?
 
-| 型別 / 工具 | 說明 |
+| ? / 撌亙 | 隤芣? |
 |------------|------|
-| `ID` | string alias，用於所有業務 ID |
-| `Timestamp` | Firebase Timestamp 型別別名 |
-| `domain/slug-utils.ts` | URL-safe slug 生成（`toSlug()`, `isValidSlug()`） |
+| `ID` | string alias嚗?潭??平??ID |
+| `Timestamp` | Firebase Timestamp ??亙? |
+| `domain/slug-utils.ts` | URL-safe slug ??嚗toSlug()`, `isValidSlug()`嚗?|

@@ -1,26 +1,26 @@
-# knowledge-base — 聚合根摘要
+# knowledge-base ?????寞?閬?
 
-> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+> 閰喟敦閮剛?閬?[`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
 
-## Article（聚合根）
+## Article嚗??嚗?
 
-| 欄位 | 說明 |
+| 甈? | 隤芣? |
 |---|---|
-| `id` | 唯一識別碼 |
-| `title`, `content` | 文章標題與主體 |
+| `id` | ?臭?霅蝣?|
+| `title`, `content` | ??璅??蜓擃?|
 | `status` | `draft` / `published` / `archived` |
 | `verificationState` | `verified` / `needs_review` / `unverified` |
-| `ownerId` | 文章負責人（ArticleOwner） |
-| `linkedArticleIds` | Backlink 引用列表 |
-| `categoryId` | 所屬分類 |
-| `tags` | 標籤列表 |
+| `ownerId` | ??鞎痊鈭綽?ArticleOwner嚗?|
+| `linkedArticleIds` | Backlink 撘?” |
+| `categoryId` | ?撅砍?憿?|
+| `tags` | 璅惜?” |
 
-## Category（聚合根）
+## Category嚗??嚗?
 
-| 欄位 | 說明 |
+| 甈? | 隤芣? |
 |---|---|
-| `id` | 唯一識別碼 |
-| `name`, `slug` | 分類名稱與 URL 識別碼 |  
-| `parentCategoryId` | 父分類（null = 根節點） |
-| `depth` | 層級深度（最大 5）|
-| `articleIds` | 直屬文章 ID 列表 |
+| `id` | ?臭?霅蝣?|
+| `name`, `slug` | ???迂??URL 霅蝣?|  
+| `parentCategoryId` | ?嗅?憿?null = ?寧?暺? |
+| `depth` | 撅斤?瘛勗漲嚗?憭?5嚗
+| `articleIds` | ?游惇?? ID ?” |

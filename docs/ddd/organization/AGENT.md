@@ -1,34 +1,34 @@
-# AGENT.md — organization BC
+# AGENT.md ??organization BC
 
-## 模組定位
+## 璅∠?摰?
 
-`organization` 是 Xuanwu 的多租戶管理有界上下文，管理 Organization 聚合根、成員、隊伍與邀請流程。
+`organization` ??Xuanwu ??蝘蝞∠???銝???蝞∠? Organization ???嫘??～?隡??隢?蝔?
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `Organization` | Company、Tenant、Team（作為頂層組織）、Client |
-| `MemberReference` | Member、User（在組織上下文中）|
-| `Team` | Group、Squad（作為組織子群組） |
-| `PartnerInvite` | Invitation、InviteLink |
-| `OrganizationRole` | Role、Permission（作為組織角色） |
-| `Presence` | Status、OnlineStatus |
+| `Organization` | Company?enant?eam嚗??粹?撅斤?蝜??lient |
+| `MemberReference` | Member?ser嚗蝯?銝??葉嚗
+| `Team` | Group?quad嚗??箇?蝜?蝢斤?嚗?|
+| `PartnerInvite` | Invitation?nviteLink |
+| `OrganizationRole` | Role?ermission嚗??箇?蝜??莎? |
+| `Presence` | Status?nlineStatus |
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { organizationApi } from "@/modules/organization/api";
 import type { OrganizationDTO, MemberReferenceDTO } from "@/modules/organization/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { Organization } from "@/modules/organization/domain/entities/Organization";
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

@@ -1,71 +1,71 @@
-# Ubiquitous Language — knowledge
+# Ubiquitous Language ??knowledge
 
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+> **蝭?嚗?* ?? `modules/knowledge/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 | 代碼位置 |
+| 銵? | ?望? | 摰儔 | 隞?Ⅳ雿蔭 |
 |------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| ?亥?? | KnowledgePage | ?詨??亥??桀?嚗 title?arentPageId?lockIds | `domain/entities/content-page.entity.ts` |
+| ?批捆?憛?| ContentBlock | ??抒????批捆?桀?嚗d?ageId?lockType?ontent?rder嚗?| `domain/entities/content-block.entity.ts` |
+| ?憛???| BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| ?敹怎 | ContentVersion | ??風?脣翰?改?snapshotBlocks?ditSummary?uthorId嚗?| `domain/entities/content-version.entity.ts` |
+| ?撖拇 | PageApproval | 雿輻???AI ???阮??雿?閫貊 `knowledge.page_approved` | ??|
+| ?賢?隞餃? | ExtractedTask | 敺??Ｗ摰寞???隞餃?摰儔嚗itle?ueDate?escription嚗?| `domain/events/knowledge.events.ts` |
+| ?賢??潛巨 | ExtractedInvoice | 敺??Ｗ摰寞????潛巨摰儔嚗mount?escription?urrency嚗?| `domain/events/knowledge.events.ts` |
+| ?亥?鞈?摨?| KnowledgeCollection (database) | spaceType="database" ????撣嗆?雿?Schema嚗???Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| ?亥?摨恬?Wiki Space嚗?| WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" ??????撽?????嚗???Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| ??蝛粹?憿? | CollectionSpaceType | `"database" \| "wiki"` ??????澈?霅澈蝛粹? | `domain/entities/knowledge-collection.entity.ts` |
+| ?撽????| PageVerificationState | `"verified" \| "needs_review"` ?????Wiki Space 銝剔??批捆皞Ⅱ?抒???| `domain/entities/content-page.entity.ts` |
+| ?鞎痊鈭?| PageOwner (`ownerId`) | 鞎痊蝣箔???批捆皞Ⅱ??啁???雿輻??| `domain/entities/content-page.entity.ts` |
+| 撌脤?霅?| verified | `verificationState="verified"` ????批捆撌脩Ⅱ隤?蝣?| ??|
+| 敺祟??| needs_review | `verificationState="needs_review"` ????批捆?閬炎閬?蝣箄? | ??|
 
-## 頁面生命周期操作（Page Lifecycle Actions）
+## ???冽???嚗age Lifecycle Actions嚗?
 
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+隞乩???`KnowledgePage` ?迂?蝙?刻?雿?*??雿輻??Server Action** ??**UI 憿舐內璅惜**敹?撠???
 
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+| ?? | Server Action | UI 璅惜嚗葉?? | 閫貊鈭辣 |
 |------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| ?典?冽憓???| `createKnowledgePage` | ?典?冽憓???| `knowledge.page_created` |
+| ??賢? | `renameKnowledgePage` | ??賢? | `knowledge.page_renamed` |
+| 蝘餃???| `moveKnowledgePage` | 蝘餃???| `knowledge.page_moved` |
+| 甇豢?嚗宏?喳??暹▲嚗?| `archiveKnowledgePage` | 蝘餉?獢?| `knowledge.page_archived` |
 
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+> **銵?撠?閬?嚗?* Domain ??`archive`嚗飛瑼?嚗I 璅惜?箝宏?喳??暹▲???????嚗status = "archived"`嚗?銝???domain 撅支蝙??`trash`??
 
-## 頁面操作選單（PageContextMenu）
+## ????詨嚗ageContextMenu嚗?
 
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+`PageTreeView` ?扳????Ｚ? hover ??曄? `?圳 ???詨?迨?????Ｘ邦?閬??? UI 鈭?璅∪???
 
-| 選單項目 | 對應 Use Case | UI 互動 |
+| ?詨? | 撠? Use Case | UI 鈭? |
 |------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+| ?典?冽憓???| `createKnowledgePage` (parentPageId = ?桀??? | ?靽格?迂頛詨獢?|
+| ??賢? | `renameKnowledgePage` | 銵 inline 頛詨獢?Enter 蝣箄? |
+| 蝘餃???| `moveKnowledgePage` | 敺祕雿?|
+| 蝘餉?獢?| `archiveKnowledgePage` | 鈭活蝣箄?嚗???蝘駁璅寧?閬?閰脤? |
 
-## 頁面樹狀視圖（PageTreeView）
+## ?璅寧?閬?嚗ageTreeView嚗?
 
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+`modules/knowledge/interfaces/components/PageTreeView.tsx` ??UI 撅斗?敹菔???
 
-| 概念 | 說明 |
+| 璁艙 | 隤芣? |
 |------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+| ?璅寧?閬? | 撠? `KnowledgePage` ?嗅?撅斤??閬?撅內嚗惜蝝? `parentPageId` 璅?|
+| 撅斤?撅? / ?? | ?蝭暺?idle ????身撅?撅斗 < 2 |
+| hover ????| 瘥? hover 撅 `?圳嚗?雿?殷???`+`嚗?折?啣??嚗???|
+| inline rename | hover ?詨?折?敺?亙??曇??扯撓?交?嚗???dialog |
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `KnowledgePage` | `Page`, `Document`, `Note` |
 | `ContentBlock` | `Block`, `Node`, `Element` |
 | `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`嚗???交?脣 API 憭? |
+| `WikiSpace` | `KB`, `KnowledgeBase`嚗?亦迂?潘? |
+| archive (??UI 銝? | `trash`, `delete`嚗 domain 撅支?敺蝙??trash/delete ?賢?嚗?|
 
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+> `WikiPage` ??`wiki` BC 銵?嚗?撅祆 `knowledge` BC ?隤???
+> `WikiSpace` ??`knowledge` BC 隞?” `spaceType="wiki"` ??`KnowledgeCollection`嚗? `wiki` 璅∠?嚗?霅???摰銝???

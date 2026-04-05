@@ -1,37 +1,37 @@
-# notebook — Notebook 對話上下文
+# notebook ??Notebook 撠店銝???
 
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/notebook/`  
-> **開發狀態:** 🏗️ Midway
+> **Domain Type:** Supporting Subdomain嚗?游?嚗? 
+> **璅∠?頝臬?:** `modules/notebook/`  
+> **????** ??儭?Midway
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## ??Knowledge Platform / Second Brain 銝剔?閫
 
-`notebook` 是 Xuanwu 的 NotebookLM-like 互動層，將檢索結果、知識內容與圖譜脈絡轉成對話、摘要、洞察與可引用回答。它是最接近使用者 AI 推理體驗的上下文。
+`notebook` ??Xuanwu ??NotebookLM-like 鈭?撅歹?撠炎蝝Ｙ??霅摰寡????窗頧?撠店??閬?撖??臬??典?蝑??舀??亥?雿輻??AI ?函?擃???銝???
 
-## 主要職責
+## 銝餉??瑁痊
 
-| 能力 | 說明 |
+| ?賢? | 隤芣? |
 |---|---|
-| 對話 Thread 管理 | 維護對話串與訊息歷史 |
-| 摘要 / 問答互動 | 把檢索結果轉成可閱讀、可追問的回答 |
-| 引用式輸出 | 保留 citation / source trace，支撐可信回答 |
+| 撠店 Thread 蝞∠? | 蝬剛風撠店銝脰?閮甇瑕 |
+| ?? / ??鈭? | ?炎蝝Ｙ?????梯??餈賢???蝑?|
+| 撘撘撓??| 靽? citation / source trace嚗?靽∪?蝑?|
 
-## 與其他 Bounded Context 協作
+## ?隞?Bounded Context ??
 
-- `search` 是主要上游，提供語意檢索與引用資料。
-- `knowledge` 與 `wiki` 提供被推理的內容與結構脈絡；`ai` 提供底層攝入能力。
+- `search` ?臭蜓閬?皜賂???隤?瑼Ｙ揣???刻???
+- `knowledge` ??`wiki` ??鋡急???批捆??瑽?蝯∴?`ai` ??摨惜??賢???
 
-## 核心聚合 / 核心概念
+## ?詨??? / ?詨?璁艙
 
 - **`Thread`**
 - **`Message`**
 - **`Summary`**
 
-## 詳細文件
+## 閰喟敦?辣
 
-| 文件 | 說明 |
+| ?辣 | 隤芣? |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | 甇?BC ?隤? |
+| [aggregates.md](./aggregates.md) | ???寡??詨?璁艙 |
+| [domain-events.md](./domain-events.md) | ??鈭辣???閮 |
+| [context-map.md](./context-map.md) | ?隞?BC ??靽??游??孵? |

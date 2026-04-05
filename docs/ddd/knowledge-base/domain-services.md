@@ -1,7 +1,7 @@
-# knowledge-base — Domain Services
+# knowledge-base ??Domain Services
 
-> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+> 閰喟敦撖虫?閬?[`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
 
-- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
-- `ArticleSlugService` — title → URL-safe slug 轉換
-- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+- `BacklinkExtractorService` ??敺?article content 閫?? `[[wikilink]]` 璅?
+- `ArticleSlugService` ??title ??URL-safe slug 頧?
+- `CategoryDepthValidator` ??撽???撅斤?銝???5 撅?

@@ -1,39 +1,39 @@
-# AGENT.md — identity BC
+# AGENT.md ??identity BC
 
-## 模組定位
+## 璅∠?摰?
 
-`identity` 是 Firebase Authentication 的 domain 薄層封裝。無業務邏輯，只有驗證基礎設施抽象。
+`identity` ??Firebase Authentication ??domain ?惜撠??璆剖??摩嚗??霅蝷身?賣鞊～?
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `Identity` | User、CurrentUser、AuthUser |
-| `TokenRefreshSignal` | TokenEvent、RefreshToken |
-| `signIn` | login、authenticate |
+| `Identity` | User?urrentUser?uthUser |
+| `TokenRefreshSignal` | TokenEvent?efreshToken |
+| `signIn` | login?uthenticate |
 | `signOut` | logout |
-| `uid` | userId、id（在此 BC 內） |
+| `uid` | userId?d嚗甇?BC ?改? |
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 import { identityApi } from "@/modules/identity/api";
 import type { IdentityDTO } from "@/modules/identity/api";
 ```
 
-### ❌ 禁止
+### ??蝳迫
 ```typescript
 import { useTokenRefreshListener } from "@/modules/identity/interfaces/hooks/useTokenRefreshListener";
-// ❌ api/ 不能含 "use client" 匯出 — account use-cases 在 server 端 import api/
+// ??api/ 銝??"use client" ?臬 ??account use-cases ??server 蝡?import api/
 ```
 
-## 關鍵守衛
+## ?摰?
 
-- `modules/identity/api/index.ts` 不得 re-export 任何含 `"use client"` 的檔案
-- hooks（`useTokenRefreshListener`）只能從 interfaces 層使用，不可進入 api barrel
+- `modules/identity/api/index.ts` 銝? re-export 隞颱???`"use client"` ??獢?
+- hooks嚗useTokenRefreshListener`嚗?賢? interfaces 撅支蝙?剁?銝?脣 api barrel
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

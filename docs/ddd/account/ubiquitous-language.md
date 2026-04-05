@@ -1,21 +1,21 @@
-# Ubiquitous Language — account
+# Ubiquitous Language ??account
 
-> **範圍：** 僅限 `modules/account/` 有界上下文內
+> **蝭?嚗?* ?? `modules/account/` ??銝??
 
-## 術語定義
+## 銵?摰儔
 
-| 術語 | 英文 | 定義 | 代碼位置 |
+| 銵? | ?望? | 摰儔 | 隞?Ⅳ雿蔭 |
 |------|------|------|---------|
-| 帳戶 | Account | 使用者在平台的業務記錄，含 profile 資訊與狀態 | `modules/account/domain/entities/Account.ts` |
-| 帳戶政策 | AccountPolicy | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 | `modules/account/domain/entities/AccountPolicy.ts` |
-| 帳戶 ID | accountId | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） | `Account.id` |
-| 自訂宣告 | customClaims | Firebase ID token 中的自訂 claims，由 AccountPolicy 決定 | `Account.customClaims` |
-| 帳戶查詢庫 | AccountQueryRepository | CQRS 讀取側 Repository port | `domain/repositories/AccountQueryRepository.ts` |
+| 撣單 | Account | 雿輻?撟喳?平??????profile 鞈?????| `modules/account/domain/entities/Account.ts` |
+| 撣單?輻? | AccountPolicy | ???啣董?嗥?摮??批?輻?嚗捱摰?Firebase custom claims ?批捆 | `modules/account/domain/entities/AccountPolicy.ts` |
+| 撣單 ID | accountId | Account ?平?蜓?蛛?撠? Firebase uid嚗??冽平?惜雿輻 accountId 銵?嚗?| `Account.id` |
+| ?芾?摰?? | customClaims | Firebase ID token 銝剔??芾? claims嚗 AccountPolicy 瘙箏? | `Account.customClaims` |
+| 撣單?亥岷摨?| AccountQueryRepository | CQRS 霈? Repository port | `domain/repositories/AccountQueryRepository.ts` |
 
-## 禁止替換術語
+## 蝳迫?踵?銵?
 
-| 正確 | 禁止 |
+| 甇?Ⅱ | 蝳迫 |
 |------|------|
 | `Account` | `User`, `Profile` |
 | `AccountPolicy` | `Permission`, `Role`, `AccessRule` |
-| `accountId` | `userId`（帳戶層應使用 accountId） |
+| `accountId` | `userId`嚗董?嗅惜?蝙??accountId嚗?|

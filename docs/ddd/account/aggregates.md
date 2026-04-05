@@ -1,46 +1,46 @@
-# Aggregates — account
+# Aggregates ??account
 
-## 聚合根：Account
+## ???對?Account
 
-### 職責
-代表使用者在 Xuanwu 平台的業務身份記錄。管理 profile 資訊與帳戶狀態。
+### ?瑁痊
+隞?”雿輻? Xuanwu 撟喳?平?澈隞質??恣??profile 鞈??董?嗥???
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 帳戶主鍵（對應 Firebase uid） |
-| `displayName` | `string` | 顯示名稱 |
+| `id` | `string` | 撣單銝駁嚗???Firebase uid嚗?|
+| `displayName` | `string` | 憿舐內?迂 |
 | `email` | `string` | Email |
-| `avatarUrl` | `string \| null` | 頭像 URL |
-| `createdAt` | `Timestamp` | 建立時間 |
+| `avatarUrl` | `string \| null` | ?剖? URL |
+| `createdAt` | `Timestamp` | 撱箇??? |
 
-### 不變數
+### 銝???
 
-- 每個 Account 對應唯一一個 Firebase uid
-- Account 建立後 id 不可變更
+- 瘥?Account 撠??臭?銝??Firebase uid
+- Account 撱箇?敺?id 銝霈
 
 ---
 
-## 聚合根：AccountPolicy
+## ???對?AccountPolicy
 
-### 職責
-代表附加到帳戶的存取控制政策，定義哪些資源可存取、哪些動作被允許，並映射到 Firebase custom claims。
+### ?瑁痊
+隞?”???啣董?嗥?摮??批?輻?嚗?蝢拙鈭?皞摮??鈭?雿◤?迂嚗蒂????Firebase custom claims??
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | Policy 主鍵 |
-| `accountId` | `string` | 關聯的 Account ID |
-| `rules` | `PolicyRule[]` | 存取控制規則列表 |
-| `effect` | `"allow" \| "deny"` | 規則效果 |
+| `id` | `string` | Policy 銝駁 |
+| `accountId` | `string` | ???Account ID |
+| `rules` | `PolicyRule[]` | 摮??批閬??” |
+| `effect` | `"allow" \| "deny"` | 閬??? |
 
 ---
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `AccountRepository` | `save()`, `findById()`, `delete()` |
 | `AccountQueryRepository` | `findById()`, `findByEmail()` |

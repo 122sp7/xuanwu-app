@@ -1,14 +1,14 @@
-# Domain Events — workspace-audit
+# Domain Events ??workspace-audit
 
-## 發出事件
+## ?澆鈭辣
 
-`workspace-audit` 不發出 DomainEvent。它是事件的**最終消費者（Terminal Sink）**，不產生進一步的業務事件。
+`workspace-audit` 銝??DomainEvent???臭?隞嗥?**?蝯?鞎餉?Terminal Sink嚗?*嚗??Ｙ??脖?甇亦?璆剖?鈭辣??
 
-## 訂閱事件（消費端）
+## 閮鈭辣嚗?鞎餌垢嚗?
 
-`workspace-audit` 訂閱所有需要留下稽核軌跡的業務事件：
+`workspace-audit` 閮???閬?銝里?貉?頝∠?璆剖?鈭辣嚗?
 
-| 來源 BC | 訂閱事件 | AuditLog.auditEventType |
+| 靘? BC | 閮鈭辣 | AuditLog.auditEventType |
 |---------|---------|------------------------|
 | `workspace` | `workspace.created` | `workspace.created` |
 | `workspace` | `workspace.member_joined` | `workspace.member_joined` |
@@ -21,6 +21,6 @@
 | `source` | `source.upload_completed` | `document.uploaded` |
 | `ai` | `ai.ingestion_completed / failed` | `ingestion.completed / failed` |
 
-## 說明
+## 隤芣?
 
-稽核模組是事件消費的「終點站」。業務 BC 不應依賴稽核模組的狀態，稽核只做記錄，不影響業務流程。
+蝔賣璅∠??臭?隞嗆?鞎餌???暺??平??BC 銝?靘陷蝔賣璅∠?????蝔賣?芸?閮?嚗?敶梢璆剖?瘚???

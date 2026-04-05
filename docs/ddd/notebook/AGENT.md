@@ -1,44 +1,44 @@
-# AGENT.md — notebook BC
+# AGENT.md ??notebook BC
 
-## 模組定位
+## 璅∠?摰?
 
-`notebook` 是 AI 對話的支援域，管理 Thread/Message 生命週期並封裝 Genkit 呼叫。
+`notebook` ??AI 撠店??游?嚗恣??Thread/Message ??望?銝血?鋆?Genkit ?澆??
 
-## 通用語言（Ubiquitous Language）
+## ?隤?嚗biquitous Language嚗?
 
-| 正確術語 | 禁止使用 |
+| 甇?Ⅱ銵? | 蝳迫雿輻 |
 |----------|----------|
-| `Thread` | Conversation、Chat、Session |
-| `Message` | ChatMessage、Msg |
-| `MessageRole` | Role（單獨使用）、Speaker |
-| `NotebookResponse` | AIResponse、GeneratedText |
-| `NotebookRepository` | AIRepository、ChatRepository |
+| `Thread` | Conversation?hat?ession |
+| `Message` | ChatMessage?sg |
+| `MessageRole` | Role嚗?其蝙?剁??peaker |
+| `NotebookResponse` | AIResponse?eneratedText |
+| `NotebookRepository` | AIRepository?hatRepository |
 
-## 最重要規則：Server Action 隔離
+## ???閬?嚗erver Action ?
 
 ```typescript
-// ✅ 正確：在 app/(shell)/ai-chat/_actions.ts 中建立本地 action
+// ??甇?Ⅱ嚗 app/(shell)/ai-chat/_actions.ts 銝剖遣蝡??action
 "use server";
 import { notebookApi } from "@/modules/notebook/api";
 export async function generateResponse(input) {
   return notebookApi.generateResponse(input);
 }
 
-// ❌ 禁止：在 Client Component 直接 import notebook/api
-// Genkit/gRPC 是 server-only，會導致打包失敗
-import { notebookApi } from "@/modules/notebook/api"; // 在 "use client" 檔案中
+// ??蝳迫嚗 Client Component ?湔 import notebook/api
+// Genkit/gRPC ??server-only嚗?撠??憭望?
+import { notebookApi } from "@/modules/notebook/api"; // ??"use client" 瑼?銝?
 ```
 
-## 邊界規則
+## ??閬?
 
-### ✅ 允許
+### ???迂
 ```typescript
 // Server-side context only
 import { notebookApi } from "@/modules/notebook/api";
 import type { ThreadDTO, MessageDTO } from "@/modules/notebook/api";
 ```
 
-## 驗證命令
+## 撽??賭誘
 
 ```bash
 npm run lint

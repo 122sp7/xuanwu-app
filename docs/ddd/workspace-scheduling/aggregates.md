@@ -1,40 +1,40 @@
-# Aggregates — workspace-scheduling
+# Aggregates ??workspace-scheduling
 
-## 聚合根：WorkDemand
+## ???對?WorkDemand
 
-### 職責
-代表一個工作需求記錄。管理需求的排程生命週期（draft → completed）。
+### ?瑁痊
+隞?”銝?極雿?瘙??恣??瘙?????望?嚗raft ??completed嚗?
 
-### 生命週期狀態機
+### ??望????
 ```
-draft ──► open ──► in_progress ──► completed
+draft ????open ????in_progress ????completed
 ```
 
-### 關鍵屬性
+### ?撅祆?
 
-| 屬性 | 型別 | 說明 |
+| 撅祆?| ? | 隤芣? |
 |------|------|------|
-| `id` | `string` | 需求主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `accountId` | `string` | 所屬帳戶 |
-| `title` | `string` | 需求標題 |
-| `description` | `string \| null` | 描述（可選） |
+| `id` | `string` | ?瘙蜓??|
+| `workspaceId` | `string` | ?撅砍極雿? |
+| `accountId` | `string` | ?撅砍董??|
+| `title` | `string` | ?瘙?憿?|
+| `description` | `string \| null` | ?膩嚗?賂? |
 | `status` | `DemandStatus` | `draft \| open \| in_progress \| completed` |
 | `priority` | `DemandPriority` | `low \| medium \| high` |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
+| `dueDate` | `string \| null` | ?芣迫?交? ISO 8601 |
 | `createdAt` | `string` | ISO 8601 |
 | `updatedAt` | `string` | ISO 8601 |
 
-### 不變數
+### 銝???
 
-- `title` 不可為空
-- `completed` 狀態不可逆回 `draft`
+- `title` 銝?箇征
+- `completed` ????舫? `draft`
 
 ---
 
-## 值物件
+## ?潛隞?
 
-| 值物件 | 說明 |
+| ?潛隞?| 隤芣? |
 |--------|------|
 | `DemandStatus` | `"draft" \| "open" \| "in_progress" \| "completed"` |
 | `DemandPriority` | `"low" \| "medium" \| "high"` |
@@ -43,6 +43,6 @@ draft ──► open ──► in_progress ──► completed
 
 ## Repository Interfaces
 
-| 介面 | 主要方法 |
+| 隞 | 銝餉??寞? |
 |------|---------|
 | `DemandRepository` | `save()`, `findById()`, `listByWorkspace()`, `updateStatus()` |
