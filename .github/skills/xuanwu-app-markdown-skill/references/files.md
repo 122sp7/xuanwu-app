@@ -15472,6 +15472,466 @@ identityApi.listenToTokenRefresh()
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
 ````
 
+## File: docs/ddd/knowledge-base/AGENT.md
+````markdown
+# knowledge-base — DDD Agent
+
+## 戰略分類
+
+| 屬性 | 值 |
+|---|---|
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
+
+## 為何是 Core Domain
+
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+
+## 關鍵設計決策
+
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+
+## 詳細實作文件
+
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+````
+
+## File: docs/ddd/knowledge-base/aggregates.md
+````markdown
+# knowledge-base — 聚合根摘要
+
+> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+
+## Article（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `title`, `content` | 文章標題與主體 |
+| `status` | `draft` / `published` / `archived` |
+| `verificationState` | `verified` / `needs_review` / `unverified` |
+| `ownerId` | 文章負責人（ArticleOwner） |
+| `linkedArticleIds` | Backlink 引用列表 |
+| `categoryId` | 所屬分類 |
+| `tags` | 標籤列表 |
+
+## Category（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `name`, `slug` | 分類名稱與 URL 識別碼 |  
+| `parentCategoryId` | 父分類（null = 根節點） |
+| `depth` | 層級深度（最大 5）|
+| `articleIds` | 直屬文章 ID 列表 |
+````
+
+## File: docs/ddd/knowledge-base/application-services.md
+````markdown
+# knowledge-base — Application Services
+
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks
+
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
+````
+
+## File: docs/ddd/knowledge-base/context-map.md
+````markdown
+# knowledge-base — Context Map
+
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
+
+## 上游
+
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+
+## 下游
+
+- `knowledge` — 頁面可提升（Promote）為 Article
+- `knowledge-database` — Article 可與 Record 連結（ACL）
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
+````
+
+## File: docs/ddd/knowledge-base/domain-events.md
+````markdown
+# knowledge-base — 領域事件
+
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+
+## 事件清單
+
+| 事件 | 觸發條件 |
+|---|---|
+| `knowledge-base.article_created` | 文章建立（狀態 draft） |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
+````
+
+## File: docs/ddd/knowledge-base/domain-services.md
+````markdown
+# knowledge-base — Domain Services
+
+> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+
+- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
+- `ArticleSlugService` — title → URL-safe slug 轉換
+- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+````
+
+## File: docs/ddd/knowledge-base/README.md
+````markdown
+# knowledge-base — DDD Reference
+
+> **Domain Type:** Core Domain
+> **Module:** `modules/knowledge-base/`
+> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
+
+## 戰略定位
+
+`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
+
+## Bounded Context 邊界
+
+- **擁有：** Article（文章）、Category（分類）
+- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
+
+## 核心聚合
+
+詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
+
+- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
+- **Category** — 層級分類目錄（最多 5 層）
+
+## 主要領域事件
+
+詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
+
+- `knowledge-base.article_created`
+- `knowledge-base.article_published`
+- `knowledge-base.article_verified`
+- `knowledge-base.article_review_requested`
+- `knowledge-base.category_created`
+
+## 通用語言
+
+詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+
+- **Article** ≠ Page（個人筆記）≠ Document（泛型）
+- **VerificationState** ≠ ApprovalState（knowledge 的審核）
+- **Backlink** = `[[Article Title]]` wikilink 解析結果
+
+## 上下文關係
+
+詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier |
+| 下游 | `knowledge` (promote) | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed` | Published Language |
+````
+
+## File: docs/ddd/knowledge-base/repositories.md
+````markdown
+# knowledge-base — Repositories
+
+> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
+
+- `IArticleRepository` — CRUD + search + backlink 反查
+- `ICategoryRepository` — 層級樹操作 + articleIds 管理
+
+**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
+````
+
+## File: docs/ddd/knowledge-base/ubiquitous-language.md
+````markdown
+# knowledge-base — 通用語言
+
+> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
+
+## 核心術語速查
+
+| 術語 | 定義 |
+|---|---|
+| **Article** | 組織級知識文章（SOP / Wiki） |
+| **Category** | 層級分類目錄（max 5 層） |
+| **VerificationState** | `verified` / `needs_review` / `unverified` |
+| **ArticleOwner** | 負責維護文章準確性的使用者 |
+| **Backlink** | `[[Article Title]]` 解析的反向引用 |
+| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
+````
+
+## File: docs/ddd/knowledge-collaboration/AGENT.md
+````markdown
+# knowledge-collaboration — DDD Agent
+
+**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
+
+為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
+
+→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+````
+
+## File: docs/ddd/knowledge-collaboration/aggregates.md
+````markdown
+**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
+**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
+**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
+
+→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
+````
+
+## File: docs/ddd/knowledge-collaboration/application-services.md
+````markdown
+Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
+Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
+Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
+
+→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
+````
+
+## File: docs/ddd/knowledge-collaboration/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
+下游消費者: `notification`, `workspace-feed`, `workspace-audit`
+
+→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
+````
+
+## File: docs/ddd/knowledge-collaboration/domain-events.md
+````markdown
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
+````
+
+## File: docs/ddd/knowledge-collaboration/domain-services.md
+````markdown
+- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
+- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
+
+→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
+````
+
+## File: docs/ddd/knowledge-collaboration/README.md
+````markdown
+# knowledge-collaboration — DDD Reference
+
+> **Domain Type:** Supporting Subdomain + Generic Subdomain
+> **Module:** `modules/knowledge-collaboration/`
+> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+
+## 戰略定位
+
+`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
+
+## 核心聚合
+
+- **Comment** — 線程式留言，透過 `contentId` 引用內容
+- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
+- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
+
+## 主要領域事件
+
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Comment** | 針對 contentId 的留言（root 或 reply） |
+| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
+| **Version** | immutable Block 快照 |
+| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
+| **contentId** | opaque reference 到任意知識內容 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity` | Conformist |
+| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
+````
+
+## File: docs/ddd/knowledge-collaboration/repositories.md
+````markdown
+ICommentRepository, IPermissionRepository, IVersionRepository
+
+Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
+
+→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
+````
+
+## File: docs/ddd/knowledge-collaboration/ubiquitous-language.md
+````markdown
+| Comment | 留言（≠ Note, Message） |
+| Permission | 存取授權（≠ Role） |
+| PermissionLevel | view < comment < edit < full |
+| Version | Block 快照（≠ Revision, History） |
+| NamedVersion | 附標籤的具名版本（不自動刪除） |
+| contentId | opaque ID 跨 BC 引用 |
+| PageLock | 防並發的暫時鎖定 |
+
+→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
+````
+
+## File: docs/ddd/knowledge-database/AGENT.md
+````markdown
+# knowledge-database — DDD Agent
+
+**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
+
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
+
+→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
+````
+
+## File: docs/ddd/knowledge-database/aggregates.md
+````markdown
+**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
+**Record** — databaseId + properties(Map<fieldId, value>) + order
+**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
+
+→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
+````
+
+## File: docs/ddd/knowledge-database/application-services.md
+````markdown
+Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
+View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
+Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
+
+→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
+````
+
+## File: docs/ddd/knowledge-database/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission)
+下游: `knowledge`(inline db), `knowledge-base`(article-record link), `workspace-feed`, `notification`
+
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
+````
+
+## File: docs/ddd/knowledge-database/domain-events.md
+````markdown
+- `knowledge-database.database_created` / `database_renamed`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
+````
+
+## File: docs/ddd/knowledge-database/domain-services.md
+````markdown
+- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
+- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
+
+→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
+````
+
+## File: docs/ddd/knowledge-database/README.md
+````markdown
+# knowledge-collaboration — DDD Reference
+
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+
+## 戰略定位
+
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+
+## 核心聚合
+
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
+
+## 視圖類型
+
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
+| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
+````
+
+## File: docs/ddd/knowledge-database/repositories.md
+````markdown
+IDatabaseRepository, IRecordRepository, IViewRepository
+
+Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
+
+→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
+````
+
+## File: docs/ddd/knowledge-database/ubiquitous-language.md
+````markdown
+| Database | 結構化資料容器（≠ KnowledgeCollection） |
+| Field | 欄位定義（≠ Column）|
+| Record | 資料行（≠ Row, Item, Entry）|
+| Property | 某 Field 的具體值（Map） |
+| View | 視圖配置 — 不持有資料 |
+| ViewType | table/board/list/calendar/timeline/gallery |
+| Relation | 跨 Database 的 Record 連結欄位 |
+
+→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
+````
+
 ## File: docs/ddd/knowledge/context-map.md
 ````markdown
 # Context Map — knowledge
@@ -17138,246 +17598,6 @@ Application layer 只負責：
 | `SourceDocument` | `File`, `Document`, `Asset` |
 | `WikiLibrary` | `Library`, `Folder`, `Collection` |
 | `RetentionPolicy` | `Policy`, `LifecycleRule` |
-````
-
-## File: docs/ddd/wiki/AGENT.md
-````markdown
-# AGENT.md — wiki BC
-
-## 模組定位
-
-`wiki` 是 Core Domain，負責 GraphNode 與 GraphEdge 的知識圖譜生命週期。是 Xuanwu 的核心差異化視覺特性。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `GraphNode` | Node、WikiNode、KnowledgeNode、Page（在圖譜上下文） |
-| `GraphEdge` | Edge、Link、Connection、Relation |
-| `EdgeType` | RelationType、LinkType |
-| `NodeType` | NodeKind、PageType（在圖譜上下文） |
-| `Backlink` | ReverseLink、InboundLink |
-| `GraphTraversal` | Graph Walk、Traversal |
-| `AutoLink` | AutoConnect、AutoRelate |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { wikiApi } from "@/modules/wiki/api";
-import type { GraphNodeDTO, GraphEdgeDTO } from "@/modules/wiki/api";
-```
-
-### ❌ 禁止
-```typescript
-import { GraphNode } from "@/modules/wiki/domain/entities/graph-node";
-// modules/ai/domain/entities/graph-node.ts 是 @deprecated stub，不要使用
-```
-
-## 棄用守衛
-
-`modules/ai/domain/entities/graph-node.ts` 和 `modules/ai/domain/entities/link.ts` 都是 `@deprecated` stub，已移至 `modules/wiki/domain/`。絕對不要 import 這些舊路徑。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: docs/ddd/wiki/application-services.md
-````markdown
-# wiki — Application Services
-
-> **Canonical bounded context:** `wiki`
-> **模組路徑:** `modules/wiki/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `wiki` 的 application layer 服務與 use cases。內容與 `modules/wiki/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識圖譜節點與邊，提供 backlink 與 graph traversal 能力。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/link-extractor.service.ts`
-- `application/use-cases/auto-link.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/wiki/README.md`
-- 模組 AGENT：`../../../modules/wiki/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/wiki/application-services.md`
-````
-
-## File: docs/ddd/wiki/context-map.md
-````markdown
-# Context Map — wiki
-
-## 上游（依賴）
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge` 的頁面事件以同步 GraphNode 生命週期
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`（共享主鍵）
-
-```
-knowledge.page_created ──► wiki: 建立 GraphNode
-knowledge.block_updated ──► wiki: 更新 AutoLink GraphEdge
-knowledge.page_archived ──► wiki: 歸檔 GraphNode
-```
-
-### workspace → wiki（Customer/Supplier）
-
-- GraphNode 歸屬於 workspaceId
-
----
-
-## 下游（被依賴）
-
-### wiki → search（Customer/Supplier）
-
-- `search` 消費 `wiki.node_activated` 以更新向量索引
-- RAG 查詢結果中的圖譜上下文由 wiki 提供
-
-### wiki → notebook（Customer/Supplier）
-
-- AI 對話生成時，`notebook` 可查詢 wiki 圖譜以取得知識上下文
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| knowledge → wiki | knowledge | wiki | Published Language (Events) |
-| workspace → wiki | workspace | wiki | Customer/Supplier |
-| wiki → search | wiki | search | Customer/Supplier（Events） |
-| wiki → notebook | wiki | notebook | Customer/Supplier（Query） |
-````
-
-## File: docs/ddd/wiki/domain-events.md
-````markdown
-# Domain Events — wiki
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `wiki.node_created` | 新 GraphNode 建立時 | `nodeId`, `workspaceId`, `nodeType`, `occurredAt` |
-| `wiki.node_activated` | GraphNode 從 draft → active | `nodeId`, `workspaceId`, `occurredAt` |
-| `wiki.node_archived` | GraphNode 歸檔 | `nodeId`, `workspaceId`, `occurredAt` |
-| `wiki.edge_created` | 新 GraphEdge 建立時 | `edgeId`, `sourceNodeId`, `targetNodeId`, `edgeType`, `occurredAt` |
-| `wiki.edge_activated` | GraphEdge 從 pending → active | `edgeId`, `occurredAt` |
-| `wiki.edge_removed` | GraphEdge 移除 | `edgeId`, `occurredAt` |
-| `wiki.autolink_created` | 系統自動建立 Backlink 關係 | `edgeId`, `sourceNodeId`, `targetNodeId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_created` | 建立對應的 GraphNode |
-| `knowledge` | `knowledge.block_updated` | 掃描區塊內容，建立/更新 AutoLink GraphEdge |
-| `knowledge` | `knowledge.page_archived` | 將對應 GraphNode 設為 archived |
-
-## 消費 wiki 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `search` | `wiki.node_activated` | 更新向量索引中的節點內容 |
-| `notebook` | wiki 圖譜查詢（非事件） | AI 推理時參考圖譜結構 |
-````
-
-## File: docs/ddd/wiki/domain-services.md
-````markdown
-# wiki — Domain Services
-
-> **Canonical bounded context:** `wiki`
-> **模組路徑:** `modules/wiki/`
-> **Domain Type:** Core Domain
-
-本文件整理 `wiki` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/wiki/domain-services.md`
-- `../../../docs/ddd/wiki/aggregates.md`
-````
-
-## File: docs/ddd/wiki/repositories.md
-````markdown
-# wiki — Repositories
-
-> **Canonical bounded context:** `wiki`
-> **模組路徑:** `modules/wiki/`
-> **Domain Type:** Core Domain
-
-本文件整理 `wiki` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/GraphRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/InMemoryGraphRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/wiki/repositories.md`
-- `../../../docs/ddd/wiki/aggregates.md`
-````
-
-## File: docs/ddd/wiki/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — wiki
-
-> **範圍：** 僅限 `modules/wiki/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 圖譜節點 | GraphNode | 知識圖譜中的一個節點，對應一個知識概念或頁面 |
-| 圖譜邊 | GraphEdge | 兩個 GraphNode 之間的有向關係 |
-| 節點類型 | NodeType | 節點的語意類型（concept, page, entity 等） |
-| 邊類型 | EdgeType | 關係的語意類型（references, contains, related_to 等） |
-| 反向連結 | Backlink | 指向特定節點的所有入向邊（inbound edges） |
-| 圖遍歷 | GraphTraversal | 從起點節點沿邊向外擴展，取得關聯節點集 |
-| 自動連結 | AutoLink | 系統自動識別內容引用並建立 GraphEdge 的機制 |
-| 節點狀態 | NodeStatus | GraphNode 的生命週期狀態：`draft \| active \| archived` |
-| 邊狀態 | EdgeStatus | GraphEdge 的生命週期狀態：`pending \| active \| inactive \| removed` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `GraphNode` | `Node`, `WikiNode`, `Page`（圖譜上下文中） |
-| `GraphEdge` | `Edge`, `Link`, `Connection` |
-| `Backlink` | `InboundLink`, `ReverseLink` |
 ````
 
 ## File: docs/ddd/workspace-audit/AGENT.md
@@ -20647,141 +20867,6 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 - Deep conceptual essays
 ````
 
-## File: modules/knowledge-base/AGENT.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/aggregates.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/application-services.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/context-map.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/domain-events.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/domain-services.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/README.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/repositories.md
-````markdown
-
-````
-
-## File: modules/knowledge-base/ubiquitous-language.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/AGENT.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/aggregates.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/application-services.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/context-map.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/domain-events.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/domain-services.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/README.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/repositories.md
-````markdown
-
-````
-
-## File: modules/knowledge-collaboration/ubiquitous-language.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/AGENT.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/aggregates.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/application-services.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/context-map.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/domain-events.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/domain-services.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/README.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/repositories.md
-````markdown
-
-````
-
-## File: modules/knowledge-database/ubiquitous-language.md
-````markdown
-
-````
-
 ## File: PERMISSIONS.md
 ````markdown
 # Permissions
@@ -21078,6 +21163,1397 @@ This repository does not currently keep a standalone long-form spec workflow gui
 - [`docs/reference/specification/system-overview.md`](docs/reference/specification/system-overview.md) — baseline product and system specification context
 
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
+````
+
+## File: .github/instructions/app/app-router-parallel-routes.instructions.md
+````markdown
+---
+name: 'App Router Parallel Routes'
+description: 'Rules for app/ route slices and parallel-route UI blocks that compose module APIs without importing module internals.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# App Router Parallel Routes
+
+Use this instruction for work in `app/`.
+
+## Composition Rules
+
+- Treat each route slice or parallel-route block as one feature area: dashboard surface, sidebar tool, modal, or chat console.
+- Keep data flow one-way from module API -> route composition -> local UI state.
+- Import module behavior through `@/modules/<target>/api` only.
+- Keep route files focused on composition, loading states, and rendering.
+
+## Guardrails
+
+- Do not import `domain/`, `application/`, or `infrastructure/` from any module.
+- Do not move business rules into `app/`.
+- Keep slot-local state isolated; do not hide coupling through shared mutable module state.
+- Prefer Server Components by default; add `use client` only where interactivity requires it.
+
+## Validation
+
+- Run the app-level commands from `agents/commands.md` that match the touched files.
+- If routing or public API usage changes, update affected docs or prompt/instruction references in the same change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill app-router-parallel-routes
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/instructions/architecture-api-boundary.instructions.md
+````markdown
+---
+description: 'Cross-boundary rules for API-only collaboration between modules and runtimes.'
+applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Architecture API Boundary
+
+## Core Rule
+
+- Cross-module access must go through `modules/<target>/api` only.
+- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
+
+## Allowed Patterns
+
+- Import public facades or contracts from `modules/<target>/api`.
+- Coordinate across contexts through explicit event contracts.
+
+## Forbidden Patterns
+
+- Reach-through imports into another module's private entities, repositories, or adapters.
+- Hiding boundary bypasses behind barrels or re-export chains.
+
+## Refactor Rule
+
+- When boundary violations are found, replace them with API contracts or events in the same change.
+- Do not leave temporary reach-through imports after refactors.
+
+## Validation
+
+- Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
+- Re-check changed imports for `@/modules/` to confirm API-only access.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/architecture-mddd.instructions.md
+````markdown
+---
+description: 'MDDD architecture rules for layer ownership and dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture MDDD
+
+## Layer Direction
+
+- `interfaces -> application -> domain <- infrastructure`
+- Keep `domain/` framework-free.
+
+## Layer Constraints
+
+- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
+- `application/` orchestrates use cases and coordinates domain abstractions.
+- `infrastructure/` implements domain ports and repository interfaces.
+- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+
+## Layer Ownership
+
+- `domain/`: entities, value objects, domain services, repository interfaces.
+- `application/`: use cases and DTO orchestration.
+- `infrastructure/`: adapters and external implementations.
+- `interfaces/`: UI, transport, and action wiring.
+- `api/`: only public cross-module boundary.
+
+## Dependency Guardrails
+
+- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
+- Do not reverse dependency direction for convenience during refactors.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/architecture-modules.instructions.md
+````markdown
+---
+description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Modules
+
+## Required Shape
+
+- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+
+## Naming
+
+- Module folder: kebab-case bounded context.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor Checklist
+
+1. Confirm ownership.
+2. Map API consumers.
+3. Preserve boundaries during split/merge/delete.
+4. Update docs and imports in the same change.
+5. Migrate public API and event contracts before removing old paths.
+
+## Module Lifecycle Notes
+
+- New module: establish `api/` contract immediately and document inventory updates.
+- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
+- Delete: remove consumers first, then delete module, then update docs and dependency references.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/architecture-monorepo.instructions.md
+````markdown
+---
+description: 'Monorepo boundary rules across app, modules, packages, and worker runtime.'
+applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
+---
+
+# Architecture Monorepo
+
+## Boundary Rules
+
+- `app/` composes module APIs and package aliases.
+- `modules/` own business capabilities by bounded context.
+- `packages/` provide stable shared implementations via aliases.
+- `py_fn/` owns ingestion and heavy worker jobs.
+
+## Runtime Ownership Rule
+
+- Browser-facing interactions, auth/session, and route orchestration stay in Next.js.
+- Background, retryable, and heavy ingestion jobs stay in `py_fn/`.
+
+## External Docs Rule
+
+- Use external documentation lookup only when repository sources are insufficient or version-sensitive behavior is uncertain.
+- Prefer local authoritative sources first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, and local code.
+
+## Import Rules
+
+- Use configured aliases; avoid legacy import families.
+- Avoid cross-layer relative imports across contexts.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+#use skill next-devtools-mcp
+````
+
+## File: .github/instructions/branching-strategy.instructions.md
+````markdown
+---
+description: 'Branching and change-scope strategy for focused, reviewable delivery.'
+applyTo: '**/*'
+---
+
+# Branching Strategy
+
+## Rules
+
+- Keep one concern per branch and PR.
+- Name branches by intent and scope.
+- Avoid mixing architecture refactor with unrelated feature work.
+
+## Validation Before Merge
+
+- Run relevant lint/build/test commands for touched runtime.
+- Document what changed and why.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/ci-cd.instructions.md
+````markdown
+---
+description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
+applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
+---
+
+# CI CD
+
+## Required Checks
+
+- `npm run lint`
+- `npm run build`
+- `cd py_fn && python -m compileall -q .`
+- `cd py_fn && python -m pytest tests/ -v`
+
+## Rules
+
+- Do not skip failing mandatory checks.
+- Report unrelated baseline failures separately.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/cloud-functions.instructions.md
+````markdown
+---
+description: 'Rules for Python Cloud Functions worker responsibilities and boundaries.'
+applyTo: 'py_fn/**/*.py'
+---
+
+# Cloud Functions
+
+## Ownership
+
+- `py_fn/` handles parsing, cleaning, taxonomy, chunking, embedding, and background jobs.
+- Do not add browser-facing chat/auth/session logic in `py_fn/`.
+
+## Runtime Decision Rule
+
+- If called directly from page or browser flow, keep it in Next.js.
+- If heavy, retryable, admin/internal, or long-running, keep it in `py_fn/`.
+
+## Guardrails
+
+- Preserve worker layer boundaries.
+- Keep ingest job flow deterministic and retry-safe.
+
+## Boundary Change Validation
+
+- Before changing worker ownership, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
+- Update `py_fn/README.md` when responsibilities or runtime contracts change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+````
+
+## File: .github/instructions/commit-convention.instructions.md
+````markdown
+---
+description: 'Commit message and change-summary conventions for maintainable history.'
+applyTo: '**/*'
+---
+
+# Commit Convention
+
+## Rules
+
+- Keep subject concise and action-oriented.
+- Reference scope (module/runtime) in commit body when relevant.
+- Include validation evidence for non-trivial changes.
+
+## Avoid
+
+- Mixed unrelated changes in one commit.
+- Vague subjects with no functional signal.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/embedding-pipeline.instructions.md
+````markdown
+---
+description: 'Ingestion and embedding pipeline contract for worker-side RAG preparation.'
+applyTo: '{py_fn/**/*.py,docs/**/*.md}'
+---
+
+# Embedding Pipeline
+
+## Contract Order
+
+Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore writes -> Mark ready
+
+## Rules
+
+- Do not reorder stages without contract/doc update.
+- Normalize source documents to markdown (for example via MarkItDown) before chunking when required by source format.
+- Keep metadata traceable for retrieval citations.
+- Validate converted markdown quality before chunking.
+- Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill llamaparse
+#use skill liteparse
+````
+
+## File: .github/instructions/firebase-architecture.instructions.md
+````markdown
+---
+description: 'Firebase architecture boundaries for Next.js orchestration, Firestore, and Python worker runtime.'
+applyTo: '{app,modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Firebase Architecture
+
+## Runtime Split
+
+- Next.js: user-facing orchestration, auth/session, server actions.
+- `py_fn/`: heavy ingestion, embedding, and background operations.
+
+## Responsibility Split
+
+- Next.js owns upload UX, browser-facing APIs, and AI response orchestration.
+- `py_fn/` owns parse/clean/taxonomy/chunk/embed/persist pipelines.
+
+## Data Boundary
+
+- Keep Firestore document contracts explicit.
+- Avoid implicit schema drift across modules.
+- Preserve source and chunk metadata traceability for audit and citation needs.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/firestore-schema.instructions.md
+````markdown
+---
+description: 'Firestore schema and index design rules aligned to bounded context ownership.'
+applyTo: '{modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json,firestore.rules}'
+---
+
+# Firestore Schema
+
+## Rules
+
+- Keep collection ownership explicit per module.
+- Version breaking schema transitions with migration steps.
+- Update indexes with query-shape changes.
+
+## Validation
+
+- Verify read/write paths remain compatible.
+- Confirm index coverage for new query patterns.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/genkit-flow.instructions.md
+````markdown
+---
+description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
+applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
+---
+
+# Genkit Flow
+
+## Rules
+
+- Keep flow inputs/outputs explicit and typed.
+- Keep user-facing orchestration in Next.js.
+- Delegate heavy ingestion/embedding to worker-side pipelines.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill next-devtools-mcp
+````
+
+## File: .github/instructions/hosting-deploy.instructions.md
+````markdown
+---
+description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
+applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
+---
+
+# Hosting Deploy
+
+## Rules
+
+- Validate build and config before deployment.
+- Keep deploy scope explicit (hosting, rules, indexes, functions).
+- Record rollback path for production-impacting changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/lint-format.instructions.md
+````markdown
+---
+description: 'Lint and formatting expectations for TypeScript and Python changes.'
+applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Lint Format
+
+## Required Commands
+
+- `npm run lint`
+- `npm run build` when types or exports changed
+- `cd py_fn && python -m compileall -q .`
+
+## Rules
+
+- Fix new lint errors introduced by your change.
+- Do not hide violations by broad rule disables.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-typescript-workbench
+````
+
+## File: .github/instructions/modules/modules-api-surface.instructions.md
+````markdown
+---
+name: 'Modules API Surface'
+description: 'Rules for modules/*/api files so cross-domain access stays API-only through contracts and facades.'
+applyTo: 'modules/**/api/**/*.ts'
+---
+
+# Modules API Surface
+
+Use this instruction for `modules/*/api` files.
+
+## Required Shape
+
+- Keep `contracts.ts` for DTOs, request types, response types, and stable public contracts.
+- Keep `facade.ts` for outward use-case entry points that the app layer or other modules can call.
+- Export the minimum stable surface needed by consumers.
+
+## Guardrails
+
+- Do not instantiate infrastructure adapters directly in `api/`.
+- Do not expose private domain entities or repository implementations unless a public contract explicitly requires a translated type.
+- Do not reach into other modules except through their own `api/` boundaries.
+
+## Validation
+
+- Re-check every new export and downstream import path.
+- Run validation from `agents/commands.md` when API signatures or import surfaces change.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/modules/modules-index-entry.instructions.md
+````markdown
+---
+name: 'Modules Index Entry'
+description: 'Rules for modules/*/index.ts files so they remain aggregate exports without embedded business logic.'
+applyTo: 'modules/**/index.ts'
+---
+
+# Modules Index Entry
+
+Use this instruction for module root `index.ts` files.
+
+## Rules
+
+- `index.ts` is an aggregate export only.
+- Re-export stable public members from `api/` or other intentionally public entry points.
+- Keep the file free of orchestration, conditionals, adapter wiring, and business logic.
+
+## Guardrails
+
+- Do not implement use cases, facades, or stateful helpers here.
+- Do not expose private infrastructure or domain internals through convenience exports.
+
+## Validation
+
+- Verify that app-layer or cross-module imports still resolve through the intended public surface.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+````
+
+## File: .github/instructions/modules/modules-infrastructure-adapters.instructions.md
+````markdown
+---
+name: 'Modules Infrastructure Adapters'
+description: 'Rules for modules/*/infrastructure files so external resources stay in adapters with downward-only dependencies.'
+applyTo: 'modules/**/infrastructure/**/*.{ts,tsx,js,jsx}'
+---
+
+# Modules Infrastructure Adapters
+
+Use this instruction for `modules/*/infrastructure` files.
+
+## Rules
+
+- Keep Firebase, storage, HTTP, queue, and third-party adapters here.
+- Infrastructure may depend on `domain/` contracts and entities needed to implement ports.
+- Keep adapter wiring explicit and local to infrastructure.
+
+## Guardrails
+
+- Do not depend on `application/`, `api/`, or `interfaces/`.
+- Do not place domain decision logic here.
+- Do not let app-layer concerns leak into adapter code.
+
+## Validation
+
+- Re-check dependency direction after import changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/modules/modules-interfaces-api-consumption.instructions.md
+````markdown
+---
+name: 'Modules Interfaces API Consumption'
+description: 'Rules for modules/*/interfaces files so UI, hooks, and external interfaces consume module behavior only through api/.'
+applyTo: 'modules/**/interfaces/**/*.{ts,tsx,js,jsx}'
+---
+
+# Modules Interfaces API Consumption
+
+Use this instruction for `modules/*/interfaces` files.
+
+## Rules
+
+- Put UI components, hooks, route-facing adapters, and interface DTOs here.
+- Consume module behavior through the module's own `api/` surface.
+- Keep local view state or interaction state inside the interface layer.
+
+## Guardrails
+
+- Do not import the same module's `domain/` or `application/` directly.
+- Do not import another module's internals.
+- Do not place external resource adapters here.
+
+## Validation
+
+- Re-check imports for accidental reach-through before finishing.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/instructions/nextjs-app-router.instructions.md
+````markdown
+---
+description: 'Next.js App Router composition rules for route slices and ownership boundaries.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs App Router
+
+## Rules
+
+- Keep route files focused on composition and rendering.
+- Prefer Server Components unless client interactivity is required.
+- Keep business logic in modules and consume via module APIs.
+- Use package aliases and avoid legacy import families.
+- Keep `app/` as composition ownership, not domain-rule ownership.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+#use skill vercel-composition-patterns
+````
+
+## File: .github/instructions/nextjs-parallel-routes.instructions.md
+````markdown
+---
+description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
+applyTo: 'app/**/*.{ts,tsx}'
+---
+
+# Nextjs Parallel Routes
+
+## Rules
+
+- Keep slot-level state isolated.
+- Avoid hidden coupling between unrelated slots.
+- Consume cross-domain behavior through module APIs only.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill app-router-parallel-routes
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/instructions/nextjs-server-actions.instructions.md
+````markdown
+---
+description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
+applyTo: '{app,modules}/**/*.{ts,tsx}'
+---
+
+# Nextjs Server Actions
+
+## Rules
+
+- Use `use server` explicitly.
+- Keep actions thin and delegate business logic to use cases.
+- Return consistent command result shapes.
+- Validate inputs at action boundaries using shared validators where applicable.
+- Keep infrastructure access out of route files and action wrappers.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/instructions/prompt-engineering.instructions.md
+````markdown
+---
+description: 'Prompt authoring rules for deterministic, low-noise, reusable workflow prompts.'
+applyTo: '.github/prompts/**/*.prompt.md'
+---
+
+# Prompt Engineering
+
+## Frontmatter
+
+- Use clear `description` and `agent` fields.
+- Declare `tools` with least privilege when tool usage is required.
+- Keep `argument-hint` explicit when the prompt expects user inputs.
+
+## Structure
+
+1. Mission
+2. Inputs
+3. Workflow
+4. Output contract
+5. Validation
+
+## Rules
+
+- Keep prompts specific and executable.
+- Declare required inputs and fallbacks.
+- Keep tools least-privilege when defined.
+- Avoid copying repository-global policy into each prompt.
+- Prefer short executable steps over long background text.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+````
+
+## File: .github/instructions/rag-architecture.instructions.md
+````markdown
+---
+description: 'RAG architecture boundaries for conversion, chunking, embedding, and retrieval workflows.'
+applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
+---
+
+# RAG Architecture
+
+## Rules
+
+- Normalize source docs before chunking when needed, including MarkItDown-based conversion for non-markdown sources.
+- Keep retrieval metadata auditable and source-traceable.
+- Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill llamaparse
+#use skill liteparse
+````
+
+## File: .github/instructions/security-rules.instructions.md
+````markdown
+---
+description: 'Security rules guardrails for Firestore and Storage with least-privilege access.'
+applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
+---
+
+# Security Rules
+
+## Rules
+
+- Enforce organization and workspace isolation.
+- Keep allow conditions explicit and auditable.
+- Pair rule changes with scenario-based validation.
+
+## Avoid
+
+- Broad wildcard allows without actor checks.
+- Hidden coupling to UI-side assumptions.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/instructions/shadcn-ui.instructions.md
+````markdown
+---
+description: 'shadcn/ui usage rules for consistent component composition and accessibility.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
+---
+
+# Shadcn UI
+
+## Rules
+
+- Prefer existing primitives before creating new components.
+- Keep semantic markup and keyboard accessibility intact.
+- Keep component concerns separate from business rules.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill shadcn
+#use skill web-design-guidelines
+````
+
+## File: .github/instructions/tailwind-design-system.instructions.md
+````markdown
+---
+description: 'Tailwind design-system consistency rules for tokens, spacing, and responsive behavior.'
+applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
+---
+
+# Tailwind Design System
+
+## Rules
+
+- Reuse established tokens and utility conventions.
+- Keep spacing and typography scales consistent.
+- Avoid ad-hoc one-off style patterns without rationale.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill web-design-guidelines
+#use skill shadcn
+````
+
+## File: .github/instructions/testing-e2e.instructions.md
+````markdown
+---
+description: 'End-to-end testing rules for browser flows, evidence capture, and release confidence.'
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Testing E2E
+
+## Rules
+
+- Validate user-critical flows and failure paths.
+- Capture reproducible evidence for failures.
+- Separate confirmed defects from enhancement suggestions.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-testing-debugging-browser
+#use skill next-devtools-mcp
+````
+
+## File: .github/instructions/testing-unit.instructions.md
+````markdown
+---
+description: 'Unit testing rules for deterministic, isolated, and behavior-focused coverage.'
+applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
+---
+
+# Testing Unit
+
+## Rules
+
+- Keep tests deterministic and isolated.
+- Test behavior and invariants, not implementation trivia.
+- Cover happy, boundary, and negative paths for core domain logic.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-testing-debugging-browser
+#use skill vscode-typescript-workbench
+````
+
+## File: .github/prompts/analyze-repo.prompt.md
+````markdown
+---
+name: analyze-repo
+description: Analyze repository structure, ownership boundaries, and change impact before implementation.
+agent: Serena Strategist
+argument-hint: Provide target area, goal, and constraints.
+---
+
+# Analyze Repo
+
+## Mission
+
+Map ownership, boundaries, and risks before coding.
+
+## Inputs
+
+- target: ${input:target:modules/workspace}
+- goal: ${input:goal:what needs to change}
+- constraints: ${input:constraints:boundary, runtime, timeline}
+
+## Workflow
+
+1. Identify owning module and runtime.
+2. Locate existing APIs, use cases, and adapters.
+3. Flag boundary violations and regression risks.
+4. Recommend minimal-change implementation path.
+
+## Output Contract
+
+- Ownership map
+- Affected files
+- Risk list
+- Suggested next prompt
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/prompts/app/create-parallel-route-slice.prompt.md
+````markdown
+---
+name: 'create-parallel-route-slice'
+description: 'Create or refactor an app/ route slice or parallel-route block that composes module APIs without importing module internals.'
+agent: 'App Router Composer'
+argument-hint: 'Provide the route path, UI block role, allowed module APIs, and whether the slice should be server or client.'
+---
+
+# Create Parallel Route Slice
+
+## Mission
+
+Create or refactor a route slice in `app/` that composes one feature block and keeps the module boundary API-only.
+
+## Inputs
+
+- Route path: `${input:routePath:app/(shell)/dashboard}`
+- Block role: `${input:blockRole:dashboard panel | sidebar tool | modal | chat console}`
+- Allowed module APIs: `${input:moduleApis:@/modules/workspace/api}`
+- Rendering mode: `${input:renderMode:server | client}`
+
+## Workflow
+
+1. Keep the slice focused on one UI responsibility.
+2. Consume module data through public APIs only.
+3. Keep local UI state isolated to this slice or its local components.
+4. Avoid embedding business logic in the route layer.
+5. Run the minimum validation needed for the touched files.
+
+## Output
+
+- Files created or changed
+- Module APIs consumed
+- Validation run
+- Any remaining route-state or boundary risks
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill app-router-parallel-routes
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/prompts/chunk-docs.prompt.md
+````markdown
+---
+name: chunk-docs
+description: Define and execute document chunking strategy for retrieval quality and context efficiency.
+agent: rag-lead
+argument-hint: Provide source docs, target chunk policy, and constraints.
+---
+
+# Chunk Docs
+
+## Inputs
+
+- docs: ${input:docs:docs/**/*.md}
+- policy: ${input:policy:size,overlap,metadata}
+- constraints: ${input:constraints:token budget and citation needs}
+
+## Workflow
+
+1. Validate document normalization status.
+2. Apply chunking policy with explicit metadata fields.
+3. Check chunk quality for retrieval relevance.
+4. Report chunk statistics and edge cases.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill liteparse
+#use skill llamaparse
+````
+
+## File: .github/prompts/debug-error.prompt.md
+````markdown
+---
+name: debug-error
+description: Reproduce, diagnose, and propose fixes for runtime or logic errors with evidence.
+agent: App Router Agent
+argument-hint: Provide error message, route/module, and reproduction steps.
+---
+
+# Debug Error
+
+## Inputs
+
+- error: ${input:error:paste error message}
+- scope: ${input:scope:route/module/runtime}
+- repro: ${input:repro:steps to reproduce}
+
+## Workflow
+
+1. Reproduce issue and capture evidence.
+2. Isolate likely root cause and affected boundaries.
+3. Propose minimal fix plus regression checks.
+4. State validation commands to confirm resolution.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill next-devtools-mcp
+#use skill vscode-testing-debugging-browser
+````
+
+## File: .github/prompts/embedding-docs.prompt.md
+````markdown
+---
+name: embedding-docs
+description: Generate embeddings from normalized docs with traceable metadata and retrieval compatibility checks.
+agent: embedding-writer
+argument-hint: Provide doc sources, embedding model/runtime, and storage target.
+---
+
+# Embedding Docs
+
+## Workflow
+
+1. Confirm docs are normalized and chunked.
+2. Generate embeddings with stable metadata.
+3. Write vectors and verify retrieval compatibility.
+4. Report failures, retries, and quality risks.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill llamaparse
+````
+
+## File: .github/prompts/implement-feature.prompt.md
+````markdown
+---
+name: implement-feature
+description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
+agent: Domain Lead
+argument-hint: Provide approved plan reference and tasks to execute.
+---
+
+# Implement Feature
+
+## Requirements
+
+- Treat the approved plan as execution contract.
+- Keep within scope and non-goals.
+- Run required validation commands.
+- Update listed docs in the same change.
+
+## Output
+
+- Tasks completed
+- Validation run
+- Documentation updated
+- Deviations or blockers
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+````
+
+## File: .github/prompts/implement-firestore-schema.prompt.md
+````markdown
+---
+name: implement-firestore-schema
+description: Implement Firestore schema/index updates with backward-safe migration and validation evidence.
+agent: firestore-schema
+argument-hint: Provide collections, fields, query patterns, and migration constraints.
+---
+
+# Implement Firestore Schema
+
+## Workflow
+
+1. Define schema and ownership by bounded context.
+2. Update indexes for new query shapes.
+3. Plan migration or compatibility path.
+4. Validate read/write behavior and regressions.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/prompts/implement-genkit-flow.prompt.md
+````markdown
+---
+name: implement-genkit-flow
+description: Implement or refactor Genkit flow with explicit contracts, runtime boundaries, and validation.
+agent: genkit-flow
+argument-hint: Provide flow intent, inputs/outputs, and target runtime.
+---
+
+# Implement Genkit Flow
+
+## Workflow
+
+1. Define flow contract (input, output, failure modes).
+2. Keep orchestration in Next.js and heavy processing in worker runtime.
+3. Integrate with retrieval or action boundaries safely.
+4. Validate flow behavior and fallback paths.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/implement-security-rules.prompt.md
+````markdown
+---
+name: implement-security-rules
+description: Implement Firestore/Storage security rules with least privilege and tenancy isolation.
+agent: security-rules
+argument-hint: Provide access scenarios, actor roles, and constrained resources.
+---
+
+# Implement Security Rules
+
+## Workflow
+
+1. Enumerate allowed actor-resource actions.
+2. Encode explicit allow conditions and deny-by-default behavior.
+3. Validate with scenario-based checks.
+4. Report residual access risks.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/prompts/implement-server-action.prompt.md
+````markdown
+---
+name: implement-server-action
+description: Implement Next.js server actions as thin orchestrators that delegate to use cases.
+agent: server-action-writer
+argument-hint: Provide action intent, input schema, and target use case.
+---
+
+# Implement Server Action
+
+## Rules
+
+- Use `use server`.
+- Validate input at boundary.
+- Delegate business logic to module use cases.
+- Return stable command-result shape.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill next-devtools-mcp
+#use skill vercel-react-best-practices
+#use skill modules-mddd-api-surface
+````
+
+## File: .github/prompts/implement-ui-component.prompt.md
+````markdown
+---
+name: implement-ui-component
+description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
+agent: Component Agent
+argument-hint: Provide component goal, route scope, and interaction states.
+---
+
+# Implement UI Component
+
+## Workflow
+
+1. Confirm component ownership and target route slice.
+2. Reuse existing shadcn primitives where possible.
+3. Implement states: loading, empty, error, success.
+4. Validate accessibility and interaction behavior.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill shadcn
+#use skill web-design-guidelines
+#use skill vercel-react-best-practices
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/ingest-docs.prompt.md
+````markdown
+---
+name: ingest-docs
+description: Ingest and normalize documents for downstream chunking and embedding workflows.
+agent: doc-ingest
+argument-hint: Provide source format, target pipeline, and quality constraints.
+---
+
+# Ingest Docs
+
+## Workflow
+
+1. Convert/normalize sources to markdown when needed.
+2. Preserve source metadata and traceability.
+3. Validate structure quality for chunking.
+4. Output ingestion summary and loss-risk notes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-rag-runtime-boundary
+#use skill liteparse
+#use skill llamaparse
+````
+
+## File: .github/prompts/plan-api.prompt.md
+````markdown
+---
+name: plan-api
+description: Create an API-focused implementation plan covering contracts, facades, consumers, and validation.
+agent: Planner
+argument-hint: Provide API intent, owner module, consumers, and compatibility constraints.
+---
+
+# Plan API
+
+## Requirements
+
+- Define contract shape and owner boundary.
+- Identify consuming routes/modules.
+- Include compatibility and migration strategy.
+- Specify validation and documentation updates.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/prompts/plan-feature.prompt.md
+````markdown
+---
+name: plan-feature
+description: Create a formal implementation plan for a feature or scoped enhancement.
+agent: Planner
+argument-hint: Describe desired outcome, constraints, and affected modules.
+---
+
+# Plan Feature
+
+Use the implementation plan template and include scope, ownership, risks, validation, and non-goals.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/prompts/plan-module.prompt.md
+````markdown
+---
+name: plan-module
+description: Plan module lifecycle changes (create, refactor, split, merge, delete) under MDDD boundaries.
+agent: Modules Architect
+argument-hint: Provide module scope, operation type, and migration constraints.
+---
+
+# Plan Module
+
+## Workflow
+
+1. Confirm bounded-context ownership.
+2. Choose operation: create, refactor, split, merge, delete.
+3. Map API/event consumers and migration path.
+4. Define validation and docs updates.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/prompts/refactor-api.prompt.md
+````markdown
+---
+name: refactor-api
+description: Refactor module API surface with contract safety, consumer migration, and minimal boundary impact.
+agent: Modules API Surface Steward
+argument-hint: Provide current API, target API, and migration constraints.
+---
+
+# Refactor API
+
+## Rules
+
+- Preserve API-only cross-module access.
+- Avoid leaking internals through barrels.
+- Make compatibility path explicit when breaking changes are required.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/prompts/refactor-module.prompt.md
+````markdown
+---
+name: refactor-module
+description: Refactor existing module internals while preserving MDDD layers and public boundaries.
+agent: Modules Architect
+argument-hint: Provide module name, refactor goal, and boundary risks.
+---
+
+# Refactor Module
+
+## Workflow
+
+1. Analyze entity/use-case/repository ownership.
+2. Move logic into correct layer boundaries.
+3. Remove forbidden internal cross-module imports.
+4. Update tests/docs alongside code changes.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/prompts/review-architecture.prompt.md
+````markdown
+---
+name: review-architecture
+description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
+agent: Quality Lead
+argument-hint: Provide plan reference, changed files, and architecture concerns.
+---
+
+# Review Architecture
+
+Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill xuanwu-mddd-boundaries
+````
+
+## File: .github/prompts/review-code.prompt.md
+````markdown
+---
+name: review-code
+description: Perform risk-first code review for correctness, regressions, and missing validation.
+agent: Quality Lead
+argument-hint: Provide change summary, touched files, and known risk areas.
+---
+
+# Review Code
+
+## Requirements
+
+- Findings first, ordered by severity.
+- Include why it matters and blocking status.
+- State residual risks and testing gaps explicitly.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill vscode-typescript-workbench
+````
+
+## File: .github/prompts/review-performance.prompt.md
+````markdown
+---
+name: review-performance
+description: Review runtime and render performance risks with evidence-backed recommendations.
+agent: App Router Agent
+argument-hint: Provide route/feature scope, observed slowness, and baseline expectations.
+---
+
+# Review Performance
+
+## Workflow
+
+1. Collect route/runtime evidence.
+2. Identify bottlenecks and likely causes.
+3. Propose ranked fixes by impact and complexity.
+4. Define validation for improvement claims.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vercel-react-best-practices
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/review-security.prompt.md
+````markdown
+---
+name: review-security
+description: Review security posture for access control, data exposure, and rule/authorization regressions.
+agent: quality-lead
+argument-hint: Provide changed auth/rules/critical data paths and threat concerns.
+---
+
+# Review Security
+
+Report vulnerabilities first with severity, reproduction notes, and concrete remediation steps.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill xuanwu-development-contracts
+````
+
+## File: .github/prompts/write-docs.prompt.md
+````markdown
+---
+name: write-docs
+description: Write or optimize documentation using structured, deduplicated, and index-driven markdown patterns.
+agent: KB Architect
+argument-hint: Provide target docs scope and expected documentation outcome.
+---
+
+# Write Docs
+
+## Workflow
+
+1. Lint markdown syntax first.
+2. Compress and deduplicate repeated concepts.
+3. Convert prose to rules/tables where possible.
+4. Update folder index/README after leaf updates.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill documentation-writer
+````
+
+## File: .github/prompts/write-e2e-tests.prompt.md
+````markdown
+---
+name: write-e2e-tests
+description: Design and execute end-to-end tests for user-critical flows with reproducible evidence.
+agent: E2E QA Agent
+argument-hint: Provide URL/route, target user flow, and acceptance criteria.
+---
+
+# Write E2E Tests
+
+## Scope
+
+- Happy path
+- Boundary/negative path
+- Error-state handling
+
+Collect evidence for failures and include clear reproduction steps.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-testing-debugging-browser
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/write-tests.prompt.md
+````markdown
+---
+name: write-tests
+description: Write deterministic unit/integration tests based on risk and behavior contracts.
+agent: quality-lead
+argument-hint: Provide module scope, behaviors to verify, and known regression risks.
+---
+
+# Write Tests
+
+## Requirements
+
+- Cover happy, boundary, and negative cases.
+- Keep tests deterministic and isolated.
+- Prioritize behavior contracts over implementation details.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill vscode-testing-debugging-browser
+#use skill vscode-typescript-workbench
 ````
 
 ## File: .github/README.md
@@ -21930,115 +23406,6 @@ interface EventRecord {
 - **`SourceDocument`**
 - **`SourceCollection`**
 - **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: docs/ddd/wiki/aggregates.md
-````markdown
-# Aggregates — wiki
-
-## 聚合根：GraphNode
-
-### 職責
-代表知識圖譜中的一個知識節點。管理節點的生命週期（draft → active → archived）與關聯邊列表。
-
-### 生命週期狀態機
-```
-draft ──[activate]──► active ──[archive]──► archived
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 節點主鍵（對應 knowledge.KnowledgePage.id） |
-| `title` | `string` | 節點標題 |
-| `nodeType` | `NodeType` | 節點語意類型 |
-| `status` | `NodeStatus` | `draft \| active \| archived` |
-| `workspaceId` | `string?` | 所屬工作區（workspace BC 整合完成前為 optional） |
-| `organizationId` | `string?` | 所屬組織（workspace BC 整合完成前為 optional） |
-| `outboundEdgeIds` | `string[]?` | 出向邊 ID 列表（workspace BC 整合完成前為 optional） |
-
-### 不變數
-
-- archived 節點不可建立新 GraphEdge
-- `id` 與 `knowledge.KnowledgePage.id` 一一對應
-
----
-
-## 聚合根：GraphEdge
-
-### 職責
-代表兩個 GraphNode 之間的有向關係。管理邊的生命週期（pending → active → inactive → removed）。
-
-### 生命週期狀態機
-```
-pending ──[activate]──► active ──[deactivate]──► inactive ──[remove]──► removed
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 邊主鍵 |
-| `sourceNodeId` | `string` | 起點節點 ID |
-| `targetNodeId` | `string` | 終點節點 ID |
-| `edgeType` | `EdgeType` | 關係語意類型 |
-| `status` | `EdgeStatus` | `pending \| active \| inactive \| removed` |
-| `createdByUserId` | `string?` | 建立者 ID（系統自動建立時為 undefined） |
-
-### 不變數
-
-- sourceNodeId 與 targetNodeId 必須是有效的 GraphNode
-- removed 的邊不可恢復
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `GraphRepository` | `saveNode()`, `saveEdge()`, `findNodeById()`, `findEdgesByTarget()`, `findEdgesBySource()`, `findEdgesByType()`, `listNodes()`, `listEdges()` |
-````
-
-## File: docs/ddd/wiki/README.md
-````markdown
-# wiki — 知識圖譜上下文
-
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/wiki/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`wiki` 是 Xuanwu 的 Wiki-like 結構層，負責把知識內容變成可連結、可遍歷、可回溯的節點與關聯網路。它與 `knowledge` 一起形成產品最核心的差異化價值。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Graph Node 管理 | 維護知識節點的生命週期與可見性 |
-| Graph Edge 管理 | 維護節點之間的關聯、Backlink 與關係狀態 |
-| 結構化知識導航 | 支撐圖譜遍歷、自動連結與知識關聯理解 |
-
-## 與其他 Bounded Context 協作
-
-- `knowledge` 提供被結構化的核心內容。
-- `search` 與 `notebook` 消費圖譜脈絡做檢索與推理；`workspace` 提供圖譜的協作歸屬。
-
-## 核心聚合 / 核心概念
-
-- **`GraphNode`**
-- **`GraphEdge`**
-- **`WikiPage`**
 
 ## 詳細文件
 
@@ -23807,291 +25174,6 @@ Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account ro
 | S8 | `npm run lint` 0 errors；`npm run build` 成功 |
 ````
 
-## File: knowledge_mddd_architecture.md
-````markdown
-# Knowledge Platform × MDDD 架構設計完整總結
-
-## 1. 系統整體定位
-
-本系統是一個 **Knowledge Operating System**，以 Firebase Firestore + Cloud Storage 為基礎，自行建構所有知識管理能力，不依賴 Notion 等外部平台。
-
-核心能力：
-- 自建 Block Editor 知識界面（Firebase 驅動，取代 Notion）
-- 知識關聯圖譜（Wiki Graph）
-- AI 知識推理與問答（NotebookLM-like）
-- 文件來源管理與 RAG Ingestion
-- 語意搜尋與檢索
-- 外部文件匯入（Google Docs、Drive，透過原生 HTTP API）
-- 工作區協作、任務流程、排程、稽核、動態
-
-整體分層：
-- Knowledge Layer（自建 Block Editor） → `knowledge` module
-- Knowledge Structure Layer → `wiki` module
-- AI Reasoning Layer → `notebook` + `ai` modules
-- Retrieval Layer → `search` module
-- External Source Ingestion → `source` + `sync` modules
-- Workspace Operations → `workspace-flow` / `workspace-scheduling` / `workspace-audit` / `workspace-feed`
-- Platform Foundation → `identity` / `account` / `organization` / `workspace` / `notification` / `shared`
-
-
-## 2. DDD 分層概念
-
-```
-Domain
- → Subdomain
- → Bounded Context
- → Module
- → Code
-```
-
-Bounded Context = 模型邊界 + 語言邊界  
-Module = 程式碼邊界  
-一個 Bounded Context 對應一個 module。
-
-
-## 3. Bounded Context / Modules 切分（實際存在）
-
-```
-modules/
-  identity/
-  account/
-  organization/
-  workspace/
-  knowledge/
-  wiki/
-  notebook/
-  source/
-  ai/
-  search/
-  sync/
-  notification/
-  shared/
-  workspace-flow/
-  workspace-scheduling/
-  workspace-audit/
-  workspace-feed/
-```
-
-
-## 4. Domain 類型分類
-
-**Core Domain（核心域）：**
-- `knowledge` — 自建 Block Editor、頁面、版本、審批
-- `wiki` — 知識節點、關聯、Backlink、圖譜
-
-**Supporting Domain（支撐域）：**
-- `notebook` — AI 問答、摘要、洞察
-- `ai` — Ingestion Job、Embedding、Worker Handoff
-- `search` — 語意搜尋、RAG 查詢
-- `source` — 文件上傳、來源登記、Ingestion 交接
-- `sync` — 外部文件匯入 ACL（Google Docs、Drive）
-- `workspace-flow` — Task / Issue / Invoice 流程
-- `workspace-scheduling` — 排程、日曆、容量
-- `workspace-audit` — Append-only 稽核追蹤
-- `workspace-feed` — 工作區動態與互動
-
-**Generic Domain（通用域）：**
-- `identity` — Firebase Auth 封裝
-- `account` — 個人帳戶與偏好
-- `organization` — 多租戶治理
-- `workspace` — 協作容器
-- `notification` — 通知分發
-- `shared` — Shared Kernel（事件、值物件、基礎型別）
-
-
-## 5. Module 標準結構
-
-```
-modules/{context}/
-  api/              ← 對外唯一公開邊界
-  application/
-    use-cases/
-    dto/
-  domain/
-    aggregates/
-    entities/
-    value-objects/
-    repositories/   ← 只放 interface
-    domain-services/
-    factories/
-    events/
-  infrastructure/
-    firebase/       ← repository 實作
-  interfaces/
-    components/
-    queries/
-    _actions/
-    hooks/
-```
-
-
-## 6. Context 依賴關係圖
-
-```
-Identity → Account → Organization → Workspace
-                                       ↓
-                    ┌──────────────────┼──────────────────┐
-                    ↓                  ↓                  ↓
-                Knowledge            Wiki             Notebook
-                    ↓                  ↓                  ↓
-                  Search ◄────────────┘                  AI
-                    ↑                                     ↑
-                  Source ──────────────────────────────── ┘
-                    ↑
-                  Sync（外部文件匯入 ACL）
-
-Workspace Operations:
-Workspace → workspace-flow → workspace-audit
-         → workspace-scheduling
-         → workspace-feed → notification
-```
-
-
-## 7. Knowledge Domain 設計
-
-> **這是系統自建的 Block Editor，以 Firestore 儲存，取代 Notion。**
-
-Aggregate Roots:
-- `KnowledgePage` — 一個可編輯的知識頁面（含 Block 樹）
-- `KnowledgeCollection` — 頁面集合 / 資料庫視圖
-- `Tag`
-
-Entities:
-- `Block` — paragraph / heading / list / code / image / table 等
-- `Version` — 頁面版本快照
-- `Attachment` — 附件（指向 Cloud Storage）
-
-Value Objects:
-- `KnowledgeId`, `Title`, `BlockContent`, `BlockType`
-- `AuthorId`, `CreatedAt`, `VersionNumber`
-
-Factories:
-- `KnowledgeFactory`
-  - `createPage()`
-  - `createBlock()`
-  - `createCollection()`
-
-
-## 8. Wiki Domain 設計
-
-Aggregate Roots:
-- `WikiNode` — 知識圖譜中的一個節點
-- `WikiGraph` — 完整圖譜聚合根
-
-Entities:
-- `WikiLink` — 兩個節點之間的有向邊
-- `Backlink` — 反向連結索引
-
-Value Objects:
-- `NodeId`, `LinkType`, `RelationType`
-
-Factories:
-- `WikiFactory`
-  - `createNode()`
-  - `createLink()`
-
-
-## 9. Notebook Domain 設計
-
-Aggregate Roots:
-- `Notebook` — 一個 AI 工作薄
-- `ChatSession` — 對話紀錄
-- `Insight` — AI 生成摘要 / 洞察
-
-Value Objects:
-- `Prompt`, `Answer`, `Citation`, `TokenUsage`
-
-Factories:
-- `NotebookFactory`
-  - `createNotebook()`
-  - `createChatSession()`
-  - `createInsight()`
-
-
-## 10. Source Domain 設計
-
-Aggregate Roots:
-- `SourceDocument` — 已上傳並登記的原始文件
-- `SourceCollection` — 來源集合
-
-Value Objects:
-- `FileType`, `FileSize`, `StorageUrl`, `Hash`, `MimeType`
-
-
-## 11. AI Domain 設計
-
-Aggregate Roots:
-- `IngestionJob` — 攝入工作（parse → chunk → embed）
-- `Embedding` — 向量化結果
-- `VectorIndex` — 索引記錄
-
-Value Objects:
-- `Model`, `Temperature`, `TokenCount`, `EmbeddingVector`
-
-
-## 12. Search Domain 設計
-
-Aggregate Roots:
-- `SearchQuery`
-- `SearchResult`
-
-Value Objects:
-- `QueryText`, `RelevanceScore`, `Citation`
-
-
-## 13. Sync Domain 設計（Anti-Corruption Layer）
-
-> **職責：把外部平台（Google Docs、Drive 等）的文件匯入轉成 `SourceDocument`。**
-> 本系統自建 Knowledge OS，**不需要 Notion Sync**（本系統就是那個 Notion）。
-> 所有外部平台整合均透過**原生 HTTP 呼叫**（`fetch` / `axios`）直接操作官方 REST API，不引入第三方 SDK。
-
-Aggregate Roots:
-- `ImportJob` — 單次匯入任務
-- `ExternalConnection` — 外部平台連線配置（OAuth token、端點）
-- `ImportMapping` — 外部格式 → 內部 `SourceDocument` 的欄位對應
-
-支援的外部來源：
-- Google Docs（REST API）
-- Google Drive（REST API）
-- 純文字 / Markdown 檔案上傳
-
-
-## 14. 系統最重要架構規則
-
-1. Module 之間不能直接引用對方 domain / application / infrastructure
-2. 只能透過 `modules/{target}/api/` 呼叫
-3. 每個 Bounded Context 有自己的 Ubiquitous Language
-4. 依賴方向：`interfaces → application → domain ← infrastructure`
-5. `domain/` 必須保持 framework-free（無 Firebase SDK、無 React）
-6. 外部系統一定透過 Anti-Corruption Layer（Sync Domain）
-7. **Knowledge 是系統核心域，自建 Block Editor，不依賴 Notion**
-8. Wiki 是 Knowledge Graph
-9. Notebook / AI 是推理層
-10. Search 是檢索層
-11. Source 是文件來源登記層
-12. Sync 是外部文件匯入 ACL 層
-
-
-## 15. 技術棧對應
-
-| 能力 | 技術 |
-|------|------|
-| 知識儲存 | Firebase Firestore |
-| 附件 / 圖片 | Firebase Cloud Storage |
-| 即時同步 | Firestore `onSnapshot` |
-| 權限控制 | Firestore Security Rules |
-| Block Editor UI | Knowledge Domain 自建（React + XState） |
-| AI 問答 | Genkit + Google GenAI |
-| 向量搜尋 | pgvector（via py_fn） |
-| Ingestion Worker | Python（py_fn） |
-| 外部文件匯入 | 原生 fetch（無第三方 SDK） |
-
-
-## 16. 最終整體架構（一句話）
-
-整個系統是一個以 **Firebase 為基礎設施、Knowledge 為自建核心編輯器、Wiki 為知識圖譜、Notebook 與 AI 為推理層、Search 為向量檢索層、Source 為來源登記、Sync 為外部匯入 ACL** 的 Modular Monolith 可演進 MDDD 架構知識平台。
-````
-
 ## File: modules/account/aggregates.md
 ````markdown
 # Aggregates — account
@@ -24958,46 +26040,47 @@ identityApi.listenToTokenRefresh()
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
 ````
 
-## File: modules/knowledge/AGENT.md
+## File: modules/knowledge-base/AGENT.md
 ````markdown
-# AGENT.md — knowledge BC
+# AGENT.md — knowledge-base BC
 
 ## 模組定位
 
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+`knowledge-base` 是 **Core Domain**，負責組織級知識管理，對應 Notion 的 **Wiki / Knowledge Base** 功能。管理公司或團隊的知識文章（Article）與分類（Category）。
+
+**這個 BC 負責：**
+- Article（知識文章）的建立、編輯、審批、歸檔
+- Category（分類目錄）的層級管理
+- 知識文章的 Backlink、標籤（Tag）、版本管理
+- SOP 流程文件、共享知識參考手冊
+- 頁面驗證狀態（verified / needs_review）與頁面負責人（Owner）
+
+**不歸屬這個 BC：**
+- 個人筆記（Page + Block） → `knowledge`
+- 留言與協作 → `knowledge-collaboration`
+- 表格 / 資料庫 View → `knowledge-database`
 
 ## 通用語言（Ubiquitous Language）
 
 | 正確術語 | 禁止使用 |
 |----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+| `Article` | Page、Document（在此 BC 中） |
+| `Category` | Folder、Tag（作為分類時） |
+| `ArticleStatus` | Status |
+| `VerificationState` | State |
+| `ArticleOwner` | Owner |
 
 ## 邊界規則
 
 ### ✅ 允許
 ```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+import { createArticle } from "@/modules/knowledge-base/api";
 ```
 
 ### ❌ 禁止
 ```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { WikiPage } from "@/modules/wiki/domain/entities/...";
+import anything from "@/modules/knowledge-base/domain/..."; // 走 api/ 邊界
 ```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
 
 ## 驗證命令
 
@@ -25007,208 +26090,472 @@ npm run build
 ```
 ````
 
-## File: modules/knowledge/application-services.md
+## File: modules/knowledge-base/aggregates.md
 ````markdown
-# knowledge — Application Services
+# Aggregates — knowledge-base
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-- `application/use-cases/wiki-pages.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
-````
-
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+> 聚合根設計遵循 IDDD 規範：清晰邊界、一致性、最小耦合。
 
 ---
 
-## 下游（被依賴）
+## Article（文章）— 聚合根
 
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
-```
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
+Article 是組織知識文章的主要聚合根，代表一篇完整的公開或內部知識文章、SOP 或 Wiki 頁面。
 
 ```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
+type ArticleStatus = "draft" | "published" | "archived";
+type VerificationState = "verified" | "needs_review" | "unverified";
+
+interface Article {
+  // Identity
+  id: string;                           // Unique Article ID
+  accountId: string;                    // Tenant (organization)
+  workspaceId: string;                  // Workspace container
+  categoryId: string | null;            // Parent Category (optional)
+
+  // Content
+  title: string;
+  content: string;                      // Rich text / Markdown body
+  tags: string[];                       // Classification labels
+
+  // Lifecycle
+  status: ArticleStatus;               // draft → published → archived
+  version: number;                      // Optimistic locking version
+
+  // Verification
+  verificationState: VerificationState; // verified | needs_review | unverified
+  ownerId: string | null;               // Article owner (responsible user)
+  verifiedByUserId: string | null;
+  verifiedAtISO: string | null;
+  verificationExpiresAtISO: string | null;
+
+  // Backlinks
+  linkedArticleIds: string[];           // Outgoing [[wikilink]] references
+
+  // Audit
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
 }
 ```
 
-## 訂閱事件（消費端）
+### Article 業務規則
 
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+- Article 發布後（published），`content` 與 `title` 變更必須觸發 `knowledge-base.article_updated` 事件。
+- `verificationState` 轉為 `verified` 需提供 `verifiedByUserId` 與 `verifiedAtISO`。
+- 刪除改為 `archived`，不實際移除資料。
+- `linkedArticleIds` 由 `BacklinkExtractorService` 從 `content` 自動解析。
 
-## 消費 knowledge 事件的其他 BC
+---
 
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+## Category（分類目錄）— 聚合根
+
+Category 是文章的層級分類容器，支援巢狀結構（最多 5 層）。
+
+```typescript
+interface Category {
+  // Identity
+  id: string;
+  accountId: string;
+  workspaceId: string;
+
+  // Hierarchy
+  name: string;
+  slug: string;                         // URL-safe identifier
+  parentCategoryId: string | null;      // null = root category
+  depth: number;                        // 0 = root
+
+  // Content
+  articleIds: string[];                 // Articles directly under this category
+  description: string | null;
+
+  // Audit
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+```
+
+### Category 業務規則
+
+- `depth` 不可超過 5。
+- 刪除 Category 前，所有子 Category 與 Article 必須先搬遷或刪除。
+- `slug` 在同一 Workspace 下唯一。
 ````
 
-## File: modules/knowledge/domain-services.md
+## File: modules/knowledge-base/application-services.md
 ````markdown
-# knowledge — Domain Services
+# Application Services — knowledge-base
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
+> Use Case 一個檔案一個操作，呼叫 Domain Services / Repository 介面，回傳 `CommandResult`。
 
-本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
+---
 
-## Domain Services 檔案
+## Article Use Cases
 
-- 目前沒有獨立的 `domain/services/*` 檔案。
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `CreateArticleUseCase` | title, content, categoryId, tags, workspaceId | `CommandResult<ArticleId>` | 建立草稿文章 |
+| `UpdateArticleUseCase` | articleId, title?, content?, tags? | `CommandResult` | 更新文章內容，version bump |
+| `PublishArticleUseCase` | articleId | `CommandResult` | 將草稿轉為已發布 |
+| `ArchiveArticleUseCase` | articleId | `CommandResult` | 封存文章（軟刪除） |
+| `VerifyArticleUseCase` | articleId, verifiedByUserId, expiresAtISO? | `CommandResult` | 設定文章為已驗證 |
+| `RequestArticleReviewUseCase` | articleId, requestedByUserId | `CommandResult` | 標記文章需要複核 |
+| `AssignArticleOwnerUseCase` | articleId, ownerId | `CommandResult` | 指派文章負責人 |
+| `TransferArticleCategoryUseCase` | articleId, targetCategoryId | `CommandResult` | 移動文章到另一分類 |
+| `ExtractArticleBacklinksUseCase` | articleId | `CommandResult` | 從 content 解析並更新 linkedArticleIds |
 
-## 設計規則
+## Category Use Cases
 
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `CreateCategoryUseCase` | name, parentCategoryId?, workspaceId | `CommandResult<CategoryId>` | 建立分類目錄 |
+| `RenameCategoryUseCase` | categoryId, name | `CommandResult` | 重新命名分類 |
+| `MoveCategoryUseCase` | categoryId, targetParentId | `CommandResult` | 移動分類到新父節點（深度驗證） |
+| `DeleteCategoryUseCase` | categoryId | `CommandResult` | 刪除空白分類 |
 
-## 模組內對應文件
+---
 
-- `../../../modules/knowledge/domain-services.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+## 範例 — CreateArticleUseCase
+
+```typescript
+// modules/knowledge-base/application/use-cases/create-article.use-case.ts
+import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
+import type { CommandResult } from "@shared-types";
+import { generateId } from "@shared-utils";
+
+export class CreateArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: CreateArticleInput): Promise<CommandResult<{ articleId: string }>> {
+    const articleId = generateId();
+    const now = new Date().toISOString();
+
+    await this.repo.save({
+      id: articleId,
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      categoryId: input.categoryId ?? null,
+      title: input.title,
+      content: input.content ?? "",
+      tags: input.tags ?? [],
+      status: "draft",
+      version: 1,
+      verificationState: "unverified",
+      ownerId: null,
+      verifiedByUserId: null,
+      verifiedAtISO: null,
+      verificationExpiresAtISO: null,
+      linkedArticleIds: [],
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    });
+
+    return { success: true, data: { articleId } };
+  }
+}
+```
 ````
 
-## File: modules/knowledge/README.md
+## File: modules/knowledge-base/context-map.md
 ````markdown
-# knowledge — 知識內容上下文
+# Context Map — knowledge-base
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
+> 描述此 Bounded Context 與其他 BC 的關係類型與整合模式，遵循 IDDD 戰略設計。
 
-## 在 Knowledge Platform / Second Brain 中的角色
+---
 
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+## 上游依賴（knowledge-base 依賴）
+
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `workspace` | **Conformist** | Article 與 Category 必須屬於 Workspace |
+| `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
+| `identity` | **Conformist** | 驗證 ownerId / verifiedByUserId 是否存在 |
+| `knowledge-collaboration` | **Customer / Supplier** | 從 collaboration 接收 Permission 資訊（查看/編輯權限） |
+
+---
+
+## 下游影響（downstream BCs 依賴 knowledge-base）
+
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `knowledge` | **Customer / Supplier** | Knowledge Page 可提升（promote）為 knowledge-base Article |
+| `knowledge-collaboration` | **Customer / Supplier** | Collaboration 使用 articleId 關聯 Comment / Version |
+| `knowledge-database` | **Anti-Corruption Layer** | Database Record 可 link 到 Article（不反向依賴） |
+| `notification` | **Published Language** | `knowledge-base.article_verified` 事件觸發通知 |
+| `workspace-feed` | **Published Language** | `knowledge-base.article_published` 事件推送工作區動態 |
+
+---
+
+## 整合事件流
+
+```
+knowledge.page_approved
+  → (human or automation) promotes to knowledge-base article
+  → knowledge-base.article_created
+
+knowledge-base.article_verified
+  → notification (verified owner notified)
+  → workspace-feed (article verified appears in feed)
+
+knowledge-base.article_review_requested
+  → notification (article owner notified to review)
+```
+
+---
+
+## 邊界規則
+
+- `knowledge-base` **不得**直接 import `knowledge` 的 domain 層。
+- `knowledge-base` 只能透過 `modules/knowledge/api` 取得 page 資訊。
+- `knowledge-collaboration` 透過 `modules/knowledge-base/api` 取得 articleId，不讀取 Article 內部細節。
+````
+
+## File: modules/knowledge-base/domain-events.md
+````markdown
+# Domain Events — knowledge-base
+
+> 所有事件採用 discriminated-union pattern：`type: "knowledge-base.<event>"` 頂層欄位，`occurredAtISO: string`，無 `payload` wrapper。
+
+---
+
+## Article 事件
+
+### knowledge-base.article_created
+
+```typescript
+interface ArticleCreatedEvent {
+  type: "knowledge-base.article_created";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  title: string;
+  categoryId: string | null;
+  createdByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.article_updated
+
+```typescript
+interface ArticleUpdatedEvent {
+  type: "knowledge-base.article_updated";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  changedFields: string[];              // e.g. ["title", "content", "tags"]
+  updatedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.article_published
+
+```typescript
+interface ArticlePublishedEvent {
+  type: "knowledge-base.article_published";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  publishedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.article_archived
+
+```typescript
+interface ArticleArchivedEvent {
+  type: "knowledge-base.article_archived";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  archivedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.article_verified
+
+```typescript
+interface ArticleVerifiedEvent {
+  type: "knowledge-base.article_verified";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  verifiedByUserId: string;
+  verificationExpiresAtISO: string | null;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.article_review_requested
+
+```typescript
+interface ArticleReviewRequestedEvent {
+  type: "knowledge-base.article_review_requested";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  requestedByUserId: string;
+  ownerId: string | null;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.article_owner_assigned
+
+```typescript
+interface ArticleOwnerAssignedEvent {
+  type: "knowledge-base.article_owner_assigned";
+  articleId: string;
+  workspaceId: string;
+  accountId: string;
+  ownerId: string;
+  assignedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+---
+
+## Category 事件
+
+### knowledge-base.category_created
+
+```typescript
+interface CategoryCreatedEvent {
+  type: "knowledge-base.category_created";
+  categoryId: string;
+  workspaceId: string;
+  accountId: string;
+  name: string;
+  parentCategoryId: string | null;
+  createdByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-base.category_moved
+
+```typescript
+interface CategoryMovedEvent {
+  type: "knowledge-base.category_moved";
+  categoryId: string;
+  workspaceId: string;
+  accountId: string;
+  fromParentCategoryId: string | null;
+  toParentCategoryId: string | null;
+  movedByUserId: string;
+  occurredAtISO: string;
+}
+```
+````
+
+## File: modules/knowledge-base/domain-services.md
+````markdown
+# Domain Services — knowledge-base
+
+> Domain Service 是無狀態的純商業邏輯，不依賴外部 SDK，不操作 Repository。
+
+---
+
+## BacklinkExtractorService
+
+從 Article `content`（Markdown / rich-text）中解析所有 `[[Article Title]]` 格式的 wikilink，並轉換為 `linkedArticleIds`。
+
+```typescript
+// modules/knowledge-base/domain/services/BacklinkExtractorService.ts
+
+export class BacklinkExtractorService {
+  /**
+   * 從 content 字串中提取所有 [[title]] wikilinks。
+   * 返回去重後的標題陣列，由 Repository 負責解析為 ID。
+   */
+  extractWikilinkTitles(content: string): string[] {
+    const regex = /\[\[([^\]]+)\]\]/g;
+    const titles = new Set<string>();
+    let match: RegExpExecArray | null;
+    while ((match = regex.exec(content)) !== null) {
+      titles.add(match[1].trim());
+    }
+    return Array.from(titles);
+  }
+}
+```
+
+---
+
+## ArticleSlugService
+
+將 Article title 轉換為 URL-safe slug，確保在同一 Workspace 下的唯一性規則。
+
+```typescript
+// modules/knowledge-base/domain/services/ArticleSlugService.ts
+
+export class ArticleSlugService {
+  generateSlug(title: string): string {
+    return title
+      .toLowerCase()
+      .replace(/[^a-z0-9\u4e00-\u9fff\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .slice(0, 100);
+  }
+}
+```
+
+---
+
+## CategoryDepthValidator
+
+驗證 Category 層級不超過最大深度（5 層），防止過深的巢狀結構。
+
+```typescript
+// modules/knowledge-base/domain/services/CategoryDepthValidator.ts
+
+export class CategoryDepthValidator {
+  private static readonly MAX_DEPTH = 5;
+
+  validateMove(currentDepth: number, targetParentDepth: number): void {
+    if (targetParentDepth + 1 > CategoryDepthValidator.MAX_DEPTH) {
+      throw new Error(
+        `Category depth cannot exceed ${CategoryDepthValidator.MAX_DEPTH}`
+      );
+    }
+  }
+}
+```
+````
+
+## File: modules/knowledge-base/README.md
+````markdown
+# knowledge-base — 組織知識庫 / Wiki / SOP 管理
+
+> **Domain Type:** **Core Domain**（核心域）
+> **模組路徑:** `modules/knowledge-base/`
+> **開發狀態:** 📅 Planned — 設計階段
+
+## 在 Knowledge Platform 中的角色
+
+`knowledge-base` 是 Xuanwu 的 Notion Wiki / Knowledge Base 對應模組，負責組織或團隊級別的知識文章管理，支援層級分類、標籤、Backlink、SOP 流程文件與頁面驗證機制。
 
 ## 主要職責
 
 | 能力 | 說明 |
 |---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+| Article 文章管理 | 建立、編輯、版本化、歸檔組織知識文章 |
+| Category 分類管理 | 層級化分類目錄，管理文章組織結構 |
+| 頁面驗證 | verified / needs_review 狀態，支援知識準確性管理 |
+| 頁面負責人 | 指定 ArticleOwner，負責維護文章內容 |
+| Backlink / Tag | 文章間相互引用與標籤分類 |
 
-## 與其他 Bounded Context 協作
+## 核心聚合
 
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
-
-## 核心聚合 / 核心概念
-
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
+- **`Article`**（知識文章）
+- **`Category`**（分類目錄）
 
 ## 詳細文件
 
@@ -25216,37 +26563,1365 @@ interface KnowledgePageApprovedEvent {
 |---|---|
 | [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面與實作 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
 ````
 
-## File: modules/knowledge/ubiquitous-language.md
+## File: modules/knowledge-base/repositories.md
 ````markdown
-# Ubiquitous Language — knowledge
+# Repositories — knowledge-base
 
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+> Repository 介面定義於 `domain/repositories/`，實作置於 `infrastructure/firebase/`。
 
-## 術語定義
+---
 
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+## IArticleRepository
 
-## 禁止替換術語
+```typescript
+// modules/knowledge-base/domain/repositories/ArticleRepository.ts
 
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+export interface IArticleRepository {
+  /** 取得單篇文章（不存在時 throw domain error） */
+  getById(articleId: string): Promise<Article>;
 
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+  /** 列出 Workspace 下的文章（可依 categoryId / status 過濾） */
+  list(params: {
+    workspaceId: string;
+    accountId: string;
+    categoryId?: string;
+    status?: ArticleStatus;
+    limit?: number;
+    cursor?: string;
+  }): Promise<Article[]>;
+
+  /** 全文搜尋（基本實作，詳細 RAG 搜尋由 search BC 處理） */
+  search(params: {
+    workspaceId: string;
+    query: string;
+    limit?: number;
+  }): Promise<Article[]>;
+
+  /** 儲存（建立或更新） */
+  save(article: Article): Promise<void>;
+
+  /** 批次取得（backlink 查詢用） */
+  getByIds(articleIds: string[]): Promise<Article[]>;
+
+  /** 查找引用特定 articleId 的所有文章（反向 backlink） */
+  findByLinkedArticleId(articleId: string): Promise<Article[]>;
+
+  /** 刪除（Firestore 物理刪除，通常用於測試） */
+  delete(articleId: string): Promise<void>;
+}
+```
+
+---
+
+## ICategoryRepository
+
+```typescript
+// modules/knowledge-base/domain/repositories/CategoryRepository.ts
+
+export interface ICategoryRepository {
+  /** 取得單一分類 */
+  getById(categoryId: string): Promise<Category>;
+
+  /** 列出 Workspace 下的所有分類（樹狀） */
+  listByWorkspace(workspaceId: string, accountId: string): Promise<Category[]>;
+
+  /** 取得特定父節點的子分類 */
+  listChildren(parentCategoryId: string): Promise<Category[]>;
+
+  /** 儲存 */
+  save(category: Category): Promise<void>;
+
+  /** 刪除（前提：無子分類且無文章） */
+  delete(categoryId: string): Promise<void>;
+
+  /** 批次更新 articleIds（文章搬移時） */
+  updateArticleIds(categoryId: string, articleIds: string[]): Promise<void>;
+}
+```
+
+---
+
+## Firestore Collection 設計
+
+| Collection | Document ID | 說明 |
+|---|---|---|
+| `knowledge_base_articles` | `{articleId}` | Article documents |
+| `knowledge_base_categories` | `{categoryId}` | Category documents |
+
+### Index 需求（預計）
+
+| Collection | Fields | Purpose |
+|---|---|---|
+| `knowledge_base_articles` | `workspaceId`, `status`, `categoryId` | Category article list |
+| `knowledge_base_articles` | `workspaceId`, `status`, `verificationState` | Verification dashboard |
+| `knowledge_base_articles` | `workspaceId`, `ownerId` | My articles |
+````
+
+## File: modules/knowledge-base/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge-base
+
+> 此 BC 的通用語言定義，確保 domain / application / UI 使用一致術語。
+
+---
+
+## 核心術語
+
+| 術語 | 定義 | 禁止使用的錯誤術語 |
+|---|---|---|
+| **Article**（文章） | 組織級公開知識文章、SOP 或 Wiki 頁面，具備版本與驗證機制 | Document, KnowledgePage, WikiPage |
+| **Category**（分類） | 文章的層級分類容器（樹狀結構，最多 5 層） | Folder, Namespace, Group |
+| **ArticleStatus**（文章狀態） | `draft` / `published` / `archived` 三態 | Active, Live, Deleted |
+| **VerificationState**（驗證狀態） | `verified` / `needs_review` / `unverified` — 知識準確性狀態 | Approved, Checked, Valid |
+| **ArticleOwner**（文章負責人） | 負責維護特定文章內容準確性的使用者 | Author, Creator, Editor |
+| **Backlink**（反向連結） | 引用此 Article 的其他 Article — `[[Article Title]]` wikilink 語法 | Reference, Link, Mention |
+| **Tag**（標籤） | 文章的關鍵詞分類標籤，用於過濾與搜尋 | Label, Keyword, Topic |
+| **Wikilink**（Wiki 連結） | `[[Article Title]]` 格式的內部文章引用語法 | Link, Anchor, Mention |
+| **Promote**（提升） | 將 `knowledge` BC 的 Page 轉換為此 BC 的 Article — 跨 BC 協議 | Convert, Transform, Import |
+
+---
+
+## 邊界詞彙對照表
+
+| 術語 | 此 BC 的含義 | 其他 BC 中的對應 |
+|---|---|---|
+| `Article` | 組織知識文章 | `knowledge` 的 `Page`（個人筆記） |
+| `Category` | 文章分類目錄 | `workspace` 的 Collection / Folder |
+| `VerificationState` | knowledge-base 文章的驗證狀態 | `knowledge-collaboration` 的 `Version`（歷史版本） |
+| `content` | Article 的主體文字（Markdown/rich-text） | `knowledge` Block 的 content field |
+
+---
+
+## 事件語言
+
+| 事件名稱 | 語意 |
+|---|---|
+| `knowledge-base.article_created` | 使用者建立了一篇新文章（狀態為 draft） |
+| `knowledge-base.article_published` | 文章從 draft 轉為公開 published |
+| `knowledge-base.article_archived` | 文章被封存，不再對外顯示 |
+| `knowledge-base.article_verified` | 知識管理員驗證了文章內容的準確性 |
+| `knowledge-base.article_review_requested` | 文章被標記為需要重新複核（verificationState = needs_review） |
+| `knowledge-base.category_created` | 新分類目錄被建立 |
+| `knowledge-base.category_moved` | 分類被移動到新的父分類下 |
+````
+
+## File: modules/knowledge-collaboration/AGENT.md
+````markdown
+# knowledge-collaboration BC Agent
+
+## 模組職責
+
+此 BC 負責知識協作能力：Comment（留言）、Permission（存取權限）、Version（版本快照）。
+
+- **不擁有** 知識內容（Page / Article）。
+- 透過 `contentId` 引用內容，而非持有內容聚合。
+- 跨 BC 協作必須透過 `modules/knowledge/api` 與 `modules/knowledge-base/api`。
+
+## 核心聚合
+
+| 聚合 | 職責 |
+|---|---|
+| `Comment` | 針對 contentId 的線程式留言 |
+| `Permission` | contentId + principalId 的存取層級 |
+| `Version` | contentId 的 Block 快照版本 |
+
+## 邊界規則
+
+- 此 BC **不得**直接 import `knowledge` 或 `knowledge-base` 內部層。
+- `contentId` 可以是 pageId 或 articleId，由上層呼叫者決定語境。
+- Permission 級別：`view` < `comment` < `edit` < `full`。
+
+## 開發狀態
+
+📅 Planned — 設計階段。代碼實作待後續 PR。
+````
+
+## File: modules/knowledge-collaboration/aggregates.md
+````markdown
+# Aggregates — knowledge-collaboration
+
+---
+
+## Comment（留言）— 聚合根
+
+```typescript
+interface Comment {
+  id: string;
+  contentId: string;                    // pageId or articleId (cross-BC reference)
+  contentType: "page" | "article";      // which BC owns the content
+  workspaceId: string;
+  accountId: string;
+
+  authorId: string;
+  body: string;                         // Plain text or Markdown
+  parentCommentId: string | null;       // null = root comment (thread start)
+
+  resolvedAt: string | null;            // ISO — null = unresolved
+  resolvedByUserId: string | null;
+
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+```
+
+### Comment 業務規則
+
+- `parentCommentId` 只允許一層深度（回覆只在 root comment 下）。
+- 刪除留言只清空 `body`（設為 `[deleted]`），不實際移除 ID。
+- `resolvedAt` 設定後不可撤銷（由新留言繼續討論）。
+
+---
+
+## Permission（存取權限）— 聚合根
+
+```typescript
+type PermissionLevel = "view" | "comment" | "edit" | "full";
+type PermissionSubjectType = "page" | "article" | "database";
+
+interface Permission {
+  id: string;
+  subjectId: string;                    // contentId (pageId / articleId / databaseId)
+  subjectType: PermissionSubjectType;
+  workspaceId: string;
+  accountId: string;
+
+  principalId: string;                  // userId or teamId
+  principalType: "user" | "team";
+  level: PermissionLevel;               // view < comment < edit < full
+
+  grantedByUserId: string;
+  grantedAtISO: string;
+  expiresAtISO: string | null;          // null = permanent
+}
+```
+
+### Permission 業務規則
+
+- 一個 (subjectId, principalId) 對只能有一個 Permission 記錄（upsert）。
+- `full` 級別的使用者可以授予他人最多 `edit` 級別（不可超過自身）。
+- 繼承：Workspace 級別的 Permission 可視為所有內容的隱式 Permission。
+
+---
+
+## Version（版本快照）— 聚合根
+
+```typescript
+interface Version {
+  id: string;
+  contentId: string;                    // pageId or articleId
+  contentType: "page" | "article";
+  workspaceId: string;
+  accountId: string;
+
+  snapshotBlocks: unknown[];            // JSON snapshot of all blocks at this point
+  label: string | null;                 // Optional human-readable label ("v1.0", "Before redesign")
+  description: string | null;
+
+  createdByUserId: string;
+  createdAtISO: string;
+}
+```
+
+### Version 業務規則
+
+- Version 建立後為 immutable（不可修改快照）。
+- 最多保留 100 個版本，超出時 FIFO 刪除最舊版本。
+- `label` 使版本成為「具名版本」（named version），系統不自動刪除。
+````
+
+## File: modules/knowledge-collaboration/application-services.md
+````markdown
+# Application Services — knowledge-collaboration
+
+---
+
+## Comment Use Cases
+
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `CreateCommentUseCase` | contentId, contentType, authorId, body, parentCommentId? | `CommandResult<CommentId>` | 建立留言或回覆 |
+| `UpdateCommentUseCase` | commentId, body | `CommandResult` | 編輯留言內容 |
+| `DeleteCommentUseCase` | commentId, deletedByUserId | `CommandResult` | 軟刪除（清空 body） |
+| `ResolveCommentUseCase` | commentId, resolvedByUserId | `CommandResult` | 標記留言為已解決 |
+| `ListCommentsUseCase` | contentId, contentType | `CommandResult<Comment[]>` | 取得內容的所有留言 |
+
+## Permission Use Cases
+
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `GrantPermissionUseCase` | subjectId, subjectType, principalId, principalType, level | `CommandResult` | 授予或更新存取權限 |
+| `RevokePermissionUseCase` | subjectId, principalId | `CommandResult` | 移除存取權限 |
+| `CheckPermissionUseCase` | subjectId, userId | `CommandResult<PermissionLevel>` | 查詢使用者對某內容的最高權限 |
+| `ListPermissionsUseCase` | subjectId, subjectType | `CommandResult<Permission[]>` | 列出某內容的所有授權 |
+
+## Version Use Cases
+
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `CreateVersionUseCase` | contentId, contentType, snapshotBlocks, label? | `CommandResult<VersionId>` | 建立版本快照 |
+| `RestoreVersionUseCase` | versionId, restoredByUserId | `CommandResult` | 還原到特定版本（觸發 version_restored 事件） |
+| `ListVersionsUseCase` | contentId, contentType | `CommandResult<Version[]>` | 列出版本歷史 |
+| `LabelVersionUseCase` | versionId, label | `CommandResult` | 為版本設定具名標籤 |
+````
+
+## File: modules/knowledge-collaboration/context-map.md
+````markdown
+# Context Map — knowledge-collaboration
+
+---
+
+## 上游依賴（knowledge-collaboration 依賴）
+
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `workspace` | **Conformist** | contentId 必須屬於某 Workspace |
+| `identity` | **Conformist** | 驗證 authorId / principalId 是否存在 |
+| `knowledge` | **Customer / Supplier** | 使用 pageId 作為 contentId 引用來源 |
+| `knowledge-base` | **Customer / Supplier** | 使用 articleId 作為 contentId 引用來源 |
+| `knowledge-database` | **Customer / Supplier** | 使用 databaseId 作為 subjectId（Permission） |
+
+---
+
+## 下游影響（downstream BCs 依賴 knowledge-collaboration）
+
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `notification` | **Published Language** | `comment_created`、`page_locked` 等事件觸發通知 |
+| `workspace-feed` | **Published Language** | `version_published` 推送工作區動態 |
+| `workspace-audit` | **Published Language** | `permission_changed` 寫入稽核紀錄 |
+
+---
+
+## 整合事件流
+
+```
+knowledge.page_updated
+  → (application layer) CreateVersionUseCase
+  → knowledge-collaboration.version_created
+
+knowledge-collaboration.permission_changed
+  → workspace-audit (append-only log)
+  → notification (if permission revoked, user notified)
+
+knowledge-collaboration.comment_created
+  → notification (content owner notified)
+  → workspace-feed (activity feed)
+```
+
+---
+
+## 邊界規則
+
+- 此 BC 使用 `contentId` 作為 opaque reference，不 import 其他 BC 的 domain 層。
+- Version 快照中的 `snapshotBlocks` 是 `unknown[]`（不依賴 `knowledge` Block 型別）。
+- Permission 授予不超過授予者自身的 Permission 級別。
+````
+
+## File: modules/knowledge-collaboration/domain-events.md
+````markdown
+# Domain Events — knowledge-collaboration
+
+> 事件採用 discriminated-union pattern，頂層欄位，無 payload wrapper。
+
+---
+
+## Comment 事件
+
+### knowledge-collaboration.comment_created
+
+```typescript
+interface CommentCreatedEvent {
+  type: "knowledge-collaboration.comment_created";
+  commentId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  workspaceId: string;
+  accountId: string;
+  authorId: string;
+  parentCommentId: string | null;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-collaboration.comment_resolved
+
+```typescript
+interface CommentResolvedEvent {
+  type: "knowledge-collaboration.comment_resolved";
+  commentId: string;
+  contentId: string;
+  workspaceId: string;
+  resolvedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+---
+
+## Permission 事件
+
+### knowledge-collaboration.permission_granted
+
+```typescript
+interface PermissionGrantedEvent {
+  type: "knowledge-collaboration.permission_granted";
+  permissionId: string;
+  subjectId: string;
+  subjectType: string;
+  workspaceId: string;
+  accountId: string;
+  principalId: string;
+  principalType: "user" | "team";
+  level: "view" | "comment" | "edit" | "full";
+  grantedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-collaboration.permission_revoked
+
+```typescript
+interface PermissionRevokedEvent {
+  type: "knowledge-collaboration.permission_revoked";
+  subjectId: string;
+  workspaceId: string;
+  principalId: string;
+  revokedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+---
+
+## Version 事件
+
+### knowledge-collaboration.version_created
+
+```typescript
+interface VersionCreatedEvent {
+  type: "knowledge-collaboration.version_created";
+  versionId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  workspaceId: string;
+  accountId: string;
+  label: string | null;
+  createdByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-collaboration.version_restored
+
+```typescript
+interface VersionRestoredEvent {
+  type: "knowledge-collaboration.version_restored";
+  versionId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  workspaceId: string;
+  restoredByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-collaboration.page_locked
+
+```typescript
+interface PageLockedEvent {
+  type: "knowledge-collaboration.page_locked";
+  contentId: string;
+  contentType: "page" | "article";
+  workspaceId: string;
+  lockedByUserId: string;
+  lockExpiresAtISO: string;
+  occurredAtISO: string;
+}
+```
+````
+
+## File: modules/knowledge-collaboration/domain-services.md
+````markdown
+# Domain Services — knowledge-collaboration
+
+---
+
+## PermissionLevelComparator
+
+比較 Permission 級別的大小，用於驗證授予者不可超過自身權限。
+
+```typescript
+// modules/knowledge-collaboration/domain/services/PermissionLevelComparator.ts
+
+export type PermissionLevel = "view" | "comment" | "edit" | "full";
+
+const LEVEL_RANK: Record<PermissionLevel, number> = {
+  view: 1,
+  comment: 2,
+  edit: 3,
+  full: 4,
+};
+
+export class PermissionLevelComparator {
+  isHigherOrEqual(a: PermissionLevel, b: PermissionLevel): boolean {
+    return LEVEL_RANK[a] >= LEVEL_RANK[b];
+  }
+
+  validateGrant(granterLevel: PermissionLevel, targetLevel: PermissionLevel): void {
+    if (!this.isHigherOrEqual(granterLevel, targetLevel)) {
+      throw new Error(
+        `Cannot grant ${targetLevel} permission: granter only has ${granterLevel}`
+      );
+    }
+  }
+
+  highest(levels: PermissionLevel[]): PermissionLevel {
+    return levels.reduce((best, cur) =>
+      LEVEL_RANK[cur] > LEVEL_RANK[best] ? cur : best
+    );
+  }
+}
+```
+
+---
+
+## VersionRetentionPolicy
+
+管理版本保留策略，自動清理超出限制的舊版本（具名版本除外）。
+
+```typescript
+// modules/knowledge-collaboration/domain/services/VersionRetentionPolicy.ts
+
+export class VersionRetentionPolicy {
+  private static readonly MAX_VERSIONS = 100;
+
+  /**
+   * 返回應被刪除的版本 ID（不含具名版本）。
+   * @param versions 依 createdAtISO 升序排列的版本列表
+   */
+  getVersionsToDelete(
+    versions: Array<{ id: string; label: string | null }>
+  ): string[] {
+    const unnamed = versions.filter((v) => v.label === null);
+    const excess = unnamed.length - VersionRetentionPolicy.MAX_VERSIONS;
+    if (excess <= 0) return [];
+    return unnamed.slice(0, excess).map((v) => v.id);
+  }
+}
+```
+````
+
+## File: modules/knowledge-collaboration/README.md
+````markdown
+# knowledge-collaboration — 知識協作、版本、權限管理
+
+> **Domain Type:** **Supporting Subdomain + Generic Subdomain**（支撐域 + 泛用域）
+> **模組路徑:** `modules/knowledge-collaboration/`
+> **開發狀態:** 📅 Planned — 設計階段
+
+## 在 Knowledge Platform 中的角色
+
+`knowledge-collaboration` 負責知識協作的基礎設施：留言討論、存取權限管理、頁面版本快照。它不擁有知識內容本身，而是為 `knowledge`、`knowledge-base` 等內容 BC 提供協作能力。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Comment 留言 | 針對 Page / Article 的線程式留言討論 |
+| Permission 權限 | 細粒度的內容存取控制（View/Comment/Edit/Full） |
+| Version 版本快照 | Page / Article 的版本歷史（Block 快照） |
+| 頁面鎖定 | 防止並發編輯的樂觀鎖機制 |
+
+## 核心聚合
+
+- **`Comment`**（留言）
+- **`Permission`**（存取權限）
+- **`Version`**（版本快照）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+````
+
+## File: modules/knowledge-collaboration/repositories.md
+````markdown
+# Repositories — knowledge-collaboration
+
+---
+
+## ICommentRepository
+
+```typescript
+export interface ICommentRepository {
+  getById(commentId: string): Promise<Comment>;
+  listByContent(contentId: string, contentType: "page" | "article"): Promise<Comment[]>;
+  save(comment: Comment): Promise<void>;
+  softDelete(commentId: string): Promise<void>;
+}
+```
+
+---
+
+## IPermissionRepository
+
+```typescript
+export interface IPermissionRepository {
+  get(subjectId: string, principalId: string): Promise<Permission | null>;
+  listBySubject(subjectId: string, subjectType: string): Promise<Permission[]>;
+  listByPrincipal(principalId: string, workspaceId: string): Promise<Permission[]>;
+  save(permission: Permission): Promise<void>;
+  revoke(subjectId: string, principalId: string): Promise<void>;
+}
+```
+
+---
+
+## IVersionRepository
+
+```typescript
+export interface IVersionRepository {
+  getById(versionId: string): Promise<Version>;
+  listByContent(
+    contentId: string,
+    contentType: "page" | "article",
+    limit?: number
+  ): Promise<Version[]>;
+  save(version: Version): Promise<void>;
+  deleteById(versionId: string): Promise<void>;
+}
+```
+
+---
+
+## Firestore Collection 設計
+
+| Collection | Document ID | 說明 |
+|---|---|---|
+| `knowledge_comments` | `{commentId}` | Comment documents |
+| `knowledge_permissions` | `{subjectId}_{principalId}` | Permission documents |
+| `knowledge_versions` | `{versionId}` | Version snapshot documents |
+
+### Index 需求（預計）
+
+| Collection | Fields | Purpose |
+|---|---|---|
+| `knowledge_comments` | `contentId`, `contentType`, `createdAtISO` | Thread listing |
+| `knowledge_permissions` | `subjectId`, `subjectType` | Permission dashboard |
+| `knowledge_versions` | `contentId`, `contentType`, `createdAtISO` | Version history |
+````
+
+## File: modules/knowledge-collaboration/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge-collaboration
+
+---
+
+## 核心術語
+
+| 術語 | 定義 | 禁止混用 |
+|---|---|---|
+| **Comment**（留言） | 針對特定內容（Page/Article）的線程式留言或回覆 | Note, Message, Reply（Reply 是 Comment 的子集，不另外命名） |
+| **Thread**（討論串） | 一個 root Comment 與其所有 Reply 組成的討論串 | Conversation, Discussion |
+| **Permission**（權限） | 特定使用者或團隊對特定內容的存取授權記錄 | Role, Access, Right |
+| **PermissionLevel**（權限級別） | `view` / `comment` / `edit` / `full` — 由低到高 | ReadOnly, Write, Admin |
+| **Version**（版本快照） | 內容在某一時間點的完整 Block 快照 | Snapshot, Revision, Backup |
+| **NamedVersion**（具名版本） | 附帶人工可讀標籤的版本，不被自動保留策略刪除 | Milestone, Tag |
+| **contentId**（內容 ID） | 跨 BC 引用的 opaque ID，可為 pageId 或 articleId | ResourceId |
+| **PageLock**（頁面鎖定） | 防止並發編輯的暫時性鎖定，有過期時間 | Lock, Mutex |
+
+---
+
+## 邊界詞彙對照
+
+| 術語 | 此 BC 的含義 | 其他 BC 中的對應 |
+|---|---|---|
+| `Version` | Block 快照版本（點在時間線上的記錄） | `knowledge-base` 的 `version` number（樂觀鎖） |
+| `Permission` | 存取授權記錄（誰可以對內容做什麼） | `workspace` 的 Membership（工作區成員身份） |
+| `contentId` | 任意知識內容的 opaque ID（page/article/db） | `knowledge` 的 `pageId`、`knowledge-base` 的 `articleId` |
+
+---
+
+## 事件語言
+
+| 事件 | 語意 |
+|---|---|
+| `knowledge-collaboration.comment_created` | 使用者在某內容上留下留言 |
+| `knowledge-collaboration.comment_resolved` | 留言討論串被標記為已解決 |
+| `knowledge-collaboration.permission_granted` | 使用者被授予某內容的存取權限 |
+| `knowledge-collaboration.permission_revoked` | 使用者的存取權限被移除 |
+| `knowledge-collaboration.version_created` | 系統或使用者建立了內容的版本快照 |
+| `knowledge-collaboration.version_restored` | 內容被還原到特定版本 |
+| `knowledge-collaboration.page_locked` | 內容被鎖定，防止並發編輯 |
+````
+
+## File: modules/knowledge-database/AGENT.md
+````markdown
+# knowledge-database BC Agent
+
+## 模組職責
+
+此 BC 提供結構化資料庫能力：Database（欄位 Schema + 視圖容器）、Record（資料行）、View（視圖配置）。
+
+對應概念：Notion Database、Airtable、Coda 的 Table 能力。
+
+## 核心聚合
+
+| 聚合 | 職責 |
+|---|---|
+| `Database` | 持有欄位 Schema 與視圖清單；整個 Database 的 invariant 邊界 |
+| `Record` | 單行資料，持有各欄位的值（properties Map） |
+| `View` | 視圖配置：type / filters / sorts / groupBy / visibleFields |
+
+## 欄位類型（Field Types）
+
+`text`, `number`, `select`, `multi_select`, `date`, `checkbox`, `url`, `email`, `relation`, `formula`, `rollup`
+
+## 視圖類型（View Types）
+
+`table`, `board`, `list`, `calendar`, `timeline`, `gallery`
+
+## 邊界規則
+
+- 此 BC **不得**直接 import `knowledge` / `knowledge-base` 的 domain 層。
+- `Record` 的 `relation` 欄位儲存對方 Record 的 opaque ID（跨 Database）。
+- View 的 filter/sort 操作在 application 層組裝查詢，不在 domain 層。
+
+## 開發狀態
+
+📅 Planned — 設計階段。代碼實作待後續 PR。
+````
+
+## File: modules/knowledge-database/aggregates.md
+````markdown
+# Aggregates — knowledge-database
+
+---
+
+## Database（資料庫）— 聚合根
+
+Database 持有欄位 Schema 定義與視圖清單，是整個 Database 一致性的邊界。
+
+```typescript
+type FieldType =
+  | "text" | "number" | "select" | "multi_select"
+  | "date" | "checkbox" | "url" | "email"
+  | "relation" | "formula" | "rollup";
+
+interface Field {
+  id: string;
+  name: string;
+  type: FieldType;
+  config: Record<string, unknown>;      // per-type config (e.g. select options)
+  required: boolean;
+  order: number;
+}
+
+interface Database {
+  id: string;
+  workspaceId: string;
+  accountId: string;
+  name: string;
+  description: string | null;
+  fields: Field[];                       // Schema definition
+  viewIds: string[];                     // Ordered list of View IDs
+  icon: string | null;
+  coverImageUrl: string | null;
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+```
+
+### Database 業務規則
+
+- `fields` 至少一個欄位（預設 "Title" text 欄位）。
+- 刪除 Field 前，所有 Record 的對應 `properties` 值需清除。
+- `viewIds` 順序決定 UI 中的視圖顯示順序。
+
+---
+
+## Record（資料行）— 聚合根
+
+```typescript
+interface Record {
+  id: string;
+  databaseId: string;
+  workspaceId: string;
+  accountId: string;
+
+  properties: Map<string, unknown>;     // fieldId → value (typed by Field.type)
+  order: number;                        // display sort order
+
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+```
+
+### Record 業務規則
+
+- `properties` 的 key 必須是 Database.fields 中存在的 fieldId。
+- `relation` 類型的 field value 是 `string[]`（關聯的 Record IDs）。
+- Record 刪除（軟刪除）需保留 30 天供 Undo 操作。
+
+---
+
+## View（視圖）— 聚合根
+
+```typescript
+type ViewType = "table" | "board" | "list" | "calendar" | "timeline" | "gallery";
+
+interface FilterRule {
+  fieldId: string;
+  operator: "eq" | "neq" | "contains" | "not_contains" | "is_empty" | "is_not_empty" | "gt" | "lt";
+  value: unknown;
+}
+
+interface SortRule {
+  fieldId: string;
+  direction: "asc" | "desc";
+}
+
+interface GroupByConfig {
+  fieldId: string;
+  direction: "asc" | "desc";
+}
+
+interface View {
+  id: string;
+  databaseId: string;
+  workspaceId: string;
+  accountId: string;
+
+  name: string;
+  type: ViewType;
+
+  filters: FilterRule[];
+  sorts: SortRule[];
+  groupBy: GroupByConfig | null;
+
+  visibleFieldIds: string[];            // Which fields to show (all = empty array)
+  hiddenFieldIds: string[];             // Explicitly hidden fields
+
+  boardGroupFieldId: string | null;     // For board view: which select field to group by
+  calendarDateFieldId: string | null;   // For calendar view: which date field is the X-axis
+  timelineStartFieldId: string | null;  // For timeline: start date field
+  timelineEndFieldId: string | null;    // For timeline: end date field
+
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+```
+````
+
+## File: modules/knowledge-database/application-services.md
+````markdown
+# Application Services — knowledge-database
+
+---
+
+## Database Use Cases
+
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `CreateDatabaseUseCase` | name, workspaceId, accountId, fields? | `CommandResult<DatabaseId>` | 建立新 Database（含預設 Title 欄位） |
+| `RenameDatabaseUseCase` | databaseId, name | `CommandResult` | 重新命名 |
+| `AddFieldUseCase` | databaseId, fieldConfig | `CommandResult<FieldId>` | 新增欄位到 Schema |
+| `UpdateFieldUseCase` | databaseId, fieldId, fieldConfig | `CommandResult` | 更新欄位設定 |
+| `DeleteFieldUseCase` | databaseId, fieldId | `CommandResult` | 刪除欄位（同步清除 Record 值） |
+| `ReorderFieldsUseCase` | databaseId, fieldIds | `CommandResult` | 重新排列欄位順序 |
+
+## View Use Cases
+
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `CreateViewUseCase` | databaseId, name, type | `CommandResult<ViewId>` | 新增視圖 |
+| `UpdateViewFiltersUseCase` | viewId, filters | `CommandResult` | 更新過濾條件 |
+| `UpdateViewSortsUseCase` | viewId, sorts | `CommandResult` | 更新排序規則 |
+| `UpdateViewGroupByUseCase` | viewId, groupBy | `CommandResult` | 更新分組設定 |
+| `HideFieldsInViewUseCase` | viewId, fieldIds | `CommandResult` | 隱藏特定欄位 |
+| `DeleteViewUseCase` | viewId | `CommandResult` | 刪除視圖（至少保留 1 個視圖） |
+
+## Record Use Cases
+
+| Use Case | 輸入 | 輸出 | 說明 |
+|---|---|---|---|
+| `AddRecordUseCase` | databaseId, properties | `CommandResult<RecordId>` | 新增資料行 |
+| `UpdateRecordUseCase` | recordId, properties | `CommandResult` | 更新欄位值（partial update） |
+| `DeleteRecordUseCase` | recordId | `CommandResult` | 軟刪除資料行 |
+| `LinkRecordsUseCase` | recordId, fieldId, targetRecordId | `CommandResult` | 建立 Relation 連結 |
+| `UnlinkRecordsUseCase` | recordId, fieldId, targetRecordId | `CommandResult` | 移除 Relation 連結 |
+| `QueryRecordsUseCase` | databaseId, viewId | `CommandResult<Record[]>` | 依視圖 filter/sort/groupBy 查詢 |
+````
+
+## File: modules/knowledge-database/context-map.md
+````markdown
+# Context Map — knowledge-database
+
+---
+
+## 上游依賴（knowledge-database 依賴）
+
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `workspace` | **Conformist** | Database 必須屬於 Workspace |
+| `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
+| `identity` | **Conformist** | 驗證操作者身份 |
+| `knowledge-collaboration` | **Customer / Supplier** | Permission 控制 Database/Record 存取權限 |
+
+---
+
+## 下游影響（downstream BCs 依賴 knowledge-database）
+
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `knowledge-base` | **Open Host Service** | Article 可透過 Relation 欄位 link 到 Database Record |
+| `knowledge` | **Open Host Service** | Page 中可嵌入 Database（inline database） |
+| `workspace-feed` | **Published Language** | `record_added` 等事件推送工作區動態 |
+| `workspace-flow` | **Anti-Corruption Layer** | Task 可 link 到 Database Record（ACL 保護） |
+| `notification` | **Published Language** | Record 更新可觸發通知 |
+
+---
+
+## 整合事件流
+
+```
+knowledge-database.database_created
+  → workspace (register database in workspace content tree)
+
+knowledge-database.record_linked
+  → (if linked to article) knowledge-base (update backlink index)
+  → workspace-feed (activity)
+
+knowledge-collaboration.permission_granted (subjectType="database")
+  → knowledge-database (check permission on record access)
+```
+
+---
+
+## 邊界規則
+
+- `Relation` 欄位的 targetRecordId 是 opaque reference — 不 import 目標的 domain 型別。
+- Database Schema 變更（刪除 Field）必須同步更新所有 Record（由 application 層協調）。
+- View 不擁有資料，只持有展示配置。
+````
+
+## File: modules/knowledge-database/domain-events.md
+````markdown
+# Domain Events — knowledge-database
+
+---
+
+## Database 事件
+
+### knowledge-database.database_created
+
+```typescript
+interface DatabaseCreatedEvent {
+  type: "knowledge-database.database_created";
+  databaseId: string;
+  workspaceId: string;
+  accountId: string;
+  name: string;
+  createdByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.database_renamed
+
+```typescript
+interface DatabaseRenamedEvent {
+  type: "knowledge-database.database_renamed";
+  databaseId: string;
+  workspaceId: string;
+  name: string;
+  renamedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.field_added
+
+```typescript
+interface FieldAddedEvent {
+  type: "knowledge-database.field_added";
+  databaseId: string;
+  fieldId: string;
+  fieldName: string;
+  fieldType: string;
+  addedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.field_deleted
+
+```typescript
+interface FieldDeletedEvent {
+  type: "knowledge-database.field_deleted";
+  databaseId: string;
+  fieldId: string;
+  deletedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+---
+
+## Record 事件
+
+### knowledge-database.record_added
+
+```typescript
+interface RecordAddedEvent {
+  type: "knowledge-database.record_added";
+  recordId: string;
+  databaseId: string;
+  workspaceId: string;
+  accountId: string;
+  addedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.record_updated
+
+```typescript
+interface RecordUpdatedEvent {
+  type: "knowledge-database.record_updated";
+  recordId: string;
+  databaseId: string;
+  workspaceId: string;
+  updatedFields: string[];              // fieldIds that changed
+  updatedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.record_deleted
+
+```typescript
+interface RecordDeletedEvent {
+  type: "knowledge-database.record_deleted";
+  recordId: string;
+  databaseId: string;
+  workspaceId: string;
+  deletedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.record_linked
+
+```typescript
+interface RecordLinkedEvent {
+  type: "knowledge-database.record_linked";
+  recordId: string;
+  fieldId: string;
+  targetRecordId: string;
+  databaseId: string;
+  workspaceId: string;
+  linkedByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+---
+
+## View 事件
+
+### knowledge-database.view_created
+
+```typescript
+interface ViewCreatedEvent {
+  type: "knowledge-database.view_created";
+  viewId: string;
+  databaseId: string;
+  workspaceId: string;
+  viewName: string;
+  viewType: string;
+  createdByUserId: string;
+  occurredAtISO: string;
+}
+```
+
+### knowledge-database.view_updated
+
+```typescript
+interface ViewUpdatedEvent {
+  type: "knowledge-database.view_updated";
+  viewId: string;
+  databaseId: string;
+  workspaceId: string;
+  changedSettings: string[];            // e.g. ["filters", "sorts", "groupBy"]
+  updatedByUserId: string;
+  occurredAtISO: string;
+}
+```
+````
+
+## File: modules/knowledge-database/domain-services.md
+````markdown
+# Domain Services — knowledge-database
+
+---
+
+## FieldValueValidator
+
+驗證 Record 的 properties 值是否符合 Field 的類型規範。
+
+```typescript
+// modules/knowledge-database/domain/services/FieldValueValidator.ts
+
+export class FieldValueValidator {
+  validate(field: Field, value: unknown): void {
+    switch (field.type) {
+      case "number":
+        if (value !== null && typeof value !== "number") {
+          throw new Error(`Field "${field.name}" expects a number`);
+        }
+        break;
+      case "checkbox":
+        if (typeof value !== "boolean") {
+          throw new Error(`Field "${field.name}" expects a boolean`);
+        }
+        break;
+      case "date":
+        if (value !== null && typeof value !== "string") {
+          throw new Error(`Field "${field.name}" expects an ISO date string`);
+        }
+        break;
+      case "select":
+        const options: string[] = (field.config.options as string[]) ?? [];
+        if (value !== null && !options.includes(value as string)) {
+          throw new Error(`"${value}" is not a valid option for field "${field.name}"`);
+        }
+        break;
+      default:
+        // text, url, email, multi_select, relation, formula, rollup — validated at boundary
+        break;
+    }
+  }
+}
+```
+
+---
+
+## ViewQueryBuilder
+
+將 View 的 filter / sort / groupBy 配置轉換為查詢參數，供 Repository 執行。
+
+```typescript
+// modules/knowledge-database/domain/services/ViewQueryBuilder.ts
+
+export class ViewQueryBuilder {
+  buildQuery(view: View, records: DatabaseRecord[]): DatabaseRecord[] {
+    let result = [...records];
+
+    // Apply filters
+    for (const filter of view.filters) {
+      result = result.filter((record) =>
+        this.applyFilter(record, filter)
+      );
+    }
+
+    // Apply sorts
+    for (const sort of [...view.sorts].reverse()) {
+      result.sort((a, b) => {
+        const aVal = a.properties.get(sort.fieldId);
+        const bVal = b.properties.get(sort.fieldId);
+        const cmp = String(aVal ?? "").localeCompare(String(bVal ?? ""));
+        return sort.direction === "asc" ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  }
+
+  private applyFilter(record: DatabaseRecord, filter: FilterRule): boolean {
+    const value = record.properties.get(filter.fieldId);
+    switch (filter.operator) {
+      case "eq": return value === filter.value;
+      case "neq": return value !== filter.value;
+      case "is_empty": return value === null || value === undefined || value === "";
+      case "is_not_empty": return value !== null && value !== undefined && value !== "";
+      default: return true;
+    }
+  }
+}
+```
+````
+
+## File: modules/knowledge-database/README.md
+````markdown
+# knowledge-database — 結構化資料庫與視圖管理
+
+> **Domain Type:** **Supporting Subdomain**（支撐域）
+> **模組路徑:** `modules/knowledge-database/`
+> **開發狀態:** 📅 Planned — 設計階段
+
+## 在 Knowledge Platform 中的角色
+
+`knowledge-database` 對應 Notion Database 概念，提供結構化資料儲存與多視圖展示能力。使用者可定義欄位 Schema，以 Table / Board / Calendar / Timeline / Gallery / List 等視圖檢視資料。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Database Schema 管理 | 定義欄位類型（text/number/select/date/relation 等） |
+| Record 資料管理 | 建立、更新、刪除結構化資料行 |
+| View 視圖配置 | 每個 Database 可有多個視圖，各有自己的 filter/sort/groupBy |
+| Relation 欄位 | Record 間的跨 Database 關聯（Relation 欄位類型） |
+
+## 核心聚合
+
+- **`Database`**（資料庫容器 + 欄位 Schema）
+- **`Record`**（資料行）
+- **`View`**（視圖配置）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+````
+
+## File: modules/knowledge-database/repositories.md
+````markdown
+# Repositories — knowledge-database
+
+---
+
+## IDatabaseRepository
+
+```typescript
+export interface IDatabaseRepository {
+  getById(databaseId: string): Promise<Database>;
+  listByWorkspace(workspaceId: string, accountId: string): Promise<Database[]>;
+  save(database: Database): Promise<void>;
+  delete(databaseId: string): Promise<void>;
+}
+```
+
+---
+
+## IRecordRepository
+
+```typescript
+export interface IRecordRepository {
+  getById(recordId: string): Promise<DatabaseRecord>;
+  listByDatabase(params: {
+    databaseId: string;
+    filters?: FilterRule[];
+    sorts?: SortRule[];
+    limit?: number;
+    cursor?: string;
+  }): Promise<DatabaseRecord[]>;
+  save(record: DatabaseRecord): Promise<void>;
+  softDelete(recordId: string): Promise<void>;
+  getByIds(recordIds: string[]): Promise<DatabaseRecord[]>;
+}
+```
+
+---
+
+## IViewRepository
+
+```typescript
+export interface IViewRepository {
+  getById(viewId: string): Promise<View>;
+  listByDatabase(databaseId: string): Promise<View[]>;
+  save(view: View): Promise<void>;
+  delete(viewId: string): Promise<void>;
+}
+```
+
+---
+
+## Firestore Collection 設計
+
+| Collection | Document ID | 說明 |
+|---|---|---|
+| `knowledge_databases` | `{databaseId}` | Database documents（含 fields schema） |
+| `knowledge_db_records` | `{recordId}` | Record documents |
+| `knowledge_db_views` | `{viewId}` | View configuration documents |
+
+### Index 需求（預計）
+
+| Collection | Fields | Purpose |
+|---|---|---|
+| `knowledge_databases` | `workspaceId`, `createdAtISO` | Workspace database list |
+| `knowledge_db_records` | `databaseId`, `order` | Default record ordering |
+| `knowledge_db_views` | `databaseId` | Views per database |
+````
+
+## File: modules/knowledge-database/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge-database
+
+---
+
+## 核心術語
+
+| 術語 | 定義 | 禁止混用 |
+|---|---|---|
+| **Database**（資料庫） | 結構化資料容器，持有 Field Schema 與 View 清單 | Collection, Table, Spreadsheet |
+| **Field**（欄位） | Database Schema 中的單一欄位定義（含類型與設定） | Column, Attribute, Property |
+| **FieldType**（欄位類型） | `text`/`number`/`select`/`date`/`checkbox`/`url`/`email`/`relation`/`formula`/`rollup` | DataType |
+| **Record**（資料行） | Database 中的單一資料條目，持有各欄位的值（properties） | Row, Entry, Item |
+| **Property**（屬性值） | Record 中某 Field 的具體值（Map fieldId → value） | Cell, Value, Data |
+| **View**（視圖） | Database 的展示配置：type + filters + sorts + groupBy | Tab, Screen, Layout |
+| **ViewType**（視圖類型） | `table`/`board`/`list`/`calendar`/`timeline`/`gallery` | Format, Mode |
+| **Filter**（過濾條件） | 視圖中的資料篩選規則（fieldId + operator + value） | Query, Where |
+| **Sort**（排序規則） | 視圖中的排序設定（fieldId + direction） | Order, OrderBy |
+| **GroupBy**（分組依據） | 視圖中的分組設定（通常用於 board 視圖的 select 欄位） | Cluster, Group |
+| **Relation**（關聯） | Field 類型之一，連結另一個 Database 的 Record | ForeignKey, Link |
+| **BoardGroupField**（看板分組欄位） | Board 視圖中作為列（Column）依據的 select 欄位 | KanbanField |
+
+---
+
+## 邊界詞彙對照
+
+| 術語 | 此 BC 的含義 | 其他 BC 中的對應 |
+|---|---|---|
+| `Database` | 結構化資料容器 | 舊版 `KnowledgeCollection`（spaceType="database"）|
+| `Record` | 資料行 | --- |
+| `View` | 視圖配置 | --- |
+| `properties` | Record 的欄位值 Map | `knowledge` Block 的 `content` 欄位 |
+
+---
+
+## 事件語言
+
+| 事件 | 語意 |
+|---|---|
+| `knowledge-database.database_created` | 使用者建立新的 Database |
+| `knowledge-database.field_added` | Database Schema 新增欄位 |
+| `knowledge-database.record_added` | 新增一行資料 |
+| `knowledge-database.record_updated` | 資料行的欄位值更新 |
+| `knowledge-database.record_linked` | 資料行透過 Relation 欄位連結到另一 Record |
+| `knowledge-database.view_created` | 新增一個 Database 視圖 |
+| `knowledge-database.view_updated` | 視圖的 filter/sort/groupBy 設定變更 |
 ````
 
 ## File: modules/notebook/aggregates.md
@@ -26899,200 +29574,6 @@ Application layer 只負責：
 | `SourceDocument` | `File`, `Document`, `Asset` |
 | `WikiLibrary` | `Library`, `Folder`, `Collection` |
 | `RetentionPolicy` | `Policy`, `LifecycleRule` |
-````
-
-## File: modules/wiki/application-services.md
-````markdown
-# wiki — Application Services
-
-> **Canonical bounded context:** `wiki`
-> **模組路徑:** `modules/wiki/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `wiki` 的 application layer 服務與 use cases。內容與 `modules/wiki/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識圖譜節點與邊，提供 backlink 與 graph traversal 能力。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/link-extractor.service.ts`
-- `application/use-cases/auto-link.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/wiki/README.md`
-- 模組 AGENT：`../../../modules/wiki/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/wiki/application-services.md`
-````
-
-## File: modules/wiki/context-map.md
-````markdown
-# Context Map — wiki
-
-## 上游（依賴）
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge` 的頁面事件以同步 GraphNode 生命週期
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`（共享主鍵）
-
-```
-knowledge.page_created ──► wiki: 建立 GraphNode
-knowledge.block_updated ──► wiki: 更新 AutoLink GraphEdge
-knowledge.page_archived ──► wiki: 歸檔 GraphNode
-```
-
-### workspace → wiki（Customer/Supplier）
-
-- GraphNode 歸屬於 workspaceId
-
----
-
-## 下游（被依賴）
-
-### wiki → search（Customer/Supplier）
-
-- `search` 消費 `wiki.node_activated` 以更新向量索引
-- RAG 查詢結果中的圖譜上下文由 wiki 提供
-
-### wiki → notebook（Customer/Supplier）
-
-- AI 對話生成時，`notebook` 可查詢 wiki 圖譜以取得知識上下文
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| knowledge → wiki | knowledge | wiki | Published Language (Events) |
-| workspace → wiki | workspace | wiki | Customer/Supplier |
-| wiki → search | wiki | search | Customer/Supplier（Events） |
-| wiki → notebook | wiki | notebook | Customer/Supplier（Query） |
-````
-
-## File: modules/wiki/domain-events.md
-````markdown
-# Domain Events — wiki
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `wiki.node_created` | 新 GraphNode 建立時 | `nodeId`, `workspaceId`, `nodeType`, `occurredAt` |
-| `wiki.node_activated` | GraphNode 從 draft → active | `nodeId`, `workspaceId`, `occurredAt` |
-| `wiki.node_archived` | GraphNode 歸檔 | `nodeId`, `workspaceId`, `occurredAt` |
-| `wiki.edge_created` | 新 GraphEdge 建立時 | `edgeId`, `sourceNodeId`, `targetNodeId`, `edgeType`, `occurredAt` |
-| `wiki.edge_activated` | GraphEdge 從 pending → active | `edgeId`, `occurredAt` |
-| `wiki.edge_removed` | GraphEdge 移除 | `edgeId`, `occurredAt` |
-| `wiki.autolink_created` | 系統自動建立 Backlink 關係 | `edgeId`, `sourceNodeId`, `targetNodeId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_created` | 建立對應的 GraphNode |
-| `knowledge` | `knowledge.block_updated` | 掃描區塊內容，建立/更新 AutoLink GraphEdge |
-| `knowledge` | `knowledge.page_archived` | 將對應 GraphNode 設為 archived |
-
-## 消費 wiki 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `search` | `wiki.node_activated` | 更新向量索引中的節點內容 |
-| `notebook` | wiki 圖譜查詢（非事件） | AI 推理時參考圖譜結構 |
-````
-
-## File: modules/wiki/domain-services.md
-````markdown
-# wiki — Domain Services
-
-> **Canonical bounded context:** `wiki`
-> **模組路徑:** `modules/wiki/`
-> **Domain Type:** Core Domain
-
-本文件整理 `wiki` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/wiki/domain-services.md`
-- `../../../docs/ddd/wiki/aggregates.md`
-````
-
-## File: modules/wiki/repositories.md
-````markdown
-# wiki — Repositories
-
-> **Canonical bounded context:** `wiki`
-> **模組路徑:** `modules/wiki/`
-> **Domain Type:** Core Domain
-
-本文件整理 `wiki` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/GraphRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/InMemoryGraphRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/wiki/repositories.md`
-- `../../../docs/ddd/wiki/aggregates.md`
-````
-
-## File: modules/wiki/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — wiki
-
-> **範圍：** 僅限 `modules/wiki/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 圖譜節點 | GraphNode | 知識圖譜中的一個節點，對應一個知識概念或頁面 |
-| 圖譜邊 | GraphEdge | 兩個 GraphNode 之間的有向關係 |
-| 節點類型 | NodeType | 節點的語意類型（concept, page, entity 等） |
-| 邊類型 | EdgeType | 關係的語意類型（references, contains, related_to 等） |
-| 反向連結 | Backlink | 指向特定節點的所有入向邊（inbound edges） |
-| 圖遍歷 | GraphTraversal | 從起點節點沿邊向外擴展，取得關聯節點集 |
-| 自動連結 | AutoLink | 系統自動識別內容引用並建立 GraphEdge 的機制 |
-| 節點狀態 | NodeStatus | GraphNode 的生命週期狀態：`draft \| active \| archived` |
-| 邊狀態 | EdgeStatus | GraphEdge 的生命週期狀態：`pending \| active \| inactive \| removed` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `GraphNode` | `Node`, `WikiNode`, `Page`（圖譜上下文中） |
-| `GraphEdge` | `Edge`, `Link`, `Connection` |
-| `Backlink` | `InboundLink`, `ReverseLink` |
 ````
 
 ## File: modules/workspace-audit/aggregates.md
@@ -30060,302 +32541,6 @@ Serena is mandatory for project memory, index management, and any `.serena/` ope
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
-## File: .github/instructions/app/app-router-parallel-routes.instructions.md
-````markdown
----
-name: 'App Router Parallel Routes'
-description: 'Rules for app/ route slices and parallel-route UI blocks that compose module APIs without importing module internals.'
-applyTo: 'app/**/*.{ts,tsx}'
----
-
-# App Router Parallel Routes
-
-Use this instruction for work in `app/`.
-
-## Composition Rules
-
-- Treat each route slice or parallel-route block as one feature area: dashboard surface, sidebar tool, modal, or chat console.
-- Keep data flow one-way from module API -> route composition -> local UI state.
-- Import module behavior through `@/modules/<target>/api` only.
-- Keep route files focused on composition, loading states, and rendering.
-
-## Guardrails
-
-- Do not import `domain/`, `application/`, or `infrastructure/` from any module.
-- Do not move business rules into `app/`.
-- Keep slot-local state isolated; do not hide coupling through shared mutable module state.
-- Prefer Server Components by default; add `use client` only where interactivity requires it.
-
-## Validation
-
-- Run the app-level commands from `agents/commands.md` that match the touched files.
-- If routing or public API usage changes, update affected docs or prompt/instruction references in the same change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill app-router-parallel-routes
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: .github/instructions/architecture-api-boundary.instructions.md
-````markdown
----
-description: 'Cross-boundary rules for API-only collaboration between modules and runtimes.'
-applyTo: '{app,modules,packages,providers,py_fn}/**/*.{ts,tsx,js,jsx,py}'
----
-
-# Architecture API Boundary
-
-## Core Rule
-
-- Cross-module access must go through `modules/<target>/api` only.
-- Do not import another module's `domain/`, `application/`, `infrastructure/`, or `interfaces/` internals.
-
-## Allowed Patterns
-
-- Import public facades or contracts from `modules/<target>/api`.
-- Coordinate across contexts through explicit event contracts.
-
-## Forbidden Patterns
-
-- Reach-through imports into another module's private entities, repositories, or adapters.
-- Hiding boundary bypasses behind barrels or re-export chains.
-
-## Refactor Rule
-
-- When boundary violations are found, replace them with API contracts or events in the same change.
-- Do not leave temporary reach-through imports after refactors.
-
-## Validation
-
-- Use `eslint.config.mjs` restricted-import and boundary rules as the enforcement source.
-- Re-check changed imports for `@/modules/` to confirm API-only access.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/architecture-mddd.instructions.md
-````markdown
----
-description: 'MDDD architecture rules for layer ownership and dependency direction.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture MDDD
-
-## Layer Direction
-
-- `interfaces -> application -> domain <- infrastructure`
-- Keep `domain/` framework-free.
-
-## Layer Constraints
-
-- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
-- `application/` orchestrates use cases and coordinates domain abstractions.
-- `infrastructure/` implements domain ports and repository interfaces.
-- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
-
-## Layer Ownership
-
-- `domain/`: entities, value objects, domain services, repository interfaces.
-- `application/`: use cases and DTO orchestration.
-- `infrastructure/`: adapters and external implementations.
-- `interfaces/`: UI, transport, and action wiring.
-- `api/`: only public cross-module boundary.
-
-## Dependency Guardrails
-
-- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
-- Do not reverse dependency direction for convenience during refactors.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/architecture-modules.instructions.md
-````markdown
----
-description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Modules
-
-## Required Shape
-
-- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
-
-## Naming
-
-- Module folder: kebab-case bounded context.
-- Use case file: `verb-noun.use-case.ts`.
-- Repository interface: `PascalCaseRepository`.
-- Repository implementation: `TechnologyPascalCaseRepository`.
-- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
-- Domain event discriminant: `module-name.action`.
-
-## Refactor Checklist
-
-1. Confirm ownership.
-2. Map API consumers.
-3. Preserve boundaries during split/merge/delete.
-4. Update docs and imports in the same change.
-5. Migrate public API and event contracts before removing old paths.
-
-## Module Lifecycle Notes
-
-- New module: establish `api/` contract immediately and document inventory updates.
-- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
-- Delete: remove consumers first, then delete module, then update docs and dependency references.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/architecture-monorepo.instructions.md
-````markdown
----
-description: 'Monorepo boundary rules across app, modules, packages, and worker runtime.'
-applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py,md}'
----
-
-# Architecture Monorepo
-
-## Boundary Rules
-
-- `app/` composes module APIs and package aliases.
-- `modules/` own business capabilities by bounded context.
-- `packages/` provide stable shared implementations via aliases.
-- `py_fn/` owns ingestion and heavy worker jobs.
-
-## Runtime Ownership Rule
-
-- Browser-facing interactions, auth/session, and route orchestration stay in Next.js.
-- Background, retryable, and heavy ingestion jobs stay in `py_fn/`.
-
-## External Docs Rule
-
-- Use external documentation lookup only when repository sources are insufficient or version-sensitive behavior is uncertain.
-- Prefer local authoritative sources first: `AGENTS.md`, `.github/copilot-instructions.md`, module docs, and local code.
-
-## Import Rules
-
-- Use configured aliases; avoid legacy import families.
-- Avoid cross-layer relative imports across contexts.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-#use skill next-devtools-mcp
-````
-
-## File: .github/instructions/branching-strategy.instructions.md
-````markdown
----
-description: 'Branching and change-scope strategy for focused, reviewable delivery.'
-applyTo: '**/*'
----
-
-# Branching Strategy
-
-## Rules
-
-- Keep one concern per branch and PR.
-- Name branches by intent and scope.
-- Avoid mixing architecture refactor with unrelated feature work.
-
-## Validation Before Merge
-
-- Run relevant lint/build/test commands for touched runtime.
-- Document what changed and why.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/instructions/ci-cd.instructions.md
-````markdown
----
-description: 'CI/CD execution rules for lint, build, tests, and release evidence.'
-applyTo: '{.github/workflows/**/*.{yml,yaml},package.json,py_fn/requirements.txt,firebase.json,apphosting.yaml}'
----
-
-# CI CD
-
-## Required Checks
-
-- `npm run lint`
-- `npm run build`
-- `cd py_fn && python -m compileall -q .`
-- `cd py_fn && python -m pytest tests/ -v`
-
-## Rules
-
-- Do not skip failing mandatory checks.
-- Report unrelated baseline failures separately.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/instructions/cloud-functions.instructions.md
-````markdown
----
-description: 'Rules for Python Cloud Functions worker responsibilities and boundaries.'
-applyTo: 'py_fn/**/*.py'
----
-
-# Cloud Functions
-
-## Ownership
-
-- `py_fn/` handles parsing, cleaning, taxonomy, chunking, embedding, and background jobs.
-- Do not add browser-facing chat/auth/session logic in `py_fn/`.
-
-## Runtime Decision Rule
-
-- If called directly from page or browser flow, keep it in Next.js.
-- If heavy, retryable, admin/internal, or long-running, keep it in `py_fn/`.
-
-## Guardrails
-
-- Preserve worker layer boundaries.
-- Keep ingest job flow deterministic and retry-safe.
-
-## Boundary Change Validation
-
-- Before changing worker ownership, review `py_fn/docs/decision-architecture/adr/README.md` and accepted ADRs.
-- Update `py_fn/README.md` when responsibilities or runtime contracts change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-````
-
-## File: .github/instructions/commit-convention.instructions.md
-````markdown
----
-description: 'Commit message and change-summary conventions for maintainable history.'
-applyTo: '**/*'
----
-
-# Commit Convention
-
-## Rules
-
-- Keep subject concise and action-oriented.
-- Reference scope (module/runtime) in commit body when relevant.
-- Include validation evidence for non-trivial changes.
-
-## Avoid
-
-- Mixed unrelated changes in one commit.
-- Vague subjects with no functional signal.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
 ## File: .github/instructions/doc-governance.instructions.md
 ````markdown
 ---
@@ -30417,669 +32602,68 @@ applyTo: 'docs/**/*.md'
 Tags: #use skill context7 #use skill xuanwu-app-skill
 ````
 
-## File: .github/instructions/embedding-pipeline.instructions.md
+## File: .github/instructions/README.md
 ````markdown
----
-description: 'Ingestion and embedding pipeline contract for worker-side RAG preparation.'
-applyTo: '{py_fn/**/*.py,docs/**/*.md}'
----
+# Instructions Index
 
-# Embedding Pipeline
+Repository instruction index for `applyTo`-scoped Copilot rules.
 
-## Contract Order
+## DDD 戰略與戰術設計 (IDDD)
 
-Parse -> Clean -> Taxonomy -> Chunk -> Chunk metadata -> Embedding -> Firestore writes -> Mark ready
+- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
+- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
+- [domain-modeling.instructions.md](domain-modeling.instructions.md)
+- [event-driven-state.instructions.md](event-driven-state.instructions.md)
 
-## Rules
+## Architecture
 
-- Do not reorder stages without contract/doc update.
-- Normalize source documents to markdown (for example via MarkItDown) before chunking when required by source format.
-- Keep metadata traceable for retrieval citations.
-- Validate converted markdown quality before chunking.
-- Record notable format-loss risk when conversion fidelity may affect downstream retrieval.
+- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
+- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
+- [architecture-modules.instructions.md](architecture-modules.instructions.md)
+- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill llamaparse
-#use skill liteparse
-````
+## Delivery Process
 
-## File: .github/instructions/firebase-architecture.instructions.md
-````markdown
----
-description: 'Firebase architecture boundaries for Next.js orchestration, Firestore, and Python worker runtime.'
-applyTo: '{app,modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
----
+- [branching-strategy.instructions.md](branching-strategy.instructions.md)
+- [ci-cd.instructions.md](ci-cd.instructions.md)
+- [commit-convention.instructions.md](commit-convention.instructions.md)
+- [lint-format.instructions.md](lint-format.instructions.md)
 
-# Firebase Architecture
+## Platform and Runtime
 
-## Runtime Split
+- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
+- [cloud-functions.instructions.md](cloud-functions.instructions.md)
+- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
+- [firestore-schema.instructions.md](firestore-schema.instructions.md)
+- [security-rules.instructions.md](security-rules.instructions.md)
 
-- Next.js: user-facing orchestration, auth/session, server actions.
-- `py_fn/`: heavy ingestion, embedding, and background operations.
+## AI and RAG
 
-## Responsibility Split
+- [genkit-flow.instructions.md](genkit-flow.instructions.md)
+- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
+- [rag-architecture.instructions.md](rag-architecture.instructions.md)
+- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
 
-- Next.js owns upload UX, browser-facing APIs, and AI response orchestration.
-- `py_fn/` owns parse/clean/taxonomy/chunk/embed/persist pipelines.
+## Next.js and UI
 
-## Data Boundary
+- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
+- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
+- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
+- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
+- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
 
-- Keep Firestore document contracts explicit.
-- Avoid implicit schema drift across modules.
-- Preserve source and chunk metadata traceability for audit and citation needs.
+## Testing
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill xuanwu-development-contracts
-````
+- [testing-unit.instructions.md](testing-unit.instructions.md)
+- [testing-e2e.instructions.md](testing-e2e.instructions.md)
 
-## File: .github/instructions/firestore-schema.instructions.md
-````markdown
----
-description: 'Firestore schema and index design rules aligned to bounded context ownership.'
-applyTo: '{modules/**/infrastructure/**/*.{ts,tsx,js,jsx},firestore.indexes.json,firestore.rules}'
----
+## DDD Navigation
 
-# Firestore Schema
+Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
 
-## Rules
-
-- Keep collection ownership explicit per module.
-- Version breaking schema transitions with migration steps.
-- Update indexes with query-shape changes.
-
-## Validation
-
-- Verify read/write paths remain compatible.
-- Confirm index coverage for new query patterns.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/instructions/genkit-flow.instructions.md
-````markdown
----
-description: 'Genkit flow design and runtime-boundary rules for AI orchestration.'
-applyTo: '{modules/agent/**/*.{ts,tsx,js,jsx},app/**/*.{ts,tsx}}'
----
-
-# Genkit Flow
-
-## Rules
-
-- Keep flow inputs/outputs explicit and typed.
-- Keep user-facing orchestration in Next.js.
-- Delegate heavy ingestion/embedding to worker-side pipelines.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill next-devtools-mcp
-````
-
-## File: .github/instructions/hosting-deploy.instructions.md
-````markdown
----
-description: 'Hosting deploy guardrails for Firebase App Hosting and release safety.'
-applyTo: '{apphosting.yaml,firebase.json,.github/workflows/**/*.{yml,yaml}}'
----
-
-# Hosting Deploy
-
-## Rules
-
-- Validate build and config before deployment.
-- Keep deploy scope explicit (hosting, rules, indexes, functions).
-- Record rollback path for production-impacting changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/instructions/lint-format.instructions.md
-````markdown
----
-description: 'Lint and formatting expectations for TypeScript and Python changes.'
-applyTo: '{app,modules,packages,providers,debug,py_fn}/**/*.{ts,tsx,js,jsx,py}'
----
-
-# Lint Format
-
-## Required Commands
-
-- `npm run lint`
-- `npm run build` when types or exports changed
-- `cd py_fn && python -m compileall -q .`
-
-## Rules
-
-- Fix new lint errors introduced by your change.
-- Do not hide violations by broad rule disables.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill vscode-typescript-workbench
-````
-
-## File: .github/instructions/modules/modules-api-surface.instructions.md
-````markdown
----
-name: 'Modules API Surface'
-description: 'Rules for modules/*/api files so cross-domain access stays API-only through contracts and facades.'
-applyTo: 'modules/**/api/**/*.ts'
----
-
-# Modules API Surface
-
-Use this instruction for `modules/*/api` files.
-
-## Required Shape
-
-- Keep `contracts.ts` for DTOs, request types, response types, and stable public contracts.
-- Keep `facade.ts` for outward use-case entry points that the app layer or other modules can call.
-- Export the minimum stable surface needed by consumers.
-
-## Guardrails
-
-- Do not instantiate infrastructure adapters directly in `api/`.
-- Do not expose private domain entities or repository implementations unless a public contract explicitly requires a translated type.
-- Do not reach into other modules except through their own `api/` boundaries.
-
-## Validation
-
-- Re-check every new export and downstream import path.
-- Run validation from `agents/commands.md` when API signatures or import surfaces change.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/instructions/modules/modules-index-entry.instructions.md
-````markdown
----
-name: 'Modules Index Entry'
-description: 'Rules for modules/*/index.ts files so they remain aggregate exports without embedded business logic.'
-applyTo: 'modules/**/index.ts'
----
-
-# Modules Index Entry
-
-Use this instruction for module root `index.ts` files.
-
-## Rules
-
-- `index.ts` is an aggregate export only.
-- Re-export stable public members from `api/` or other intentionally public entry points.
-- Keep the file free of orchestration, conditionals, adapter wiring, and business logic.
-
-## Guardrails
-
-- Do not implement use cases, facades, or stateful helpers here.
-- Do not expose private infrastructure or domain internals through convenience exports.
-
-## Validation
-
-- Verify that app-layer or cross-module imports still resolve through the intended public surface.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-````
-
-## File: .github/instructions/modules/modules-infrastructure-adapters.instructions.md
-````markdown
----
-name: 'Modules Infrastructure Adapters'
-description: 'Rules for modules/*/infrastructure files so external resources stay in adapters with downward-only dependencies.'
-applyTo: 'modules/**/infrastructure/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules Infrastructure Adapters
-
-Use this instruction for `modules/*/infrastructure` files.
-
-## Rules
-
-- Keep Firebase, storage, HTTP, queue, and third-party adapters here.
-- Infrastructure may depend on `domain/` contracts and entities needed to implement ports.
-- Keep adapter wiring explicit and local to infrastructure.
-
-## Guardrails
-
-- Do not depend on `application/`, `api/`, or `interfaces/`.
-- Do not place domain decision logic here.
-- Do not let app-layer concerns leak into adapter code.
-
-## Validation
-
-- Re-check dependency direction after import changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/modules/modules-interfaces-api-consumption.instructions.md
-````markdown
----
-name: 'Modules Interfaces API Consumption'
-description: 'Rules for modules/*/interfaces files so UI, hooks, and external interfaces consume module behavior only through api/.'
-applyTo: 'modules/**/interfaces/**/*.{ts,tsx,js,jsx}'
----
-
-# Modules Interfaces API Consumption
-
-Use this instruction for `modules/*/interfaces` files.
-
-## Rules
-
-- Put UI components, hooks, route-facing adapters, and interface DTOs here.
-- Consume module behavior through the module's own `api/` surface.
-- Keep local view state or interaction state inside the interface layer.
-
-## Guardrails
-
-- Do not import the same module's `domain/` or `application/` directly.
-- Do not import another module's internals.
-- Do not place external resource adapters here.
-
-## Validation
-
-- Re-check imports for accidental reach-through before finishing.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/instructions/nextjs-app-router.instructions.md
-````markdown
----
-description: 'Next.js App Router composition rules for route slices and ownership boundaries.'
-applyTo: 'app/**/*.{ts,tsx}'
----
-
-# Nextjs App Router
-
-## Rules
-
-- Keep route files focused on composition and rendering.
-- Prefer Server Components unless client interactivity is required.
-- Keep business logic in modules and consume via module APIs.
-- Use package aliases and avoid legacy import families.
-- Keep `app/` as composition ownership, not domain-rule ownership.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-#use skill vercel-composition-patterns
-````
-
-## File: .github/instructions/nextjs-parallel-routes.instructions.md
-````markdown
----
-description: 'Parallel-route UI block composition rules with isolated local state and API-only module access.'
-applyTo: 'app/**/*.{ts,tsx}'
----
-
-# Nextjs Parallel Routes
-
-## Rules
-
-- Keep slot-level state isolated.
-- Avoid hidden coupling between unrelated slots.
-- Consume cross-domain behavior through module APIs only.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill app-router-parallel-routes
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: .github/instructions/nextjs-server-actions.instructions.md
-````markdown
----
-description: 'Server Action rules for thin orchestration, validation at boundaries, and stable result contracts.'
-applyTo: '{app,modules}/**/*.{ts,tsx}'
----
-
-# Nextjs Server Actions
-
-## Rules
-
-- Use `use server` explicitly.
-- Keep actions thin and delegate business logic to use cases.
-- Return consistent command result shapes.
-- Validate inputs at action boundaries using shared validators where applicable.
-- Keep infrastructure access out of route files and action wrappers.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: .github/instructions/prompt-engineering.instructions.md
-````markdown
----
-description: 'Prompt authoring rules for deterministic, low-noise, reusable workflow prompts.'
-applyTo: '.github/prompts/**/*.prompt.md'
----
-
-# Prompt Engineering
-
-## Frontmatter
-
-- Use clear `description` and `agent` fields.
-- Declare `tools` with least privilege when tool usage is required.
-- Keep `argument-hint` explicit when the prompt expects user inputs.
-
-## Structure
-
-1. Mission
-2. Inputs
-3. Workflow
-4. Output contract
-5. Validation
-
-## Rules
-
-- Keep prompts specific and executable.
-- Declare required inputs and fallbacks.
-- Keep tools least-privilege when defined.
-- Avoid copying repository-global policy into each prompt.
-- Prefer short executable steps over long background text.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-````
-
-## File: .github/instructions/rag-architecture.instructions.md
-````markdown
----
-description: 'RAG architecture boundaries for conversion, chunking, embedding, and retrieval workflows.'
-applyTo: '{modules/retrieval/**/*.{ts,tsx,js,jsx},modules/knowledge/**/*.{ts,tsx,js,jsx},py_fn/**/*.py,docs/**/*.md}'
----
-
-# RAG Architecture
-
-## Rules
-
-- Normalize source docs before chunking when needed, including MarkItDown-based conversion for non-markdown sources.
-- Keep retrieval metadata auditable and source-traceable.
-- Keep runtime split: Next.js orchestration, `py_fn` ingestion pipeline.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill llamaparse
-#use skill liteparse
-````
-
-## File: .github/instructions/security-rules.instructions.md
-````markdown
----
-description: 'Security rules guardrails for Firestore and Storage with least-privilege access.'
-applyTo: '{firestore.rules,storage.rules,modules/**/infrastructure/**/*.{ts,tsx,js,jsx},py_fn/**/*.py}'
----
-
-# Security Rules
-
-## Rules
-
-- Enforce organization and workspace isolation.
-- Keep allow conditions explicit and auditable.
-- Pair rule changes with scenario-based validation.
-
-## Avoid
-
-- Broad wildcard allows without actor checks.
-- Hidden coupling to UI-side assumptions.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/instructions/shadcn-ui.instructions.md
-````markdown
----
-description: 'shadcn/ui usage rules for consistent component composition and accessibility.'
-applyTo: '{app,modules,packages}/**/*.{ts,tsx}'
----
-
-# Shadcn UI
-
-## Rules
-
-- Prefer existing primitives before creating new components.
-- Keep semantic markup and keyboard accessibility intact.
-- Keep component concerns separate from business rules.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill shadcn
-#use skill web-design-guidelines
-````
-
-## File: .github/instructions/tailwind-design-system.instructions.md
-````markdown
----
-description: 'Tailwind design-system consistency rules for tokens, spacing, and responsive behavior.'
-applyTo: '{app,modules,packages}/**/*.{ts,tsx,css}'
----
-
-# Tailwind Design System
-
-## Rules
-
-- Reuse established tokens and utility conventions.
-- Keep spacing and typography scales consistent.
-- Avoid ad-hoc one-off style patterns without rationale.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill web-design-guidelines
-#use skill shadcn
-````
-
-## File: .github/instructions/testing-e2e.instructions.md
-````markdown
----
-description: 'End-to-end testing rules for browser flows, evidence capture, and release confidence.'
-applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
----
-
-# Testing E2E
-
-## Rules
-
-- Validate user-critical flows and failure paths.
-- Capture reproducible evidence for failures.
-- Separate confirmed defects from enhancement suggestions.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill vscode-testing-debugging-browser
-#use skill next-devtools-mcp
-````
-
-## File: .github/instructions/testing-unit.instructions.md
-````markdown
----
-description: 'Unit testing rules for deterministic, isolated, and behavior-focused coverage.'
-applyTo: '{modules,packages,py_fn}/**/*.{ts,tsx,js,jsx,py}'
----
-
-# Testing Unit
-
-## Rules
-
-- Keep tests deterministic and isolated.
-- Test behavior and invariants, not implementation trivia.
-- Cover happy, boundary, and negative paths for core domain logic.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill vscode-testing-debugging-browser
-#use skill vscode-typescript-workbench
-````
-
-## File: .github/prompts/analyze-repo.prompt.md
-````markdown
----
-name: analyze-repo
-description: Analyze repository structure, ownership boundaries, and change impact before implementation.
-agent: Serena Strategist
-argument-hint: Provide target area, goal, and constraints.
----
-
-# Analyze Repo
-
-## Mission
-
-Map ownership, boundaries, and risks before coding.
-
-## Inputs
-
-- target: ${input:target:modules/workspace}
-- goal: ${input:goal:what needs to change}
-- constraints: ${input:constraints:boundary, runtime, timeline}
-
-## Workflow
-
-1. Identify owning module and runtime.
-2. Locate existing APIs, use cases, and adapters.
-3. Flag boundary violations and regression risks.
-4. Recommend minimal-change implementation path.
-
-## Output Contract
-
-- Ownership map
-- Affected files
-- Risk list
-- Suggested next prompt
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/app/create-parallel-route-slice.prompt.md
-````markdown
----
-name: 'create-parallel-route-slice'
-description: 'Create or refactor an app/ route slice or parallel-route block that composes module APIs without importing module internals.'
-agent: 'App Router Composer'
-argument-hint: 'Provide the route path, UI block role, allowed module APIs, and whether the slice should be server or client.'
----
-
-# Create Parallel Route Slice
-
-## Mission
-
-Create or refactor a route slice in `app/` that composes one feature block and keeps the module boundary API-only.
-
-## Inputs
-
-- Route path: `${input:routePath:app/(shell)/dashboard}`
-- Block role: `${input:blockRole:dashboard panel | sidebar tool | modal | chat console}`
-- Allowed module APIs: `${input:moduleApis:@/modules/workspace/api}`
-- Rendering mode: `${input:renderMode:server | client}`
-
-## Workflow
-
-1. Keep the slice focused on one UI responsibility.
-2. Consume module data through public APIs only.
-3. Keep local UI state isolated to this slice or its local components.
-4. Avoid embedding business logic in the route layer.
-5. Run the minimum validation needed for the touched files.
-
-## Output
-
-- Files created or changed
-- Module APIs consumed
-- Validation run
-- Any remaining route-state or boundary risks
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill app-router-parallel-routes
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
-
-## File: .github/prompts/chunk-docs.prompt.md
-````markdown
----
-name: chunk-docs
-description: Define and execute document chunking strategy for retrieval quality and context efficiency.
-agent: rag-lead
-argument-hint: Provide source docs, target chunk policy, and constraints.
----
-
-# Chunk Docs
-
-## Inputs
-
-- docs: ${input:docs:docs/**/*.md}
-- policy: ${input:policy:size,overlap,metadata}
-- constraints: ${input:constraints:token budget and citation needs}
-
-## Workflow
-
-1. Validate document normalization status.
-2. Apply chunking policy with explicit metadata fields.
-3. Check chunk quality for retrieval relevance.
-4. Report chunk statistics and edge cases.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill liteparse
-#use skill llamaparse
-````
-
-## File: .github/prompts/debug-error.prompt.md
-````markdown
----
-name: debug-error
-description: Reproduce, diagnose, and propose fixes for runtime or logic errors with evidence.
-agent: App Router Agent
-argument-hint: Provide error message, route/module, and reproduction steps.
----
-
-# Debug Error
-
-## Inputs
-
-- error: ${input:error:paste error message}
-- scope: ${input:scope:route/module/runtime}
-- repro: ${input:repro:steps to reproduce}
-
-## Workflow
-
-1. Reproduce issue and capture evidence.
-2. Isolate likely root cause and affected boundaries.
-3. Propose minimal fix plus regression checks.
-4. State validation commands to confirm resolution.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill next-devtools-mcp
-#use skill vscode-testing-debugging-browser
-````
-
-## File: .github/prompts/embedding-docs.prompt.md
-````markdown
----
-name: embedding-docs
-description: Generate embeddings from normalized docs with traceable metadata and retrieval compatibility checks.
-agent: embedding-writer
-argument-hint: Provide doc sources, embedding model/runtime, and storage target.
----
-
-# Embedding Docs
-
-## Workflow
-
-1. Confirm docs are normalized and chunked.
-2. Generate embeddings with stable metadata.
-3. Write vectors and verify retrieval compatibility.
-4. Report failures, retries, and quality risks.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill llamaparse
+- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
+- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
+- `../../docs/ddd/<context>/*.md` for bounded-context details
 ````
 
 ## File: .github/prompts/generate-aggregate.prompt.md
@@ -31200,434 +32784,57 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
-## File: .github/prompts/implement-feature.prompt.md
+## File: .github/prompts/README.md
 ````markdown
----
-name: implement-feature
-description: Execute an approved feature plan with bounded scope, required validation, and doc updates.
-agent: Domain Lead
-argument-hint: Provide approved plan reference and tasks to execute.
----
+# Prompts Index
 
-# Implement Feature
+Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
 
-## Requirements
+## DDD 領域建模 (IDDD)
 
-- Treat the approved plan as execution contract.
-- Keep within scope and non-goals.
-- Run required validation commands.
-- Update listed docs in the same change.
+- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
+- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
 
-## Output
+## Planning
 
-- Tasks completed
-- Validation run
-- Documentation updated
-- Deviations or blockers
+- [plan-feature.prompt.md](plan-feature.prompt.md)
+- [plan-module.prompt.md](plan-module.prompt.md)
+- [plan-api.prompt.md](plan-api.prompt.md)
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-````
+## Implementation
 
-## File: .github/prompts/implement-firestore-schema.prompt.md
-````markdown
----
-name: implement-firestore-schema
-description: Implement Firestore schema/index updates with backward-safe migration and validation evidence.
-agent: firestore-schema
-argument-hint: Provide collections, fields, query patterns, and migration constraints.
----
+- [implement-feature.prompt.md](implement-feature.prompt.md)
+- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
+- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
+- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
+- [implement-server-action.prompt.md](implement-server-action.prompt.md)
+- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
 
-# Implement Firestore Schema
+## Docs and RAG
 
-## Workflow
+- [ingest-docs.prompt.md](ingest-docs.prompt.md)
+- [chunk-docs.prompt.md](chunk-docs.prompt.md)
+- [embedding-docs.prompt.md](embedding-docs.prompt.md)
+- [write-docs.prompt.md](write-docs.prompt.md)
 
-1. Define schema and ownership by bounded context.
-2. Update indexes for new query shapes.
-3. Plan migration or compatibility path.
-4. Validate read/write behavior and regressions.
+## Analysis and Debug
 
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-development-contracts
-````
+- [analyze-repo.prompt.md](analyze-repo.prompt.md)
+- [debug-error.prompt.md](debug-error.prompt.md)
 
-## File: .github/prompts/implement-genkit-flow.prompt.md
-````markdown
----
-name: implement-genkit-flow
-description: Implement or refactor Genkit flow with explicit contracts, runtime boundaries, and validation.
-agent: genkit-flow
-argument-hint: Provide flow intent, inputs/outputs, and target runtime.
----
+## Refactor and Review
 
-# Implement Genkit Flow
+- [refactor-module.prompt.md](refactor-module.prompt.md)
+- [refactor-api.prompt.md](refactor-api.prompt.md)
+- [review-code.prompt.md](review-code.prompt.md)
+- [review-architecture.prompt.md](review-architecture.prompt.md)
+- [review-performance.prompt.md](review-performance.prompt.md)
+- [review-security.prompt.md](review-security.prompt.md)
 
-## Workflow
+## Testing
 
-1. Define flow contract (input, output, failure modes).
-2. Keep orchestration in Next.js and heavy processing in worker runtime.
-3. Integrate with retrieval or action boundaries safely.
-4. Validate flow behavior and fallback paths.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill next-devtools-mcp
-````
-
-## File: .github/prompts/implement-security-rules.prompt.md
-````markdown
----
-name: implement-security-rules
-description: Implement Firestore/Storage security rules with least privilege and tenancy isolation.
-agent: security-rules
-argument-hint: Provide access scenarios, actor roles, and constrained resources.
----
-
-# Implement Security Rules
-
-## Workflow
-
-1. Enumerate allowed actor-resource actions.
-2. Encode explicit allow conditions and deny-by-default behavior.
-3. Validate with scenario-based checks.
-4. Report residual access risks.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/prompts/implement-server-action.prompt.md
-````markdown
----
-name: implement-server-action
-description: Implement Next.js server actions as thin orchestrators that delegate to use cases.
-agent: server-action-writer
-argument-hint: Provide action intent, input schema, and target use case.
----
-
-# Implement Server Action
-
-## Rules
-
-- Use `use server`.
-- Validate input at boundary.
-- Delegate business logic to module use cases.
-- Return stable command-result shape.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill next-devtools-mcp
-#use skill vercel-react-best-practices
-#use skill modules-mddd-api-surface
-````
-
-## File: .github/prompts/implement-ui-component.prompt.md
-````markdown
----
-name: implement-ui-component
-description: Build or refactor UI components with shadcn patterns and boundary-safe composition.
-agent: Component Agent
-argument-hint: Provide component goal, route scope, and interaction states.
----
-
-# Implement UI Component
-
-## Workflow
-
-1. Confirm component ownership and target route slice.
-2. Reuse existing shadcn primitives where possible.
-3. Implement states: loading, empty, error, success.
-4. Validate accessibility and interaction behavior.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill shadcn
-#use skill web-design-guidelines
-#use skill vercel-react-best-practices
-#use skill next-devtools-mcp
-````
-
-## File: .github/prompts/ingest-docs.prompt.md
-````markdown
----
-name: ingest-docs
-description: Ingest and normalize documents for downstream chunking and embedding workflows.
-agent: doc-ingest
-argument-hint: Provide source format, target pipeline, and quality constraints.
----
-
-# Ingest Docs
-
-## Workflow
-
-1. Convert/normalize sources to markdown when needed.
-2. Preserve source metadata and traceability.
-3. Validate structure quality for chunking.
-4. Output ingestion summary and loss-risk notes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-rag-runtime-boundary
-#use skill liteparse
-#use skill llamaparse
-````
-
-## File: .github/prompts/plan-api.prompt.md
-````markdown
----
-name: plan-api
-description: Create an API-focused implementation plan covering contracts, facades, consumers, and validation.
-agent: Planner
-argument-hint: Provide API intent, owner module, consumers, and compatibility constraints.
----
-
-# Plan API
-
-## Requirements
-
-- Define contract shape and owner boundary.
-- Identify consuming routes/modules.
-- Include compatibility and migration strategy.
-- Specify validation and documentation updates.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/prompts/plan-feature.prompt.md
-````markdown
----
-name: plan-feature
-description: Create a formal implementation plan for a feature or scoped enhancement.
-agent: Planner
-argument-hint: Describe desired outcome, constraints, and affected modules.
----
-
-# Plan Feature
-
-Use the implementation plan template and include scope, ownership, risks, validation, and non-goals.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/prompts/plan-module.prompt.md
-````markdown
----
-name: plan-module
-description: Plan module lifecycle changes (create, refactor, split, merge, delete) under MDDD boundaries.
-agent: Modules Architect
-argument-hint: Provide module scope, operation type, and migration constraints.
----
-
-# Plan Module
-
-## Workflow
-
-1. Confirm bounded-context ownership.
-2. Choose operation: create, refactor, split, merge, delete.
-3. Map API/event consumers and migration path.
-4. Define validation and docs updates.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/refactor-api.prompt.md
-````markdown
----
-name: refactor-api
-description: Refactor module API surface with contract safety, consumer migration, and minimal boundary impact.
-agent: Modules API Surface Steward
-argument-hint: Provide current API, target API, and migration constraints.
----
-
-# Refactor API
-
-## Rules
-
-- Preserve API-only cross-module access.
-- Avoid leaking internals through barrels.
-- Make compatibility path explicit when breaking changes are required.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/refactor-module.prompt.md
-````markdown
----
-name: refactor-module
-description: Refactor existing module internals while preserving MDDD layers and public boundaries.
-agent: Modules Architect
-argument-hint: Provide module name, refactor goal, and boundary risks.
----
-
-# Refactor Module
-
-## Workflow
-
-1. Analyze entity/use-case/repository ownership.
-2. Move logic into correct layer boundaries.
-3. Remove forbidden internal cross-module imports.
-4. Update tests/docs alongside code changes.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/review-architecture.prompt.md
-````markdown
----
-name: review-architecture
-description: Review ownership boundaries, dependency direction, and contract alignment of implemented changes.
-agent: Quality Lead
-argument-hint: Provide plan reference, changed files, and architecture concerns.
----
-
-# Review Architecture
-
-Return findings first by severity: boundary breaks, dependency inversions, contract drift, and missing docs.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/review-code.prompt.md
-````markdown
----
-name: review-code
-description: Perform risk-first code review for correctness, regressions, and missing validation.
-agent: Quality Lead
-argument-hint: Provide change summary, touched files, and known risk areas.
----
-
-# Review Code
-
-## Requirements
-
-- Findings first, ordered by severity.
-- Include why it matters and blocking status.
-- State residual risks and testing gaps explicitly.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill vscode-typescript-workbench
-````
-
-## File: .github/prompts/review-performance.prompt.md
-````markdown
----
-name: review-performance
-description: Review runtime and render performance risks with evidence-backed recommendations.
-agent: App Router Agent
-argument-hint: Provide route/feature scope, observed slowness, and baseline expectations.
----
-
-# Review Performance
-
-## Workflow
-
-1. Collect route/runtime evidence.
-2. Identify bottlenecks and likely causes.
-3. Propose ranked fixes by impact and complexity.
-4. Define validation for improvement claims.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill vercel-react-best-practices
-#use skill next-devtools-mcp
-````
-
-## File: .github/prompts/review-security.prompt.md
-````markdown
----
-name: review-security
-description: Review security posture for access control, data exposure, and rule/authorization regressions.
-agent: quality-lead
-argument-hint: Provide changed auth/rules/critical data paths and threat concerns.
----
-
-# Review Security
-
-Report vulnerabilities first with severity, reproduction notes, and concrete remediation steps.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill xuanwu-development-contracts
-````
-
-## File: .github/prompts/write-docs.prompt.md
-````markdown
----
-name: write-docs
-description: Write or optimize documentation using structured, deduplicated, and index-driven markdown patterns.
-agent: KB Architect
-argument-hint: Provide target docs scope and expected documentation outcome.
----
-
-# Write Docs
-
-## Workflow
-
-1. Lint markdown syntax first.
-2. Compress and deduplicate repeated concepts.
-3. Convert prose to rules/tables where possible.
-4. Update folder index/README after leaf updates.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill documentation-writer
-````
-
-## File: .github/prompts/write-e2e-tests.prompt.md
-````markdown
----
-name: write-e2e-tests
-description: Design and execute end-to-end tests for user-critical flows with reproducible evidence.
-agent: E2E QA Agent
-argument-hint: Provide URL/route, target user flow, and acceptance criteria.
----
-
-# Write E2E Tests
-
-## Scope
-
-- Happy path
-- Boundary/negative path
-- Error-state handling
-
-Collect evidence for failures and include clear reproduction steps.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill vscode-testing-debugging-browser
-#use skill next-devtools-mcp
-````
-
-## File: .github/prompts/write-tests.prompt.md
-````markdown
----
-name: write-tests
-description: Write deterministic unit/integration tests based on risk and behavior contracts.
-agent: quality-lead
-argument-hint: Provide module scope, behaviors to verify, and known regression risks.
----
-
-# Write Tests
-
-## Requirements
-
-- Cover happy, boundary, and negative cases.
-- Keep tests deterministic and isolated.
-- Prioritize behavior contracts over implementation details.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill vscode-testing-debugging-browser
-#use skill vscode-typescript-workbench
+- [write-tests.prompt.md](write-tests.prompt.md)
+- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 ````
 
 ## File: .github/terminology-glossary.md
@@ -31781,101 +32988,6 @@ For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 - Plan first with [`docs/swarm.md`](docs/swarm.md)
 - Use the implementation plan as the execution contract for implementation, review, and QA
 - Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
-````
-
-## File: docs/ddd/bounded-contexts.md
-````markdown
-# Bounded Contexts — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
-> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Wiki** 為結構、**AI** 為推理層。
-
-本文件定義 Xuanwu App 目前採用的 **16 個有界上下文（Bounded Contexts）**。  
-Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
-
-- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入
-- **Wiki-like 層**：知識關聯、節點、邊、結構化導覽
-- **NotebookLM-like 層**：檢索、摘要、問答、推理
-
----
-
-## 系統層級映射
-
-| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
-|---|---|---|---|
-| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理知識頁面、來源文件、工作區容器與操作介面 |
-| Knowledge Structure Layer | Wiki-like | `wiki` | 維護知識節點、關聯、Backlink 與圖譜遍歷 |
-| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
-| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
-| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
-
----
-
-## 子域分類摘要
-
-| 分類 | Bounded Context |
-|---|---|
-| **Core Domain** | `knowledge`, `wiki` |
-| **Supporting Subdomain** | `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
-| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
-
----
-
-## Bounded Context Catalog
-
-| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
-|---|---|---|---|---|
-| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
-| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
-| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
-| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `wiki`, `workspace-*` |
-| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
-| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
-| `knowledge` | **Core** | Notion-like 核心內容層 | 知識頁面、版本、內容區塊、審批事件 | `workspace`, `wiki`, `source`, `workspace-flow`, `search`, `notebook` |
-| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
-| `wiki` | **Core** | Wiki-like 結構層 | 節點、邊、Backlink、知識圖譜 | `knowledge`, `source`, `search`, `notebook`, `workspace` |
-| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
-| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `wiki`, `ai` |
-| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `wiki`, `knowledge` |
-| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
-| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
-| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
-| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
-
----
-
-## 典型依賴與協作方式
-
-```text
-Identity → Account → Organization → Workspace
-                              ├─→ Knowledge ─→ Search ─→ Notebook
-                              ├─→ Wiki ────────────────┘
-                              ├─→ Source ───→ AI ─────┘
-                              └─→ Workspace Operations
-                                   ├─ workspace-flow
-                                   ├─ workspace-scheduling
-                                   ├─ workspace-audit
-                                   └─ workspace-feed
-```
-
----
-
-## 整合原則
-
-1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
-2. **Core Domain** 以 `knowledge` 與 `wiki` 為中心，其他上下文支撐其儲存、結構化與推理能力。  
-3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
-4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
-5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
-
----
-
-## 詳細文件
-
-- 子域分類：[`subdomains.md`](./subdomains.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
 ## File: docs/ddd/knowledge/AGENT.md
@@ -32173,131 +33285,6 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 
 - `../../../modules/notebook/repositories.md`
 - `../../../docs/ddd/notebook/aggregates.md`
-````
-
-## File: docs/ddd/subdomains.md
-````markdown
-# Subdomains — Xuanwu App
-
-> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
-> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
-
-本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
-
----
-
-## 分類原則
-
-| 分類 | 定義 | 投資策略 |
-|---|---|---|
-| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
-| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
-| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
-| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
-
----
-
-## Core Domain
-
-### `knowledge` — 知識內容管理
-
-Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
-
-**為何是核心域：**
-- 承載 Knowledge Page / Block Editor 的主體體驗
-- 決定知識如何被保存、版本化、審批與再利用
-- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
-
-### `wiki` — 知識結構與圖譜
-
-Xuanwu 的第二核心域。它提供 Wiki-like 的節點、關聯、Backlink 與結構導航，是知識平台從「文件集合」進化到「知識網路」的關鍵。
-
-**為何是核心域：**
-- 提供知識關聯與語意結構，而不只是文件儲存
-- 形成 NotebookLM-like 推理所需的可追溯結構基礎
-- 與 `knowledge` 共同構成平台的差異化壁壘
-
----
-
-## Supporting Subdomains
-
-### `source`
-負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
-
-### `ai`
-負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
-
-### `search`
-負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
-
-### `notebook`
-負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
-
-### `workspace-flow`
-負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
-
-### `workspace-scheduling`
-負責工作需求與排程，將協作項目放入時間與容量視角管理。
-
-### `workspace-audit`
-負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
-
-### `workspace-feed`
-負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
-
----
-
-## Generic Subdomains / Shared Kernel
-
-### `identity`
-封裝身份驗證與 session 起點，屬於標準平台能力。
-
-### `account`
-承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
-
-### `organization`
-提供多租戶組織、成員與團隊治理，是平台級協作基礎。
-
-### `workspace`
-提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
-
-### `notification`
-負責通知與提醒分發，屬典型平台配套能力。
-
-### `shared`
-作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
-
----
-
-## 子域分類總表
-
-| Context | 分類 | 主要價值 |
-|---|---|---|
-| `knowledge` | **Core** | 知識內容與版本生命週期 |
-| `wiki` | **Core** | 知識結構、關聯與圖譜 |
-| `source` | Supporting | 文件接入與來源治理 |
-| `ai` | Supporting | 攝入管線協調與 worker handoff |
-| `search` | Supporting | 語意檢索與 RAG |
-| `notebook` | Supporting | 摘要、問答、洞察互動 |
-| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
-| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
-| `workspace-audit` | Supporting | 稽核與追溯 |
-| `workspace-feed` | Supporting | 工作區動態與互動 |
-| `identity` | Generic | 身份驗證 |
-| `account` | Generic | 個人帳戶與偏好 |
-| `organization` | Generic | 多租戶治理 |
-| `workspace` | Generic | 協作容器 |
-| `notification` | Generic | 通知分發 |
-| `shared` | Shared Kernel | 穩定共享核心 |
-
----
-
-## 架構參考
-
-- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
-- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
-- 通用語言：各 bounded context 的 `ubiquitous-language.md`
-- 上下文關係圖：各 bounded context 的 `context-map.md`
 ````
 
 ## File: docs/ddd/workspace/README.md
@@ -33398,37 +34385,114 @@ npm run build
 ```
 ````
 
-## File: modules/knowledge/repositories.md
+## File: modules/knowledge/context-map.md
 ````markdown
-# knowledge — Repositories
+# Context Map — knowledge
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
+> `knowledge` BC 僅負責個人筆記的 Page 與 Block 管理。組織知識、版本協作、結構化資料庫由三個姊妹 BC 負責。
 
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+---
 
-## Domain Repository Ports
+## 上游依賴（knowledge 依賴）
 
-- `domain/repositories/knowledge.repositories.ts` — `KnowledgePageRepository`, `KnowledgeBlockRepository`, `KnowledgeVersionRepository`, `KnowledgeCollectionRepository`
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `workspace` | **Conformist** | Page 必須屬於 Workspace |
+| `organization` | **Conformist** | 多租戶邊界由 accountId 維護 |
+| `identity` | **Conformist** | 驗證 createdByUserId 是否存在 |
 
-## Infrastructure Implementations
+---
 
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-- `infrastructure/index.ts`
+## 下游影響（downstream BCs 依賴 knowledge）
 
-## 設計規則
+| BC | 關係類型 | 說明 |
+|---|---|---|
+| `knowledge-base` | **Customer / Supplier** | Page 可透過 Promote 流程成為 Article（跨 BC 操作） |
+| `knowledge-collaboration` | **Customer / Supplier** | 使用 pageId 作為 contentId，提供 Comment / Version / Permission |
+| `workspace-feed` | **Published Language** | `knowledge.page_published` 推送工作區動態 |
+| `workspace-audit` | **Published Language** | `knowledge.page_approved` 寫入稽核紀錄 |
+| `notification` | **Published Language** | Page 審核相關事件觸發通知 |
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+---
 
-## 模組內對應文件
+## 姊妹 BC 邊界說明（Knowledge Family）
 
-- `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+| BC | 職責邊界 |
+|---|---|
+| `knowledge` | **個人筆記** - Page + Block（草稿、私人頁面） |
+| `knowledge-base` | **組織知識庫** - Article + Category（公開 Wiki / SOP） |
+| `knowledge-collaboration` | **協作基礎設施** - Comment / Permission / Version |
+| `knowledge-database` | **結構化資料** - Database / Record / View |
+
+---
+
+## 整合事件流
+
+```
+knowledge.page_created
+  → (auto) knowledge-collaboration.version_created (initial snapshot)
+
+knowledge.page_approved
+  → workspace-audit (append-only log)
+  → notification (author notified)
+
+knowledge.page_published (optional)
+  → workspace-feed (activity)
+
+user action: Promote Page → Article
+  → knowledge-base.article_created (new article with page content)
+  (knowledge 本身不發出跨 BC 事件，由 application 層協調)
+```
+
+---
+
+## 邊界規則
+
+- `knowledge` **不得** import `knowledge-base`、`knowledge-collaboration`、`knowledge-database` 的 domain 層。
+- `knowledge-collaboration` 透過 `modules/knowledge/api` 取得 pageId，不讀取 Page 內部。
+- `approvalState` 屬於 Page 生命週期，保留在此 BC（非 collaboration 的 Permission 概念）。
+````
+
+## File: modules/knowledge/domain-services.md
+````markdown
+# Domain Services — knowledge
+
+> `knowledge` BC 目前無需獨立的 Domain Service。業務規則已內聚於 Page / Block 聚合根本身。
+
+---
+
+## 現況
+
+此 BC（個人筆記 Page + Block）的業務規則較單純，目前無需提取獨立的 Domain Service。
+
+邏輯由以下層次處理：
+
+| 層次 | 負責內容 |
+|---|---|
+| Page entity | `approvalState` 狀態機轉換、Block 順序管理 |
+| Use Cases | 跨 Use Case 協調（CreatePage + initial Block） |
+| Repository | 樂觀鎖（version 欄位） |
+
+---
+
+## 潛在未來 Domain Services（待需求出現再提取）
+
+| 候選 Service | 觸發條件 |
+|---|---|
+| `PageApprovalService` | 若 approval 流程複雜化（多步驟審批、代理審批） |
+| `BlockOrderService` | 若 Block 排序規則複雜化（fractional indexing） |
+| `PageDuplicatorService` | 若 Page 複製需要深度 Block 複製邏輯 |
+
+---
+
+## 跨 BC Domain Services（不在此 BC）
+
+| Service | 所屬 BC |
+|---|---|
+| `BacklinkExtractorService` | `knowledge-base` |
+| `PermissionLevelComparator` | `knowledge-collaboration` |
+| `FieldValueValidator` | `knowledge-database` |
+| `ViewQueryBuilder` | `knowledge-database` |
 ````
 
 ## File: modules/notebook/AGENT.md
@@ -33655,120 +34719,6 @@ const { toDate } = value; toDate(); // 'this' binding 失效
 npm run lint
 npm run build
 ```
-````
-
-## File: modules/wiki/AGENT.md
-````markdown
-# AGENT.md — wiki BC
-
-## 模組定位
-
-`wiki` 是 Core Domain，負責 GraphNode 與 GraphEdge 的知識圖譜生命週期。是 Xuanwu 的核心差異化視覺特性。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `GraphNode` | Node、WikiNode、KnowledgeNode、Page（在圖譜上下文） |
-| `GraphEdge` | Edge、Link、Connection、Relation |
-| `EdgeType` | RelationType、LinkType |
-| `NodeType` | NodeKind、PageType（在圖譜上下文） |
-| `Backlink` | ReverseLink、InboundLink |
-| `GraphTraversal` | Graph Walk、Traversal |
-| `AutoLink` | AutoConnect、AutoRelate |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { wikiApi } from "@/modules/wiki/api";
-import type { GraphNodeDTO, GraphEdgeDTO } from "@/modules/wiki/api";
-```
-
-### ❌ 禁止
-```typescript
-import { GraphNode } from "@/modules/wiki/domain/entities/graph-node";
-// modules/ai/domain/entities/graph-node.ts 是 @deprecated stub，不要使用
-```
-
-## 棄用守衛
-
-`modules/ai/domain/entities/graph-node.ts` 和 `modules/ai/domain/entities/link.ts` 都是 `@deprecated` stub，已移至 `modules/wiki/domain/`。絕對不要 import 這些舊路徑。
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/wiki/aggregates.md
-````markdown
-# Aggregates — wiki
-
-## 聚合根：GraphNode
-
-### 職責
-代表知識圖譜中的一個知識節點。管理節點的生命週期（draft → active → archived）與關聯邊列表。
-
-### 生命週期狀態機
-```
-draft ──[activate]──► active ──[archive]──► archived
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 節點主鍵（對應 knowledge.KnowledgePage.id） |
-| `title` | `string` | 節點標題 |
-| `nodeType` | `NodeType` | 節點語意類型 |
-| `status` | `NodeStatus` | `draft \| active \| archived` |
-| `workspaceId` | `string?` | 所屬工作區（workspace BC 整合完成前為 optional） |
-| `organizationId` | `string?` | 所屬組織（workspace BC 整合完成前為 optional） |
-| `outboundEdgeIds` | `string[]?` | 出向邊 ID 列表（workspace BC 整合完成前為 optional） |
-
-### 不變數
-
-- archived 節點不可建立新 GraphEdge
-- `id` 與 `knowledge.KnowledgePage.id` 一一對應
-
----
-
-## 聚合根：GraphEdge
-
-### 職責
-代表兩個 GraphNode 之間的有向關係。管理邊的生命週期（pending → active → inactive → removed）。
-
-### 生命週期狀態機
-```
-pending ──[activate]──► active ──[deactivate]──► inactive ──[remove]──► removed
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 邊主鍵 |
-| `sourceNodeId` | `string` | 起點節點 ID |
-| `targetNodeId` | `string` | 終點節點 ID |
-| `edgeType` | `EdgeType` | 關係語意類型 |
-| `status` | `EdgeStatus` | `pending \| active \| inactive \| removed` |
-| `createdByUserId` | `string?` | 建立者 ID（系統自動建立時為 undefined） |
-
-### 不變數
-
-- sourceNodeId 與 targetNodeId 必須是有效的 GraphNode
-- removed 的邊不可恢復
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `GraphRepository` | `saveNode()`, `saveEdge()`, `findNodeById()`, `findEdgesByTarget()`, `findEdgesBySource()`, `findEdgesByType()`, `listNodes()`, `listEdges()` |
 ````
 
 ## File: modules/workspace-audit/AGENT.md
@@ -34422,70 +35372,6 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
-## File: .github/instructions/README.md
-````markdown
-# Instructions Index
-
-Repository instruction index for `applyTo`-scoped Copilot rules.
-
-## DDD 戰略與戰術設計 (IDDD)
-
-- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
-- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
-- [domain-modeling.instructions.md](domain-modeling.instructions.md)
-- [event-driven-state.instructions.md](event-driven-state.instructions.md)
-
-## Architecture
-
-- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
-- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
-- [architecture-modules.instructions.md](architecture-modules.instructions.md)
-- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
-
-## Delivery Process
-
-- [branching-strategy.instructions.md](branching-strategy.instructions.md)
-- [ci-cd.instructions.md](ci-cd.instructions.md)
-- [commit-convention.instructions.md](commit-convention.instructions.md)
-- [lint-format.instructions.md](lint-format.instructions.md)
-
-## Platform and Runtime
-
-- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
-- [cloud-functions.instructions.md](cloud-functions.instructions.md)
-- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
-- [firestore-schema.instructions.md](firestore-schema.instructions.md)
-- [security-rules.instructions.md](security-rules.instructions.md)
-
-## AI and RAG
-
-- [genkit-flow.instructions.md](genkit-flow.instructions.md)
-- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
-- [rag-architecture.instructions.md](rag-architecture.instructions.md)
-- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
-
-## Next.js and UI
-
-- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
-- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
-- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
-- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
-- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
-
-## Testing
-
-- [testing-unit.instructions.md](testing-unit.instructions.md)
-- [testing-e2e.instructions.md](testing-e2e.instructions.md)
-
-## DDD Navigation
-
-Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
-
-- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
-- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
-- `../../docs/ddd/<context>/*.md` for bounded-context details
-````
-
 ## File: .github/instructions/ubiquitous-language.instructions.md
 ````markdown
 ---
@@ -34526,59 +35412,6 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
-````
-
-## File: .github/prompts/README.md
-````markdown
-# Prompts Index
-
-Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
-
-## DDD 領域建模 (IDDD)
-
-- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
-- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
-
-## Planning
-
-- [plan-feature.prompt.md](plan-feature.prompt.md)
-- [plan-module.prompt.md](plan-module.prompt.md)
-- [plan-api.prompt.md](plan-api.prompt.md)
-
-## Implementation
-
-- [implement-feature.prompt.md](implement-feature.prompt.md)
-- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
-- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
-- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
-- [implement-server-action.prompt.md](implement-server-action.prompt.md)
-- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
-
-## Docs and RAG
-
-- [ingest-docs.prompt.md](ingest-docs.prompt.md)
-- [chunk-docs.prompt.md](chunk-docs.prompt.md)
-- [embedding-docs.prompt.md](embedding-docs.prompt.md)
-- [write-docs.prompt.md](write-docs.prompt.md)
-
-## Analysis and Debug
-
-- [analyze-repo.prompt.md](analyze-repo.prompt.md)
-- [debug-error.prompt.md](debug-error.prompt.md)
-
-## Refactor and Review
-
-- [refactor-module.prompt.md](refactor-module.prompt.md)
-- [refactor-api.prompt.md](refactor-api.prompt.md)
-- [review-code.prompt.md](review-code.prompt.md)
-- [review-architecture.prompt.md](review-architecture.prompt.md)
-- [review-performance.prompt.md](review-performance.prompt.md)
-- [review-security.prompt.md](review-security.prompt.md)
-
-## Testing
-
-- [write-tests.prompt.md](write-tests.prompt.md)
-- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
 ````
 
 ## File: CLAUDE.md
@@ -34630,122 +35463,326 @@ export async function action(input) { return useCase.execute(input); }
 - **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
-## File: modules/knowledge/aggregates.md
+## File: docs/ddd/subdomains.md
 ````markdown
-# Aggregates — knowledge
+# Subdomains — Xuanwu App
 
-## 聚合根：KnowledgePage（ContentPage）
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2 章 Strategic Design  
+> **產品定位：** Xuanwu 是一個以知識為核心的 Knowledge Platform / Second Brain。
 
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
+本文件將 Xuanwu App 的能力劃分為 **Core Domain**、**Supporting Subdomain** 與 **Generic Subdomain / Shared Kernel**，用於指導投資順序、建模深度與邊界嚴格度。
 
 ---
 
-## 實體：ContentBlock（KnowledgeBlock）
+## 分類原則
 
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
+| 分類 | 定義 | 投資策略 |
+|---|---|---|
+| **Core Domain** | 直接承載產品差異化價值 | 最高投入、精細建模、優先保護語言與聚合邊界 |
+| **Supporting Subdomain** | 支撐核心價值落地，但不是產品獨特賣點 | 務實建模、重視整合與可靠性 |
+| **Generic Subdomain** | 常見平台能力，偏向商品化 | 優先封裝現成方案、最小必要客製化 |
+| **Shared Kernel** | 多個上下文共同依賴的穩定共享核心 | 嚴格控制變更、避免膨脹為隱性大模組 |
 
 ---
 
-## 實體：ContentVersion（KnowledgeVersion）
+## Core Domain
 
-### 職責
-頁面的歷史版本快照，append-only。
+### `knowledge` — 知識內容管理
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
+Xuanwu 的第一核心域。它承擔 Notion-like 的知識建立、編輯、版本化與審批流程，是使用者最直接感知的產品價值。
 
----
+**為何是核心域：**
+- 承載 Knowledge Page / Block Editor 的主體體驗
+- 決定知識如何被保存、版本化、審批與再利用
+- `knowledge.page_approved` 是整個平台向下游協作擴散的關鍵事件
 
----
+### `knowledge-base` — 組織知識庫 / Wiki / SOP
 
-## 聚合根：KnowledgeCollection（Database / 資料庫視圖）
+Xuanwu 的第二核心域。負責組織或團隊級別的公開知識文章管理，支援層級分類、Backlink、SOP 文件與頁面驗證機制。
 
-### 職責
-
-Notion Database 等效結構。以欄位 Schema（`columns`）定義一組 KnowledgePage 的結構化呈現方式（表格、看板等）。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Collection 主鍵 |
-| `name` | `string` | Collection 名稱 |
-| `description` | `string?` | 描述 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `columns` | `CollectionColumn[]` | 欄位 Schema 陣列 |
-| `pageIds` | `string[]` | 納入此 Collection 的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### CollectionColumn Schema
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 欄位主鍵 |
-| `name` | `string` | 欄位顯示名稱 |
-| `type` | `CollectionColumnType` | `text \| number \| select \| multi-select \| date \| checkbox \| url \| relation` |
-| `options` | `string[]?` | select / multi-select 的選項值 |
-
-### Firestore 路徑
-
-`accounts/{accountId}/knowledgeCollections/{collectionId}`
+**為何是核心域：**
+- 承載組織知識的可信度、可發現性與共享體驗
+- `VerificationState` 機制讓知識庫保持準確性品質
+- 與 `knowledge`（個人筆記）共同構成平台的知識差異化壁壘
 
 ---
 
-## Repository Interfaces
+## Supporting Subdomains
 
-| 介面 | 主要方法 |
+### `knowledge-collaboration`
+負責知識協作基礎設施：留言討論（Comment）、細粒度存取控制（Permission）、版本快照（Version）。不擁有知識內容，透過 `contentId` 與內容 BC 協作。
+
+### `knowledge-database`
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database，支援 Table / Board / Calendar / Timeline / Gallery 等多視圖展示，並透過 Relation 欄位建立資料關聯。
+
+### `source`
+負責接入外部文件、上傳與來源登記，是知識進入平台的入口。
+
+### `ai`
+負責攝入 job 與 worker handoff，確保來源文件可以被解析、切塊、向量化並交付檢索層。
+
+### `search`
+負責語意檢索、引用與 RAG 查詢，是 AI 問答品質的基礎支撐。
+
+### `notebook`
+負責以 NotebookLM-like 互動方式把檢索結果轉成摘要、回答、洞察與對話經驗。
+
+### `workspace-flow`
+負責把知識內容轉成可執行的任務、問題與發票流程，讓知識平台可進一步驅動協作執行。
+
+### `workspace-scheduling`
+負責工作需求與排程，將協作項目放入時間與容量視角管理。
+
+### `workspace-audit`
+負責 append-only 稽核可見性，確保工作區與組織範圍內的重要行為可追溯。
+
+### `workspace-feed`
+負責工作區動態流與互動紀錄，提升知識協作的可見性與社交流動。
+
+---
+
+## Generic Subdomains / Shared Kernel
+
+### `identity`
+封裝身份驗證與 session 起點，屬於標準平台能力。
+
+### `account`
+承接個人檔案、偏好與帳戶政策，是 identity 之上的個人化設定層。
+
+### `organization`
+提供多租戶組織、成員與團隊治理，是平台級協作基礎。
+
+### `workspace`
+提供工作區容器、成員與內容樹，是所有知識與協作能力的歸屬邊界。
+
+### `notification`
+負責通知與提醒分發，屬典型平台配套能力。
+
+### `shared`
+作為 Shared Kernel，提供跨模組穩定共享的事件、值物件與基礎型別，不承載單一業務流程。
+
+---
+
+## 子域分類總表
+
+| Context | 分類 | 主要價值 |
+|---|---|---|
+| `knowledge` | **Core** | 個人筆記 Page + Block 生命週期 |
+| `knowledge-base` | **Core** | 組織知識庫 Article + Category + 驗證機制 |
+| `knowledge-collaboration` | Supporting | Comment / Permission / Version 協作基礎 |
+| `knowledge-database` | Supporting | Database / Record / View 結構化資料 |
+| `source` | Supporting | 文件接入與來源治理 |
+| `ai` | Supporting | 攝入管線協調與 worker handoff |
+| `search` | Supporting | 語意檢索與 RAG |
+| `notebook` | Supporting | 摘要、問答、洞察互動 |
+| `workspace-flow` | Supporting | Task / Issue / Invoice 流程 |
+| `workspace-scheduling` | Supporting | 排程與時間容量管理 |
+| `workspace-audit` | Supporting | 稽核與追溯 |
+| `workspace-feed` | Supporting | 工作區動態與互動 |
+| `identity` | Generic | 身份驗證 |
+| `account` | Generic | 個人帳戶與偏好 |
+| `organization` | Generic | 多租戶治理 |
+| `workspace` | Generic | 協作容器 |
+| `notification` | Generic | 通知分發 |
+| `shared` | Shared Kernel | 穩定共享核心 |
+
+---
+
+## 架構參考
+
+- 邊界與整合：[`bounded-contexts.md`](./bounded-contexts.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`
+````
+
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
+
+## 模組定位
+
+`knowledge` 是 **Core Domain**，負責個人筆記與頁面管理。對應 Notion 的 **Page + Block** 核心體驗。
+
+**這個 BC 負責：**
+- Page（頁面內容與層級結構）
+- Block（頁面內最小內容單位：文字、標題、清單、程式碼、圖片、待辦事項等）
+- Block 巢狀結構、排序、草稿與暫存
+
+**不歸屬這個 BC：**
+- 組織級知識庫文章 → `knowledge-base`
+- 留言、版本歷史、權限控制 → `knowledge-collaboration`
+- 資料庫 / Table / Board / View → `knowledge-database`
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Page` | Document、Note |
+| `Block` | Node、Element、Item |
+| `BlockType` | ContentType、Type |
+
+> `Article` 為 `knowledge-base` BC 術語。`Database` / `Record` / `View` 為 `knowledge-database` BC 術語。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { createPage } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { KnowledgeCollection } from "@/modules/knowledge/domain/..."; // 搬去 knowledge-database
+import { ContentVersion } from "@/modules/knowledge/domain/...";     // 搬去 knowledge-collaboration
+```
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
+## File: modules/knowledge/application-services.md
+````markdown
+# knowledge — Application Services
+
+## Application Layer 職責
+
+管理頁面（Page）與內容區塊（Block）的 CRUD 與排序操作。
+
+## 實際檔案
+
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+
+## Use Cases 清單
+
+| Use Case 類別 | 操作 |
+|---|---|
+| `CreatePageUseCase` | 建立頁面 |
+| `RenamePageUseCase` | 重新命名頁面 |
+| `MovePageUseCase` | 移動頁面層級 |
+| `ArchivePageUseCase` | 歸檔頁面 |
+| `ReorderPageBlocksUseCase` | 重排頁面 Block |
+| `GetPageUseCase` | 取得單頁 |
+| `ListPagesUseCase` | 取得帳戶所有頁面 |
+| `GetPageTreeUseCase` | 取得頁面樹狀結構 |
+| `AddBlockUseCase` | 新增 Block |
+| `UpdateBlockUseCase` | 更新 Block 內容 |
+| `DeleteBlockUseCase` | 刪除 Block |
+| `ListBlocksUseCase` | 取得頁面所有 Block |
+````
+
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAtISO` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAtISO` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAtISO` |
+| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAtISO` |
+| `knowledge.block_added` | Block 新增 | `blockId`, `pageId`, `accountId`, `blockType`, `occurredAtISO` |
+| `knowledge.block_updated` | Block 內容更新 | `blockId`, `pageId`, `accountId`, `occurredAtISO` |
+| `knowledge.block_deleted` | Block 刪除 | `blockId`, `pageId`, `accountId`, `occurredAtISO` |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `knowledge-base` | `knowledge.page_created` | 可選：同步為 Article |
+| `knowledge-collaboration` | `knowledge.page_created` | 初始化版本歷史 |
+</content>
+````
+
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 個人筆記與頁面管理
+
+> **Domain Type:** **Core Domain**（核心域）
+> **模組路徑:** `modules/knowledge/`
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 個人筆記核心，負責頁面（Page）與頁面內容區塊（Block）的建立、編輯和結構管理。是整個平台使用者最直接接觸的內容編輯體驗。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Page 生命週期 | 建立、編輯、移動、歸檔個人或團隊筆記頁面 |
+| Block 管理 | 新增、更新、刪除、重排內容區塊 |
+| 層級結構 | 父子頁面樹狀管理 |
+| 草稿與暫存 | 支援頁面狀態流轉（active / archived） |
+
+## 核心聚合
+
+- **`Page`**（KnowledgePage）
+- **`Block`**（ContentBlock）
+
+## 不在此 BC 範圍
+
+| 功能 | 歸屬 BC |
 |------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| 組織級知識文章（Article）、分類（Category） | `knowledge-base` |
+| 留言（Comment）、版本歷史（Version）、權限（Permission） | `knowledge-collaboration` |
+| 資料庫（Database）、記錄（Record）、視圖（View） | `knowledge-database` |
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件 |
+| [repositories.md](./repositories.md) | Repository 介面與實作 |
+| [application-services.md](./application-services.md) | Use Cases 清單 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係 |
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 頁面 | Page | 個人或團隊筆記頁面，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
+| 區塊 | Block | 頁面內的原子內容單位（type、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| todo \| ...` | `domain/value-objects/block-content.ts` |
+| 頁面狀態 | PageStatus | `active \| archived` | `domain/entities/content-page.entity.ts` |
+| 頁面樹 | PageTree | 以 parentPageId 組成的頁面層級結構 | — |
+
+## 禁止替換術語
+
+| 正確（此 BC） | 禁止 | 備註 |
+|------|------|------|
+| `Page` | Document、Note | — |
+| `Block` | Node、Element、Item | — |
+
+## 跨 BC 術語邊界
+
+| 術語 | 正確 BC |
+|------|---------|
+| `Article` | `knowledge-base` |
+| `Category` | `knowledge-base` |
+| `Comment` | `knowledge-collaboration` |
+| `Version` | `knowledge-collaboration` |
+| `Permission` | `knowledge-collaboration` |
+| `Database` | `knowledge-database` |
+| `Record` | `knowledge-database` |
+| `View` | `knowledge-database` |
 ````
 
 ## File: modules/source/README.md
@@ -34789,45 +35826,149 @@ Notion Database 等效結構。以欄位 Schema（`columns`）定義一組 Knowl
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: modules/wiki/README.md
+## File: docs/ddd/bounded-contexts.md
 ````markdown
-# wiki — 知識圖譜上下文
+# Bounded Contexts — Xuanwu App
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/wiki/`  
-> **開發狀態:** 🏗️ Midway
+> **理論依據：** Vaughn Vernon《Implementing Domain-Driven Design》第 2–3 章  
+> **產品定位：** Knowledge Platform / Second Brain，以 **Knowledge** 為核心、**Knowledge Base** 為組織知識、**AI** 為推理層。
 
-## 在 Knowledge Platform / Second Brain 中的角色
+本文件定義 Xuanwu App 目前採用的 **18 個有界上下文（Bounded Contexts）**。  
+Notion、Wiki、NotebookLM 在這裡是**產品能力映射**，不是 1:1 的程式模組名稱：
 
-`wiki` 是 Xuanwu 的 Wiki-like 結構層，負責把知識內容變成可連結、可遍歷、可回溯的節點與關聯網路。它與 `knowledge` 一起形成產品最核心的差異化價值。
+- **Notion-like 層**：知識儲存、編輯、工作區協作、來源接入、結構化資料庫
+- **Knowledge Base 層**：組織知識庫、分類、驗證、Backlink
+- **NotebookLM-like 層**：檢索、摘要、問答、推理
 
-## 主要職責
+---
 
-| 能力 | 說明 |
+## 系統層級映射
+
+| 系統層級 | 產品隱喻 | 主要 Bounded Context | 說明 |
+|---|---|---|---|
+| Knowledge UI / Storage Layer | Notion-like | `knowledge`, `source`, `workspace` | 管理個人知識頁面、來源文件、工作區容器 |
+| Knowledge Base Layer | Wiki / SOP-like | `knowledge-base` | 組織知識庫、Article 分類、SOP 驗證 |
+| Knowledge Ops Layer | 協作 | `knowledge-collaboration`, `knowledge-database` | 版本、權限、留言、結構化資料庫 |
+| AI Reasoning Layer | NotebookLM-like | `notebook`, `search`, `ai` | 執行檢索、引用、摘要、問答與攝入管線協調 |
+| Platform Foundation Layer | 平台基礎 | `identity`, `account`, `organization`, `notification`, `shared` | 支撐身份、帳戶、組織、通知與共享核心 |
+| Workspace Operations Layer | 協作營運 | `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` | 支撐任務、排程、稽核與工作區動態 |
+
+---
+
+## 子域分類摘要
+
+| 分類 | Bounded Context |
 |---|---|
-| Graph Node 管理 | 維護知識節點的生命週期與可見性 |
-| Graph Edge 管理 | 維護節點之間的關聯、Backlink 與關係狀態 |
-| 結構化知識導航 | 支撐圖譜遍歷、自動連結與知識關聯理解 |
+| **Core Domain** | `knowledge`, `knowledge-base` |
+| **Supporting Subdomain** | `knowledge-collaboration`, `knowledge-database`, `ai`, `notebook`, `search`, `source`, `workspace-flow`, `workspace-scheduling`, `workspace-audit`, `workspace-feed` |
+| **Generic Subdomain / Shared Kernel** | `identity`, `account`, `organization`, `workspace`, `notification`, `shared` |
 
-## 與其他 Bounded Context 協作
+---
 
-- `knowledge` 提供被結構化的核心內容。
-- `search` 與 `notebook` 消費圖譜脈絡做檢索與推理；`workspace` 提供圖譜的協作歸屬。
+## Bounded Context Catalog
 
-## 核心聚合 / 核心概念
+| Context | Domain Type | 系統角色 | 主要職責 | 主要協作 |
+|---|---|---|---|---|
+| `identity` | Generic | 身份入口 | 驗證、登入、token 生命週期 | `account`, `organization`, `workspace` |
+| `account` | Generic | 個人帳戶層 | 個人設定檔、偏好、存取政策 | `identity`, `organization` |
+| `organization` | Generic | 多租戶治理 | 組織、成員、團隊、夥伴邀請 | `account`, `workspace` |
+| `workspace` | Generic | 協作容器 | 工作區、成員、內容樹、子模組整合 | `organization`, `knowledge`, `wiki`, `workspace-*` |
+| `notification` | Generic | 通知分發 | 系統訊息、提醒、成功/警告通知 | 全域消費 |
+| `shared` | Shared Kernel | 共享核心 | 共用事件、值物件、工具與跨域基礎型別 | 全域依賴 |
+| `knowledge` | **Core** | 個人知識內容層 | 知識頁面、Block 編輯、審批事件 | `workspace`, `knowledge-collaboration`, `source`, `search`, `notebook` |
+| `knowledge-base` | **Core** | 組織知識庫層 | Article、Category、驗證機制、Backlink | `workspace`, `knowledge`, `knowledge-collaboration`, `notification`, `workspace-feed` |
+| `knowledge-collaboration` | Supporting | 協作基礎設施層 | Comment、Permission、Version 快照 | `knowledge`, `knowledge-base`, `knowledge-database`, `workspace-audit`, `notification` |
+| `knowledge-database` | Supporting | 結構化資料層 | Database、Record、View（Table/Board/Calendar/Timeline/Gallery） | `workspace`, `knowledge`, `knowledge-base`, `knowledge-collaboration` |
+| `source` | Supporting | 來源接入層 | 文件上傳、來源登記、保留政策、攝入交接 | `workspace`, `knowledge`, `ai` |
+| `ai` | Supporting | AI 攝入協調層 | Ingestion job、worker handoff、索引前處理 | `source`, `search`, `notebook` |
+| `notebook` | Supporting | NotebookLM-like 互動層 | 對話、摘要、洞察、引用式問答 | `search`, `knowledge`, `wiki`, `ai` |
+| `search` | Supporting | 語意檢索層 | 向量搜尋、RAG 查詢、答案與反饋 | `ai`, `notebook`, `wiki`, `knowledge` |
+| `workspace-flow` | Supporting | 工作流程層 | Task / Issue / Invoice 狀態機與物化 | `knowledge`, `workspace`, `workspace-audit`, `workspace-feed` |
+| `workspace-scheduling` | Supporting | 協作排程層 | 工作需求、日曆視圖、截止與容量安排 | `workspace`, `workspace-flow` |
+| `workspace-audit` | Supporting | 稽核追蹤層 | Append-only 稽核紀錄與查詢 | `workspace`, `organization`, `workspace-flow` |
+| `workspace-feed` | Supporting | 工作區動態層 | 工作區貼文、回覆、互動事件流 | `workspace`, `workspace-flow`, `notification` |
 
-- **`GraphNode`**
-- **`GraphEdge`**
-- **`WikiPage`**
+---
+
+## 典型依賴與協作方式
+
+```text
+Identity → Account → Organization → Workspace
+                              ├─→ Knowledge ─────────────────────┐
+                              ├─→ Knowledge Base ─────────────── │─→ Search ─→ Notebook
+                              ├─→ Knowledge Collab / Database ───┘
+                              ├─→ Source ───→ AI ────────────────────────────┘
+                              └─→ Workspace Operations
+                                   ├─ workspace-flow
+                                   ├─ workspace-scheduling
+                                   ├─ workspace-audit
+                                   └─ workspace-feed
+```
+
+---
+
+## 整合原則
+
+1. **Cross-module access 必須走 `api/`**，不得 reach-through 到其他模組內部層。  
+2. **Core Domain** 以 `knowledge`（個人筆記）與 `knowledge-base`（組織知識庫）為核心雙主域，其他上下文支撐其儲存、協作、結構化資料與推理能力。  
+3. **事件整合優先於同步耦合**：例如 `knowledge.page_approved` 驅動 `workspace-flow` 物化。  
+4. **外部系統透過 Anti-Corruption Layer 整合**：例如 Firebase、Vector Store、Genkit、Python worker。  
+5. **Runtime split 必須維持**：Next.js 負責使用者互動與協調；`py_fn/` 負責重型 ingestion / embedding。  
+
+---
 
 ## 詳細文件
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+- 子域分類：[`subdomains.md`](./subdomains.md)
+- 各 BC 詳細文件：`docs/ddd/<context>/README.md`
+- 通用語言：各 bounded context 的 `ubiquitous-language.md`
+- 上下文關係圖：各 bounded context 的 `context-map.md`
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `PageRepository`（原 KnowledgePageRepository）
+  - `BlockRepository`（原 KnowledgeBlockRepository）
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+
+## PageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排 Block |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## BlockRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `add()` | 新增 Block |
+| `update()` | 更新 Block 內容 |
+| `delete()` | 刪除 Block |
+| `reorder()` | 重排 Block 順序 |
+| `findById()` | 取得單一 Block |
+| `listByPageId()` | 列出頁面所有 Block |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports
 ````
 
 ## File: modules/notebook/repositories.md
@@ -35019,4 +36160,67 @@ For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS
 ## Full Rules
 
 See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：Page（KnowledgePage）
+
+### 職責
+個人筆記頁面的聚合根。管理頁面標題、父子層級（parentPageId）、Block 引用列表（blockIds）。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 Block ID 列表（有序） |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `PageStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 Block
+
+---
+
+## 實體：Block（ContentBlock）
+
+### 職責
+頁面內的原子內容單位，依序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Block 主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType`） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+### BlockType
+
+`text | heading-1 | heading-2 | heading-3 | image | code | bullet-list | numbered-list | divider | quote | todo`
+
+代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `PageRepository` | `create()`, `rename()`, `move()`, `archive()`, `reorderBlocks()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `BlockRepository` | `add()`, `update()`, `delete()`, `reorder()`, `findById()`, `listByPageId()` |
 ````
