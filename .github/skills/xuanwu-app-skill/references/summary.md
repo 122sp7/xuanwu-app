@@ -38,14 +38,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1253 files | 88,035 lines
+1253 files | 87,814 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | Markdown | 561 | 33,983 |
-| TypeScript | 412 | 24,082 |
-| TypeScript (TSX) | 128 | 21,203 |
-| No Extension | 52 | 134 |
+| TypeScript | 412 | 24,077 |
+| TypeScript (TSX) | 128 | 20,986 |
+| No Extension | 52 | 135 |
 | Python | 49 | 3,532 |
 | MERMAID | 20 | 1,479 |
 | JSON | 12 | 1,724 |
@@ -62,6 +62,6 @@ This skill contains the following reference files:
 - `docs/guides/explanation/architecture-domain.md` (925 lines)
 - `app/(shell)/dev-tools/page.tsx` (873 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
+- `app/(shell)/_components/app-rail.tsx` (666 lines)
 - `modules/search/interfaces/components/RagView.tsx` (659 lines)
-- `app/(shell)/_components/app-rail.tsx` (645 lines)
 - `.claude/skills/skill-rules.json` (614 lines)

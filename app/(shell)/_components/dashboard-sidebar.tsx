@@ -828,6 +828,8 @@ export function DashboardSidebar({
                 {(
                   [
                     { href: "/wiki/pages", label: "Pages" },
+                    { href: "/wiki/articles", label: "文章" },
+                    { href: "/wiki/databases", label: "資料庫" },
                     { href: "/wiki/libraries", label: "Libraries" },
                     { href: "/wiki/rag-reindex", label: "RAG Reindex" },
                   ] as const
