@@ -2,16 +2,19 @@
 
 import { create } from "@lib-zustand";
 import { v7 as uuid } from "@lib-uuid";
+import type { BlockContent, BlockType } from "../../domain/value-objects/block-content";
+import { emptyTextBlockContent } from "../../domain/value-objects/block-content";
 
 export interface Block {
   readonly id: string;
-  readonly content: string;
+  readonly content: BlockContent;
 }
 
 interface BlockEditorState {
   readonly blocks: Block[];
   readonly addBlock: (afterId?: string) => void;
-  readonly updateBlock: (id: string, content: string) => void;
+  readonly updateBlock: (id: string, text: string) => void;
+  readonly changeBlockType: (id: string, type: BlockType) => void;
   readonly deleteBlock: (id: string) => void;
   readonly moveBlock: (fromIdx: number, toIdx: number) => void;
   readonly init: () => void;
@@ -24,13 +27,13 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
   init() {
     set((state) => {
       if (state.blocks.length > 0) return state;
-      return { blocks: [{ id: uuid(), content: "" }] };
+      return { blocks: [{ id: uuid(), content: emptyTextBlockContent() }] };
     });
   },
 
   addBlock(afterId) {
     set((state) => {
-      const newBlock: Block = { id: uuid(), content: "" };
+      const newBlock: Block = { id: uuid(), content: emptyTextBlockContent() };
       if (!afterId) {
         return { blocks: [...state.blocks, newBlock] };
       }
@@ -41,16 +44,28 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
     });
   },
 
-  updateBlock(id, content) {
+  updateBlock(id, text) {
     set((state) => ({
-      blocks: state.blocks.map((b) => (b.id === id ? { ...b, content } : b)),
+      blocks: state.blocks.map((b) =>
+        b.id === id ? { ...b, content: { ...b.content, text } } : b,
+      ),
+    }));
+  },
+
+  changeBlockType(id, type) {
+    set((state) => ({
+      blocks: state.blocks.map((b) =>
+        b.id === id ? { ...b, content: { ...b.content, type } } : b,
+      ),
     }));
   },
 
   deleteBlock(id) {
     set((state) => {
       if (state.blocks.length <= 1) {
-        return { blocks: [{ id: state.blocks[0]?.id ?? uuid(), content: "" }] };
+        return {
+          blocks: [{ id: state.blocks[0]?.id ?? uuid(), content: emptyTextBlockContent() }],
+        };
       }
       return { blocks: state.blocks.filter((b) => b.id !== id) };
     });
