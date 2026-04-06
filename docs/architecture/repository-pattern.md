@@ -69,20 +69,21 @@ infrastructure/firebase/ (concrete)
 
 ---
 
-### `content`
+### `knowledge`
 
 ```typescript
-// modules/knowledge/domain/repositories/content.repositories.ts
+// modules/knowledge/domain/repositories/knowledge.repositories.ts
 
-interface ContentPageRepository {
-  create(input: CreateContentPageInput): Promise<ContentPage>;
-  rename(input: RenameContentPageInput): Promise<ContentPage | null>;
-  move(input: MoveContentPageInput): Promise<ContentPage | null>;
-  reorderBlocks(input: ReorderContentPageBlocksInput): Promise<ContentPage | null>;
-  archive(accountId: string, pageId: string): Promise<ContentPage | null>;
-  findById(accountId: string, pageId: string): Promise<ContentPage | null>;
-  listByAccountId(accountId: string): Promise<ContentPage[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<ContentPage[]>;
+interface KnowledgePageRepository {
+  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
+  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
+  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
+  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
+  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
+  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
 }
 
 interface ContentBlockRepository {
@@ -236,7 +237,7 @@ interface IVectorStore {
 | `OrganizationRepository` | `FirebaseOrganizationRepository` | `organizations/{orgId}` |
 | `WorkspaceRepository` | `FirebaseWorkspaceRepository` | `workspaces/{workspaceId}` |
 | `WorkspaceQueryRepository` | `FirebaseWorkspaceQueryRepository` | `workspaces/` (onSnapshot) |
-| `ContentPageRepository` | `FirebaseContentPageRepository` | `accounts/{accountId}/contentPages/{pageId}` |
+| `KnowledgePageRepository` | `FirebaseKnowledgePageRepository` | `accounts/{accountId}/contentPages/{pageId}` |
 | `ContentBlockRepository` | `FirebaseContentBlockRepository` | `accounts/{accountId}/contentBlocks/{blockId}` |
 | `FileRepository` | `FirebaseFileRepository` | Firebase Storage + Firestore |
 | `RagDocumentRepository` | `FirebaseRagDocumentRepository` | `accounts/{accountId}/documents/{docId}` |
@@ -261,11 +262,11 @@ interface IVectorStore {
 
 ```text
 knowledge 側（ApproveKnowledgePageUseCase）:
-  1. ContentPageRepository.update(pageId, { status: "approved" })   ← 先寫聚合狀態
-  2. IEventStoreRepository.save(ContentPageApprovedEvent)            ← 再持久化事件
+  1. KnowledgePageRepository.approve({ accountId, pageId, approvedByUserId, approvedAtISO })  ← 先寫聚合狀態
+  2. IEventStoreRepository.save(KnowledgePageApprovedEvent)                               ← 再持久化事件
   3. IEventBusRepository.publish(event)                              ← 最後非同步派發
 
-workspace-flow 側（contentToWorkflowMaterializer）:
+workspace-flow 側（knowledgeToWorkflowMaterializer）:
   1. 消費 knowledge.page_approved 事件
   2. TaskRepository.save(task with sourceReference)                  ← 由事件派生建立 Task
   3. InvoiceRepository.save(invoice with sourceReference)            ← 由事件派生建立 Invoice
@@ -291,7 +292,7 @@ await publishEvent.execute({
   },
   metadata: {
     actorId,          // 執行核准的使用者 ID
-    causationId,      // 觸發此事件的命令 ID（ApproveContentPageUseCase 的執行 requestId）
+    causationId,      // 觸發此事件的命令 ID（ApproveKnowledgePageUseCase 的執行 requestId）
     correlationId,    // 整個業務流程（合約攝入 → 核准 → 任務建立）的追蹤 ID
     traceId,          // 分散式追蹤 ID（可選，用於日誌關聯）
   },
@@ -302,16 +303,16 @@ await publishEvent.execute({
 
 | 欄位 | 用途 | 填充時機 |
 |------|------|---------|
-| `causationId` | 記錄「哪個命令觸發了此事件」，用於稽核回溯 | `ApproveContentPageUseCase` 執行時生成 UUID |
+| `causationId` | 記錄「哪個命令觸發了此事件」，用於稽核回溯 | `ApproveKnowledgePageUseCase` 執行時生成 UUID |
 | `correlationId` | 記錄「整個業務流程 ID」，串連合約攝入 → 審閱 → 核准 → 任務建立全程 | 合約上傳時生成，並一路傳遞 |
 | `actorId` | 執行操作的使用者 | 從 Server Action 的 session 中取得 |
 
 **Task/Invoice 的 sourceReference 必須使用 Event 的 causationId：**
 
 ```typescript
-// 在 contentToWorkflowMaterializer 中
+// 在 knowledgeToWorkflowMaterializer 中
 const sourceReference = {
-  type: "ContentPage" as const,
+  type: "KnowledgePage" as const,
   id: event.pageId,
   causationId: event.causationId,    // 對應 EventStore 中的 EventRecord
   correlationId: event.correlationId,

@@ -1,6 +1,6 @@
 # Aggregates — knowledge
 
-## 聚合根：KnowledgePage（ContentPage）
+## 聚合根：KnowledgePage
 
 ### 職責
 核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。

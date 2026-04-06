@@ -1,6 +1,6 @@
 # 領域模型（Domain Model）
 
-<!-- change: Add sourceReference / readonly view reference between ContentPage and workspace-flow entities; PR-NUM -->
+<!-- change: Add sourceReference / readonly view reference between KnowledgePage and workspace-flow entities; PR-NUM -->
 
 本文件描述 Xuanwu App 各有界上下文的聚合根（Aggregate Root）、實體（Entity）與值物件（Value Object）設計。
 

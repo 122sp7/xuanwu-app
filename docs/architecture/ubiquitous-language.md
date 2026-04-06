@@ -82,10 +82,10 @@
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **頁面** | ContentPage | 內容聚合根，含 title、slug、parentPageId、blockIds | `content` | `modules/knowledge/domain/entities/content-page.entity.ts` |
-| **頁面狀態** | ContentPageStatus | `"active" \| "archived"` | `content` | `content-page.entity.ts` |
-| **頁面樹節點** | ContentPageTreeNode | 包含 children 陣列的頁面節點，遞迴表示層級結構 | `content` | `content-page.entity.ts` |
-| **頁面樹** | PageTree | ContentPage 依 parentPageId 構成的層級樹，根節點的 parentPageId 為 null | `content` | 由 use-case 組裝 |
+| **頁面** | KnowledgePage | 知識頁面聚合根，含 title、slug、parentPageId、blockIds | `knowledge` | `modules/knowledge/domain/entities/knowledge-page.entity.ts` |
+| **頁面狀態** | KnowledgePageStatus | `"active" \| "archived"` | `knowledge` | `knowledge-page.entity.ts` |
+| **頁面樹節點** | KnowledgePageTreeNode | 包含 children 陣列的頁面節點，遞迴表示層級結構 | `knowledge` | `knowledge-page.entity.ts` |
+| **頁面樹** | PageTree | KnowledgePage 依 parentPageId 構成的層級樹，根節點的 parentPageId 為 null | `knowledge` | 由 use-case 組裝 |
 | **區塊** | ContentBlock | 頁面內的原子內容單元（id、pageId、content、order） | `content` | `modules/knowledge/domain/entities/content-block.entity.ts` |
 | **區塊類型** | BlockType | `"text" \| "heading-1" \| "heading-2" \| "heading-3" \| "image" \| "code" \| "bullet-list" \| "numbered-list" \| "divider" \| "quote"` | `content` | `modules/knowledge/domain/value-objects/block-content.ts` |
 | **區塊內容** | BlockContent | 依 BlockType 多型的值物件（type、text、properties?） | `content` | `modules/knowledge/domain/value-objects/block-content.ts` |
@@ -168,17 +168,17 @@
 | **發票項目** | InvoiceItem | 發票中的單項費用（description、amount） | `workspace-flow` | `modules/workspace-flow/domain/entities/InvoiceItem.ts` |
 | **發票狀態** | InvoiceStatus | Invoice 的審批流程狀態機 | `workspace-flow` | `InvoiceStatus.ts` |
 | **實體化任務** | MaterializedTask | 由 `knowledge.page_approved` 事件派生建立的 Task，帶有 `sourceReference` 指回原始 KnowledgePage | `workspace-flow` | `modules/workspace-flow/domain/entities/Task.ts` |
-| **來源參照** | sourceReference | 記錄業務實體（Task/Invoice）由哪個 ContentPage 派生而來的值物件（type, id, causationId, correlationId） | `workspace-flow` | `modules/workspace-flow/domain/value-objects/SourceReference.ts`（計畫中） |
+| **來源參照** | sourceReference | 記錄業務實體（Task/Invoice）由哪個 KnowledgePage 派生而來的值物件（type, id, causationId, correlationId） | `workspace-flow` | `modules/workspace-flow/domain/value-objects/SourceReference.ts` |
 
 ### content ↔ workspace-flow 整合術語
 
 | 術語 | 英文 | 定義 | 所在模組 |
 |------|------|------|---------|
 | **頁面核准事件** | KnowledgePageApproved | `knowledge.page_approved` 領域事件；使用者在審閱 AI 草稿後核准頁面時觸發；攜帶 `extractedTasks[]`、`extractedInvoices[]`、`actorId`、`causationId`、`correlationId` | `knowledge` |
-| **因果 ID** | causationId | 記錄「哪個命令觸發了此事件」的 UUID；用於 Event Store 追蹤與稽核回溯；`ApproveContentPageUseCase` 執行時生成 | `shared`（EventMetadata） |
+| **因果 ID** | causationId | 記錄「哪個命令觸發了此事件」的 UUID；用於 Event Store 追蹤與稽核回溯；`ApproveKnowledgePageUseCase` 執行時生成 | `shared`（EventMetadata） |
 | **關聯 ID** | correlationId | 記錄「整個業務流程（合約攝入 → 審閱 → 核准 → 任務建立）」的追蹤 UUID；在合約上傳時生成並一路傳遞 | `shared`（EventMetadata） |
 | **緩衝區** | Buffer Zone | `knowledge` 模組在 AI 攝入與業務實體化之間扮演的「草稿暫存與人工審閱」角色；AI 解析結果先寫入此區，人工確認後再派生 `workspace-flow` 實體 | `knowledge` |
-| **物化流程管理器** | ContentToWorkflowMaterializer | 歷史命名的 process manager；目前語意為訂閱 `knowledge.page_approved` 並協調 `workspace-flow` 的 task / invoice materialization | `workspace-flow` |
+| **物化流程管理器** | KnowledgeToWorkflowMaterializer | 訂閱 `knowledge.page_approved` 並協調 `workspace-flow` 的 task / invoice materialization 的 process manager | `workspace-flow` |
 
 ### 排程
 
@@ -229,7 +229,7 @@
 | Use Case | `verb-noun.use-case.ts` | `list-workspace-files.use-case.ts` |
 | Repository 介面 | `PascalCaseRepository.ts` | `WorkspaceRepository.ts` |
 | Repository 實作（Firebase） | `Firebase{Name}Repository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Domain Entity | `PascalCase.ts` 或 `kebab-case.entity.ts` | `Workspace.ts`, `content-page.entity.ts` |
+| Domain Entity | `PascalCase.ts` 或 `kebab-case.entity.ts` | `Workspace.ts`, `knowledge-page.entity.ts` |
 | Domain Event | `kebab-case.events.ts` | `content.events.ts` |
 | Server Action | `kebab-case.actions.ts` | `workspace.actions.ts` |
 | Query Hook | `kebab-case.queries.ts` | `workspace.queries.ts` |
@@ -246,13 +246,13 @@
 
 ```typescript
 // ✅ 跨模組：走 api/ 邊界
-import { createContentPage } from "@/modules/knowledge/api";
+import { createKnowledgePage } from "@/modules/knowledge/api";
 
 // ✅ Package alias
 import type { CommandResult } from "@shared-types";
 
 // ❌ 禁止：跨模組直接 import 內部層
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
 
 // ❌ 禁止：舊路徑
 import { cn } from "@/shared/utils";

@@ -15,7 +15,7 @@ export type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
-} from "./entities/content-page.entity";
+} from "./entities/knowledge-page.entity";
 
 export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
 export type { PageVerificationState } from "./entities/knowledge-page.entity";

@@ -95,5 +95,5 @@
 - .gitattributes
 - tsconfig.json
 - .gitignore
-- package.json
 - eslint.config.mjs
+- package.json

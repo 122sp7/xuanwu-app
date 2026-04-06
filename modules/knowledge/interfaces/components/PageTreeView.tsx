@@ -5,7 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@ui-shadcn/ui/button";
 
-import type { KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import type { KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
 import { PageDialog } from "./PageDialog";
 
 interface PageTreeViewProps {

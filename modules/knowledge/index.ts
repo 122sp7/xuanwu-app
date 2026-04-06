@@ -35,7 +35,7 @@ export type {
   KnowledgePage,
   KnowledgePageStatus,
   KnowledgePageTreeNode,
-} from "./domain/entities/content-page.entity";
+} from "./domain/entities/knowledge-page.entity";
 
 export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
 

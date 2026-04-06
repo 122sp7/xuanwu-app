@@ -211,7 +211,7 @@ User:   "User query: {question}\n\nRetrieved context:\n{chunks}"
 [Firestore Document Trigger: shared/eventStore/{docId}]
   │  監聽 eventName = "knowledge.page_approved"
     ▼
-[Cloud Function: contentToWorkflowMaterializer]
+[Cloud Function: knowledgeToWorkflowMaterializer]
     │  呼叫 CreateTaskUseCase / CreateInvoiceUseCase
     ▼
 [workspace-flow: Task / Invoice（帶 sourceReference）]
@@ -219,7 +219,7 @@ User:   "User query: {question}\n\nRetrieved context:\n{chunks}"
 
 **實作位置：**
 - Firestore Trigger Cloud Function：`py_fn/functions/content_workflow_materializer.py` 或 Next.js App Router Route Handler
-- Process Manager：`modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts`
+- Process Manager：`modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts`
 
 ### AI 攝入管線的原始檔案連結保留
 
@@ -242,19 +242,19 @@ Parse → MarkItDown → Markdown
     └── knowledge 草稿建立（新增）：
           │  呼叫 Next.js Server Action / HTTP API
           ▼
-        ContentPage（title = 合約名稱, status = "active"）
+        KnowledgePage（title = 合約名稱, status = "active"）
           ├── ContentBlock（摘要）
           ├── ContentBlock（Database Block：AI 提取的任務列表）
           └── ContentBlock（Database Block：AI 提取的發票項目）
           │
-          └── IngestionJob.contentPageId = ContentPage.id   ← 原始檔案連結
+            └── IngestionJob.knowledgePageId = KnowledgePage.id   ← 原始檔案連結
               IngestionJob.sourceFileUrl = Storage URL       ← 原始 PDF 連結
 ```
 
 **連結型態：**
-- `IngestionJob.contentPageId`：攝入作業 → ContentPage（雙向溯源）
-- `ContentPage`（metadata）：`sourceDocumentId = IngestionJob.docId`
-- `Task.sourceReference.id = ContentPage.id`：Task → ContentPage → IngestionJob → PDF
+- `IngestionJob.knowledgePageId`：攝入作業 → KnowledgePage（雙向溯源）
+- `KnowledgePage`（metadata）：`sourceDocumentId = IngestionJob.docId`
+- `Task.sourceReference.id = KnowledgePage.id`：Task → KnowledgePage → IngestionJob → PDF
 
 ---
 

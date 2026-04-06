@@ -13727,138 +13727,6 @@ Application layer 只負責：
 - `../../../modules/knowledge/aggregates.md`
 ````
 
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
-
-## KnowledgePageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/repositories.md`
-- `../../../modules/knowledge/aggregates.md`
-````
-
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
-
-## 頁面生命周期操作（Page Lifecycle Actions）
-
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
-
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
-
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
-
-## 頁面操作選單（PageContextMenu）
-
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
-
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
-
-## 頁面樹狀視圖（PageTreeView）
-
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
-
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
-
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
 ## File: modules/subdomains.md
 ````markdown
 # Modules Subdomains（Canonical Link）
@@ -13868,62 +13736,6 @@ Application layer 只負責：
 - ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
 - 若需調整子域分類內容，請只編輯 canonical 檔案。
 - 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
-````
-
-## File: modules/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
-
-## 模組定位
-
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
 ````
 
 ## File: modules/knowledge/aggregates.md
@@ -14098,6 +13910,194 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../modules/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
+
+## 模組定位
+
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
+
+> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
+```
+
+## page_approved 事件規則
+
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/knowledge/context-map.md

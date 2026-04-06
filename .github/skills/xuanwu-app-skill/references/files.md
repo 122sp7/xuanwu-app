@@ -4983,6 +4983,19 @@ export default function OrganizationAuditPage() {
 }
 ````
 
+## File: app/(shell)/organization/content/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+/**
+ * Module: organization/content page
+ * Purpose: redirect to the consolidated content hub at /knowledge.
+ */
+export default function OrganizationKnowledgePage() {
+  redirect("/knowledge");
+}
+````
+
 ## File: app/(shell)/organization/daily/page.tsx
 ````typescript
 "use client";
@@ -12329,115 +12342,6 @@ export class BacklinkExtractorService {
 export * from "./api";
 ````
 
-## File: modules/knowledge-collaboration/api/index.ts
-````typescript
-/**
- * knowledge-collaboration public API boundary
- *
- * Other modules MUST import knowledge-collaboration resources from this file only.
- */
-
-// ── Domain types ───────────────────────────────────────────────────────────────
-export type { Comment } from "../domain/entities/comment.entity";
-export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
-export type { Version } from "../domain/entities/version.entity";
-
-export type CommentId = string;
-export type PermissionId = string;
-export type VersionId = string;
-
-// ── DTOs ───────────────────────────────────────────────────────────────────────
-export type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-  CreateVersionDto,
-  DeleteVersionDto,
-  GrantPermissionDto,
-  RevokePermissionDto,
-} from "../application/dto/knowledge-collaboration.dto";
-
-// ── Server Actions (mutations) ─────────────────────────────────────────────────
-export {
-  createComment,
-  updateComment,
-  resolveComment,
-  deleteComment,
-  createVersion,
-  deleteVersion,
-  grantPermission,
-  revokePermission,
-} from "../interfaces/_actions/knowledge-collaboration.actions";
-
-// ── Queries (reads) ────────────────────────────────────────────────────────────
-export {
-  getComments,
-  getVersions,
-  getPermissions,
-} from "../interfaces/queries/knowledge-collaboration.queries";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
-````
-
-## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/use-cases
- * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { Permission } from "../../domain/entities/permission.entity";
-import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
-import {
-  GrantPermissionSchema, type GrantPermissionDto,
-  RevokePermissionSchema, type RevokePermissionDto,
-} from "../dto/knowledge-collaboration.dto";
-
-export class GrantPermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
-
-  async execute(input: GrantPermissionDto): Promise<CommandResult> {
-    const parsed = GrantPermissionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO } = parsed.data;
-    const permission = await this.repo.grant({
-      accountId, workspaceId, subjectId, subjectType,
-      principalId, principalType, level, grantedByUserId,
-      expiresAtISO: expiresAtISO ?? null,
-    });
-    return commandSuccess(permission.id, Date.now());
-  }
-}
-
-export class RevokePermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
-
-  async execute(input: RevokePermissionDto): Promise<CommandResult> {
-    const parsed = RevokePermissionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
-    }
-    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListPermissionsBySubjectUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
-
-  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
-    return this.repo.listBySubject(accountId, subjectId);
-  }
-}
-````
-
 ## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
 ````typescript
 /**
@@ -12504,36 +12408,6 @@ export interface Version {
 }
 ````
 
-## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: domain/repositories
- */
-
-import type { Permission, PermissionLevel } from "../entities/permission.entity";
-
-export interface GrantPermissionInput {
-  readonly subjectId: string;
-  readonly subjectType: "page" | "article" | "database";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly principalId: string;
-  readonly principalType: "user" | "team";
-  readonly level: PermissionLevel;
-  readonly grantedByUserId: string;
-  readonly expiresAtISO?: string | null;
-}
-
-export interface IPermissionRepository {
-  grant(input: GrantPermissionInput): Promise<Permission>;
-  revoke(accountId: string, permissionId: string): Promise<void>;
-  findById(accountId: string, permissionId: string): Promise<Permission | null>;
-  listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
-  listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
-}
-````
-
 ## File: modules/knowledge-collaboration/domain/repositories/IVersionRepository.ts
 ````typescript
 /**
@@ -12572,99 +12446,6 @@ export interface IVersionRepository {
  */
 
 export * from "./api";
-````
-
-## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationPermissions/{id}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Permission, PermissionLevel } from "../../domain/entities/permission.entity";
-import type {
-  IPermissionRepository,
-  GrantPermissionInput,
-} from "../../domain/repositories/IPermissionRepository";
-
-function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationPermissions");
-}
-
-function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationPermissions", id);
-}
-
-function toPermission(id: string, data: Record<string, unknown>): Permission {
-  return {
-    id,
-    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
-    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    principalId: typeof data.principalId === "string" ? data.principalId : "",
-    principalType: (data.principalType as Permission["principalType"]) ?? "user",
-    level: (data.level as PermissionLevel) ?? "view",
-    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
-    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
-    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
-  };
-}
-
-export class FirebasePermissionRepository implements IPermissionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async grant(input: GrantPermissionInput): Promise<Permission> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      subjectId: input.subjectId,
-      subjectType: input.subjectType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      principalId: input.principalId,
-      principalType: input.principalType,
-      level: input.level,
-      grantedByUserId: input.grantedByUserId,
-      grantedAtISO: now,
-      expiresAtISO: input.expiresAtISO ?? null,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(permissionDoc(db, input.accountId, id), data);
-    return toPermission(id, data);
-  }
-
-  async revoke(accountId: string, permissionId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
-  }
-
-  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
-    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
-    if (!snap.exists()) return null;
-    return toPermission(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
-    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
-    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
-  }
-}
 ````
 
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
@@ -13171,180 +12952,6 @@ export async function getPermissions(accountId: string, subjectId: string): Prom
 }
 ````
 
-## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/dto
- */
-
-import { z } from "@lib-zod";
-
-const WorkspaceScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-const FieldTypeSchema = z.enum([
-  "text", "number", "select", "multi_select", "date",
-  "checkbox", "url", "email", "relation", "formula", "rollup",
-]);
-
-const ViewTypeSchema = z.enum(["table", "board", "list", "calendar", "timeline", "gallery"]);
-
-// ── Database ──────────────────────────────────────────────────────────────────
-
-export const CreateDatabaseSchema = WorkspaceScopeSchema.extend({
-  name: z.string().min(1).max(200),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateDatabaseDto = z.infer<typeof CreateDatabaseSchema>;
-
-export const UpdateDatabaseSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().max(2000).nullable().optional(),
-  icon: z.string().max(100).nullable().optional(),
-  coverImageUrl: z.string().url().nullable().optional(),
-});
-export type UpdateDatabaseDto = z.infer<typeof UpdateDatabaseSchema>;
-
-export const AddFieldSchema = z.object({
-  databaseId: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  type: FieldTypeSchema,
-  config: z.record(z.string(), z.unknown()).optional(),
-  required: z.boolean().optional(),
-});
-export type AddFieldDto = z.infer<typeof AddFieldSchema>;
-
-export const ArchiveDatabaseSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
-
-// ── Record ────────────────────────────────────────────────────────────────────
-
-export const CreateRecordSchema = WorkspaceScopeSchema.extend({
-  databaseId: z.string().min(1),
-  properties: z.record(z.string(), z.unknown()).optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
-
-export const UpdateRecordSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  properties: z.record(z.string(), z.unknown()),
-});
-export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
-
-export const DeleteRecordSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteRecordDto = z.infer<typeof DeleteRecordSchema>;
-
-// ── View ──────────────────────────────────────────────────────────────────────
-
-export const CreateViewSchema = WorkspaceScopeSchema.extend({
-  databaseId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  type: ViewTypeSchema,
-  createdByUserId: z.string().min(1),
-});
-export type CreateViewDto = z.infer<typeof CreateViewSchema>;
-
-export const UpdateViewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(100).optional(),
-  filters: z.array(z.object({
-    fieldId: z.string(),
-    operator: z.enum(["eq","neq","contains","not_contains","is_empty","is_not_empty","gt","lt"]),
-    value: z.unknown(),
-  })).optional(),
-  sorts: z.array(z.object({
-    fieldId: z.string(),
-    direction: z.enum(["asc","desc"]),
-  })).optional(),
-  visibleFieldIds: z.array(z.string()).optional(),
-  hiddenFieldIds: z.array(z.string()).optional(),
-});
-export type UpdateViewDto = z.infer<typeof UpdateViewSchema>;
-
-export const DeleteViewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
-````
-
-## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
-import {
-  CreateRecordSchema, type CreateRecordDto,
-  UpdateRecordSchema, type UpdateRecordDto,
-  DeleteRecordSchema, type DeleteRecordDto,
-} from "../dto/knowledge-database.dto";
-
-export class CreateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: CreateRecordDto): Promise<CommandResult> {
-    const parsed = CreateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, databaseId, properties = {}, createdByUserId } = parsed.data;
-    const rec = await this.repo.create({ accountId, workspaceId, databaseId, properties, createdByUserId });
-    return commandSuccess(rec.id, Date.now());
-  }
-}
-
-export class UpdateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: UpdateRecordDto): Promise<CommandResult> {
-    const parsed = UpdateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    if (!result) return commandFailureFrom("RECORD_NOT_FOUND", "Record not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class DeleteRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: DeleteRecordDto): Promise<CommandResult> {
-    const parsed = DeleteRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    if (!accountId.trim() || !databaseId.trim()) return [];
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
-````
-
 ## File: modules/knowledge-database/domain/entities/database.entity.ts
 ````typescript
 export type FieldType =
@@ -13508,6 +13115,151 @@ export interface IViewRepository {
  * knowledge-database module — public barrel export
  */
 export * from "./api";
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}
+ */
+
+import {
+  arrayUnion, collection, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Database, Field, FieldType } from "../../domain/entities/database.entity";
+import type {
+  IDatabaseRepository,
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
+
+function dbsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "knowledgeDatabases");
+}
+
+function dbDoc(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string) {
+  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId);
+}
+
+function toField(f: Record<string, unknown>): Field {
+  return {
+    id: typeof f.id === "string" ? f.id : generateId(),
+    name: typeof f.name === "string" ? f.name : "",
+    type: (f.type as FieldType) ?? "text",
+    config: typeof f.config === "object" && f.config !== null ? (f.config as Record<string, unknown>) : {},
+    required: f.required === true,
+    order: typeof f.order === "number" ? f.order : 0,
+  };
+}
+
+function toDatabase(id: string, data: Record<string, unknown>): Database {
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : null,
+    fields: Array.isArray(data.fields)
+      ? (data.fields as Record<string, unknown>[]).map(toField)
+      : [],
+    viewIds: Array.isArray(data.viewIds)
+      ? (data.viewIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    icon: typeof data.icon === "string" ? data.icon : null,
+    coverImageUrl: typeof data.coverImageUrl === "string" ? data.coverImageUrl : null,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseDatabaseRepository implements IDatabaseRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateDatabaseInput): Promise<Database> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description ?? null,
+      fields: [],
+      viewIds: [],
+      icon: null,
+      coverImageUrl: null,
+      archived: false,
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(dbDoc(db, input.accountId, id), data);
+    return toDatabase(id, data);
+  }
+
+  async update(input: UpdateDatabaseInput): Promise<Database | null> {
+    const db = this.db();
+    const ref = dbDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updatedAtISO: now };
+    if (input.name !== undefined) updates.name = input.name;
+    if (input.description !== undefined) updates.description = input.description;
+    if (input.icon !== undefined) updates.icon = input.icon;
+    if (input.coverImageUrl !== undefined) updates.coverImageUrl = input.coverImageUrl;
+    await updateDoc(ref, updates);
+    return toDatabase(snap.id, { ...snap.data(), ...updates });
+  }
+
+  async addField(input: AddFieldInput): Promise<Database | null> {
+    const db = this.db();
+    const ref = dbDoc(db, input.accountId, input.databaseId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const data = snap.data() as Record<string, unknown>;
+    const currentFields = Array.isArray(data.fields) ? data.fields as Record<string, unknown>[] : [];
+    const newField: Field = {
+      id: generateId(),
+      name: input.field.name,
+      type: input.field.type,
+      config: input.field.config,
+      required: input.field.required,
+      order: currentFields.length,
+    };
+    const now = new Date().toISOString();
+    await updateDoc(ref, { fields: arrayUnion(newField), updatedAtISO: now });
+    return toDatabase(snap.id, { ...data, fields: [...currentFields, newField], updatedAtISO: now });
+  }
+
+  async archive(accountId: string, databaseId: string): Promise<void> {
+    const db = this.db();
+    const ref = dbDoc(db, accountId, databaseId);
+    await updateDoc(ref, { archived: true, updatedAtISO: new Date().toISOString() });
+  }
+
+  async findById(accountId: string, databaseId: string): Promise<Database | null> {
+    const db = this.db();
+    const snap = await getDoc(dbDoc(db, accountId, databaseId));
+    if (!snap.exists()) return null;
+    return toDatabase(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]> {
+    const db = this.db();
+    const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "==", false), orderBy("createdAtISO", "asc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toDatabase(d.id, d.data() as Record<string, unknown>));
+  }
+}
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseViewRepository.ts
@@ -13950,167 +13702,6 @@ export const KNOWLEDGE_EVENT_TYPES = {
 export type KnowledgeEventType = (typeof KNOWLEDGE_EVENT_TYPES)[keyof typeof KNOWLEDGE_EVENT_TYPES];
 ````
 
-## File: modules/knowledge/api/knowledge-facade.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api
- * Purpose: KnowledgeFacade — the ONLY authorised entry point for cross-domain
- * access to the Content domain.
- *
- * BOUNDARY RULE:
- *   Other modules MUST import from here:
- *     import { knowledgeFacade } from "@/modules/knowledge";
- *   They must NEVER reach into domain/, application/, infrastructure/ or
- *   interfaces/ directly.
- */
-
-import type { KnowledgePageRepository, KnowledgeBlockRepository } from "../domain/repositories/knowledge.repositories";
-import type { KnowledgePage, KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
-import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgeVersion } from "../domain/entities/content-version.entity";
-import type { BlockContent } from "../domain/value-objects/block-content";
-
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  GetKnowledgePageTreeUseCase,
-} from "../application/use-cases/knowledge-page.use-cases";
-import {
-  AddKnowledgeBlockUseCase,
-  UpdateKnowledgeBlockUseCase,
-  DeleteKnowledgeBlockUseCase,
-  ListKnowledgeBlocksUseCase,
-} from "../application/use-cases/knowledge-block.use-cases";
-
-import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
-
-export interface KnowledgeCreatePageParams {
-  accountId: string;
-  workspaceId?: string;
-  title: string;
-  parentPageId?: string | null;
-  createdByUserId: string;
-}
-
-export interface KnowledgeRenamePageParams {
-  accountId: string;
-  pageId: string;
-  title: string;
-}
-
-export interface KnowledgeMovePageParams {
-  accountId: string;
-  pageId: string;
-  targetParentPageId: string | null;
-}
-
-export interface KnowledgeAddBlockParams {
-  accountId: string;
-  pageId: string;
-  content: BlockContent;
-  index?: number;
-}
-
-export interface KnowledgeUpdateBlockParams {
-  accountId: string;
-  blockId: string;
-  content: BlockContent;
-}
-
-export class KnowledgeFacade {
-  private readonly pageRepo: KnowledgePageRepository;
-  private readonly blockRepo: KnowledgeBlockRepository;
-
-  constructor(
-    pageRepo: KnowledgePageRepository = new FirebaseKnowledgePageRepository(),
-    blockRepo: KnowledgeBlockRepository = new FirebaseKnowledgeBlockRepository(),
-  ) {
-    this.pageRepo = pageRepo;
-    this.blockRepo = blockRepo;
-  }
-
-  async createPage(params: KnowledgeCreatePageParams): Promise<string | null> {
-    const result = await new CreateKnowledgePageUseCase(this.pageRepo).execute({
-      accountId: params.accountId,
-      workspaceId: params.workspaceId,
-      title: params.title,
-      parentPageId: params.parentPageId ?? null,
-      createdByUserId: params.createdByUserId,
-    });
-    return result.success ? result.aggregateId : null;
-  }
-
-  async renamePage(params: KnowledgeRenamePageParams): Promise<boolean> {
-    const result = await new RenameKnowledgePageUseCase(this.pageRepo).execute(params);
-    return result.success;
-  }
-
-  async movePage(params: KnowledgeMovePageParams): Promise<boolean> {
-    const result = await new MoveKnowledgePageUseCase(this.pageRepo).execute(params);
-    return result.success;
-  }
-
-  async archivePage(accountId: string, pageId: string): Promise<boolean> {
-    const result = await new ArchiveKnowledgePageUseCase(this.pageRepo).execute({
-      accountId,
-      pageId,
-    });
-    return result.success;
-  }
-
-  async getPage(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    return new GetKnowledgePageUseCase(this.pageRepo).execute(accountId, pageId);
-  }
-
-  async listPages(accountId: string): Promise<KnowledgePage[]> {
-    return new ListKnowledgePagesUseCase(this.pageRepo).execute(accountId);
-  }
-
-  async getPageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    return new GetKnowledgePageTreeUseCase(this.pageRepo).execute(accountId);
-  }
-
-  async addBlock(params: KnowledgeAddBlockParams): Promise<string | null> {
-    const result = await new AddKnowledgeBlockUseCase(this.blockRepo).execute({
-      accountId: params.accountId,
-      pageId: params.pageId,
-      content: params.content,
-      index: params.index,
-    });
-    return result.success ? result.aggregateId : null;
-  }
-
-  async updateBlock(params: KnowledgeUpdateBlockParams): Promise<boolean> {
-    const result = await new UpdateKnowledgeBlockUseCase(this.blockRepo).execute(params);
-    return result.success;
-  }
-
-  async deleteBlock(accountId: string, blockId: string): Promise<boolean> {
-    const result = await new DeleteKnowledgeBlockUseCase(this.blockRepo).execute({
-      accountId,
-      blockId,
-    });
-    return result.success;
-  }
-
-  async listBlocks(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    return new ListKnowledgeBlocksUseCase(this.blockRepo).execute(accountId, pageId);
-  }
-
-  async listVersions(_accountId: string, _pageId: string): Promise<KnowledgeVersion[]> {
-    return [];
-  }
-}
-
-export const knowledgeFacade = new KnowledgeFacade();
-````
-
 ## File: modules/knowledge/application/use-cases/knowledge-collection.use-cases.ts
 ````typescript
 /**
@@ -14291,307 +13882,6 @@ export class ListKnowledgeCollectionsByWorkspaceUseCase {
 }
 ````
 
-## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Page use cases — create, rename, move, reorder blocks, archive, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import {
-  CreateKnowledgePageSchema,
-  type CreateKnowledgePageDto,
-  RenameKnowledgePageSchema,
-  type RenameKnowledgePageDto,
-  MoveKnowledgePageSchema,
-  type MoveKnowledgePageDto,
-  ArchiveKnowledgePageSchema,
-  type ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksSchema,
-  type ReorderKnowledgePageBlocksDto,
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/knowledge.dto";
-
-export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
-  const map = new Map<string, KnowledgePageTreeNode>();
-  for (const page of pages) {
-    map.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: KnowledgePageTreeNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentPageId === null || !map.has(node.parentPageId)) {
-      roots.push(node);
-    } else {
-      const parent = map.get(node.parentPageId)!;
-      (parent.children as KnowledgePageTreeNode[]).push(node);
-    }
-  }
-
-  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
-    nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
-  };
-  sortByOrder(roots);
-
-  return roots;
-}
-
-export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
-
-    const page = await this.repo.create({
-      accountId,
-      workspaceId,
-      title: title.trim(),
-      parentPageId: parentPageId ?? null,
-      createdByUserId,
-    });
-
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, title } = parsed.data;
-    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = MoveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, targetParentPageId } = parsed.data;
-
-    if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
-    }
-
-    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId } = parsed.data;
-    const updated = await this.repo.archive(accountId, pageId);
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, blockIds } = parsed.data;
-    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    if (!accountId.trim() || !pageId.trim()) return null;
-    return this.repo.findById(accountId, pageId);
-  }
-}
-
-export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim()) return [];
-    return this.repo.listByAccountId(accountId);
-  }
-}
-
-export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim()) return [];
-    const pages = await this.repo.listByAccountId(accountId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: KnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    // causationId is set by the Server Action layer; generateId() is a safe fallback.
-    const causationId = inputCausationId ?? generateId();
-
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) {
-      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    }
-    if (page.status === "archived") {
-      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    }
-    if (page.approvalState === "approved") {
-      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-    }
-
-    const nowISO = new Date().toISOString();
-    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
-    if (!approved) {
-      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
-    }
-
-    const correlationId = inputCorrelationId ?? generateId();
-
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-````
-
 ## File: modules/knowledge/application/use-cases/knowledge-version.use-cases.ts
 ````typescript
 /**
@@ -14636,122 +13926,6 @@ export class ListKnowledgeVersionsUseCase {
     if (!accountId.trim() || !pageId.trim()) return [];
     return this.repo.listByPageId(accountId, pageId);
   }
-}
-````
-
-## File: modules/knowledge/domain/entities/content-page.entity.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/entity
- * Purpose: Page aggregate root — the central document unit in the Content domain.
- */
-
-export type KnowledgePageStatus = "active" | "archived";
-export type KnowledgePageApprovalState = "pending" | "approved";
-/** Notion Wiki page verification state */
-export type PageVerificationState = "verified" | "needs_review";
-
-export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
-export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
-export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
-
-export interface KnowledgePage {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: KnowledgePageStatus;
-  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
-  readonly approvalState?: KnowledgePageApprovalState;
-  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
-  readonly approvedAtISO?: string;
-  /** Actor who approved the page. */
-  readonly approvedByUserId?: string;
-  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
-  /**
-   * Verification state for Wiki (Knowledge Base) pages.
-   * undefined = page is not in wiki verification mode.
-   * "verified" = marked as up-to-date by a verifier.
-   * "needs_review" = flagged for review (may be stale).
-   */
-  readonly verificationState?: PageVerificationState;
-  /** User responsible for keeping this page accurate. */
-  readonly ownerId?: string;
-  /** User who last set verificationState to "verified". */
-  readonly verifiedByUserId?: string;
-  /** ISO timestamp when the page was last verified. */
-  readonly verifiedAtISO?: string;
-  /** ISO timestamp after which the page auto-transitions to "needs_review". */
-  readonly verificationExpiresAtISO?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface KnowledgePageTreeNode extends KnowledgePage {
-  readonly children: readonly KnowledgePageTreeNode[];
-}
-
-export interface CreateKnowledgePageInput {
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-}
-
-export interface RenameKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly title: string;
-}
-
-export interface MoveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly targetParentPageId: string | null;
-}
-
-export interface ReorderKnowledgePageBlocksInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly blockIds: readonly string[];
-}
-
-export interface ArchiveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-}
-
-export interface ApproveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly approvedByUserId: string;
-  readonly approvedAtISO: string;
-}
-
-export interface VerifyKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly verifiedByUserId: string;
-  readonly verificationExpiresAtISO?: string;
-}
-
-export interface RequestPageReviewInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly requestedByUserId: string;
-}
-
-export interface AssignPageOwnerInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly ownerId: string;
 }
 ````
 
@@ -15288,550 +14462,6 @@ export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectio
 }
 ````
 
-## File: modules/knowledge/infrastructure/firebase/FirebaseContentPageRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
- *
- * Firestore collection: accounts/{accountId}/contentPages/{pageId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "../../domain/entities/content-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-
-function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentPages");
-}
-
-function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
-  return doc(db, "accounts", accountId, "contentPages", pageId);
-}
-
-function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-    title: typeof data.title === "string" ? data.title : "",
-    slug: typeof data.slug === "string" ? data.slug : "",
-    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
-    order: typeof data.order === "number" ? data.order : 0,
-    blockIds: Array.isArray(data.blockIds)
-      ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
-      : [],
-    status: data.status === "archived" ? "archived" : "active",
-    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
-    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
-    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
-    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
-    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
-    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
-    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-function slugify(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100) || "page";
-}
-
-export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
-    const nowISO = new Date().toISOString();
-    const slug = slugify(input.title);
-    const id = generateId();
-
-    const existing = await getDocs(
-      query(pagesCol(this.db, input.accountId), where("parentPageId", "==", input.parentPageId ?? null)),
-    );
-    const order = existing.size;
-
-    const docRef = doc(pagesCol(this.db, input.accountId), id);
-    const data: Record<string, unknown> = {
-      accountId: input.accountId,
-      title: input.title,
-      slug,
-      parentPageId: input.parentPageId ?? null,
-      order,
-      blockIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.workspaceId) data.workspaceId = input.workspaceId;
-
-    await setDoc(docRef, data);
-
-    return toKnowledgePage(id, { ...data, id });
-  }
-
-  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      title: input.title,
-      slug: slugify(input.title),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      parentPageId: input.targetParentPageId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      blockIds: [...input.blockIds],
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, accountId, pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      status: "archived",
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    if (data.status === "archived") return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      approvalState: "approved",
-      approvedAtISO: input.approvedAtISO,
-      approvedByUserId: input.approvedByUserId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
-    if (!snap.exists()) return null;
-    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(
-        pagesCol(this.db, accountId),
-        where("status", "==", "active"),
-        orderBy("order", "asc"),
-      ),
-    );
-    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(
-        pagesCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        where("status", "==", "active"),
-        orderBy("order", "asc"),
-      ),
-    );
-    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      verificationState: "verified",
-      verifiedByUserId: input.verifiedByUserId,
-      verifiedAtISO: nowISO,
-      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      verificationState: "needs_review",
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      ownerId: input.ownerId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/knowledge/infrastructure/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/barrel
- */
-
-export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseContentPageRepository";
-export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
-````
-
-## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/in-memory
- * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
- *          Uses plain Map<string, …> — no external database required.
- *          Designed for local demos and unit tests (Occam's Razor).
- */
-
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-} from "../domain/entities/content-block.entity";
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "../domain/entities/content-page.entity";
-import type {
-  KnowledgeBlockRepository,
-  KnowledgePageRepository,
-} from "../domain/repositories/knowledge.repositories";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function generateSlug(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
-}
-
-// ─── Page repository ──────────────────────────────────────────────────────────
-
-export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
-  private readonly pages = new Map<string, KnowledgePage>();
-
-  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
-    const now = new Date().toISOString();
-    const id = generateId();
-    const page: KnowledgePage = {
-      id,
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      slug: generateSlug(input.title),
-      parentPageId: input.parentPageId ?? null,
-      order: this.pages.size,
-      blockIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    this.pages.set(id, page);
-    return page;
-  }
-
-  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      title: input.title,
-      slug: generateSlug(input.title),
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      parentPageId: input.targetParentPageId,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      blockIds: [...input.blockIds],
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const page = this.pages.get(pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      status: "archived",
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(pageId, updated);
-    return updated;
-  }
-
-  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    if (page.status === "archived") return null;
-    const updated: KnowledgePage = {
-      ...page,
-      approvalState: "approved",
-      approvedAtISO: input.approvedAtISO,
-      approvedByUserId: input.approvedByUserId,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    return this.pages.get(pageId) ?? null;
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    return [...this.pages.values()].filter((p) => p.accountId === accountId);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    return [...this.pages.values()].filter(
-      (p) => p.accountId === accountId && p.workspaceId === workspaceId,
-    );
-  }
-
-  /** Append a blockId to a page's blockIds list (called by block operations). */
-  async appendBlockId(pageId: string, blockId: string): Promise<void> {
-    const page = this.pages.get(pageId);
-    if (!page) return;
-    this.pages.set(pageId, {
-      ...page,
-      blockIds: [...page.blockIds, blockId],
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-}
-
-// ─── Block repository ─────────────────────────────────────────────────────────
-
-export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
-  private readonly blocks = new Map<string, KnowledgeBlock>();
-
-  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
-    const now = new Date().toISOString();
-    const id = generateId();
-    const siblingsCount = [...this.blocks.values()].filter(
-      (b) => b.pageId === input.pageId && b.accountId === input.accountId,
-    ).length;
-    const block: KnowledgeBlock = {
-      id,
-      pageId: input.pageId,
-      accountId: input.accountId,
-      content: input.content,
-      order: input.index ?? siblingsCount,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    this.blocks.set(id, block);
-    return block;
-  }
-
-  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
-    const block = this.blocks.get(input.blockId);
-    if (!block) return null;
-    const updated: KnowledgeBlock = {
-      ...block,
-      content: input.content,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.blocks.set(input.blockId, updated);
-    return updated;
-  }
-
-  async delete(_accountId: string, blockId: string): Promise<void> {
-    this.blocks.delete(blockId);
-  }
-
-  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
-    return this.blocks.get(blockId) ?? null;
-  }
-
-  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    return [...this.blocks.values()]
-      .filter((b) => b.accountId === accountId && b.pageId === pageId)
-      .sort((a, b) => a.order - b.order);
-  }
-}
-````
-
 ## File: modules/knowledge/interfaces/components/PageTreeView.tsx
 ````typescript
 "use client";
@@ -16031,88 +14661,6 @@ export {
 } from "./queries/knowledge.queries";
 
 export { BlockEditorView } from "./components/BlockEditorView";
-````
-
-## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side query helpers for reading Content domain data.
- */
-
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
-import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  GetKnowledgePageTreeUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsByAccountUseCase,
-} from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
-
-export async function getKnowledgePage(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgePage | null> {
-  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
-    accountId,
-    pageId,
-  );
-}
-
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
-  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
-
-export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
-  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
-
-export async function getKnowledgeBlocks(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgeBlock[]> {
-  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
-    accountId,
-    pageId,
-  );
-}
-
-export async function getKnowledgeVersions(
-  _accountId: string,
-  _pageId: string,
-): Promise<KnowledgeVersion[]> {
-  return [];
-}
-
-// ── Collection queries ────────────────────────────────────────────────────────
-
-export async function getKnowledgeCollection(
-  accountId: string,
-  collectionId: string,
-): Promise<KnowledgeCollection | null> {
-  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
-    collectionId,
-  );
-}
-
-export async function getKnowledgeCollections(
-  accountId: string,
-): Promise<KnowledgeCollection[]> {
-  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
-  );
-}
 ````
 
 ## File: modules/notebook/.gitkeep
@@ -30437,6 +28985,72 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/workspace/application-services.md`
 ````
 
+## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
+ *          Lives in workspace because it aggregates workspace-scoped content nodes.
+ */
+
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+} from "../../domain/entities/WikiContentTree";
+import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
+
+function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
+  return [
+    { key: "spaces", label: "Wiki", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
+    { key: "pages", label: "Pages", href: "/knowledge/pages", enabled: true },
+    { key: "libraries", label: "Libraries", href: "/source/libraries", enabled: true },
+    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
+    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
+    { key: "rag", label: "RAG", href: "/notebook/rag-query", enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
+  ];
+}
+
+function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
+  return {
+    workspaceId,
+    workspaceName,
+    href: `/workspace/${workspaceId}?tab=Wiki`,
+    contentBaseItems: buildContentBaseItems(workspaceId),
+  };
+}
+
+export async function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository,
+): Promise<WikiAccountContentNode[]> {
+  const accountNodes = await Promise.all(
+    seeds.map(async (seed) => {
+      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
+      return {
+        accountId: seed.accountId,
+        accountName: seed.accountName,
+        accountType: seed.accountType,
+        isActive: seed.isActive,
+        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
+        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
+        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
+      } satisfies WikiAccountContentNode;
+    }),
+  );
+
+  return accountNodes.sort((a, b) => {
+    if (a.accountType !== b.accountType) {
+      return a.accountType === "personal" ? -1 : 1;
+    }
+    return a.accountName.localeCompare(b.accountName, "zh-Hant");
+  });
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace-member.use-cases.ts
 ````typescript
 import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
@@ -31863,6 +30477,165 @@ interface WorkspaceWikiTabProps {
  */
 export function WorkspaceWikiTab({ workspace }: WorkspaceWikiTabProps) {
   return <WorkspaceWikiView workspace={workspace} />;
+}
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+interface WorkspaceWikiViewProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+/** Base left-padding (rem) for depth-0 tree items. */
+const TREE_INDENT_BASE_REM = 0.5;
+/** Additional left-padding (rem) per nesting level. */
+const TREE_INDENT_STEP_REM = 1.25;
+
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
+  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
+  for (const node of nodes) {
+    out.push({ node, depth });
+    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
+  }
+  return out;
+}
+
+export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
+  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPages() {
+      setLoadState("loading");
+      try {
+        const result = await getKnowledgePageTree(workspace.accountId);
+        if (!cancelled) {
+          setPages(result);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) setLoadState("error");
+      }
+    }
+
+    void loadPages();
+
+    return () => { cancelled = true; };
+  }, [workspace.accountId]);
+
+  const flatPages = flattenTree(pages);
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-border/60 bg-card/80">
+        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpenIcon className="size-4 shrink-0 text-primary" />
+              <span className="truncate">Wiki · {workspace.name}</span>
+            </CardTitle>
+            <CardDescription className="mt-0.5">
+              此工作區的 Wiki 頁面
+            </CardDescription>
+          </div>
+          <Button asChild size="sm" className="shrink-0 gap-1.5">
+            <Link
+              href={`/knowledge/pages?workspaceId=${workspace.id}`}
+            >
+              <PlusIcon className="size-3.5" />
+              <span className="hidden sm:inline">新增頁面</span>
+              <span className="sm:hidden">新增</span>
+            </Link>
+          </Button>
+        </CardHeader>
+
+        <CardContent className="pb-4">
+          {loadState === "loading" && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          )}
+
+          {loadState === "error" && (
+            <p className="py-4 text-center text-sm text-destructive">
+              無法載入頁面，請稍後再試。
+            </p>
+          )}
+
+          {loadState === "loaded" && flatPages.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                <BookOpenIcon className="size-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  建立第一頁來開始記錄工作區知識。
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link href={`/knowledge/pages?workspaceId=${workspace.id}`}>
+                  <PlusIcon className="size-3.5" />
+                  建立第一頁
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          {loadState === "loaded" && flatPages.length > 0 && (
+            <ul className="divide-y divide-border/50">
+              {flatPages.map(({ node, depth }) => (
+                <li key={node.id}>
+                  <Link
+                    href={`/knowledge/pages?pageId=${node.id}`}
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
+                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
+                  >
+                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      {node.title}
+                    </span>
+                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {node.slug}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
+        </Button>
+      </div>
+    </div>
+  );
 }
 ````
 
@@ -43744,59 +42517,6 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
 }
 ````
 
-## File: scripts/demo-flow.ts
-````typescript
-/**
- * scripts/demo-flow.ts
- *
- * Architecture Phase 2 — The Proof (Occam's Razor Edition)
- *
- * Demonstrates the Content → EventBus loop using only in-memory adapters.
- * Note: modules/wiki has been removed; graph steps are no longer included.
- *
- * Run with:
- *   npx tsx scripts/demo-flow.ts
- */
-
-import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
-
-async function main() {
-  const ACCOUNT_ID = "demo-account";
-  const USER_ID = "demo-user";
-
-  console.log("[1] Initialising event bus...");
-  const eventBus = new SimpleEventBus();
-  console.log("    ✓ SimpleEventBus ready\n");
-
-  console.log("[2] Creating KnowledgeApi...");
-  const contentApi = new ContentKnowledgeApi(eventBus);
-  console.log("    ✓ KnowledgeApi ready\n");
-
-  console.log('[3] Creating page "Hello World"...');
-  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
-  console.log(`    ✓ page created  id=${page.id}\n`);
-
-  console.log("[4] Adding an empty block to the page...");
-  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
-  console.log(`    ✓ block created  id=${block.id}\n`);
-
-  console.log('[5] Updating block → "Hello [[World]]"...');
-  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
-  if (!updated) {
-    throw new Error("ASSERTION FAILED: updateBlock returned null");
-  }
-  console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
-
-  console.log("✅  Demo flow completed successfully.");
-}
-
-main().catch((err) => {
-  console.error("❌  Demo flow failed:", err);
-  process.exit(1);
-});
-````
-
 ## File: SPEC-WORKFLOW.md
 ````markdown
 # Spec-Driven Development Workflow
@@ -45941,6 +44661,402 @@ export { saveThread, loadThread };
 export type { Thread };
 ````
 
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
+ */
+
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import type { Thread } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+const STORAGE_KEY = (accountId: string, workspaceId: string) =>
+  `nb_thread_${accountId}_${workspaceId || "default"}`;
+
+function buildContextPrompt(history: ChatMessage[]): string {
+  if (history.length === 0) return "";
+  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
+  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
+}
+
+function generateMsgId() {
+  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
+  return {
+    id,
+    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const { state: { workspaces } } = useApp();
+  const { state: authState } = useAuth();
+  const accountId = authState.user?.id ?? "";
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const currentWorkspace =
+    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? workspaces[requestedWorkspaceId] ?? null
+      : null;
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+
+  // Load persisted thread on mount
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    // Build multi-turn context from history (exclude the new user message)
+    const contextPrompt = buildContextPrompt(messages);
+
+    try {
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        // Persist thread to Firestore
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      // Defer scroll to allow React to flush the new message into the DOM first.
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <FolderKanban className="size-4 text-primary" />
+                Workspace context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              {currentWorkspace ? (
+                <>
+                  <div>
+                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
+                    <p className="mt-1 text-xs">
+                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs">
+                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                知識頁面 / Pages
+              </Link>
+              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
 ````typescript
 "use client";
@@ -46329,19 +45445,6 @@ export default function NotebookRagQueryPage() {
       <RagQueryView workspaceId={workspaceId} />
     </div>
   );
-}
-````
-
-## File: app/(shell)/organization/content/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-/**
- * Module: organization/content page
- * Purpose: redirect to the consolidated content hub at /knowledge.
- */
-export default function OrganizationKnowledgePage() {
-  redirect("/knowledge");
 }
 ````
 
@@ -49384,6 +48487,60 @@ export async function getBacklinks(accountId: string, articleId: string): Promis
 → 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
 ````
 
+## File: modules/knowledge-collaboration/api/index.ts
+````typescript
+/**
+ * knowledge-collaboration public API boundary
+ *
+ * Other modules MUST import knowledge-collaboration resources from this file only.
+ */
+
+// ── Domain types ───────────────────────────────────────────────────────────────
+export type { Comment } from "../domain/entities/comment.entity";
+export type { SelectionRange } from "../domain/entities/comment.entity";
+export type { Permission, PermissionLevel, PrincipalType } from "../domain/entities/permission.entity";
+export type { Version } from "../domain/entities/version.entity";
+
+export type CommentId = string;
+export type PermissionId = string;
+export type VersionId = string;
+
+// ── DTOs ───────────────────────────────────────────────────────────────────────
+export type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+  CreateVersionDto,
+  DeleteVersionDto,
+  GrantPermissionDto,
+  RevokePermissionDto,
+} from "../application/dto/knowledge-collaboration.dto";
+
+// ── Server Actions (mutations) ─────────────────────────────────────────────────
+export {
+  createComment,
+  updateComment,
+  resolveComment,
+  deleteComment,
+  createVersion,
+  deleteVersion,
+  grantPermission,
+  revokePermission,
+} from "../interfaces/_actions/knowledge-collaboration.actions";
+
+// ── Queries (reads) ────────────────────────────────────────────────────────────
+export {
+  getComments,
+  getVersions,
+  getPermissions,
+} from "../interfaces/queries/knowledge-collaboration.queries";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+````
+
 ## File: modules/knowledge-collaboration/application-services.md
 ````markdown
 Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
@@ -49391,94 +48548,6 @@ Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
 Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
 
 → 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
-````
-
-## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/dto
- */
-
-import { z } from "@lib-zod";
-
-const ContentScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-// ── Comment ───────────────────────────────────────────────────────────────────
-
-export const CreateCommentSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  authorId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-  parentCommentId: z.string().min(1).nullable().optional(),
-  blockId: z.string().min(1).nullable().optional(),
-  selectionRange: z
-    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
-    .nullable()
-    .optional(),
-});
-export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
-
-export const UpdateCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-});
-export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
-
-export const ResolveCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  resolvedByUserId: z.string().min(1),
-});
-export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
-
-export const DeleteCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
-
-// ── Version ───────────────────────────────────────────────────────────────────
-
-export const CreateVersionSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  snapshotBlocks: z.array(z.unknown()),
-  label: z.string().max(200).nullable().optional(),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
-
-export const DeleteVersionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
-
-// ── Permission ────────────────────────────────────────────────────────────────
-
-export const GrantPermissionSchema = ContentScopeSchema.extend({
-  subjectId: z.string().min(1),
-  subjectType: z.enum(["page", "article", "database"]),
-  principalId: z.string().min(1),
-  principalType: z.enum(["user", "team"]),
-  level: z.enum(["view", "comment", "edit", "full"]),
-  grantedByUserId: z.string().min(1),
-  expiresAtISO: z.string().nullable().optional(),
-});
-export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
-
-export const RevokePermissionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
 ````
 
 ## File: modules/knowledge-collaboration/application/use-cases/comment.use-cases.ts
@@ -49553,6 +48622,63 @@ export class ListCommentsUseCase {
   async execute(accountId: string, contentId: string): Promise<Comment[]> {
     if (!accountId.trim() || !contentId.trim()) return [];
     return this.repo.listByContent(accountId, contentId);
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/use-cases
+ * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Permission } from "../../domain/entities/permission.entity";
+import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
+import {
+  GrantPermissionSchema, type GrantPermissionDto,
+  RevokePermissionSchema, type RevokePermissionDto,
+} from "../dto/knowledge-collaboration.dto";
+
+export class GrantPermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: GrantPermissionDto): Promise<CommandResult> {
+    const parsed = GrantPermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO, linkToken } = parsed.data;
+    const permission = await this.repo.grant({
+      accountId, workspaceId, subjectId, subjectType,
+      principalId, principalType, level, grantedByUserId,
+      expiresAtISO: expiresAtISO ?? null,
+      linkToken: linkToken ?? null,
+    });
+    return commandSuccess(permission.id, Date.now());
+  }
+}
+
+export class RevokePermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: RevokePermissionDto): Promise<CommandResult> {
+    const parsed = RevokePermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListPermissionsBySubjectUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
+    return this.repo.listBySubject(accountId, subjectId);
   }
 }
 ````
@@ -49693,6 +48819,37 @@ export interface ICommentRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: domain/repositories
+ */
+
+import type { Permission, PermissionLevel, PrincipalType } from "../entities/permission.entity";
+
+export interface GrantPermissionInput {
+  readonly subjectId: string;
+  readonly subjectType: "page" | "article" | "database";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly principalId: string;
+  readonly principalType: PrincipalType;
+  readonly level: PermissionLevel;
+  readonly grantedByUserId: string;
+  readonly expiresAtISO?: string | null;
+  readonly linkToken?: string | null;
+}
+
+export interface IPermissionRepository {
+  grant(input: GrantPermissionInput): Promise<Permission>;
+  revoke(accountId: string, permissionId: string): Promise<void>;
+  findById(accountId: string, permissionId: string): Promise<Permission | null>;
+  listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
+  listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
+}
+````
+
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
 ````typescript
 /**
@@ -49821,6 +48978,101 @@ export class FirebaseCommentRepository implements ICommentRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Permission, PermissionLevel, PrincipalType } from "../../domain/entities/permission.entity";
+import type {
+  IPermissionRepository,
+  GrantPermissionInput,
+} from "../../domain/repositories/IPermissionRepository";
+
+function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationPermissions");
+}
+
+function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationPermissions", id);
+}
+
+function toPermission(id: string, data: Record<string, unknown>): Permission {
+  return {
+    id,
+    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
+    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    principalId: typeof data.principalId === "string" ? data.principalId : "",
+    principalType: (data.principalType as PrincipalType) ?? "user",
+    level: (data.level as PermissionLevel) ?? "view",
+    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
+    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
+  };
+}
+
+export class FirebasePermissionRepository implements IPermissionRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async grant(input: GrantPermissionInput): Promise<Permission> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      subjectId: input.subjectId,
+      subjectType: input.subjectType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      principalId: input.principalId,
+      principalType: input.principalType,
+      level: input.level,
+      grantedByUserId: input.grantedByUserId,
+      grantedAtISO: now,
+      expiresAtISO: input.expiresAtISO ?? null,
+      linkToken: input.linkToken ?? null,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(permissionDoc(db, input.accountId, id), data);
+    return toPermission(id, data);
+  }
+
+  async revoke(accountId: string, permissionId: string): Promise<void> {
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
+  }
+
+  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
+    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
+    if (!snap.exists()) return null;
+    return toPermission(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/knowledge-collaboration/README.md
 ````markdown
 # knowledge-collaboration — DDD Reference
@@ -49917,189 +49169,118 @@ Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, Query
 → [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
 ````
 
-## File: modules/knowledge-database/application/services/field-computation.service.ts
+## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
 ````typescript
 /**
  * Module: knowledge-database
- * Layer: application/services
- * Purpose: FieldComputationService — resolves computed field values for a record.
- *
- * Handles: relation (link resolution), formula (expression evaluation), rollup (aggregation).
- * This is pure application logic — no side effects, no I/O. Fully testable in isolation.
+ * Layer: application/dto
  */
 
-import type { Field, FieldType } from "../../domain/entities/database.entity";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import { z } from "@lib-zod";
 
-// ── Relation ──────────────────────────────────────────────────────────────────
+const WorkspaceScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
 
-export interface RelationFieldConfig {
-  readonly targetDatabaseId: string;
-  readonly syncReverse: boolean;
-  readonly reverseFieldName?: string;
-}
+const FieldTypeSchema = z.enum([
+  "text", "number", "select", "multi_select", "date",
+  "checkbox", "url", "email", "relation", "formula", "rollup",
+]);
 
-export type RelationValue = ReadonlyArray<string>;
+const ViewTypeSchema = z.enum(["table", "board", "list", "calendar", "timeline", "gallery"]);
 
-export function resolveRelationValue(record: DatabaseRecord, field: Field): RelationValue {
-  if (field.type !== "relation") return [];
-  const raw = record.properties.get(field.id);
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((v): v is string => typeof v === "string");
-}
+// ── Database ──────────────────────────────────────────────────────────────────
 
-// ── Formula ───────────────────────────────────────────────────────────────────
+export const CreateDatabaseSchema = WorkspaceScopeSchema.extend({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateDatabaseDto = z.infer<typeof CreateDatabaseSchema>;
 
-export interface FormulaFieldConfig {
-  readonly expression: string;
-}
+export const UpdateDatabaseSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  icon: z.string().max(100).nullable().optional(),
+  coverImageUrl: z.string().url().nullable().optional(),
+});
+export type UpdateDatabaseDto = z.infer<typeof UpdateDatabaseSchema>;
 
-export type FormulaResult = string | number | boolean | null;
+export const AddFieldSchema = z.object({
+  databaseId: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: FieldTypeSchema,
+  config: z.record(z.string(), z.unknown()).optional(),
+  required: z.boolean().optional(),
+});
+export type AddFieldDto = z.infer<typeof AddFieldSchema>;
 
-/**
- * Evaluates a formula for a record using a safe restricted expression evaluator.
- * Supports prop('FieldName') references, arithmetic, comparison, and boolean operators.
- * Returns null on evaluation error or unsafe expression.
- */
-export function evaluateFormula(
-  record: DatabaseRecord,
-  field: Field,
-  allFields: ReadonlyArray<Field>,
-): FormulaResult {
-  if (field.type !== "formula") return null;
-  const config = field.config as Partial<FormulaFieldConfig>;
-  if (!config.expression || typeof config.expression !== "string") return null;
+export const ArchiveDatabaseSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
 
-  const props: Record<string, unknown> = {};
-  for (const f of allFields) {
-    if (f.type === "formula" || f.type === "rollup") continue;
-    props[f.name] = record.properties.get(f.id) ?? null;
-  }
+// ── Record ────────────────────────────────────────────────────────────────────
 
-  const resolved = config.expression.replace(
-    /prop\(['"]([^'"]+)['"]\)/g,
-    (_m, name: string) => {
-      const val = props[name];
-      if (val === null || val === undefined) return "null";
-      if (typeof val === "string") return JSON.stringify(val);
-      if (typeof val === "number" || typeof val === "boolean") return String(val);
-      return "null";
-    },
-  );
+export const CreateRecordSchema = WorkspaceScopeSchema.extend({
+  databaseId: z.string().min(1),
+  pageId: z.string().min(1).nullable().optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
 
-  // Allowlist: digits, arithmetic operators, comparisons, booleans, null, spaces, parens, quotes, dots
-  if (!/^[\d\s+\-*/()!&|<>=."'nulltruefals]+$/.test(resolved)) return null;
+export const UpdateRecordSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  properties: z.record(z.string(), z.unknown()),
+});
+export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
 
-  try {
-    // eslint-disable-next-line no-new-func
-    const result = new Function(`"use strict"; return (${resolved});`)() as unknown;
-    if (typeof result === "string" || typeof result === "number" || typeof result === "boolean") return result;
-    return null;
-  } catch {
-    return null;
-  }
-}
+export const DeleteRecordSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteRecordDto = z.infer<typeof DeleteRecordSchema>;
 
-// ── Rollup ────────────────────────────────────────────────────────────────────
+// ── View ──────────────────────────────────────────────────────────────────────
 
-export type RollupAggregation =
-  | "count" | "count_values" | "count_unique"
-  | "sum" | "average" | "min" | "max" | "range"
-  | "percent_checked" | "percent_unchecked";
+export const CreateViewSchema = WorkspaceScopeSchema.extend({
+  databaseId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: ViewTypeSchema,
+  createdByUserId: z.string().min(1),
+});
+export type CreateViewDto = z.infer<typeof CreateViewSchema>;
 
-export interface RollupFieldConfig {
-  readonly relationFieldId: string;
-  readonly rollupFieldId: string;
-  readonly aggregation: RollupAggregation;
-}
+export const UpdateViewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(100).optional(),
+  filters: z.array(z.object({
+    fieldId: z.string(),
+    operator: z.enum(["eq","neq","contains","not_contains","is_empty","is_not_empty","gt","lt"]),
+    value: z.unknown(),
+  })).optional(),
+  sorts: z.array(z.object({
+    fieldId: z.string(),
+    direction: z.enum(["asc","desc"]),
+  })).optional(),
+  visibleFieldIds: z.array(z.string()).optional(),
+  hiddenFieldIds: z.array(z.string()).optional(),
+});
+export type UpdateViewDto = z.infer<typeof UpdateViewSchema>;
 
-export type RollupResult = number | string | null;
-
-export function computeRollup(
-  record: DatabaseRecord,
-  field: Field,
-  relatedRecords: ReadonlyArray<DatabaseRecord>,
-  _relatedFields: ReadonlyArray<Field>,
-): RollupResult {
-  if (field.type !== "rollup") return null;
-  const config = field.config as Partial<RollupFieldConfig>;
-  if (!config.rollupFieldId || !config.aggregation) return null;
-
-  const values = relatedRecords.map((r) => r.properties.get(config.rollupFieldId!));
-
-  switch (config.aggregation) {
-    case "count": return relatedRecords.length;
-    case "count_values": return values.filter((v) => v !== null && v !== undefined && v !== "").length;
-    case "count_unique": return new Set(values.map((v) => JSON.stringify(v))).size;
-    case "sum": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.reduce((a, n) => a + n, 0);
-    }
-    case "average": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : nums.reduce((a, n) => a + n, 0) / nums.length;
-    }
-    case "min": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : Math.min(...nums);
-    }
-    case "max": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : Math.max(...nums);
-    }
-    case "range": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : Math.max(...nums) - Math.min(...nums);
-    }
-    case "percent_checked": {
-      if (relatedRecords.length === 0) return 0;
-      return Math.round((values.filter((v) => v === true).length / relatedRecords.length) * 100);
-    }
-    case "percent_unchecked": {
-      if (relatedRecords.length === 0) return 0;
-      return Math.round((values.filter((v) => v !== true).length / relatedRecords.length) * 100);
-    }
-    default: return null;
-  }
-}
-
-// ── Unified entry point ───────────────────────────────────────────────────────
-
-export type ComputedFieldValue = RelationValue | FormulaResult | RollupResult;
-
-export function resolveComputedFields(input: {
-  readonly record: DatabaseRecord;
-  readonly fields: ReadonlyArray<Field>;
-  readonly relatedRecordsMap?: ReadonlyMap<string, ReadonlyArray<DatabaseRecord>>;
-  readonly relatedFieldsMap?: ReadonlyMap<string, ReadonlyArray<Field>>;
-}): Map<string, ComputedFieldValue> {
-  const { record, fields, relatedRecordsMap = new Map(), relatedFieldsMap = new Map() } = input;
-  const result = new Map<string, ComputedFieldValue>();
-  const computedTypes: ReadonlyArray<FieldType> = ["relation", "formula", "rollup"];
-
-  for (const field of fields) {
-    if (!computedTypes.includes(field.type)) continue;
-    switch (field.type) {
-      case "relation":
-        result.set(field.id, resolveRelationValue(record, field));
-        break;
-      case "formula":
-        result.set(field.id, evaluateFormula(record, field, fields));
-        break;
-      case "rollup": {
-        const cfg = field.config as Partial<RollupFieldConfig>;
-        const relField = cfg.relationFieldId ? fields.find((f) => f.id === cfg.relationFieldId) : undefined;
-        result.set(field.id, computeRollup(
-          record, field,
-          relField ? (relatedRecordsMap.get(relField.id) ?? []) : [],
-          relField ? (relatedFieldsMap.get(relField.id) ?? []) : [],
-        ));
-        break;
-      }
-    }
-  }
-  return result;
-}
+export const DeleteViewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
 ````
 
 ## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
@@ -50181,6 +49362,67 @@ export class ListDatabasesUseCase {
   async execute(accountId: string, workspaceId: string): Promise<Database[]> {
     if (!accountId.trim() || !workspaceId.trim()) return [];
     return this.repo.listByWorkspace(accountId, workspaceId);
+  }
+}
+````
+
+## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import {
+  CreateRecordSchema, type CreateRecordDto,
+  UpdateRecordSchema, type UpdateRecordDto,
+  DeleteRecordSchema, type DeleteRecordDto,
+} from "../dto/knowledge-database.dto";
+
+export class CreateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: CreateRecordDto): Promise<CommandResult> {
+    const parsed = CreateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, databaseId, pageId, properties = {}, createdByUserId } = parsed.data;
+    const rec = await this.repo.create({ accountId, workspaceId, databaseId, pageId, properties, createdByUserId });
+    return commandSuccess(rec.id, Date.now());
+  }
+}
+
+export class UpdateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: UpdateRecordDto): Promise<CommandResult> {
+    const parsed = UpdateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    if (!result) return commandFailureFrom("RECORD_NOT_FOUND", "Record not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: DeleteRecordDto): Promise<CommandResult> {
+    const parsed = DeleteRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListRecordsUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+    if (!accountId.trim() || !databaseId.trim()) return [];
+    return this.repo.listByDatabase(accountId, databaseId);
   }
 }
 ````
@@ -50323,258 +49565,6 @@ export interface IDatabaseRecordRepository {
   delete(accountId: string, recordId: string): Promise<void>;
   findById(accountId: string, recordId: string): Promise<DatabaseRecord | null>;
   listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]>;
-}
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}
- */
-
-import {
-  arrayUnion, collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Database, Field, FieldType } from "../../domain/entities/database.entity";
-import type {
-  IDatabaseRepository,
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
-
-function dbsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases");
-}
-
-function dbDoc(db: ReturnType<typeof getFirestore>, accountId: string, databaseId: string) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId);
-}
-
-function toField(f: Record<string, unknown>): Field {
-  return {
-    id: typeof f.id === "string" ? f.id : generateId(),
-    name: typeof f.name === "string" ? f.name : "",
-    type: (f.type as FieldType) ?? "text",
-    config: typeof f.config === "object" && f.config !== null ? (f.config as Record<string, unknown>) : {},
-    required: f.required === true,
-    order: typeof f.order === "number" ? f.order : 0,
-  };
-}
-
-function toDatabase(id: string, data: Record<string, unknown>): Database {
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : null,
-    fields: Array.isArray(data.fields)
-      ? (data.fields as Record<string, unknown>[]).map(toField)
-      : [],
-    viewIds: Array.isArray(data.viewIds)
-      ? (data.viewIds as unknown[]).filter((v): v is string => typeof v === "string")
-      : [],
-    icon: typeof data.icon === "string" ? data.icon : null,
-    coverImageUrl: typeof data.coverImageUrl === "string" ? data.coverImageUrl : null,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseDatabaseRepository implements IDatabaseRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateDatabaseInput): Promise<Database> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      name: input.name,
-      description: input.description ?? null,
-      fields: [],
-      viewIds: [],
-      icon: null,
-      coverImageUrl: null,
-      archived: false,
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(dbDoc(db, input.accountId, id), data);
-    return toDatabase(id, data);
-  }
-
-  async update(input: UpdateDatabaseInput): Promise<Database | null> {
-    const db = this.db();
-    const ref = dbDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updatedAtISO: now };
-    if (input.name !== undefined) updates.name = input.name;
-    if (input.description !== undefined) updates.description = input.description;
-    if (input.icon !== undefined) updates.icon = input.icon;
-    if (input.coverImageUrl !== undefined) updates.coverImageUrl = input.coverImageUrl;
-    await updateDoc(ref, updates);
-    return toDatabase(snap.id, { ...snap.data(), ...updates });
-  }
-
-  async addField(input: AddFieldInput): Promise<Database | null> {
-    const db = this.db();
-    const ref = dbDoc(db, input.accountId, input.databaseId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const data = snap.data() as Record<string, unknown>;
-    const currentFields = Array.isArray(data.fields) ? data.fields as Record<string, unknown>[] : [];
-    const newField: Field = {
-      id: generateId(),
-      name: input.field.name,
-      type: input.field.type,
-      config: input.field.config,
-      required: input.field.required,
-      order: currentFields.length,
-    };
-    const now = new Date().toISOString();
-    await updateDoc(ref, { fields: arrayUnion(newField), updatedAtISO: now });
-    return toDatabase(snap.id, { ...data, fields: [...currentFields, newField], updatedAtISO: now });
-  }
-
-  async archive(accountId: string, databaseId: string): Promise<void> {
-    const db = this.db();
-    const ref = dbDoc(db, accountId, databaseId);
-    await updateDoc(ref, { archived: true, updatedAtISO: new Date().toISOString() });
-  }
-
-  async findById(accountId: string, databaseId: string): Promise<Database | null> {
-    const db = this.db();
-    const snap = await getDoc(dbDoc(db, accountId, databaseId));
-    if (!snap.exists()) return null;
-    return toDatabase(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByWorkspace(accountId: string, workspaceId: string): Promise<Database[]> {
-    const db = this.db();
-    const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "==", false), orderBy("createdAtISO", "asc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toDatabase(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/databaseRecords/{recordId}
- */
-
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type {
-  IDatabaseRecordRepository,
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-
-function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "databaseRecords");
-}
-
-function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
-  return doc(db, "accounts", accountId, "databaseRecords", recordId);
-}
-
-function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    pageId: typeof data.pageId === "string" ? data.pageId : null,
-    properties: typeof data.properties === "object" && data.properties !== null
-      ? new Map(Object.entries(data.properties as Record<string, unknown>))
-      : new Map(),
-    order: typeof data.order === "number" ? data.order : 0,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRecordRepository implements IDatabaseRecordRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      properties: input.properties ?? {},
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(recordDoc(db, input.accountId, id), data);
-    return toRecord(id, { ...data, properties: input.properties });
-  }
-
-  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const ref = recordDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updatedAtISO: now };
-    if (input.properties !== undefined) {
-      updates.properties = input.properties;
-    }
-    await updateDoc(ref, updates);
-    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
-    return toRecord(snap.id, merged);
-  }
-
-  async delete(accountId: string, recordId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(recordDoc(db, accountId, recordId));
-  }
-
-  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const snap = await getDoc(recordDoc(db, accountId, recordId));
-    if (!snap.exists()) return null;
-    return toRecord(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    const db = this.db();
-    const q = query(
-      recordsCol(db, accountId),
-      where("databaseId", "==", databaseId),
-      orderBy("order", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
-  }
 }
 ````
 
@@ -51315,113 +50305,165 @@ Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
 → [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
 ````
 
-## File: modules/knowledge/api/knowledge-api.ts
+## File: modules/knowledge/api/knowledge-facade.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: api (cross-module facade)
- * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
- *          exposes the minimal surface needed by the demo-flow script and by
- *          other modules that communicate through the event bus.
+ * Layer: api
+ * Purpose: KnowledgeFacade — the ONLY authorised entry point for cross-domain
+ * access to the Content domain.
  *
- * This is intentionally separate from KnowledgeFacade (which uses Firebase).
- * KnowledgeApi uses InMemory repos so it can run without any external service.
+ * BOUNDARY RULE:
+ *   Other modules MUST import from here:
+ *     import { knowledgeFacade } from "@/modules/knowledge";
+ *   They must NEVER reach into domain/, application/, infrastructure/ or
+ *   interfaces/ directly.
  */
 
-import {
-  createKnowledgePageCreatedEvent,
-} from "../../shared/domain/events/knowledge-page-created.event";
-import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
-
+import type { KnowledgePageRepository, KnowledgeBlockRepository } from "../domain/repositories/knowledge.repositories";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
 import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgePage } from "../domain/entities/content-page.entity";
-import { BlockService } from "../application/block-service";
+import type { KnowledgeVersion } from "../domain/entities/content-version.entity";
+import type { BlockContent } from "../domain/value-objects/block-content";
+
 import {
-  InMemoryKnowledgePageRepository,
-  InMemoryKnowledgeBlockRepository,
-} from "../infrastructure/InMemoryKnowledgeRepository";
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  GetKnowledgePageTreeUseCase,
+} from "../application/use-cases/knowledge-page.use-cases";
+import {
+  AddKnowledgeBlockUseCase,
+  UpdateKnowledgeBlockUseCase,
+  DeleteKnowledgeBlockUseCase,
+  ListKnowledgeBlocksUseCase,
+} from "../application/use-cases/knowledge-block.use-cases";
 
-export class KnowledgeApi {
-  private readonly pageRepo: InMemoryKnowledgePageRepository;
-  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
-  private readonly blockService: BlockService;
-  private readonly eventBus: SimpleEventBus;
+import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
 
-  constructor(eventBus: SimpleEventBus) {
-    this.pageRepo = new InMemoryKnowledgePageRepository();
-    this.blockRepo = new InMemoryKnowledgeBlockRepository();
-    this.blockService = new BlockService(this.blockRepo, eventBus);
-    this.eventBus = eventBus;
+export interface KnowledgeCreatePageParams {
+  accountId: string;
+  workspaceId?: string;
+  title: string;
+  parentPageId?: string | null;
+  createdByUserId: string;
+}
+
+export interface KnowledgeRenamePageParams {
+  accountId: string;
+  pageId: string;
+  title: string;
+}
+
+export interface KnowledgeMovePageParams {
+  accountId: string;
+  pageId: string;
+  targetParentPageId: string | null;
+}
+
+export interface KnowledgeAddBlockParams {
+  accountId: string;
+  pageId: string;
+  content: BlockContent;
+  index?: number;
+}
+
+export interface KnowledgeUpdateBlockParams {
+  accountId: string;
+  blockId: string;
+  content: BlockContent;
+}
+
+export class KnowledgeFacade {
+  private readonly pageRepo: KnowledgePageRepository;
+  private readonly blockRepo: KnowledgeBlockRepository;
+
+  constructor(
+    pageRepo: KnowledgePageRepository = new FirebaseKnowledgePageRepository(),
+    blockRepo: KnowledgeBlockRepository = new FirebaseKnowledgeBlockRepository(),
+  ) {
+    this.pageRepo = pageRepo;
+    this.blockRepo = blockRepo;
   }
 
-  /**
-   * Create a new page in the in-memory store and publish a
-    * `KnowledgePageCreatedEvent` so downstream modules can register
-    * page-related projections or structure-aware read models.
-   */
-  async createPage(
-    accountId: string,
-    title: string,
-    createdByUserId = "system",
-    options?: { workspaceId?: string; parentPageId?: string | null },
-  ): Promise<KnowledgePage> {
-    const page = await this.pageRepo.create({
-      accountId,
-      title,
-      createdByUserId,
-      parentPageId: options?.parentPageId ?? null,
+  async createPage(params: KnowledgeCreatePageParams): Promise<string | null> {
+    const result = await new CreateKnowledgePageUseCase(this.pageRepo).execute({
+      accountId: params.accountId,
+      workspaceId: params.workspaceId,
+      title: params.title,
+      parentPageId: params.parentPageId ?? null,
+      createdByUserId: params.createdByUserId,
     });
-
-    const event = createKnowledgePageCreatedEvent(
-      page.id,
-      page.title,
-      accountId,
-      createdByUserId,
-      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
-    );
-    await this.eventBus.publish(event);
-
-    return page;
+    return result.success ? result.aggregateId : null;
   }
 
-  /** Add a block to an existing page and return the new block. */
-  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
-    return this.blockRepo.add({
+  async renamePage(params: KnowledgeRenamePageParams): Promise<boolean> {
+    const result = await new RenameKnowledgePageUseCase(this.pageRepo).execute(params);
+    return result.success;
+  }
+
+  async movePage(params: KnowledgeMovePageParams): Promise<boolean> {
+    const result = await new MoveKnowledgePageUseCase(this.pageRepo).execute(params);
+    return result.success;
+  }
+
+  async archivePage(accountId: string, pageId: string): Promise<boolean> {
+    const result = await new ArchiveKnowledgePageUseCase(this.pageRepo).execute({
       accountId,
       pageId,
-      content: { type: "text", text },
     });
+    return result.success;
   }
 
-  /**
-   * Update a block's text content.
-   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
-    * (e.g. search or notebook-adjacent ingestion flows) can react.
-   */
-  async updateBlock(
-    accountId: string,
-    blockId: string,
-    text: string,
-  ): Promise<KnowledgeBlock | null> {
-    return this.blockService.updateBlock({ accountId, blockId, text });
+  async getPage(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    return new GetKnowledgePageUseCase(this.pageRepo).execute(accountId, pageId);
   }
 
-  /** Return all pages for an account. */
   async listPages(accountId: string): Promise<KnowledgePage[]> {
-    return this.pageRepo.listByAccountId(accountId);
+    return new ListKnowledgePagesUseCase(this.pageRepo).execute(accountId);
   }
 
-  /** Return the page with all its blocks (flat list, ordered). */
-  async getPageStructure(
-    accountId: string,
-    pageId: string,
-  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
-    const page = await this.pageRepo.findById(accountId, pageId);
-    if (!page) return null;
-    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
-    return { page, blocks };
+  async getPageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    return new GetKnowledgePageTreeUseCase(this.pageRepo).execute(accountId);
+  }
+
+  async addBlock(params: KnowledgeAddBlockParams): Promise<string | null> {
+    const result = await new AddKnowledgeBlockUseCase(this.blockRepo).execute({
+      accountId: params.accountId,
+      pageId: params.pageId,
+      content: params.content,
+      index: params.index,
+    });
+    return result.success ? result.aggregateId : null;
+  }
+
+  async updateBlock(params: KnowledgeUpdateBlockParams): Promise<boolean> {
+    const result = await new UpdateKnowledgeBlockUseCase(this.blockRepo).execute(params);
+    return result.success;
+  }
+
+  async deleteBlock(accountId: string, blockId: string): Promise<boolean> {
+    const result = await new DeleteKnowledgeBlockUseCase(this.blockRepo).execute({
+      accountId,
+      blockId,
+    });
+    return result.success;
+  }
+
+  async listBlocks(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    return new ListKnowledgeBlocksUseCase(this.blockRepo).execute(accountId, pageId);
+  }
+
+  async listVersions(_accountId: string, _pageId: string): Promise<KnowledgeVersion[]> {
+    return [];
   }
 }
+
+export const knowledgeFacade = new KnowledgeFacade();
 ````
 
 ## File: modules/knowledge/application/block-service.ts
@@ -51485,258 +50527,6 @@ export class BlockService {
 }
 
 export { KNOWLEDGE_UPDATED_EVENT_TYPE };
-````
-
-## File: modules/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/dto
- * Purpose: Zod-validated input schemas for Content use cases.
- */
-
-import { z } from "@lib-zod";
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/content-page.entity";
-
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
-
-export const BlockTypeSchema = z.enum(BLOCK_TYPES);
-
-export const BlockContentSchema = z.object({
-  type: BlockTypeSchema,
-  richText: z.array(z.unknown()),
-  properties: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type BlockContentDto = z.infer<typeof BlockContentSchema>;
-
-export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  title: z.string().min(1).max(300),
-  parentPageId: z.string().min(1).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
-
-export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  title: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
-
-export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  targetParentPageId: z.string().min(1).nullable(),
-});
-
-export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
-
-export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-});
-
-export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
-
-export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  blockIds: z.array(z.string().min(1)),
-});
-
-export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
-
-export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  content: BlockContentSchema,
-  index: z.number().int().nonnegative().optional(),
-  parentBlockId: z.string().min(1).nullable().optional(),
-});
-
-export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
-
-export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-  content: BlockContentSchema,
-});
-
-export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
-
-export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-});
-
-export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
-
-export const NestKnowledgeBlockSchema = z.object({
-  accountId: z.string().min(1),
-  blockId: z.string().min(1),
-  parentBlockId: z.string().min(1),
-  index: z.number().int().min(0).optional(),
-});
-export type NestKnowledgeBlockDto = z.infer<typeof NestKnowledgeBlockSchema>;
-
-export const UnnestKnowledgeBlockSchema = z.object({
-  accountId: z.string().min(1),
-  blockId: z.string().min(1),
-  index: z.number().int().min(0).optional(),
-});
-export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
-
-export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  label: z.string().max(100).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
-
-export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
-
-// ── Approve content page ──────────────────────────────────────────────────────
-
-export const ExtractedTaskSchema = z.object({
-  title: z.string().min(1).max(300),
-  dueDate: z.string().optional(),
-  description: z.string().optional(),
-});
-
-export const ExtractedInvoiceSchema = z.object({
-  amount: z.number().positive(),
-  description: z.string().min(1),
-  currency: z.string().optional(),
-});
-
-export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  actorId: z.string().min(1),
-  /**
-   * causationId identifies the command (use-case invocation) that caused the
-   * resulting event.  Generated by the Server Action layer if not provided by
-   * the caller, so that command-event causality is correctly traceable.
-   */
-  causationId: z.string().min(1).optional(),
-  /** Optional: external tasks extracted by AI from this page. */
-  extractedTasks: z.array(ExtractedTaskSchema).default([]),
-  /** Optional: external invoices extracted by AI from this page. */
-  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
-  /**
-   * Correlation ID tracing the entire ingestion → approval → materialization flow.
-   * Generated by the caller if not provided (e.g. first action in the flow).
-   */
-  correlationId: z.string().optional(),
-  /** Optional: workspaceId to include in the published event. */
-  workspaceId: z.string().optional(),
-});
-
-export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
-
-// ── Collection DTOs ───────────────────────────────────────────────────────────
-
-export const CollectionColumnTypeSchema = z.enum([
-  "text",
-  "number",
-  "select",
-  "multi-select",
-  "date",
-  "checkbox",
-  "url",
-  "relation",
-]);
-
-export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
-
-export const CollectionColumnInputSchema = z.object({
-  name: z.string().min(1).max(100),
-  type: CollectionColumnTypeSchema,
-  options: z.array(z.string()).optional(),
-});
-
-export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
-
-export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  columns: z.array(CollectionColumnInputSchema).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
-
-export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  name: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
-
-export const AddPageToCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  pageId: z.string().min(1),
-});
-
-export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
-
-export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  pageId: z.string().min(1),
-});
-
-export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
-
-export const AddCollectionColumnSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  column: CollectionColumnInputSchema,
-});
-
-export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
-
-export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-});
-
-export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
-
-// ── Wiki / Knowledge Base DTOs ────────────────────────────────────────────────
-
-export const PageVerificationStateSchema = z.enum(PAGE_VERIFICATION_STATES);
-
-export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  verifiedByUserId: z.string().min(1),
-  /** ISO 8601 — if set, page auto-transitions to "needs_review" after this date. */
-  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
-});
-
-export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
-
-export const RequestPageReviewSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  requestedByUserId: z.string().min(1),
-});
-
-export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
-
-export const AssignPageOwnerSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  ownerId: z.string().min(1),
-  assignedByUserId: z.string().min(1),
-});
-
-export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
-
-export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
 ````
 
 ## File: modules/knowledge/application/use-cases/backlink-index.use-cases.ts
@@ -51814,111 +50604,303 @@ export class GetPageBacklinksUseCase {
 }
 ````
 
-## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
+## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
 ````typescript
 /**
  * Module: knowledge
  * Layer: application/use-cases
- * Purpose: Block use cases — add, update, delete, list.
+ * Purpose: Page use cases — create, rename, move, reorder blocks, archive, list.
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 import {
-  AddKnowledgeBlockSchema,
-  type AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockSchema,
-  type UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockSchema,
-  type DeleteKnowledgeBlockDto,
-  NestKnowledgeBlockSchema,
-  type NestKnowledgeBlockDto,
-  UnnestKnowledgeBlockSchema,
-  type UnnestKnowledgeBlockDto,
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import {
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
 } from "../dto/knowledge.dto";
 
-export class AddKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
+export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
 
-  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = AddKnowledgeBlockSchema.safeParse(input);
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
+
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
+  };
+  sortByOrder(roots);
+
+  return roots;
+}
+
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const { accountId, pageId, content, index } = parsed.data;
-    const block = await this.repo.add({ accountId, pageId, content, index });
-    return commandSuccess(block.id, Date.now());
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+
+    const page = await this.repo.create({
+      accountId,
+      workspaceId,
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
+    });
+
+    return commandSuccess(page.id, Date.now());
   }
 }
 
-export class UpdateKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const { accountId, blockId, content } = parsed.data;
-    const updated = await this.repo.update({ accountId, blockId, content });
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    const { accountId, pageId, title } = parsed.data;
+    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
 
-export class DeleteKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const { accountId, blockId } = parsed.data;
-    await this.repo.delete(accountId, blockId);
-    return commandSuccess(blockId, Date.now());
-  }
-}
+    const { accountId, pageId, targetParentPageId } = parsed.data;
 
-export class ListKnowledgeBlocksUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    if (!accountId.trim() || !pageId.trim()) return [];
-    return this.repo.listByPageId(accountId, pageId);
-  }
-}
-
-export class NestKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = NestKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
     }
-    const updated = await this.repo.nest(parsed.data);
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent block not found.");
+
+    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
   }
 }
 
-export class UnnestKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
 
-  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
     if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
-    const updated = await this.repo.unnest(parsed.data);
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+
+    const { accountId, pageId } = parsed.data;
+    const updated = await this.repo.archive(accountId, pageId);
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
     return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: KnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    // causationId is set by the Server Action layer; generateId() is a safe fallback.
+    const causationId = inputCausationId ?? generateId();
+
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) {
+      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    }
+    if (page.status === "archived") {
+      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    }
+    if (page.approvalState === "approved") {
+      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+    }
+
+    const nowISO = new Date().toISOString();
+    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
+    if (!approved) {
+      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
+    }
+
+    const correlationId = inputCorrelationId ?? generateId();
+
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
   }
 }
 ````
@@ -52024,101 +51006,120 @@ export interface UnnestKnowledgeBlockInput {
 }
 ````
 
-## File: modules/knowledge/domain/index.ts
+## File: modules/knowledge/domain/entities/knowledge-page.entity.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: domain/barrel
+ * Layer: domain/entity
+ * Purpose: Page aggregate root — the central document unit in the Content domain.
  */
 
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ArchiveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "./entities/content-page.entity";
+export type KnowledgePageStatus = "active" | "archived";
+export type KnowledgePageApprovalState = "pending" | "approved";
+/** Notion Wiki page verification state */
+export type PageVerificationState = "verified" | "needs_review";
 
-export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/content-page.entity";
-export type { PageVerificationState } from "./entities/content-page.entity";
+export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
+export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
+export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
 
-export type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  DeleteKnowledgeBlockInput,
-  NestKnowledgeBlockInput,
-  UnnestKnowledgeBlockInput,
-} from "./entities/content-block.entity";
+export interface KnowledgePage {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: KnowledgePageStatus;
+  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
+  readonly approvalState?: KnowledgePageApprovalState;
+  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
+  readonly approvedAtISO?: string;
+  /** Actor who approved the page. */
+  readonly approvedByUserId?: string;
+  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
+  /**
+   * Verification state for Wiki (Knowledge Base) pages.
+   * undefined = page is not in wiki verification mode.
+   * "verified" = marked as up-to-date by a verifier.
+   * "needs_review" = flagged for review (may be stale).
+   */
+  readonly verificationState?: PageVerificationState;
+  /** User responsible for keeping this page accurate. */
+  readonly ownerId?: string;
+  /** User who last set verificationState to "verified". */
+  readonly verifiedByUserId?: string;
+  /** ISO timestamp when the page was last verified. */
+  readonly verifiedAtISO?: string;
+  /** ISO timestamp after which the page auto-transitions to "needs_review". */
+  readonly verificationExpiresAtISO?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
 
-export type {
-  KnowledgeVersion,
-  KnowledgeVersionBlock,
-  CreateKnowledgeVersionInput,
-} from "./entities/content-version.entity";
+export interface KnowledgePageTreeNode extends KnowledgePage {
+  readonly children: readonly KnowledgePageTreeNode[];
+}
 
-export type { BlockContent, BlockType } from "./value-objects/block-content";
-export {
-  BLOCK_TYPES,
-  blockContentEquals,
-  emptyTextBlockContent,
-  plainTextBlockContent,
-  richTextToPlainText,
-  extractMentionedPageIds,
-  extractMentionedUserIds,
-} from "./value-objects/block-content";
-export type {
-  RichTextSpanType,
-  TextAnnotations,
-  TextSpan,
-  MentionPageSpan,
-  MentionUserSpan,
-  LinkSpan,
-  RichTextSpan,
-} from "./value-objects/block-content";
+export interface CreateKnowledgePageInput {
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly parentPageId?: string | null;
+  readonly createdByUserId: string;
+}
 
-export type {
-  KnowledgeDomainEvent,
-  KnowledgePageCreatedEvent,
-  KnowledgePageRenamedEvent,
-  KnowledgePageMovedEvent,
-  KnowledgePageArchivedEvent,
-  KnowledgeBlockAddedEvent,
-  KnowledgeBlockUpdatedEvent,
-  KnowledgeBlockDeletedEvent,
-  KnowledgeVersionPublishedEvent,
-  KnowledgePageVerifiedEvent,
-  KnowledgePageReviewRequestedEvent,
-  KnowledgePageOwnerAssignedEvent,
-} from "./events/knowledge.events";
+export interface RenameKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly title: string;
+}
 
-// ── KnowledgeCollection ───────────────────────────────────────────────────────
+export interface MoveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly targetParentPageId: string | null;
+}
 
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "./entities/knowledge-collection.entity";
+export interface ReorderKnowledgePageBlocksInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly blockIds: readonly string[];
+}
 
-export type {
-  KnowledgePageRepository,
-  KnowledgeBlockRepository,
-  KnowledgeVersionRepository,
-} from "./repositories/knowledge.repositories";
+export interface ArchiveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+}
+
+export interface ApproveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly approvedByUserId: string;
+  readonly approvedAtISO: string;
+}
+
+export interface VerifyKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly verifiedByUserId: string;
+  readonly verificationExpiresAtISO?: string;
+}
+
+export interface RequestPageReviewInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly requestedByUserId: string;
+}
+
+export interface AssignPageOwnerInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly ownerId: string;
+}
 ````
 
 ## File: modules/knowledge/domain/repositories/IBacklinkIndexRepository.ts
@@ -52148,96 +51149,6 @@ export interface IBacklinkIndexRepository {
   removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void>;
   findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null>;
   listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>>;
-}
-````
-
-## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/repositories
- * Purpose: Repository port interfaces for Content domain persistence.
- */
-
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "../entities/content-page.entity";
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  NestKnowledgeBlockInput,
-  UnnestKnowledgeBlockInput,
-} from "../entities/content-block.entity";
-import type {
-  KnowledgeVersion,
-  CreateKnowledgeVersionInput,
-} from "../entities/content-version.entity";
-import type {
-  KnowledgeCollection,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "../entities/knowledge-collection.entity";
-
-export interface KnowledgePageRepository {
-  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
-  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
-  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
-  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
-  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
-  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
-  /** Mark a wiki page as verified (verificationState = "verified"). */
-  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
-  /** Flag a wiki page for review (verificationState = "needs_review"). */
-  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
-  /** Assign or change the owner of a wiki page. */
-  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
-  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
-}
-
-export interface KnowledgeBlockRepository {
-  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
-  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-  delete(accountId: string, blockId: string): Promise<void>;
-  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
-  /** Nest a block under a parent block (creates parent → child relationship). */
-  nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-  /** Unnest a block, moving it back to page-level. */
-  unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-}
-
-export interface KnowledgeVersionRepository {
-  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
-  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
-}
-
-export interface KnowledgeCollectionRepository {
-  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
-  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
-  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
-  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
-  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
-  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
-  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
-  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
 }
 ````
 
@@ -52396,101 +51307,6 @@ export function emptyTextBlockContent(): BlockContent {
 export function plainTextBlockContent(text: string, type: BlockType = "text"): BlockContent {
   return { type, richText: [{ type: "text", plainText: text }] };
 }
-````
-
-## File: modules/knowledge/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: module/barrel (public API)
- *
- * This is the ONLY file that external modules should import from.
- * All internal implementation details (domain, application, infrastructure)
- * are NOT importable from outside — use the exports listed here.
- *
- * Boundary rule: other modules import via `@/modules/knowledge`, never from
- * `@/modules/knowledge/domain/...` or deeper paths.
- *
- * Access pattern:
- *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
- *   - UI mutations                    → Server Actions below
- *   - UI reads                        → Query functions below
- *
- * Current boundary note:
- *   - `Page` / `Block` are owned by this module.
- *   - `KnowledgeCollection` is still exported here as a transitional surface.
- *   - `Article` / `Category` belong to `knowledge-base`.
- */
-
-// ── API: Facade (cross-domain entry point) ────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./api/knowledge-facade";
-
-// ── Domain: entity types ──────────────────────────────────────────────────────
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-} from "./domain/entities/content-page.entity";
-
-export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
-
-export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "./interfaces/_actions/knowledge.actions";
-
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "./interfaces/queries/knowledge.queries";
-
-// ── Domain: Collection + Wiki types ──────────────────────────────────────────
-export type {
-  KnowledgeCollection,
-  CollectionSpaceType,
-} from "./domain/entities/knowledge-collection.entity";
-
-export type { PageVerificationState } from "./domain/entities/content-page.entity";
-
-// ── Interfaces: Components ────────────────────────────────────────────────────
-export { BlockEditorView } from "./interfaces/components/BlockEditorView";
-export { PageTreeView } from "./interfaces/components/PageTreeView";
-export { PageDialog } from "./interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/infrastructure/firebase/FirebaseBacklinkIndexRepository.ts
@@ -52856,320 +51672,15 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
+## File: modules/knowledge/infrastructure/index.ts
 ````typescript
-"use server";
-
 /**
  * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Next.js Server Actions for Content domain mutations.
+ * Layer: infrastructure/barrel
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-  ApproveKnowledgePageUseCase,
-  VerifyKnowledgePageUseCase,
-  RequestPageReviewUseCase,
-  AssignPageOwnerUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import {
-  AddKnowledgeBlockUseCase,
-  UpdateKnowledgeBlockUseCase,
-  DeleteKnowledgeBlockUseCase,
-} from "../../application/use-cases/knowledge-block.use-cases";
-import {
-  CreateKnowledgeCollectionUseCase,
-  RenameKnowledgeCollectionUseCase,
-  AddPageToCollectionUseCase,
-  RemovePageFromCollectionUseCase,
-  AddCollectionColumnUseCase,
-  ArchiveKnowledgeCollectionUseCase,
-} from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockDto,
-  CreateKnowledgeVersionDto,
-  ApproveKnowledgePageDto,
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-} from "../../application/dto/knowledge.dto";
-
-function makePageRepo() {
-  return new FirebaseKnowledgePageRepository();
-}
-
-function makeBlockRepo() {
-  return new FirebaseKnowledgeBlockRepository();
-}
-
-function makeCollectionRepo() {
-  return new FirebaseKnowledgeCollectionRepository();
-}
-
-export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_RENAME_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_MOVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_ARCHIVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function reorderKnowledgePageBlocks(
-  input: ReorderKnowledgePageBlocksDto,
-): Promise<CommandResult> {
-  try {
-    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_REORDER_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_ADD_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_UPDATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
-  try {
-    return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_BLOCK_DELETE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function publishKnowledgeVersion(
-  _input: CreateKnowledgeVersionDto,
-): Promise<CommandResult> {
-  return commandFailureFrom(
-    "CONTENT_VERSION_NOT_IMPLEMENTED",
-    "Version persistence is not yet implemented.",
-  );
-}
-
-export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    // causationId is generated at the action layer (command origin) to ensure
-    // proper command-event causality tracing as described in ADR-001.
-    const causationId = input.causationId ?? generateId();
-    // Use QStash when configured; fall back to Noop for local / unconfigured envs.
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-    return await new ApproveKnowledgePageUseCase(
-      makePageRepo(),
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    ).execute({ ...input, causationId });
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_APPROVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-// ── Collection actions ────────────────────────────────────────────────────────
-
-export async function createKnowledgeCollection(
-  input: CreateKnowledgeCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_CREATE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function renameKnowledgeCollection(
-  input: RenameKnowledgeCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_RENAME_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addPageToCollection(
-  input: AddPageToCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_ADD_PAGE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function removePageFromCollection(
-  input: RemovePageFromCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_REMOVE_PAGE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function addCollectionColumn(
-  input: AddCollectionColumnDto,
-): Promise<CommandResult> {
-  try {
-    return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_ADD_COLUMN_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function archiveKnowledgeCollection(
-  input: ArchiveKnowledgeCollectionDto,
-): Promise<CommandResult> {
-  try {
-    return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "COLLECTION_ARCHIVE_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-// ── Wiki / Knowledge Base verification actions ────────────────────────────────
-
-export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_VERIFY_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function requestKnowledgePageReview(
-  input: RequestPageReviewDto,
-): Promise<CommandResult> {
-  try {
-    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_REVIEW_REQUEST_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
-
-export async function assignKnowledgePageOwner(
-  input: AssignPageOwnerDto,
-): Promise<CommandResult> {
-  try {
-    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom(
-      "CONTENT_PAGE_ASSIGN_OWNER_FAILED",
-      err instanceof Error ? err.message : "Unexpected error",
-    );
-  }
-}
+export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseKnowledgePageRepository";
+export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
 ````
 
 ## File: modules/knowledge/interfaces/components/PageDialog.tsx
@@ -53269,6 +51780,88 @@ export function PageDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+````
+
+## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side query helpers for reading Content domain data.
+ */
+
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  GetKnowledgePageTreeUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsByAccountUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+
+export async function getKnowledgePage(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePage | null> {
+  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
+  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
+  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgeBlocks(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgeBlock[]> {
+  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgeVersions(
+  _accountId: string,
+  _pageId: string,
+): Promise<KnowledgeVersion[]> {
+  return [];
+}
+
+// ── Collection queries ────────────────────────────────────────────────────────
+
+export async function getKnowledgeCollection(
+  accountId: string,
+  collectionId: string,
+): Promise<KnowledgeCollection | null> {
+  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+    collectionId,
+  );
+}
+
+export async function getKnowledgeCollections(
+  accountId: string,
+): Promise<KnowledgeCollection[]> {
+  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
   );
 }
 ````
@@ -61089,72 +59682,6 @@ export function CreateDemandForm({
 - `../../../modules/workspace-scheduling/aggregates.md`
 ````
 
-## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
-````typescript
-/**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
- *          Lives in workspace because it aggregates workspace-scoped content nodes.
- */
-
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
-
-function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
-  return [
-    { key: "spaces", label: "Wiki", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
-    { key: "pages", label: "Pages", href: "/knowledge/pages", enabled: true },
-    { key: "libraries", label: "Libraries", href: "/source/libraries", enabled: true },
-    { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
-    { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
-    { key: "rag", label: "RAG", href: "/notebook/rag-query", enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
-  ];
-}
-
-function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWorkspaceContentNode {
-  return {
-    workspaceId,
-    workspaceName,
-    href: `/workspace/${workspaceId}?tab=Wiki`,
-    contentBaseItems: buildContentBaseItems(workspaceId),
-  };
-}
-
-export async function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository,
-): Promise<WikiAccountContentNode[]> {
-  const accountNodes = await Promise.all(
-    seeds.map(async (seed) => {
-      const workspaces = await workspaceRepository.listByAccountId(seed.accountId);
-      return {
-        accountId: seed.accountId,
-        accountName: seed.accountName,
-        accountType: seed.accountType,
-        isActive: seed.isActive,
-        membersHref: seed.accountType === "organization" ? "/organization/members" : undefined,
-        teamsHref: seed.accountType === "organization" ? "/organization/teams" : undefined,
-        workspaces: workspaces.map((workspace) => buildWorkspaceNode(workspace.id, workspace.name)),
-      } satisfies WikiAccountContentNode;
-    }),
-  );
-
-  return accountNodes.sort((a, b) => {
-    if (a.accountType !== b.accountType) {
-      return a.accountType === "personal" ? -1 : 1;
-    }
-    return a.accountName.localeCompare(b.accountName, "zh-Hant");
-  });
-}
-````
-
 ## File: modules/workspace/domain-services.md
 ````markdown
 # workspace — Domain Services
@@ -61179,165 +59706,6 @@ export async function buildWikiContentTree(
 
 - `../../../modules/workspace/domain-services.md`
 - `../../../modules/workspace/aggregates.md`
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { getKnowledgePageTree } from "@/modules/knowledge/api";
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-interface WorkspaceWikiViewProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-/** Base left-padding (rem) for depth-0 tree items. */
-const TREE_INDENT_BASE_REM = 0.5;
-/** Additional left-padding (rem) per nesting level. */
-const TREE_INDENT_STEP_REM = 1.25;
-
-function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
-  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
-  for (const node of nodes) {
-    out.push({ node, depth });
-    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
-  }
-  return out;
-}
-
-export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
-  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadPages() {
-      setLoadState("loading");
-      try {
-        const result = await getKnowledgePageTree(workspace.accountId);
-        if (!cancelled) {
-          setPages(result);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) setLoadState("error");
-      }
-    }
-
-    void loadPages();
-
-    return () => { cancelled = true; };
-  }, [workspace.accountId]);
-
-  const flatPages = flattenTree(pages);
-
-  return (
-    <div className="space-y-4">
-      <Card className="border-border/60 bg-card/80">
-        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpenIcon className="size-4 shrink-0 text-primary" />
-              <span className="truncate">Wiki · {workspace.name}</span>
-            </CardTitle>
-            <CardDescription className="mt-0.5">
-              此工作區的 Wiki 頁面
-            </CardDescription>
-          </div>
-          <Button asChild size="sm" className="shrink-0 gap-1.5">
-            <Link
-              href={`/knowledge/pages?workspaceId=${workspace.id}`}
-            >
-              <PlusIcon className="size-3.5" />
-              <span className="hidden sm:inline">新增頁面</span>
-              <span className="sm:hidden">新增</span>
-            </Link>
-          </Button>
-        </CardHeader>
-
-        <CardContent className="pb-4">
-          {loadState === "loading" && (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" />
-            </div>
-          )}
-
-          {loadState === "error" && (
-            <p className="py-4 text-center text-sm text-destructive">
-              無法載入頁面，請稍後再試。
-            </p>
-          )}
-
-          {loadState === "loaded" && flatPages.length === 0 && (
-            <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
-                <BookOpenIcon className="size-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  建立第一頁來開始記錄工作區知識。
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href={`/knowledge/pages?workspaceId=${workspace.id}`}>
-                  <PlusIcon className="size-3.5" />
-                  建立第一頁
-                </Link>
-              </Button>
-            </div>
-          )}
-
-          {loadState === "loaded" && flatPages.length > 0 && (
-            <ul className="divide-y divide-border/50">
-              {flatPages.map(({ node, depth }) => (
-                <li key={node.id}>
-                  <Link
-                    href={`/knowledge/pages?pageId=${node.id}`}
-                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
-                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
-                  >
-                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                      {node.title}
-                    </span>
-                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {node.slug}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
-        </Button>
-      </div>
-    </div>
-  );
-}
 ````
 
 ## File: modules/workspace/README.md
@@ -62100,6 +60468,59 @@ export const VisTimeline: FC<VisTimelineProps> = ({
 export default VisTimeline;
 ````
 
+## File: scripts/demo-flow.ts
+````typescript
+/**
+ * scripts/demo-flow.ts
+ *
+ * Architecture Phase 2 — The Proof (Occam's Razor Edition)
+ *
+ * Demonstrates the Content → EventBus loop using only in-memory adapters.
+ * Note: modules/wiki has been removed; graph steps are no longer included.
+ *
+ * Run with:
+ *   npx tsx scripts/demo-flow.ts
+ */
+
+import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
+import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+
+async function main() {
+  const ACCOUNT_ID = "demo-account";
+  const USER_ID = "demo-user";
+
+  console.log("[1] Initialising event bus...");
+  const eventBus = new SimpleEventBus();
+  console.log("    ✓ SimpleEventBus ready\n");
+
+  console.log("[2] Creating KnowledgeApi...");
+  const contentApi = new ContentKnowledgeApi(eventBus);
+  console.log("    ✓ KnowledgeApi ready\n");
+
+  console.log('[3] Creating page "Hello World"...');
+  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
+  console.log(`    ✓ page created  id=${page.id}\n`);
+
+  console.log("[4] Adding an empty block to the page...");
+  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
+  console.log(`    ✓ block created  id=${block.id}\n`);
+
+  console.log('[5] Updating block → "Hello [[World]]"...');
+  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
+  if (!updated) {
+    throw new Error("ASSERTION FAILED: updateBlock returned null");
+  }
+  console.log(`    ✓ block updated  content="${updated.content.richText.map((s) => (s as { plainText?: string }).plainText ?? "").join("")}"\n`);
+
+  console.log("✅  Demo flow completed successfully.");
+}
+
+main().catch((err) => {
+  console.error("❌  Demo flow failed:", err);
+  process.exit(1);
+});
+````
+
 ## File: scripts/init-framework.sh
 ````bash
 #!/bin/bash
@@ -62659,402 +61080,6 @@ Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral
 - [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
 - [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
 - `../../modules/<context>/*.md` for bounded-context details
-````
-
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
- * Multi-turn context: previous messages injected as system prompt.
- */
-
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import type { Thread } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-const STORAGE_KEY = (accountId: string, workspaceId: string) =>
-  `nb_thread_${accountId}_${workspaceId || "default"}`;
-
-function buildContextPrompt(history: ChatMessage[]): string {
-  if (history.length === 0) return "";
-  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
-  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
-}
-
-function generateMsgId() {
-  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-}
-
-function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
-  return {
-    id,
-    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
-    createdAt,
-    updatedAt: new Date().toISOString(),
-  };
-}
-
-export default function AiChatPage() {
-  const searchParams = useSearchParams();
-  const { state: { workspaces } } = useApp();
-  const { state: authState } = useAuth();
-  const accountId = authState.user?.id ?? "";
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const currentWorkspace =
-    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? workspaces[requestedWorkspaceId] ?? null
-      : null;
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
-
-  // Load persisted thread on mount
-  useEffect(() => {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
-
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    // Build multi-turn context from history (exclude the new user message)
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        // Persist thread to Firestore
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      // Defer scroll to allow React to flush the new message into the DOM first.
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <FolderKanban className="size-4 text-primary" />
-                Workspace context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              {currentWorkspace ? (
-                <>
-                  <div>
-                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
-                    <p className="mt-1 text-xs">
-                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs">
-                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                知識頁面 / Pages
-              </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {threadId && (
-              <span className="text-[10px] text-muted-foreground/60">
-                Thread · {messages.length} 則
-              </span>
-            )}
-            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
-              <Plus className="mr-1 size-3.5" />
-              新對話
-            </Button>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
 ````
 
 ## File: app/(shell)/dev-tools/page.tsx
@@ -65352,6 +63377,360 @@ Next.js 不承接 parse/chunk/embed 的 worker 邏輯；`py_fn/` 不承接頁面
 本文件的目的是把產品概念與現行 bounded-context 拓樸對齊，而不是維護一份脫離程式碼的「理想模組表」。當實作演進時，應優先更新 `docs/ddd/` root maps 與對應 module docs，再回來同步這份 explanation。
 ````
 
+## File: eslint.config.mjs
+````javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+ 
+const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const typescriptFileGlobs = ["**/*.{ts,tsx}"];
+const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
+const boundaryRuleSeverity = "warn";
+const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
+
+const moduleApiEntrypointMessage =
+  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+
+const moduleApiEntrypointPattern = {
+  regex: "^@/modules/(?!system$)[^/]+$",
+  message: moduleApiEntrypointMessage,
+};
+
+const moduleNonApiSubpathPattern = {
+  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
+  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
+};
+
+const explicitIndexPathPattern = {
+  group: ["**/index", "**/index.ts", "**/index.tsx"],
+  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+};
+
+const moduleInternalLayerPattern = {
+  group: [
+    "@/modules/*/application/**",
+    "@/modules/*/domain/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+  ],
+  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+};
+
+const moduleElements = [
+  {
+    type: "module-root",
+    pattern: "modules/*/index.ts",
+    capture: ["module"],
+  },
+  {
+    type: "module-api",
+    pattern: "modules/*/api/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-domain",
+    pattern: "modules/*/domain/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-application",
+    pattern: "modules/*/application/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-infrastructure",
+    pattern: "modules/*/infrastructure/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-interfaces",
+    pattern: "modules/*/interfaces/**/*",
+    capture: ["module"],
+  },
+];
+
+const sameModuleCapture = { module: "{{from.captured.module}}" };
+const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
+
+const crossModuleApiRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [{ to: { type: "module-api" } }],
+  message: "Cross-module imports must go through `modules/<target>/api`.",
+}));
+
+const sameModuleRootRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [sameModuleTarget("module-root")],
+  message: "Module root barrel is allowed only for the same module.",
+}));
+
+const apiLayerRule = {
+  from: { type: "module-api" },
+  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
+  message: "API layer may depend only on same-module layers.",
+};
+
+const sameModuleLayerAllowMap = {
+  "module-domain": ["module-domain"],
+  "module-application": ["module-application", "module-domain"],
+  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
+  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
+};
+
+const sameModuleLayerMessageMap = {
+  "module-domain": "Domain may only depend on domain of the same module.",
+  "module-application": "Application may depend only on application/domain in the same module.",
+  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
+  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
+};
+
+const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
+  message: sameModuleLayerMessageMap[type],
+}));
+
+const moduleDependencyRules = [
+  ...crossModuleApiRules,
+  ...sameModuleRootRules,
+  apiLayerRule,
+  ...sameModuleLayerRules,
+];
+
+const packageAliasMigrationPatterns = [
+  {
+    group: ["@/shared/*"],
+    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
+  },
+  {
+    group: ["@/infrastructure/*"],
+    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
+  },
+  {
+    group: ["@/libs/*"],
+    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
+  },
+  {
+    group: ["@/ui/shadcn/*"],
+    message: "Use @ui-shadcn/* instead.",
+  },
+  {
+    group: ["@/ui/vis", "@/ui/vis/*"],
+    message: "Use @ui-vis instead.",
+  },
+  {
+    group: ["@/interfaces/*"],
+    message: "Use @api-contracts instead.",
+  },
+];
+
+const createRestrictedImportsRule = (patterns) => [
+  boundaryRuleSeverity,
+  {
+    patterns,
+  },
+];
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  {
+    files: sourceFileGlobs,
+    plugins: {
+      jsdoc,
+    },
+    settings: {
+      jsdoc: {
+        mode: "typescript",
+      },
+    },
+    rules: {
+      "jsdoc/check-alignment": "warn",
+      "jsdoc/check-syntax": "warn",
+      "jsdoc/check-tag-names": "warn",
+      "jsdoc/no-blank-blocks": "warn",
+    },
+  },
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/naming-convention": [
+        "warn",
+        {
+          selector: "typeLike",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "typeParameter",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "variable",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow",
+        },
+        {
+          selector: "parameter",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "enumMember",
+          format: ["PascalCase", "UPPER_CASE"],
+        },
+      ],
+    },
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  // ─── Consistent type-only imports ──────────────────────────────────────
+  // Enforces `import type` for type-only imports, improving tree-shaking and
+  // making module-boundary intent explicit (matches project MDDD conventions).
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
+    },
+  },
+  // ─── React best-practices ───────────────────────────────────────────────
+  // eslint-config-next already pulls in react / react-hooks rules via its
+  // own config; these overrides make project-specific settings explicit and
+  // add missing checks not covered by the base config.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
+      "react/prop-types": "off",            // TypeScript types replace PropTypes
+      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
+      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
+  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
+  // activated here.  Enabling recommended rules as warn catches common a11y
+  // mistakes without breaking the zero-error baseline.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
+          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
+          // Downgrade all errors to warnings to preserve the zero-error baseline.
+          if (Array.isArray(config)) {
+            const [severity, ...rest] = config;
+            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
+            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
+          }
+          const normalised = config === "error" || config === 2 ? "warn" : config;
+          return [rule, normalised];
+        }),
+      ),
+    },
+  },
+  {
+    files: moduleFileGlobs,
+    plugins: {
+      boundaries,
+    },
+    settings: {
+      "boundaries/include": moduleFileGlobs,
+      "boundaries/elements": moduleElements,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        boundaryRuleSeverity,
+        {
+          default: "disallow",
+          rules: moduleDependencyRules,
+        },
+      ],
+    },
+  },
+  // ─── Package boundary enforcement ───────────────────────────────────────
+  // Forbid legacy import paths that were migrated to packages/*.
+  {
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
+    },
+  },
+  // ─── Strict module entrypoint enforcement ───────────────────────────────
+  {
+    files: [
+      "app/**/*.{ts,tsx,js,jsx}",
+      "providers/**/*.{ts,tsx,js,jsx}",
+      "debug/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+      ]),
+    },
+  },
+  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
+  {
+    files: moduleFileGlobs,
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        explicitIndexPathPattern,
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+        moduleInternalLayerPattern,
+      ]),
+    },
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    ".agents/**",
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+````
+
 ## File: firestore.indexes.json
 ````json
 {
@@ -65975,6 +64354,95 @@ export class FirebaseArticleRepository implements IArticleRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/dto
+ */
+
+import { z } from "@lib-zod";
+
+const ContentScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+// ── Comment ───────────────────────────────────────────────────────────────────
+
+export const CreateCommentSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  authorId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+  parentCommentId: z.string().min(1).nullable().optional(),
+  blockId: z.string().min(1).nullable().optional(),
+  selectionRange: z
+    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
+    .nullable()
+    .optional(),
+});
+export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
+
+export const UpdateCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+});
+export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
+
+export const ResolveCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  resolvedByUserId: z.string().min(1),
+});
+export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
+
+export const DeleteCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
+
+// ── Version ───────────────────────────────────────────────────────────────────
+
+export const CreateVersionSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  snapshotBlocks: z.array(z.unknown()),
+  label: z.string().max(200).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
+
+export const DeleteVersionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
+
+// ── Permission ────────────────────────────────────────────────────────────────
+
+export const GrantPermissionSchema = ContentScopeSchema.extend({
+  subjectId: z.string().min(1),
+  subjectType: z.enum(["page", "article", "database"]),
+  principalId: z.string().min(1),
+  principalType: z.enum(["user", "team", "public", "link"]),
+  level: z.enum(["view", "comment", "edit", "full"]),
+  grantedByUserId: z.string().min(1),
+  expiresAtISO: z.string().nullable().optional(),
+  linkToken: z.string().min(1).nullable().optional(),
+});
+export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
+
+export const RevokePermissionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
+````
+
 ## File: modules/knowledge-database/api/index.ts
 ````typescript
 /**
@@ -66040,6 +64508,190 @@ export {
 } from "../application/services/field-computation.service";
 ````
 
+## File: modules/knowledge-database/application/services/field-computation.service.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/services
+ * Purpose: FieldComputationService — resolves computed field values for a record.
+ *
+ * Handles: relation (link resolution), formula (expression evaluation), rollup (aggregation).
+ * This is pure application logic — no side effects, no I/O. Fully testable in isolation.
+ */
+
+import type { Field, FieldType } from "../../domain/entities/database.entity";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+
+// ── Relation ──────────────────────────────────────────────────────────────────
+
+export interface RelationFieldConfig {
+  readonly targetDatabaseId: string;
+  readonly syncReverse: boolean;
+  readonly reverseFieldName?: string;
+}
+
+export type RelationValue = ReadonlyArray<string>;
+
+export function resolveRelationValue(record: DatabaseRecord, field: Field): RelationValue {
+  if (field.type !== "relation") return [];
+  const raw = record.properties.get(field.id);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((v): v is string => typeof v === "string");
+}
+
+// ── Formula ───────────────────────────────────────────────────────────────────
+
+export interface FormulaFieldConfig {
+  readonly expression: string;
+}
+
+export type FormulaResult = string | number | boolean | null;
+
+/**
+ * Evaluates a formula for a record using a safe restricted expression evaluator.
+ * Supports prop('FieldName') references, arithmetic, comparison, and boolean operators.
+ * Returns null on evaluation error or unsafe expression.
+ */
+export function evaluateFormula(
+  record: DatabaseRecord,
+  field: Field,
+  allFields: ReadonlyArray<Field>,
+): FormulaResult {
+  if (field.type !== "formula") return null;
+  const config = field.config as Partial<FormulaFieldConfig>;
+  if (!config.expression || typeof config.expression !== "string") return null;
+
+  const props: Record<string, unknown> = {};
+  for (const f of allFields) {
+    if (f.type === "formula" || f.type === "rollup") continue;
+    props[f.name] = record.properties.get(f.id) ?? null;
+  }
+
+  const resolved = config.expression.replace(
+    /prop\(['"]([^'"]+)['"]\)/g,
+    (_m, name: string) => {
+      const val = props[name];
+      if (val === null || val === undefined) return "null";
+      if (typeof val === "string") return JSON.stringify(val);
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
+      return "null";
+    },
+  );
+
+  // Allowlist: digits, arithmetic operators, comparisons, booleans, null, spaces, parens, quotes, dots
+  if (!/^[\d\s+\-*/()!&|<>=."'nulltruefals]+$/.test(resolved)) return null;
+
+  try {
+    const result = new Function(`"use strict"; return (${resolved});`)() as unknown;
+    if (typeof result === "string" || typeof result === "number" || typeof result === "boolean") return result;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Rollup ────────────────────────────────────────────────────────────────────
+
+export type RollupAggregation =
+  | "count" | "count_values" | "count_unique"
+  | "sum" | "average" | "min" | "max" | "range"
+  | "percent_checked" | "percent_unchecked";
+
+export interface RollupFieldConfig {
+  readonly relationFieldId: string;
+  readonly rollupFieldId: string;
+  readonly aggregation: RollupAggregation;
+}
+
+export type RollupResult = number | string | null;
+
+export function computeRollup(
+  record: DatabaseRecord,
+  field: Field,
+  relatedRecords: ReadonlyArray<DatabaseRecord>,
+  _relatedFields: ReadonlyArray<Field>,
+): RollupResult {
+  if (field.type !== "rollup") return null;
+  const config = field.config as Partial<RollupFieldConfig>;
+  if (!config.rollupFieldId || !config.aggregation) return null;
+
+  const values = relatedRecords.map((r) => r.properties.get(config.rollupFieldId!));
+
+  switch (config.aggregation) {
+    case "count": return relatedRecords.length;
+    case "count_values": return values.filter((v) => v !== null && v !== undefined && v !== "").length;
+    case "count_unique": return new Set(values.map((v) => JSON.stringify(v))).size;
+    case "sum": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.reduce((a, n) => a + n, 0);
+    }
+    case "average": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : nums.reduce((a, n) => a + n, 0) / nums.length;
+    }
+    case "min": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : Math.min(...nums);
+    }
+    case "max": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : Math.max(...nums);
+    }
+    case "range": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : Math.max(...nums) - Math.min(...nums);
+    }
+    case "percent_checked": {
+      if (relatedRecords.length === 0) return 0;
+      return Math.round((values.filter((v) => v === true).length / relatedRecords.length) * 100);
+    }
+    case "percent_unchecked": {
+      if (relatedRecords.length === 0) return 0;
+      return Math.round((values.filter((v) => v !== true).length / relatedRecords.length) * 100);
+    }
+    default: return null;
+  }
+}
+
+// ── Unified entry point ───────────────────────────────────────────────────────
+
+export type ComputedFieldValue = RelationValue | FormulaResult | RollupResult;
+
+export function resolveComputedFields(input: {
+  readonly record: DatabaseRecord;
+  readonly fields: ReadonlyArray<Field>;
+  readonly relatedRecordsMap?: ReadonlyMap<string, ReadonlyArray<DatabaseRecord>>;
+  readonly relatedFieldsMap?: ReadonlyMap<string, ReadonlyArray<Field>>;
+}): Map<string, ComputedFieldValue> {
+  const { record, fields, relatedRecordsMap = new Map(), relatedFieldsMap = new Map() } = input;
+  const result = new Map<string, ComputedFieldValue>();
+  const computedTypes: ReadonlyArray<FieldType> = ["relation", "formula", "rollup"];
+
+  for (const field of fields) {
+    if (!computedTypes.includes(field.type)) continue;
+    switch (field.type) {
+      case "relation":
+        result.set(field.id, resolveRelationValue(record, field));
+        break;
+      case "formula":
+        result.set(field.id, evaluateFormula(record, field, fields));
+        break;
+      case "rollup": {
+        const cfg = field.config as Partial<RollupFieldConfig>;
+        const relField = cfg.relationFieldId ? fields.find((f) => f.id === cfg.relationFieldId) : undefined;
+        result.set(field.id, computeRollup(
+          record, field,
+          relField ? (relatedRecordsMap.get(relField.id) ?? []) : [],
+          relField ? (relatedFieldsMap.get(relField.id) ?? []) : [],
+        ));
+        break;
+      }
+    }
+  }
+  return result;
+}
+````
+
 ## File: modules/knowledge-database/context-map.md
 ````markdown
 上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
@@ -66048,6 +64700,1396 @@ export {
 > **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
 
 → [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/databaseRecords/{recordId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type {
+  IDatabaseRecordRepository,
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+
+function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "databaseRecords");
+}
+
+function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
+  return doc(db, "accounts", accountId, "databaseRecords", recordId);
+}
+
+function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    pageId: typeof data.pageId === "string" ? data.pageId : null,
+    properties: typeof data.properties === "object" && data.properties !== null
+      ? new Map(Object.entries(data.properties as Record<string, unknown>))
+      : new Map(),
+    order: typeof data.order === "number" ? data.order : 0,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseRecordRepository implements IDatabaseRecordRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      pageId: input.pageId ?? null,
+      properties: input.properties ?? {},
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(recordDoc(db, input.accountId, id), data);
+    return toRecord(id, { ...data, properties: input.properties });
+  }
+
+  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const ref = recordDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updatedAtISO: now };
+    if (input.properties !== undefined) {
+      updates.properties = input.properties;
+    }
+    await updateDoc(ref, updates);
+    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
+    return toRecord(snap.id, merged);
+  }
+
+  async delete(accountId: string, recordId: string): Promise<void> {
+    const db = this.db();
+    await deleteDoc(recordDoc(db, accountId, recordId));
+  }
+
+  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const snap = await getDoc(recordDoc(db, accountId, recordId));
+    if (!snap.exists()) return null;
+    return toRecord(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+    const db = this.db();
+    const q = query(
+      recordsCol(db, accountId),
+      where("databaseId", "==", databaseId),
+      orderBy("order", "asc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Block use cases — add, update, delete, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { BlockContent } from "../../domain/value-objects/block-content";
+import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  AddKnowledgeBlockSchema,
+  type AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockSchema,
+  type UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockSchema,
+  type DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockSchema,
+  type NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockSchema,
+  type UnnestKnowledgeBlockDto,
+} from "../dto/knowledge.dto";
+
+export class AddKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = AddKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, content, index } = parsed.data;
+    const block = await this.repo.add({ accountId, pageId, content: content as BlockContent, index });
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class UpdateKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, blockId, content } = parsed.data;
+    const updated = await this.repo.update({ accountId, blockId, content: content as BlockContent });
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class DeleteKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, blockId } = parsed.data;
+    await this.repo.delete(accountId, blockId);
+    return commandSuccess(blockId, Date.now());
+  }
+}
+
+export class ListKnowledgeBlocksUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    if (!accountId.trim() || !pageId.trim()) return [];
+    return this.repo.listByPageId(accountId, pageId);
+  }
+}
+
+export class NestKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = NestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+    const updated = await this.repo.nest(parsed.data);
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent block not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class UnnestKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+    const updated = await this.repo.unnest(parsed.data);
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/knowledge/domain/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/barrel
+ */
+
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ArchiveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "./entities/content-page.entity";
+
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
+export type { PageVerificationState } from "./entities/knowledge-page.entity";
+
+export type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  DeleteKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "./entities/content-block.entity";
+
+export type {
+  KnowledgeVersion,
+  KnowledgeVersionBlock,
+  CreateKnowledgeVersionInput,
+} from "./entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./value-objects/block-content";
+export {
+  BLOCK_TYPES,
+  blockContentEquals,
+  emptyTextBlockContent,
+  plainTextBlockContent,
+  richTextToPlainText,
+  extractMentionedPageIds,
+  extractMentionedUserIds,
+} from "./value-objects/block-content";
+export type {
+  RichTextSpanType,
+  TextAnnotations,
+  TextSpan,
+  MentionPageSpan,
+  MentionUserSpan,
+  LinkSpan,
+  RichTextSpan,
+} from "./value-objects/block-content";
+
+export type {
+  KnowledgeDomainEvent,
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+  KnowledgePageVerifiedEvent,
+  KnowledgePageReviewRequestedEvent,
+  KnowledgePageOwnerAssignedEvent,
+} from "./events/knowledge.events";
+
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
+
+export type {
+  KnowledgePageRepository,
+  KnowledgeBlockRepository,
+  KnowledgeVersionRepository,
+} from "./repositories/knowledge.repositories";
+````
+
+## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/repositories
+ * Purpose: Repository port interfaces for Content domain persistence.
+ */
+
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../entities/knowledge-page.entity";
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "../entities/content-block.entity";
+import type {
+  KnowledgeVersion,
+  CreateKnowledgeVersionInput,
+} from "../entities/content-version.entity";
+import type {
+  KnowledgeCollection,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../entities/knowledge-collection.entity";
+
+export interface KnowledgePageRepository {
+  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
+  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
+  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
+  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
+  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
+  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Mark a wiki page as verified (verificationState = "verified"). */
+  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Flag a wiki page for review (verificationState = "needs_review"). */
+  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
+  /** Assign or change the owner of a wiki page. */
+  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
+  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
+}
+
+export interface KnowledgeBlockRepository {
+  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
+  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  delete(accountId: string, blockId: string): Promise<void>;
+  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
+  /** Nest a block under a parent block (creates parent → child relationship). */
+  nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  /** Unnest a block, moving it back to page-level. */
+  unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+}
+
+export interface KnowledgeVersionRepository {
+  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
+  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
+}
+
+export interface KnowledgeCollectionRepository {
+  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
+  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
+  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
+  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
+  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
+  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
+}
+````
+
+## File: modules/knowledge/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: module/barrel (public API)
+ *
+ * This is the ONLY file that external modules should import from.
+ * All internal implementation details (domain, application, infrastructure)
+ * are NOT importable from outside — use the exports listed here.
+ *
+ * Boundary rule: other modules import via `@/modules/knowledge`, never from
+ * `@/modules/knowledge/domain/...` or deeper paths.
+ *
+ * Access pattern:
+ *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
+ *   - UI mutations                    → Server Actions below
+ *   - UI reads                        → Query functions below
+ *
+ * Current boundary note:
+ *   - `Page` / `Block` are owned by this module.
+ *   - `KnowledgeCollection` is still exported here as a transitional surface.
+ *   - `Article` / `Category` belong to `knowledge-base`.
+ */
+
+// ── API: Facade (cross-domain entry point) ────────────────────────────────────
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";
+
+// ── Domain: entity types ──────────────────────────────────────────────────────
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+} from "./domain/entities/content-page.entity";
+
+export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
+
+export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./interfaces/_actions/knowledge.actions";
+
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "./interfaces/queries/knowledge.queries";
+
+// ── Domain: Collection + Wiki types ──────────────────────────────────────────
+export type {
+  KnowledgeCollection,
+  CollectionSpaceType,
+} from "./domain/entities/knowledge-collection.entity";
+
+export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
+
+// ── Interfaces: Components ────────────────────────────────────────────────────
+export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PageTreeView } from "./interfaces/components/PageTreeView";
+export { PageDialog } from "./interfaces/components/PageDialog";
+````
+
+## File: modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
+ *
+ * Firestore collection: accounts/{accountId}/contentPages/{pageId}
+ */
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+
+function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentPages");
+}
+
+function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
+  return doc(db, "accounts", accountId, "contentPages", pageId);
+}
+
+function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    title: typeof data.title === "string" ? data.title : "",
+    slug: typeof data.slug === "string" ? data.slug : "",
+    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
+    order: typeof data.order === "number" ? data.order : 0,
+    blockIds: Array.isArray(data.blockIds)
+      ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    status: data.status === "archived" ? "archived" : "active",
+    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
+    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
+    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+function slugify(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "page";
+}
+
+export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
+    const nowISO = new Date().toISOString();
+    const slug = slugify(input.title);
+    const id = generateId();
+
+    const existing = await getDocs(
+      query(pagesCol(this.db, input.accountId), where("parentPageId", "==", input.parentPageId ?? null)),
+    );
+    const order = existing.size;
+
+    const docRef = doc(pagesCol(this.db, input.accountId), id);
+    const data: Record<string, unknown> = {
+      accountId: input.accountId,
+      title: input.title,
+      slug,
+      parentPageId: input.parentPageId ?? null,
+      order,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.workspaceId) data.workspaceId = input.workspaceId;
+
+    await setDoc(docRef, data);
+
+    return toKnowledgePage(id, { ...data, id });
+  }
+
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      title: input.title,
+      slug: slugify(input.title),
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      parentPageId: input.targetParentPageId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      blockIds: [...input.blockIds],
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, accountId, pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      status: "archived",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    if (data.status === "archived") return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
+    if (!snap.exists()) return null;
+    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(
+        pagesCol(this.db, accountId),
+        where("status", "==", "active"),
+        orderBy("order", "asc"),
+      ),
+    );
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(
+        pagesCol(this.db, accountId),
+        where("workspaceId", "==", workspaceId),
+        where("status", "==", "active"),
+        orderBy("order", "asc"),
+      ),
+    );
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "verified",
+      verifiedByUserId: input.verifiedByUserId,
+      verifiedAtISO: nowISO,
+      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "needs_review",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      ownerId: input.ownerId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/in-memory
+ * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
+ *          Uses plain Map<string, …> — no external database required.
+ *          Designed for local demos and unit tests (Occam's Razor).
+ */
+
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "../domain/entities/content-block.entity";
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../domain/entities/knowledge-page.entity";
+import type {
+  KnowledgeBlockRepository,
+  KnowledgePageRepository,
+} from "../domain/repositories/knowledge.repositories";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function generateSlug(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
+}
+
+// ─── Page repository ──────────────────────────────────────────────────────────
+
+export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
+  private readonly pages = new Map<string, KnowledgePage>();
+
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const page: KnowledgePage = {
+      id,
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      slug: generateSlug(input.title),
+      parentPageId: input.parentPageId ?? null,
+      order: this.pages.size,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    this.pages.set(id, page);
+    return page;
+  }
+
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      title: input.title,
+      slug: generateSlug(input.title),
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      parentPageId: input.targetParentPageId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      blockIds: [...input.blockIds],
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const page = this.pages.get(pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      status: "archived",
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(pageId, updated);
+    return updated;
+  }
+
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    if (page.status === "archived") return null;
+    const updated: KnowledgePage = {
+      ...page,
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    return this.pages.get(pageId) ?? null;
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    return [...this.pages.values()].filter((p) => p.accountId === accountId);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    return [...this.pages.values()].filter(
+      (p) => p.accountId === accountId && p.workspaceId === workspaceId,
+    );
+  }
+
+  /** Append a blockId to a page's blockIds list (called by block operations). */
+  async appendBlockId(pageId: string, blockId: string): Promise<void> {
+    const page = this.pages.get(pageId);
+    if (!page) return;
+    this.pages.set(pageId, {
+      ...page,
+      blockIds: [...page.blockIds, blockId],
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
+
+// ─── Block repository ─────────────────────────────────────────────────────────
+
+export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
+  private readonly blocks = new Map<string, KnowledgeBlock>();
+
+  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const siblingsCount = [...this.blocks.values()].filter(
+      (b) => b.pageId === input.pageId && b.accountId === input.accountId,
+    ).length;
+    const block: KnowledgeBlock = {
+      id,
+      pageId: input.pageId,
+      accountId: input.accountId,
+      content: input.content,
+      order: input.index ?? siblingsCount,
+      parentBlockId: input.parentBlockId ?? null,
+      childBlockIds: [],
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    this.blocks.set(id, block);
+    return block;
+  }
+
+  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    if (!block) return null;
+    const updated: KnowledgeBlock = {
+      ...block,
+      content: input.content,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.blocks.set(input.blockId, updated);
+    return updated;
+  }
+
+  async delete(_accountId: string, blockId: string): Promise<void> {
+    this.blocks.delete(blockId);
+  }
+
+  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
+    return this.blocks.get(blockId) ?? null;
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    return [...this.blocks.values()]
+      .filter((b) => b.accountId === accountId && b.pageId === pageId)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  async nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    const parent = this.blocks.get(input.parentBlockId);
+    if (!block || !parent) return null;
+    const now = new Date().toISOString();
+
+    const idx = input.index !== undefined ? input.index : parent.childBlockIds.length;
+    const updatedChildren = [...parent.childBlockIds];
+    updatedChildren.splice(idx, 0, input.blockId);
+
+    this.blocks.set(input.parentBlockId, { ...parent, childBlockIds: updatedChildren, updatedAtISO: now });
+    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: input.parentBlockId, updatedAtISO: now };
+    this.blocks.set(input.blockId, updatedBlock);
+    return updatedBlock;
+  }
+
+  async unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    if (!block) return null;
+    const now = new Date().toISOString();
+
+    if (block.parentBlockId) {
+      const parent = this.blocks.get(block.parentBlockId);
+      if (parent) {
+        this.blocks.set(block.parentBlockId, {
+          ...parent,
+          childBlockIds: parent.childBlockIds.filter((id) => id !== input.blockId),
+          updatedAtISO: now,
+        });
+      }
+    }
+
+    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: null, updatedAtISO: now };
+    this.blocks.set(input.blockId, updatedBlock);
+    return updatedBlock;
+  }
+}
+````
+
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge
+ * Layer: interfaces/_actions
+ * Purpose: Next.js Server Actions for Content domain mutations.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+  ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import {
+  AddKnowledgeBlockUseCase,
+  UpdateKnowledgeBlockUseCase,
+  DeleteKnowledgeBlockUseCase,
+} from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  AddCollectionColumnUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockDto,
+  CreateKnowledgeVersionDto,
+  ApproveKnowledgePageDto,
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+} from "../../application/dto/knowledge.dto";
+
+function makePageRepo() {
+  return new FirebaseKnowledgePageRepository();
+}
+
+function makeBlockRepo() {
+  return new FirebaseKnowledgeBlockRepository();
+}
+
+function makeCollectionRepo() {
+  return new FirebaseKnowledgeCollectionRepository();
+}
+
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_MOVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function reorderKnowledgePageBlocks(
+  input: ReorderKnowledgePageBlocksDto,
+): Promise<CommandResult> {
+  try {
+    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_REORDER_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addKnowledgeBlock(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new AddKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_ADD_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function updateKnowledgeBlock(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new UpdateKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_UPDATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function deleteKnowledgeBlock(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+  try {
+    return await new DeleteKnowledgeBlockUseCase(makeBlockRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_BLOCK_DELETE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function publishKnowledgeVersion(
+  _input: CreateKnowledgeVersionDto,
+): Promise<CommandResult> {
+  return commandFailureFrom(
+    "CONTENT_VERSION_NOT_IMPLEMENTED",
+    "Version persistence is not yet implemented.",
+  );
+}
+
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    // causationId is generated at the action layer (command origin) to ensure
+    // proper command-event causality tracing as described in ADR-001.
+    const causationId = input.causationId ?? generateId();
+    // Use QStash when configured; fall back to Noop for local / unconfigured envs.
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+    return await new ApproveKnowledgePageUseCase(
+      makePageRepo(),
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    ).execute({ ...input, causationId });
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_APPROVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+// ── Collection actions ────────────────────────────────────────────────────────
+
+export async function createKnowledgeCollection(
+  input: CreateKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_CREATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function renameKnowledgeCollection(
+  input: RenameKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_RENAME_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addPageToCollection(
+  input: AddPageToCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddPageToCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function removePageFromCollection(
+  input: RemovePageFromCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new RemovePageFromCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_REMOVE_PAGE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function addCollectionColumn(
+  input: AddCollectionColumnDto,
+): Promise<CommandResult> {
+  try {
+    return await new AddCollectionColumnUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ADD_COLUMN_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function archiveKnowledgeCollection(
+  input: ArchiveKnowledgeCollectionDto,
+): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "COLLECTION_ARCHIVE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+// ── Wiki / Knowledge Base verification actions ────────────────────────────────
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_VERIFY_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function requestKnowledgePageReview(
+  input: RequestPageReviewDto,
+): Promise<CommandResult> {
+  try {
+    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_REVIEW_REQUEST_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function assignKnowledgePageOwner(
+  input: AssignPageOwnerDto,
+): Promise<CommandResult> {
+  try {
+    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ASSIGN_OWNER_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
 ````
 
 ## File: modules/knowledge/interfaces/components/PageEditorView.tsx
@@ -66072,475 +66114,6 @@ export interface PageEditorViewProps {
 
 export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
   return <RichTextEditor accountId={accountId} pageId={pageId} />;
-}
-````
-
-## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
-````typescript
-"use client";
-
-/**
- * Module: knowledge
- * Layer: interfaces/components
- * Purpose: RichTextEditor — Tiptap-powered full-page rich text editor with
- *          Firebase persistence via PageEditorView's existing server actions.
- *
- * Architecture:
- *  - The entire page content is stored as a single Tiptap JSON document.
- *  - Firebase block: type "text", properties.tiptapJson = <TiptapJSON object>.
- *  - On mount, loads the canonical block (first block with properties.tiptapJson).
- *  - Falls back to reconstructing from legacy contentEditable text blocks.
- *  - On editor change (debounced 800 ms), persists via updateKnowledgeBlock.
- *
- * Extensions used:
- *  - StarterKit (paragraph, heading 1-3, bold, italic, code, lists, blockquote, hr, strike)
- *  - Placeholder
- *  - Underline
- *  - Link (with auto-link)
- *  - Typography (smart quotes, en-dash)
- *  - TextStyle + Color (inline text colouring)
- */
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import { StarterKit } from "@tiptap/starter-kit";
-import { Placeholder } from "@tiptap/extension-placeholder";
-import { Underline } from "@tiptap/extension-underline";
-import { Link } from "@tiptap/extension-link";
-import { Typography } from "@tiptap/extension-typography";
-import { Color } from "@tiptap/extension-color";
-import type { Editor } from "@tiptap/react";
-import {
-  Bold,
-  Italic,
-  Underline as UnderlineIcon,
-  Strikethrough,
-  Code,
-  Link as LinkIcon,
-  List,
-  ListOrdered,
-  Quote,
-  Minus,
-  Heading1,
-  Heading2,
-  Heading3,
-  Undo,
-  Redo,
-  Loader2,
-} from "lucide-react";
-
-import { getKnowledgeBlocks } from "../queries/knowledge.queries";
-import {
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-} from "../_actions/knowledge.actions";
-import type { BlockContent } from "../../domain/value-objects/block-content";
-import { richTextToPlainText } from "../../domain/value-objects/block-content";
-
-// ── Constants ─────────────────────────────────────────────────────────────────
-
-const DEBOUNCE_MS = 800;
-/** Marker stored in block.properties so we can distinguish Tiptap blocks. */
-const TIPTAP_PROPERTY_KEY = "tiptapJson";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface RichTextEditorProps {
-  accountId: string;
-  pageId: string;
-  /** Optional: called when the document changes with the raw Tiptap JSON. */
-  onDocumentChange?: (json: object) => void;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichTextEditorProps) {
-  const [loading, setLoading] = useState(true);
-  /**
-   * blockId of the persisted "tiptap" block in Firestore.
-   * null = not yet created; undefined = being resolved.
-   */
-  const blockIdRef = useRef<string | null | undefined>(undefined);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestJsonRef = useRef<object | null>(null);
-  const isSavingRef = useRef(false);
-  const mountedRef = useRef(true);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        codeBlock: false, // use plain code marks for now
-      }),
-      Placeholder.configure({
-        placeholder: "開始輸入，或按 / 選擇區塊類型…",
-        emptyEditorClass: "is-editor-empty",
-      }),
-      Underline,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        HTMLAttributes: { class: "text-primary underline" },
-      }),
-      Typography,
-      Color,
-    ],
-    editable: true,
-    immediatelyRender: false,
-    onUpdate({ editor }) {
-      const json = editor.getJSON();
-      latestJsonRef.current = json;
-      onDocumentChange?.(json);
-      scheduleSave();
-    },
-  });
-
-  // ── Load from Firebase ──────────────────────────────────────────────────────
-
-  useEffect(() => {
-    mountedRef.current = true;
-    if (!accountId || !pageId || !editor) { setLoading(false); return; }
-    setLoading(true);
-
-    void (async () => {
-      try {
-        const blocks = await getKnowledgeBlocks(accountId, pageId);
-
-        // Find the canonical Tiptap block.
-        const tiptapBlock = blocks.find(
-          (b) => b.content.properties?.[TIPTAP_PROPERTY_KEY] != null,
-        );
-
-        if (tiptapBlock) {
-          blockIdRef.current = tiptapBlock.id;
-          const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
-          if (mountedRef.current) {
-            editor.commands.setContent(json, { emitUpdate: false });
-          }
-        } else if (blocks.length > 0) {
-          // Legacy blocks: reconstruct as Tiptap paragraphs.
-          const legacyHtml = blocks
-            .map((b) => {
-              switch (b.content.type) {
-                case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
-                case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
-                case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
-                case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
-                case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
-                case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
-                case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
-                case "divider": return "<hr />";
-                default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
-              }
-            })
-            .join("");
-
-          if (mountedRef.current) {
-            editor.commands.setContent(legacyHtml, { emitUpdate: false });
-          }
-          // blockIdRef stays null — first save will create a new Tiptap block.
-        } else {
-          // Brand new page — create an empty Tiptap block.
-          const emptyContent = buildBlockContent(editor.getJSON());
-          const result = await addKnowledgeBlock({
-            accountId,
-            pageId,
-            content: emptyContent,
-            index: 0,
-          });
-          if (result.success) {
-            blockIdRef.current = result.aggregateId;
-          }
-        }
-      } catch {
-        // Silently ignore; editor is still usable, just unsaved.
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    })();
-
-    return () => {
-      mountedRef.current = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- editor instance is stable
-  }, [accountId, pageId]);
-
-  // Cleanup editor on unmount.
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      editor?.destroy();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ── Save / debounce ─────────────────────────────────────────────────────────
-
-  const scheduleSave = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      void persistNow();
-    }, DEBOUNCE_MS);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const persistNow = useCallback(async () => {
-    const json = latestJsonRef.current;
-    if (!json || isSavingRef.current) return;
-
-    isSavingRef.current = true;
-    try {
-      if (blockIdRef.current == null) {
-        // First save: create the block.
-        const result = await addKnowledgeBlock({
-          accountId,
-          pageId,
-          content: buildBlockContent(json),
-          index: 0,
-        });
-        if (result.success) blockIdRef.current = result.aggregateId;
-      } else {
-        // Subsequent saves: update the block.
-        await updateKnowledgeBlock({
-          accountId,
-          blockId: blockIdRef.current,
-          content: buildBlockContent(json),
-        });
-      }
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [accountId, pageId]);
-
-  // ── Loading state ───────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">載入內容中…</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-[400px] flex-col rounded-xl border border-border/60 bg-card">
-      {/* Toolbar */}
-      {editor && <EditorToolbar editor={editor} />}
-
-      {/* Editor surface */}
-      <EditorContent
-        editor={editor}
-        className="tiptap-editor flex-1 cursor-text px-6 py-4 text-sm text-foreground"
-      />
-    </div>
-  );
-}
-
-// ── Toolbar ───────────────────────────────────────────────────────────────────
-
-function EditorToolbar({ editor }: { editor: Editor }) {
-  function toggleLink() {
-    if (editor.isActive("link")) {
-      editor.chain().focus().unsetLink().run();
-      return;
-    }
-    const url = window.prompt("輸入連結 URL：");
-    if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
-    }
-  }
-
-  return (
-    <div className="flex flex-wrap items-center gap-0.5 border-b border-border/60 px-3 py-1.5">
-      {/* Undo / Redo */}
-      <ToolbarGroup>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
-          title="復原"
-        >
-          <Undo className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
-          title="取消復原"
-        >
-          <Redo className="size-3.5" />
-        </ToolbarButton>
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      {/* Headings */}
-      <ToolbarGroup>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          active={editor.isActive("heading", { level: 1 })}
-          title="標題 1"
-        >
-          <Heading1 className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          active={editor.isActive("heading", { level: 2 })}
-          title="標題 2"
-        >
-          <Heading2 className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          active={editor.isActive("heading", { level: 3 })}
-          title="標題 3"
-        >
-          <Heading3 className="size-3.5" />
-        </ToolbarButton>
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      {/* Inline marks */}
-      <ToolbarGroup>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          active={editor.isActive("bold")}
-          title="粗體 (Ctrl+B)"
-        >
-          <Bold className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          active={editor.isActive("italic")}
-          title="斜體 (Ctrl+I)"
-        >
-          <Italic className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          active={editor.isActive("underline")}
-          title="底線 (Ctrl+U)"
-        >
-          <UnderlineIcon className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleStrike().run()}
-          active={editor.isActive("strike")}
-          title="刪除線"
-        >
-          <Strikethrough className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleCode().run()}
-          active={editor.isActive("code")}
-          title="行內程式碼 (Ctrl+E)"
-        >
-          <Code className="size-3.5" />
-        </ToolbarButton>
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      {/* Link */}
-      <ToolbarGroup>
-        <ToolbarButton
-          onClick={toggleLink}
-          active={editor.isActive("link")}
-          title="連結"
-        >
-          <LinkIcon className="size-3.5" />
-        </ToolbarButton>
-      </ToolbarGroup>
-
-      <ToolbarSeparator />
-
-      {/* Lists */}
-      <ToolbarGroup>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          active={editor.isActive("bulletList")}
-          title="項目清單"
-        >
-          <List className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          active={editor.isActive("orderedList")}
-          title="編號清單"
-        >
-          <ListOrdered className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          active={editor.isActive("blockquote")}
-          title="引言"
-        >
-          <Quote className="size-3.5" />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().setHorizontalRule().run()}
-          title="水平線"
-        >
-          <Minus className="size-3.5" />
-        </ToolbarButton>
-      </ToolbarGroup>
-    </div>
-  );
-}
-
-// ── Toolbar primitives ────────────────────────────────────────────────────────
-
-function ToolbarGroup({ children }: { children: React.ReactNode }) {
-  return <div className="flex items-center gap-0.5">{children}</div>;
-}
-
-function ToolbarSeparator() {
-  return <div className="mx-1 h-5 w-px bg-border/60" />;
-}
-
-interface ToolbarButtonProps {
-  onClick: () => void;
-  children: React.ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  title?: string;
-}
-
-function ToolbarButton({ onClick, children, active, disabled, title }: ToolbarButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`flex size-7 items-center justify-center rounded transition ${
-        active
-          ? "bg-primary text-primary-foreground"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-      } disabled:opacity-30`}
-    >
-      {children}
-    </button>
-  );
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Build the BlockContent envelope that wraps a Tiptap JSON document. */
-function buildBlockContent(tiptapJson: object): BlockContent {
-  return {
-    type: "text",
-    text: "", // Canonical text is the tiptapJson; plain text is left empty.
-    properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson },
-  };
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 ````
 
@@ -66820,1884 +66393,6 @@ export interface UpdateTaskInput {
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
 }
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-
-import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-}
-
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-}: WorkspaceHubScreenProps) {
-  const router = useRouter();
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await createWorkspaceForAccount(workspaceName);
-
-    if (!result.success) {
-      return;
-    }
-
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
-        </Button>
-      </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Wiki</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => (
-            <Link
-              key={workspace.id}
-              href={`/workspace/${workspace.id}`}
-              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                      {workspace.name}
-                    </p>
-                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Account scope: {workspace.accountType}
-                  </p>
-                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                  <span>Capabilities: {workspace.capabilities.length}</span>
-                  <span>Teams: {workspace.teamIds.length}</span>
-                  <span>Locations: {workspace.locations?.length ?? 0}</span>
-                  <span>Grants: {workspace.grants.length}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) {
-            resetCreateWorkspaceDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-            <DialogDescription id="create-workspace-description">
-              建立後會直接出現在目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="workspace-name"
-              >
-                工作區名稱
-              </label>
-              <Input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => {
-                  setWorkspaceName(event.target.value);
-                  if (createError) {
-                    clearCreateError();
-                  }
-                }}
-                placeholder="例如：北區營運中心"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {createError && (
-                <p className="text-sm text-destructive">{createError}</p>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
-    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
-    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
-    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0"
-  }
-}
-````
-
-## File: README.md
-````markdown
-# Xuanwu App
-
-Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
-
-The system is built as a modular monolith with Module-Driven Domain Design. `knowledge` and `knowledge-base` are the core domains: `knowledge` owns the Notion-like content lifecycle, while `knowledge-base` owns organization-grade wiki, SOP, and article assets. `workspace` and `organization` provide collaboration and governance boundaries. `source` plus integration adapters form the anti-corruption boundary for external content. `ai`, `search`, and `notebook` provide ingestion, retrieval, reasoning, and research workflows on top of that knowledge base.
-
-## Product Capabilities
-
-- Knowledge pages, block-based editing, versioning, and approval
-- Organizational knowledge-base articles, categories, and verification workflows
-- Structured databases with records, schema, and multi-view exploration
-- External document/source ingestion with workspace-scoped governance
-- Ask/Cite, retrieval, summarization, and notebook-style knowledge generation
-- Workspace, organization, audit, feed, workflow, and scheduling support for execution
-
-## Architecture At A Glance
-
-- Architecture style: Modular Monolith + Module-Driven Domain Design
-- Boundary model: bounded contexts with local ubiquitous language and domain model ownership
-- Cross-context collaboration: public `api/` surfaces and published domain events
-- Runtime split:
-	- `Next.js` owns UI, auth/session orchestration, route composition, and server-side application flow
-	- `py_fn/` owns parsing, chunking, embedding, and worker-style ingestion tasks
-- Anti-corruption boundary: external systems are translated through source workflows and infrastructure adapters before entering core domains
-
-## Current Domain Shape
-
-- Core domains: `knowledge`, `knowledge-base`
-- Supporting domains: `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`
-- Generic domains: `identity`, `account`, `organization`, `workspace`, `notification`
-- Shared kernel: `shared`
-
-See [docs/ddd/subdomains.md](docs/ddd/subdomains.md) and [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md) for the canonical strategic map.
-
-## Documentation Entry Points
-
-- [docs/getting-started.md](docs/getting-started.md): local setup and validation flow
-- [docs/ddd/subdomains.md](docs/ddd/subdomains.md): strategic subdomain classification
-- [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md): bounded-context inventory
-- [docs/reference/specification/system-overview.md](docs/reference/specification/system-overview.md): system overview specification
-- [AGENTS.md](AGENTS.md): repository-wide operating rules and validation commands
-- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot workspace baseline
-
-## Development Quick Start
-
-```bash
-npm install
-npm run dev
-```
-
-Validation commands:
-
-```bash
-npm run lint
-npm run build
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Repository Notes
-
-- `modules/` contains bounded contexts and their local markdown reference sets
-- `docs/ddd/` contains strategic DDD entrypoints
-- `.github/` contains Copilot customizations, instructions, and repomix-generated skills
-- `docs/swarm.md`, `docs/beads.md`, and related files document internal AI delivery workflow, not the product surface itself
-````
-
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
-
-## Purpose
-
-- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
-
-## Authoritative Sources
-
-Read these in order before making non-trivial decisions:
-
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
-2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
-6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
-
-## DDD Reference Authority
-
-DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
-
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
-| Context terminology | `modules/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
-| Context domain events | `modules/<context>/domain-events.md` |
-| Context map | `modules/<context>/context-map.md` |
-| Context repositories | `modules/<context>/repositories.md` |
-| Context application services | `modules/<context>/application-services.md` |
-| Context domain services | `modules/<context>/domain-services.md` |
-
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
-
-## Workspace-Wide Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
-
-## Architecture Guardrails
-
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-
-## Copilot Customization Design Rules
-
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
-
-## Serena MCP
-
-Serena MCP is **mandatory for every session**. There are no exceptions.
-
-### Session-Start Protocol (Required)
-
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
-
-### Session-End Protocol (Required)
-
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
-
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
-
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
-
-### Hard Prohibitions
-
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
-
-## Context7 Documentation Query
-
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
-
-### Trigger Conditions
-
-Any of the following require a context7 lookup before proceeding:
-
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
-
-### Required Steps
-
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
-
-### Guardrails
-
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
-
-## Skill And Agent Routing
-
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
-
-## Validation
-
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
-
-## Terminology
-
-- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
-## File: eslint.config.mjs
-````javascript
-import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import boundaries from "eslint-plugin-boundaries";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
-import jsxA11y from "eslint-plugin-jsx-a11y";
- 
-const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const typescriptFileGlobs = ["**/*.{ts,tsx}"];
-const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
-const boundaryRuleSeverity = "warn";
-const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
-
-const moduleApiEntrypointMessage =
-  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
-
-const moduleApiEntrypointPattern = {
-  regex: "^@/modules/(?!system$)[^/]+$",
-  message: moduleApiEntrypointMessage,
-};
-
-const moduleNonApiSubpathPattern = {
-  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
-  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
-};
-
-const explicitIndexPathPattern = {
-  group: ["**/index", "**/index.ts", "**/index.tsx"],
-  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-};
-
-const moduleInternalLayerPattern = {
-  group: [
-    "@/modules/*/application/**",
-    "@/modules/*/domain/**",
-    "@/modules/*/infrastructure/**",
-    "@/modules/*/interfaces/**",
-  ],
-  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-};
-
-const moduleElements = [
-  {
-    type: "module-root",
-    pattern: "modules/*/index.ts",
-    capture: ["module"],
-  },
-  {
-    type: "module-api",
-    pattern: "modules/*/api/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-domain",
-    pattern: "modules/*/domain/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-application",
-    pattern: "modules/*/application/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-infrastructure",
-    pattern: "modules/*/infrastructure/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-interfaces",
-    pattern: "modules/*/interfaces/**/*",
-    capture: ["module"],
-  },
-];
-
-const sameModuleCapture = { module: "{{from.captured.module}}" };
-const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
-
-const crossModuleApiRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [{ to: { type: "module-api" } }],
-  message: "Cross-module imports must go through `modules/<target>/api`.",
-}));
-
-const sameModuleRootRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [sameModuleTarget("module-root")],
-  message: "Module root barrel is allowed only for the same module.",
-}));
-
-const apiLayerRule = {
-  from: { type: "module-api" },
-  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
-  message: "API layer may depend only on same-module layers.",
-};
-
-const sameModuleLayerAllowMap = {
-  "module-domain": ["module-domain"],
-  "module-application": ["module-application", "module-domain"],
-  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
-  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
-};
-
-const sameModuleLayerMessageMap = {
-  "module-domain": "Domain may only depend on domain of the same module.",
-  "module-application": "Application may depend only on application/domain in the same module.",
-  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
-  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
-};
-
-const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
-  message: sameModuleLayerMessageMap[type],
-}));
-
-const moduleDependencyRules = [
-  ...crossModuleApiRules,
-  ...sameModuleRootRules,
-  apiLayerRule,
-  ...sameModuleLayerRules,
-];
-
-const packageAliasMigrationPatterns = [
-  {
-    group: ["@/shared/*"],
-    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
-  },
-  {
-    group: ["@/infrastructure/*"],
-    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
-  },
-  {
-    group: ["@/libs/*"],
-    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
-  },
-  {
-    group: ["@/ui/shadcn/*"],
-    message: "Use @ui-shadcn/* instead.",
-  },
-  {
-    group: ["@/ui/vis", "@/ui/vis/*"],
-    message: "Use @ui-vis instead.",
-  },
-  {
-    group: ["@/interfaces/*"],
-    message: "Use @api-contracts instead.",
-  },
-];
-
-const createRestrictedImportsRule = (patterns) => [
-  boundaryRuleSeverity,
-  {
-    patterns,
-  },
-];
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  {
-    files: sourceFileGlobs,
-    plugins: {
-      jsdoc,
-    },
-    settings: {
-      jsdoc: {
-        mode: "typescript",
-      },
-    },
-    rules: {
-      "jsdoc/check-alignment": "warn",
-      "jsdoc/check-syntax": "warn",
-      "jsdoc/check-tag-names": "warn",
-      "jsdoc/no-blank-blocks": "warn",
-    },
-  },
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/naming-convention": [
-        "warn",
-        {
-          selector: "typeLike",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "variable",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow",
-        },
-        {
-          selector: "parameter",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "enumMember",
-          format: ["PascalCase", "UPPER_CASE"],
-        },
-      ],
-    },
-  },
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
-      ],
-    },
-  },
-  // ─── Consistent type-only imports ──────────────────────────────────────
-  // Enforces `import type` for type-only imports, improving tree-shaking and
-  // making module-boundary intent explicit (matches project MDDD conventions).
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/consistent-type-imports": [
-        "warn",
-        { prefer: "type-imports", fixStyle: "inline-type-imports" },
-      ],
-    },
-  },
-  // ─── React best-practices ───────────────────────────────────────────────
-  // eslint-config-next already pulls in react / react-hooks rules via its
-  // own config; these overrides make project-specific settings explicit and
-  // add missing checks not covered by the base config.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
-      "react/prop-types": "off",            // TypeScript types replace PropTypes
-      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
-      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-    },
-  },
-  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
-  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
-  // activated here.  Enabling recommended rules as warn catches common a11y
-  // mistakes without breaking the zero-error baseline.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
-          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
-          // Downgrade all errors to warnings to preserve the zero-error baseline.
-          if (Array.isArray(config)) {
-            const [severity, ...rest] = config;
-            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
-            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
-          }
-          const normalised = config === "error" || config === 2 ? "warn" : config;
-          return [rule, normalised];
-        }),
-      ),
-    },
-  },
-  {
-    files: moduleFileGlobs,
-    plugins: {
-      boundaries,
-    },
-    settings: {
-      "boundaries/include": moduleFileGlobs,
-      "boundaries/elements": moduleElements,
-    },
-    rules: {
-      "boundaries/dependencies": [
-        boundaryRuleSeverity,
-        {
-          default: "disallow",
-          rules: moduleDependencyRules,
-        },
-      ],
-    },
-  },
-  // ─── Package boundary enforcement ───────────────────────────────────────
-  // Forbid legacy import paths that were migrated to packages/*.
-  {
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
-    },
-  },
-  // ─── Strict module entrypoint enforcement ───────────────────────────────
-  {
-    files: [
-      "app/**/*.{ts,tsx,js,jsx}",
-      "providers/**/*.{ts,tsx,js,jsx}",
-      "debug/**/*.{ts,tsx,js,jsx}",
-    ],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-      ]),
-    },
-  },
-  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
-  {
-    files: moduleFileGlobs,
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        explicitIndexPathPattern,
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-        moduleInternalLayerPattern,
-      ]),
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    ".agents/**",
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
-
-export default eslintConfig;
-````
-
-## File: modules/bounded-contexts.md
-````markdown
-# Modules Bounded Contexts（Canonical Link）
-
-本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
-
-- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
-- 若需調整界限上下文內容，請只編輯 canonical 檔案。
-- 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
-````
-
-## File: modules/knowledge-base/context-map.md
-````markdown
-# knowledge-base — Context Map
-
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
-
-## 上游
-
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
-- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
-- `knowledge-database` — Open Host Service（Article 可與 Record 連結；knowledge-base 呼叫 knowledge-database OHS API）
-
-## 下游
-
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
-
-## Promote 協議（D3）
-
-`knowledge-base` 是 Promote 協議的業務規則擁有者：
-
-1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
-2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
-3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
-4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
-````
-
-## File: modules/knowledge-base/README.md
-````markdown
-# knowledge-base — DDD Reference
-
-> **Domain Type:** Core Domain
-> **Module:** `modules/knowledge-base/`
-> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
-
-## 戰略定位
-
-`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
-
-## Bounded Context 邊界
-
-- **擁有：** Article（文章）、Category（分類）
-- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
-
-## 核心聚合
-
-詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
-
-- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
-- **Category** — 層級分類目錄（最多 5 層）
-
-## 主要領域事件
-
-詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
-
-- `knowledge-base.article_created`
-- `knowledge-base.article_published`
-- `knowledge-base.article_verified`
-- `knowledge-base.article_review_requested`
-- `knowledge-base.category_created`
-
-## 通用語言
-
-詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
-
-- **Article** ≠ Page（個人筆記）≠ Document（泛型）
-- **VerificationState** ≠ ApprovalState（knowledge 的審核）
-- **Backlink** = `[[Article Title]]` wikilink 解析結果
-
-## 上下文關係
-
-詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
-| 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
-| 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
-## File: modules/knowledge-database/README.md
-````markdown
-# knowledge-database — DDD Reference
-
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
-
-## 戰略定位
-
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
-
-## 核心聚合
-
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
-
-## 視圖類型
-
-`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
-
-## 欄位類型
-
-`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
-
-## 主要領域事件
-
-- `knowledge-database.database_created`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
-| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
-````
-
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
- */
-
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
-
-export { KnowledgeApi } from "./knowledge-api";
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-
-export { PageEditorView } from "../interfaces/components/PageEditorView";
-export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
-
-export { RichTextEditor } from "../interfaces/components/RichTextEditor";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
-
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Collection types ──────────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
-
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-
-// ── Queries (read-side) ──────────────────────────────────────────────
-
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
-
-export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
-export type { KnowledgePage } from "../domain/entities/content-page.entity";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-
-// ── BacklinkIndex ─────────────────────────────────────────────────────────────
-export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
-export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
-export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
-````
-
-## File: modules/knowledge/application-services.md
-````markdown
-# knowledge — Application Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-
-## Use Cases 清單
-
-| Use Case 類別 | 操作 | UI 入口 |
-|---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
-
-## 設計對齊
-
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
-````
-
-## File: modules/knowledge/domain-services.md
-````markdown
-# knowledge — Domain Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/domain-services.md`
-- `../../../modules/knowledge/aggregates.md`
-````
-
-## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, ChevronDown } from "lucide-react";
-
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@lib-dragdrop";
-
-import { useBlockEditorStore } from "../store/block-editor.store";
-import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
-import { BLOCK_TYPES, richTextToPlainText } from "../../domain/value-objects/block-content";
-
-/**
- * BlockEditorView
- *
- * Block-based editor with typed content (BlockContent value object).
- * Supports: text, heading-1/2/3, quote, divider, code, bullet-list, numbered-list.
- *
- * - Enter: add new block after current and focus it
- * - Backspace (empty block): delete current and focus previous
- * - Type selector: dropdown button left of drag handle
- * - Drag handle: reorder blocks via pragmatic-drag-and-drop
- */
-
-const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
-  "text": "T",
-  "heading-1": "H1",
-  "heading-2": "H2",
-  "heading-3": "H3",
-  "image": "🖼",
-  "code": "<>",
-  "bullet-list": "•",
-  "numbered-list": "1.",
-  "divider": "—",
-  "quote": "❝",
-};
-
-const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
-  "text": "文字",
-  "heading-1": "標題 1",
-  "heading-2": "標題 2",
-  "heading-3": "標題 3",
-  "image": "圖片",
-  "code": "程式碼",
-  "bullet-list": "項目清單",
-  "numbered-list": "編號清單",
-  "divider": "分隔線",
-  "quote": "引言",
-};
-
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, changeBlockType, deleteBlock, moveBlock, init } =
-    useBlockEditorStore();
-  // focusNextRef encodes the intent:
-  //   "__after:{id}" → focus the block immediately after the one with the given id
-  //   "<id>"         → focus the block with the given id directly
-  const focusNextRef = useRef<string | null>(null);
-  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const setBlockRef = useCallback((id: string, el: HTMLDivElement | null) => {
-    blockRefs.current[id] = el;
-  }, []);
-
-  // Seed first block on mount (avoids SSR UUID mismatch)
-  useEffect(() => {
-    init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Focus resolution after every render
-  useEffect(() => {
-    const intent = focusNextRef.current;
-    if (!intent) return;
-
-    let targetId: string | undefined;
-    if (intent.startsWith("__after:")) {
-      const afterId = intent.slice("__after:".length);
-      const idx = blocks.findIndex((b) => b.id === afterId);
-      targetId = blocks[idx + 1]?.id;
-    } else {
-      targetId = intent;
-    }
-
-    if (targetId) {
-      const el = blockRefs.current[targetId];
-      if (el) {
-        el.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
-        range.selectNodeContents(el);
-        range.collapse(false);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-        focusNextRef.current = null;
-      }
-    }
-  });
-
-  // Set up DnD monitor once
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const fromId = source.data["blockId"] as string | undefined;
-        const toId = target.data["blockId"] as string | undefined;
-        if (!fromId || !toId || fromId === toId) return;
-        const fromIdx = blocks.findIndex((b) => b.id === fromId);
-        const toIdx = blocks.findIndex((b) => b.id === toId);
-        if (fromIdx !== -1 && toIdx !== -1) {
-          moveBlock(fromIdx, toIdx);
-        }
-      },
-    });
-  }, [blocks, moveBlock]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        addBlock(blockId);
-        focusNextRef.current = `__after:${blockId}`;
-      } else if (event.key === "Backspace") {
-        const el = blockRefs.current[blockId];
-        if (!el?.textContent) {
-          event.preventDefault();
-          const idx = blocks.findIndex((b) => b.id === blockId);
-          if (idx > 0) {
-            const prevId = blocks[idx - 1].id;
-            deleteBlock(blockId);
-            focusNextRef.current = prevId;
-          }
-        }
-      }
-    },
-    [addBlock, blocks, deleteBlock],
-  );
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Block Editor</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">區塊編輯器</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          支援 10 種區塊類型 · Enter 換行 · Backspace 刪除空白區塊 · 拖曳重排
-        </p>
-      </div>
-
-      <div className="space-y-0.5">
-        {blocks.map((block, idx) => (
-          <BlockRow
-            key={block.id}
-            block={block}
-            index={idx}
-            setBlockRef={setBlockRef}
-            onKeyDown={handleKeyDown}
-            onTextChange={(text) => updateBlock(block.id, text)}
-            onTypeChange={(type) => changeBlockType(block.id, type)}
-          />
-        ))}
-      </div>
-
-      <p className="text-[11px] text-muted-foreground/60">
-        {blocks.length} 個區塊 · Enter 新增 · Backspace 刪除空白區塊 · 拖曳重排
-      </p>
-    </section>
-  );
-}
-
-interface BlockRowProps {
-  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
-  readonly index: number;
-  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
-  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
-  readonly onTextChange: (text: string) => void;
-  readonly onTypeChange: (type: BlockType) => void;
-}
-
-function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const dropEl = dropRef.current;
-    if (!handleEl || !dropEl) return;
-
-    const cleanupDraggable = draggable({
-      element: handleEl,
-      getInitialData: () => ({ blockId: block.id }),
-    });
-    const cleanupDrop = dropTargetForElements({
-      element: dropEl,
-      getData: () => ({ blockId: block.id }),
-    });
-    return () => {
-      cleanupDraggable();
-      cleanupDrop();
-    };
-  }, [block.id]);
-
-  const { type, richText } = block.content;
-
-  if (type === "divider") {
-    return (
-      <div ref={dropRef} className="group flex items-center gap-1 py-1">
-        <TypeSelectorButton
-          currentType={type}
-          open={typeMenuOpen}
-          onOpenChange={setTypeMenuOpen}
-          onSelect={onTypeChange}
-        />
-        <button
-          ref={dragHandleRef}
-          type="button"
-          aria-label="拖曳重排"
-          className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
-        >
-          <GripVertical className="size-4 text-muted-foreground" />
-        </button>
-        <hr className="flex-1 border-t border-border/60" />
-      </div>
-    );
-  }
-
-  const editableClassName = blockEditableClass(type);
-
-  return (
-    <div ref={dropRef} className="group flex items-start gap-1">
-      <TypeSelectorButton
-        currentType={type}
-        open={typeMenuOpen}
-        onOpenChange={setTypeMenuOpen}
-        onSelect={onTypeChange}
-      />
-      <button
-        ref={dragHandleRef}
-        type="button"
-        aria-label="拖曳重排"
-        className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
-      >
-        <GripVertical className="size-4 text-muted-foreground" />
-      </button>
-
-      {type === "bullet-list" && (
-        <span className="mt-1 select-none text-sm text-foreground">•</span>
-      )}
-
-      <div
-        ref={(el) => setBlockRef(block.id, el)}
-        role="textbox"
-        tabIndex={0}
-        contentEditable
-        suppressContentEditableWarning
-        onKeyDown={(e) => onKeyDown(e, block.id)}
-        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
-        data-placeholder={blockPlaceholder(type)}
-        className={editableClassName}
-      >
-        {richTextToPlainText(richText)}
-      </div>
-    </div>
-  );
-}
-
-function blockEditableClass(type: BlockType): string {
-  const base =
-    "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
-  switch (type) {
-    case "heading-1":
-      return `${base} text-3xl font-bold`;
-    case "heading-2":
-      return `${base} text-2xl font-semibold`;
-    case "heading-3":
-      return `${base} text-xl font-medium`;
-    case "quote":
-      return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
-    case "code":
-      return `${base} font-mono text-sm bg-muted rounded`;
-    case "bullet-list":
-    case "numbered-list":
-      return `${base} text-sm text-foreground`;
-    default:
-      return `${base} min-h-[1.75rem] text-sm text-foreground`;
-  }
-}
-
-function blockPlaceholder(type: BlockType): string {
-  switch (type) {
-    case "heading-1": return "標題 1";
-    case "heading-2": return "標題 2";
-    case "heading-3": return "標題 3";
-    case "quote": return "引言…";
-    case "code": return "// 程式碼";
-    case "bullet-list": return "清單項目…";
-    case "numbered-list": return "清單項目…";
-    default: return "輸入文字…";
-  }
-}
-
-interface TypeSelectorButtonProps {
-  currentType: BlockType;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelect: (type: BlockType) => void;
-}
-
-function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeSelectorButtonProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onOpenChange(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open, onOpenChange]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
-        aria-label="切換區塊類型"
-        title="切換區塊類型"
-      >
-        {BLOCK_TYPE_LABELS[currentType]}
-        <ChevronDown className="size-3" />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover shadow-md">
-          {BLOCK_TYPES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { onSelect(t); onOpenChange(false); }}
-              className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted ${t === currentType ? "font-semibold text-primary" : "text-foreground"}`}
-            >
-              <span className="w-5 font-mono text-[10px] text-muted-foreground">{BLOCK_TYPE_LABELS[t]}</span>
-              {BLOCK_TYPE_NAMES[t]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
-
-## KnowledgePageRepository 方法對照
-
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/repositories.md`
-- `../../../modules/knowledge/aggregates.md`
-````
-
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
-
-## 頁面生命周期操作（Page Lifecycle Actions）
-
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
-
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
-
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
-
-## 頁面操作選單（PageContextMenu）
-
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
-
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
-
-## 頁面樹狀視圖（PageTreeView）
-
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
-
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
-
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
-## File: modules/subdomains.md
-````markdown
-# Modules Subdomains（Canonical Link）
-
-本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
-
-- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
-- 若需調整子域分類內容，請只編輯 canonical 檔案。
-- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -69816,14 +67511,662 @@ export function WorkspaceDetailScreen({
 }
 ````
 
-## File: next-env.d.ts
+## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
 ````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
+"use client";
 
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+}
+
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+}: WorkspaceHubScreenProps) {
+  const router = useRouter();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const result = await createWorkspaceForAccount(workspaceName);
+
+    if (!result.success) {
+      return;
+    }
+
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      router.push(`/workspace/${result.aggregateId}`);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
+
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Wiki</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href="/organization"
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => (
+            <Link
+              key={workspace.id}
+              href={`/workspace/${workspace.id}`}
+              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {workspace.name}
+                    </p>
+                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Account scope: {workspace.accountType}
+                  </p>
+                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                  <span>Capabilities: {workspace.capabilities.length}</span>
+                  <span>Teams: {workspace.teamIds.length}</span>
+                  <span>Locations: {workspace.locations?.length ?? 0}</span>
+                  <span>Grants: {workspace.grants.length}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) {
+            resetCreateWorkspaceDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+            <DialogDescription id="create-workspace-description">
+              建立後會直接出現在目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium text-foreground"
+                htmlFor="workspace-name"
+              >
+                工作區名稱
+              </label>
+              <Input
+                id="workspace-name"
+                value={workspaceName}
+                onChange={(event) => {
+                  setWorkspaceName(event.target.value);
+                  if (createError) {
+                    clearCreateError();
+                  }
+                }}
+                placeholder="例如：北區營運中心"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {createError && (
+                <p className="text-sm text-destructive">{createError}</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
+    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
+    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
+    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0"
+  }
+}
+````
+
+## File: README.md
+````markdown
+# Xuanwu App
+
+Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
+
+The system is built as a modular monolith with Module-Driven Domain Design. `knowledge` and `knowledge-base` are the core domains: `knowledge` owns the Notion-like content lifecycle, while `knowledge-base` owns organization-grade wiki, SOP, and article assets. `workspace` and `organization` provide collaboration and governance boundaries. `source` plus integration adapters form the anti-corruption boundary for external content. `ai`, `search`, and `notebook` provide ingestion, retrieval, reasoning, and research workflows on top of that knowledge base.
+
+## Product Capabilities
+
+- Knowledge pages, block-based editing, versioning, and approval
+- Organizational knowledge-base articles, categories, and verification workflows
+- Structured databases with records, schema, and multi-view exploration
+- External document/source ingestion with workspace-scoped governance
+- Ask/Cite, retrieval, summarization, and notebook-style knowledge generation
+- Workspace, organization, audit, feed, workflow, and scheduling support for execution
+
+## Architecture At A Glance
+
+- Architecture style: Modular Monolith + Module-Driven Domain Design
+- Boundary model: bounded contexts with local ubiquitous language and domain model ownership
+- Cross-context collaboration: public `api/` surfaces and published domain events
+- Runtime split:
+	- `Next.js` owns UI, auth/session orchestration, route composition, and server-side application flow
+	- `py_fn/` owns parsing, chunking, embedding, and worker-style ingestion tasks
+- Anti-corruption boundary: external systems are translated through source workflows and infrastructure adapters before entering core domains
+
+## Current Domain Shape
+
+- Core domains: `knowledge`, `knowledge-base`
+- Supporting domains: `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`
+- Generic domains: `identity`, `account`, `organization`, `workspace`, `notification`
+- Shared kernel: `shared`
+
+See [docs/ddd/subdomains.md](docs/ddd/subdomains.md) and [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md) for the canonical strategic map.
+
+## Documentation Entry Points
+
+- [docs/getting-started.md](docs/getting-started.md): local setup and validation flow
+- [docs/ddd/subdomains.md](docs/ddd/subdomains.md): strategic subdomain classification
+- [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md): bounded-context inventory
+- [docs/reference/specification/system-overview.md](docs/reference/specification/system-overview.md): system overview specification
+- [AGENTS.md](AGENTS.md): repository-wide operating rules and validation commands
+- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot workspace baseline
+
+## Development Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+Validation commands:
+
+```bash
+npm run lint
+npm run build
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Repository Notes
+
+- `modules/` contains bounded contexts and their local markdown reference sets
+- `docs/ddd/` contains strategic DDD entrypoints
+- `.github/` contains Copilot customizations, instructions, and repomix-generated skills
+- `docs/swarm.md`, `docs/beads.md`, and related files document internal AI delivery workflow, not the product surface itself
+````
+
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
+
+## Purpose
+
+- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
+
+## Authoritative Sources
+
+Read these in order before making non-trivial decisions:
+
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
+2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+
+## DDD Reference Authority
+
+DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+
+| Query | Canonical Document |
+|-------|-------------------|
+| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Context terminology | `modules/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
+| Context domain events | `modules/<context>/domain-events.md` |
+| Context map | `modules/<context>/context-map.md` |
+| Context repositories | `modules/<context>/repositories.md` |
+| Context application services | `modules/<context>/application-services.md` |
+| Context domain services | `modules/<context>/domain-services.md` |
+
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+
+## Workspace-Wide Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
+
+## Architecture Guardrails
+
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+
+## Copilot Customization Design Rules
+
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+
+## Serena MCP
+
+Serena MCP is **mandatory for every session**. There are no exceptions.
+
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
+
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Skill And Agent Routing
+
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
+
+## Validation
+
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
+
+## Terminology
+
+- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -70783,234 +69126,1454 @@ export function DashboardSidebar({
 }
 ````
 
-## File: modules/knowledge/AGENT.md
+## File: modules/bounded-contexts.md
 ````markdown
-# AGENT.md — knowledge BC
+# Modules Bounded Contexts（Canonical Link）
 
-## 模組定位
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
 
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
+- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
+- 若需調整界限上下文內容，請只編輯 canonical 檔案。
+- 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
 ````
 
-## File: modules/knowledge/aggregates.md
+## File: modules/knowledge-base/context-map.md
 ````markdown
-# Aggregates — knowledge
+# knowledge-base — Context Map
 
-## 聚合根：KnowledgePage（ContentPage）
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
 
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+## 上游
 
-### 關鍵屬性
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
+- `knowledge-database` — Open Host Service（Article 可與 Record 連結；knowledge-base 呼叫 knowledge-database OHS API）
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+## 下游
 
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+## Promote 協議（D3）
 
-### KnowledgePageStatus 與 UI 標籤對照
+`knowledge-base` 是 Promote 協議的業務規則擁有者：
 
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
+2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
+3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
+4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
 ````
 
-## File: modules/knowledge/README.md
+## File: modules/knowledge-base/README.md
 ````markdown
-# knowledge — 知識內容上下文
+# knowledge-base — DDD Reference
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
+> **Domain Type:** Core Domain
+> **Module:** `modules/knowledge-base/`
+> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
 
-## 在 Knowledge Platform / Second Brain 中的角色
+## 戰略定位
 
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
 
-## 主要職責
+## Bounded Context 邊界
 
-| 能力 | 說明 |
+- **擁有：** Article（文章）、Category（分類）
+- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
+
+## 核心聚合
+
+詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
+
+- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
+- **Category** — 層級分類目錄（最多 5 層）
+
+## 主要領域事件
+
+詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
+
+- `knowledge-base.article_created`
+- `knowledge-base.article_published`
+- `knowledge-base.article_verified`
+- `knowledge-base.article_review_requested`
+- `knowledge-base.category_created`
+
+## 通用語言
+
+詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+
+- **Article** ≠ Page（個人筆記）≠ Document（泛型）
+- **VerificationState** ≠ ApprovalState（knowledge 的審核）
+- **Backlink** = `[[Article Title]]` wikilink 解析結果
+
+## 上下文關係
+
+詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier |
+| 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
+| 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
+| 下游 | `notification`, `workspace-feed` | Published Language |
+````
+
+## File: modules/knowledge-database/README.md
+````markdown
+# knowledge-database — DDD Reference
+
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+
+## 戰略定位
+
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+
+## 核心聚合
+
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
+
+## 視圖類型
+
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
 |---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
 
-## 與其他 Bounded Context 協作
+## 上下文關係
 
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
+| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
+````
 
-## 核心聚合 / 核心概念
+## File: modules/knowledge/api/knowledge-api.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api (cross-module facade)
+ * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
+ *          exposes the minimal surface needed by the demo-flow script and by
+ *          other modules that communicate through the event bus.
+ *
+ * This is intentionally separate from KnowledgeFacade (which uses Firebase).
+ * KnowledgeApi uses InMemory repos so it can run without any external service.
+ */
 
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+import {
+  createKnowledgePageCreatedEvent,
+} from "../../shared/domain/events/knowledge-page-created.event";
+import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
-## 詳細文件
+import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+import { BlockService } from "../application/block-service";
+import {
+  InMemoryKnowledgePageRepository,
+  InMemoryKnowledgeBlockRepository,
+} from "../infrastructure/InMemoryKnowledgeRepository";
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+export class KnowledgeApi {
+  private readonly pageRepo: InMemoryKnowledgePageRepository;
+  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
+  private readonly blockService: BlockService;
+  private readonly eventBus: SimpleEventBus;
+
+  constructor(eventBus: SimpleEventBus) {
+    this.pageRepo = new InMemoryKnowledgePageRepository();
+    this.blockRepo = new InMemoryKnowledgeBlockRepository();
+    this.blockService = new BlockService(this.blockRepo, eventBus);
+    this.eventBus = eventBus;
+  }
+
+  /**
+   * Create a new page in the in-memory store and publish a
+    * `KnowledgePageCreatedEvent` so downstream modules can register
+    * page-related projections or structure-aware read models.
+   */
+  async createPage(
+    accountId: string,
+    title: string,
+    createdByUserId = "system",
+    options?: { workspaceId?: string; parentPageId?: string | null },
+  ): Promise<KnowledgePage> {
+    const page = await this.pageRepo.create({
+      accountId,
+      title,
+      createdByUserId,
+      parentPageId: options?.parentPageId ?? null,
+    });
+
+    const event = createKnowledgePageCreatedEvent(
+      page.id,
+      page.title,
+      accountId,
+      createdByUserId,
+      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
+    );
+    await this.eventBus.publish(event);
+
+    return page;
+  }
+
+  /** Add a block to an existing page and return the new block. */
+  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
+    return this.blockRepo.add({
+      accountId,
+      pageId,
+      content: { type: "text", richText: [{ type: "text", plainText: text }] },
+    });
+  }
+
+  /**
+   * Update a block's text content.
+   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
+    * (e.g. search or notebook-adjacent ingestion flows) can react.
+   */
+  async updateBlock(
+    accountId: string,
+    blockId: string,
+    text: string,
+  ): Promise<KnowledgeBlock | null> {
+    return this.blockService.updateBlock({ accountId, blockId, text });
+  }
+
+  /** Return all pages for an account. */
+  async listPages(accountId: string): Promise<KnowledgePage[]> {
+    return this.pageRepo.listByAccountId(accountId);
+  }
+
+  /** Return the page with all its blocks (flat list, ordered). */
+  async getPageStructure(
+    accountId: string,
+    pageId: string,
+  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
+    const page = await this.pageRepo.findById(accountId, pageId);
+    if (!page) return null;
+    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
+    return { page, blocks };
+  }
+}
+````
+
+## File: modules/knowledge/application-services.md
+````markdown
+# knowledge — Application Services
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
+
+## Application Layer 職責
+
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
+- `application/block-service.ts`
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
+
+## Use Cases 清單
+
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+
+## 設計對齊
+
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+````
+
+## File: modules/knowledge/application/dto/knowledge.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for Content use cases.
+ */
+
+import { z } from "@lib-zod";
+import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
+import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/knowledge-page.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const BlockTypeSchema = z.enum(BLOCK_TYPES);
+
+export const BlockContentSchema = z.object({
+  type: BlockTypeSchema,
+  richText: z.array(z.unknown()).readonly(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type BlockContentDto = z.infer<typeof BlockContentSchema>;
+
+export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  title: z.string().min(1).max(300),
+  parentPageId: z.string().min(1).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
+
+export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  title: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
+
+export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  targetParentPageId: z.string().min(1).nullable(),
+});
+
+export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
+
+export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+});
+
+export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
+
+export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  blockIds: z.array(z.string().min(1)),
+});
+
+export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
+
+export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  content: BlockContentSchema,
+  index: z.number().int().nonnegative().optional(),
+  parentBlockId: z.string().min(1).nullable().optional(),
+});
+
+export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
+
+export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+  content: BlockContentSchema,
+});
+
+export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
+
+export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+});
+
+export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
+
+export const NestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  parentBlockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type NestKnowledgeBlockDto = z.infer<typeof NestKnowledgeBlockSchema>;
+
+export const UnnestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
+
+export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  label: z.string().max(100).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+
+export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
+
+// ── Approve content page ──────────────────────────────────────────────────────
+
+export const ExtractedTaskSchema = z.object({
+  title: z.string().min(1).max(300),
+  dueDate: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const ExtractedInvoiceSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+  currency: z.string().optional(),
+});
+
+export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  actorId: z.string().min(1),
+  /**
+   * causationId identifies the command (use-case invocation) that caused the
+   * resulting event.  Generated by the Server Action layer if not provided by
+   * the caller, so that command-event causality is correctly traceable.
+   */
+  causationId: z.string().min(1).optional(),
+  /** Optional: external tasks extracted by AI from this page. */
+  extractedTasks: z.array(ExtractedTaskSchema).default([]),
+  /** Optional: external invoices extracted by AI from this page. */
+  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
+  /**
+   * Correlation ID tracing the entire ingestion → approval → materialization flow.
+   * Generated by the caller if not provided (e.g. first action in the flow).
+   */
+  correlationId: z.string().optional(),
+  /** Optional: workspaceId to include in the published event. */
+  workspaceId: z.string().optional(),
+});
+
+export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
+
+// ── Collection DTOs ───────────────────────────────────────────────────────────
+
+export const CollectionColumnTypeSchema = z.enum([
+  "text",
+  "number",
+  "select",
+  "multi-select",
+  "date",
+  "checkbox",
+  "url",
+  "relation",
+]);
+
+export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
+
+export const CollectionColumnInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: CollectionColumnTypeSchema,
+  options: z.array(z.string()).optional(),
+});
+
+export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
+
+export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  columns: z.array(CollectionColumnInputSchema).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
+
+export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  name: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
+
+export const AddPageToCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
+
+export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
+
+export const AddCollectionColumnSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  column: CollectionColumnInputSchema,
+});
+
+export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
+
+export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+});
+
+export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
+
+// ── Wiki / Knowledge Base DTOs ────────────────────────────────────────────────
+
+export const PageVerificationStateSchema = z.enum(PAGE_VERIFICATION_STATES);
+
+export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  /** ISO 8601 — if set, page auto-transitions to "needs_review" after this date. */
+  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
+});
+
+export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
+
+export const RequestPageReviewSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  requestedByUserId: z.string().min(1),
+});
+
+export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
+
+export const AssignPageOwnerSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  ownerId: z.string().min(1),
+  assignedByUserId: z.string().min(1),
+});
+
+export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
+
+export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
+````
+
+## File: modules/knowledge/domain-services.md
+````markdown
+# knowledge — Domain Services
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
+
+## Domain Services 檔案
+
+- 目前沒有獨立的 `domain/services/*` 檔案。
+
+## 設計規則
+
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/domain-services.md`
+- `../../../modules/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GripVertical, ChevronDown } from "lucide-react";
+
+import {
+  draggable,
+  dropTargetForElements,
+  monitorForElements,
+} from "@lib-dragdrop";
+
+import { useBlockEditorStore } from "../store/block-editor.store";
+import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
+import { BLOCK_TYPES, richTextToPlainText } from "../../domain/value-objects/block-content";
+
+/**
+ * BlockEditorView
+ *
+ * Block-based editor with typed content (BlockContent value object).
+ * Supports: text, heading-1/2/3, quote, divider, code, bullet-list, numbered-list.
+ *
+ * - Enter: add new block after current and focus it
+ * - Backspace (empty block): delete current and focus previous
+ * - Type selector: dropdown button left of drag handle
+ * - Drag handle: reorder blocks via pragmatic-drag-and-drop
+ */
+
+const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
+  "text": "T",
+  "heading-1": "H1",
+  "heading-2": "H2",
+  "heading-3": "H3",
+  "image": "🖼",
+  "code": "<>",
+  "bullet-list": "•",
+  "numbered-list": "1.",
+  "divider": "—",
+  "quote": "❝",
+};
+
+const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
+  "text": "文字",
+  "heading-1": "標題 1",
+  "heading-2": "標題 2",
+  "heading-3": "標題 3",
+  "image": "圖片",
+  "code": "程式碼",
+  "bullet-list": "項目清單",
+  "numbered-list": "編號清單",
+  "divider": "分隔線",
+  "quote": "引言",
+};
+
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, changeBlockType, deleteBlock, moveBlock, init } =
+    useBlockEditorStore();
+  // focusNextRef encodes the intent:
+  //   "__after:{id}" → focus the block immediately after the one with the given id
+  //   "<id>"         → focus the block with the given id directly
+  const focusNextRef = useRef<string | null>(null);
+  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const setBlockRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    blockRefs.current[id] = el;
+  }, []);
+
+  // Seed first block on mount (avoids SSR UUID mismatch)
+  useEffect(() => {
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Focus resolution after every render
+  useEffect(() => {
+    const intent = focusNextRef.current;
+    if (!intent) return;
+
+    let targetId: string | undefined;
+    if (intent.startsWith("__after:")) {
+      const afterId = intent.slice("__after:".length);
+      const idx = blocks.findIndex((b) => b.id === afterId);
+      targetId = blocks[idx + 1]?.id;
+    } else {
+      targetId = intent;
+    }
+
+    if (targetId) {
+      const el = blockRefs.current[targetId];
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        focusNextRef.current = null;
+      }
+    }
+  });
+
+  // Set up DnD monitor once
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) return;
+        const fromId = source.data["blockId"] as string | undefined;
+        const toId = target.data["blockId"] as string | undefined;
+        if (!fromId || !toId || fromId === toId) return;
+        const fromIdx = blocks.findIndex((b) => b.id === fromId);
+        const toIdx = blocks.findIndex((b) => b.id === toId);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          moveBlock(fromIdx, toIdx);
+        }
+      },
+    });
+  }, [blocks, moveBlock]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        addBlock(blockId);
+        focusNextRef.current = `__after:${blockId}`;
+      } else if (event.key === "Backspace") {
+        const el = blockRefs.current[blockId];
+        if (!el?.textContent) {
+          event.preventDefault();
+          const idx = blocks.findIndex((b) => b.id === blockId);
+          if (idx > 0) {
+            const prevId = blocks[idx - 1].id;
+            deleteBlock(blockId);
+            focusNextRef.current = prevId;
+          }
+        }
+      }
+    },
+    [addBlock, blocks, deleteBlock],
+  );
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Block Editor</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">區塊編輯器</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          支援 10 種區塊類型 · Enter 換行 · Backspace 刪除空白區塊 · 拖曳重排
+        </p>
+      </div>
+
+      <div className="space-y-0.5">
+        {blocks.map((block, idx) => (
+          <BlockRow
+            key={block.id}
+            block={block}
+            index={idx}
+            setBlockRef={setBlockRef}
+            onKeyDown={handleKeyDown}
+            onTextChange={(text) => updateBlock(block.id, text)}
+            onTypeChange={(type) => changeBlockType(block.id, type)}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/60">
+        {blocks.length} 個區塊 · Enter 新增 · Backspace 刪除空白區塊 · 拖曳重排
+      </p>
+    </section>
+  );
+}
+
+interface BlockRowProps {
+  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
+  readonly index: number;
+  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
+  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
+  readonly onTextChange: (text: string) => void;
+  readonly onTypeChange: (type: BlockType) => void;
+}
+
+function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const dropEl = dropRef.current;
+    if (!handleEl || !dropEl) return;
+
+    const cleanupDraggable = draggable({
+      element: handleEl,
+      getInitialData: () => ({ blockId: block.id }),
+    });
+    const cleanupDrop = dropTargetForElements({
+      element: dropEl,
+      getData: () => ({ blockId: block.id }),
+    });
+    return () => {
+      cleanupDraggable();
+      cleanupDrop();
+    };
+  }, [block.id]);
+
+  const { type, richText } = block.content;
+
+  if (type === "divider") {
+    return (
+      <div ref={dropRef} className="group flex items-center gap-1 py-1">
+        <TypeSelectorButton
+          currentType={type}
+          open={typeMenuOpen}
+          onOpenChange={setTypeMenuOpen}
+          onSelect={onTypeChange}
+        />
+        <button
+          ref={dragHandleRef}
+          type="button"
+          aria-label="拖曳重排"
+          className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
+        >
+          <GripVertical className="size-4 text-muted-foreground" />
+        </button>
+        <hr className="flex-1 border-t border-border/60" />
+      </div>
+    );
+  }
+
+  const editableClassName = blockEditableClass(type);
+
+  return (
+    <div ref={dropRef} className="group flex items-start gap-1">
+      <TypeSelectorButton
+        currentType={type}
+        open={typeMenuOpen}
+        onOpenChange={setTypeMenuOpen}
+        onSelect={onTypeChange}
+      />
+      <button
+        ref={dragHandleRef}
+        type="button"
+        aria-label="拖曳重排"
+        className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
+      >
+        <GripVertical className="size-4 text-muted-foreground" />
+      </button>
+
+      {type === "bullet-list" && (
+        <span className="mt-1 select-none text-sm text-foreground">•</span>
+      )}
+
+      <div
+        ref={(el) => setBlockRef(block.id, el)}
+        role="textbox"
+        tabIndex={0}
+        contentEditable
+        suppressContentEditableWarning
+        onKeyDown={(e) => onKeyDown(e, block.id)}
+        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
+        data-placeholder={blockPlaceholder(type)}
+        className={editableClassName}
+      >
+        {richTextToPlainText(richText)}
+      </div>
+    </div>
+  );
+}
+
+function blockEditableClass(type: BlockType): string {
+  const base =
+    "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
+  switch (type) {
+    case "heading-1":
+      return `${base} text-3xl font-bold`;
+    case "heading-2":
+      return `${base} text-2xl font-semibold`;
+    case "heading-3":
+      return `${base} text-xl font-medium`;
+    case "quote":
+      return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
+    case "code":
+      return `${base} font-mono text-sm bg-muted rounded`;
+    case "bullet-list":
+    case "numbered-list":
+      return `${base} text-sm text-foreground`;
+    default:
+      return `${base} min-h-[1.75rem] text-sm text-foreground`;
+  }
+}
+
+function blockPlaceholder(type: BlockType): string {
+  switch (type) {
+    case "heading-1": return "標題 1";
+    case "heading-2": return "標題 2";
+    case "heading-3": return "標題 3";
+    case "quote": return "引言…";
+    case "code": return "// 程式碼";
+    case "bullet-list": return "清單項目…";
+    case "numbered-list": return "清單項目…";
+    default: return "輸入文字…";
+  }
+}
+
+interface TypeSelectorButtonProps {
+  currentType: BlockType;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (type: BlockType) => void;
+}
+
+function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeSelectorButtonProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onOpenChange(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, onOpenChange]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+        aria-label="切換區塊類型"
+        title="切換區塊類型"
+      >
+        {BLOCK_TYPE_LABELS[currentType]}
+        <ChevronDown className="size-3" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover shadow-md">
+          {BLOCK_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { onSelect(t); onOpenChange(false); }}
+              className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted ${t === currentType ? "font-semibold text-primary" : "text-foreground"}`}
+            >
+              <span className="w-5 font-mono text-[10px] text-muted-foreground">{BLOCK_TYPE_LABELS[t]}</span>
+              {BLOCK_TYPE_NAMES[t]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
+````typescript
+"use client";
+
+/**
+ * Module: knowledge
+ * Layer: interfaces/components
+ * Purpose: RichTextEditor — Tiptap-powered full-page rich text editor with
+ *          Firebase persistence via PageEditorView's existing server actions.
+ *
+ * Architecture:
+ *  - The entire page content is stored as a single Tiptap JSON document.
+ *  - Firebase block: type "text", properties.tiptapJson = <TiptapJSON object>.
+ *  - On mount, loads the canonical block (first block with properties.tiptapJson).
+ *  - Falls back to reconstructing from legacy contentEditable text blocks.
+ *  - On editor change (debounced 800 ms), persists via updateKnowledgeBlock.
+ *
+ * Extensions used:
+ *  - StarterKit (paragraph, heading 1-3, bold, italic, code, lists, blockquote, hr, strike)
+ *  - Placeholder
+ *  - Underline
+ *  - Link (with auto-link)
+ *  - Typography (smart quotes, en-dash)
+ *  - TextStyle + Color (inline text colouring)
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import { StarterKit } from "@tiptap/starter-kit";
+import { Placeholder } from "@tiptap/extension-placeholder";
+import { Underline } from "@tiptap/extension-underline";
+import { Link } from "@tiptap/extension-link";
+import { Typography } from "@tiptap/extension-typography";
+import { Color } from "@tiptap/extension-color";
+import type { Editor } from "@tiptap/react";
+import {
+  Bold,
+  Italic,
+  Underline as UnderlineIcon,
+  Strikethrough,
+  Code,
+  Link as LinkIcon,
+  List,
+  ListOrdered,
+  Quote,
+  Minus,
+  Heading1,
+  Heading2,
+  Heading3,
+  Undo,
+  Redo,
+  Loader2,
+} from "lucide-react";
+
+import { getKnowledgeBlocks } from "../queries/knowledge.queries";
+import {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+} from "../_actions/knowledge.actions";
+import type { BlockContent } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const DEBOUNCE_MS = 800;
+/** Marker stored in block.properties so we can distinguish Tiptap blocks. */
+const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface RichTextEditorProps {
+  accountId: string;
+  pageId: string;
+  /** Optional: called when the document changes with the raw Tiptap JSON. */
+  onDocumentChange?: (json: object) => void;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichTextEditorProps) {
+  const [loading, setLoading] = useState(true);
+  /**
+   * blockId of the persisted "tiptap" block in Firestore.
+   * null = not yet created; undefined = being resolved.
+   */
+  const blockIdRef = useRef<string | null | undefined>(undefined);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestJsonRef = useRef<object | null>(null);
+  const isSavingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: { levels: [1, 2, 3] },
+        codeBlock: false, // use plain code marks for now
+      }),
+      Placeholder.configure({
+        placeholder: "開始輸入，或按 / 選擇區塊類型…",
+        emptyEditorClass: "is-editor-empty",
+      }),
+      Underline,
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        HTMLAttributes: { class: "text-primary underline" },
+      }),
+      Typography,
+      Color,
+    ],
+    editable: true,
+    immediatelyRender: false,
+    onUpdate({ editor }) {
+      const json = editor.getJSON();
+      latestJsonRef.current = json;
+      onDocumentChange?.(json);
+      scheduleSave();
+    },
+  });
+
+  // ── Load from Firebase ──────────────────────────────────────────────────────
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!accountId || !pageId || !editor) { setLoading(false); return; }
+    setLoading(true);
+
+    void (async () => {
+      try {
+        const blocks = await getKnowledgeBlocks(accountId, pageId);
+
+        // Find the canonical Tiptap block.
+        const tiptapBlock = blocks.find(
+          (b) => b.content.properties?.[TIPTAP_PROPERTY_KEY] != null,
+        );
+
+        if (tiptapBlock) {
+          blockIdRef.current = tiptapBlock.id;
+          const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
+          if (mountedRef.current) {
+            editor.commands.setContent(json, { emitUpdate: false });
+          }
+        } else if (blocks.length > 0) {
+          // Legacy blocks: reconstruct as Tiptap paragraphs.
+          const legacyHtml = blocks
+            .map((b) => {
+              switch (b.content.type) {
+                case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
+                case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
+                case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
+                case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
+                case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
+                case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
+                case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
+                case "divider": return "<hr />";
+                default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
+              }
+            })
+            .join("");
+
+          if (mountedRef.current) {
+            editor.commands.setContent(legacyHtml, { emitUpdate: false });
+          }
+          // blockIdRef stays null — first save will create a new Tiptap block.
+        } else {
+          // Brand new page — create an empty Tiptap block.
+          const emptyContent = buildBlockContent(editor.getJSON());
+          const result = await addKnowledgeBlock({
+            accountId,
+            pageId,
+            content: emptyContent,
+            index: 0,
+          });
+          if (result.success) {
+            blockIdRef.current = result.aggregateId;
+          }
+        }
+      } catch {
+        // Silently ignore; editor is still usable, just unsaved.
+      } finally {
+        if (mountedRef.current) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mountedRef.current = false;
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- editor instance is stable
+  }, [accountId, pageId]);
+
+  // Cleanup editor on unmount.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      editor?.destroy();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Save / debounce ─────────────────────────────────────────────────────────
+
+  const scheduleSave = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      void persistNow();
+    }, DEBOUNCE_MS);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const persistNow = useCallback(async () => {
+    const json = latestJsonRef.current;
+    if (!json || isSavingRef.current) return;
+
+    isSavingRef.current = true;
+    try {
+      if (blockIdRef.current == null) {
+        // First save: create the block.
+        const result = await addKnowledgeBlock({
+          accountId,
+          pageId,
+          content: buildBlockContent(json),
+          index: 0,
+        });
+        if (result.success) blockIdRef.current = result.aggregateId;
+      } else {
+        // Subsequent saves: update the block.
+        await updateKnowledgeBlock({
+          accountId,
+          blockId: blockIdRef.current,
+          content: buildBlockContent(json),
+        });
+      }
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [accountId, pageId]);
+
+  // ── Loading state ───────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">載入內容中…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-[400px] flex-col rounded-xl border border-border/60 bg-card">
+      {/* Toolbar */}
+      {editor && <EditorToolbar editor={editor} />}
+
+      {/* Editor surface */}
+      <EditorContent
+        editor={editor}
+        className="tiptap-editor flex-1 cursor-text px-6 py-4 text-sm text-foreground"
+      />
+    </div>
+  );
+}
+
+// ── Toolbar ───────────────────────────────────────────────────────────────────
+
+function EditorToolbar({ editor }: { editor: Editor }) {
+  function toggleLink() {
+    if (editor.isActive("link")) {
+      editor.chain().focus().unsetLink().run();
+      return;
+    }
+    const url = window.prompt("輸入連結 URL：");
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-0.5 border-b border-border/60 px-3 py-1.5">
+      {/* Undo / Redo */}
+      <ToolbarGroup>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
+          title="復原"
+        >
+          <Undo className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
+          title="取消復原"
+        >
+          <Redo className="size-3.5" />
+        </ToolbarButton>
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      {/* Headings */}
+      <ToolbarGroup>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+          active={editor.isActive("heading", { level: 1 })}
+          title="標題 1"
+        >
+          <Heading1 className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+          active={editor.isActive("heading", { level: 2 })}
+          title="標題 2"
+        >
+          <Heading2 className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+          active={editor.isActive("heading", { level: 3 })}
+          title="標題 3"
+        >
+          <Heading3 className="size-3.5" />
+        </ToolbarButton>
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      {/* Inline marks */}
+      <ToolbarGroup>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBold().run()}
+          active={editor.isActive("bold")}
+          title="粗體 (Ctrl+B)"
+        >
+          <Bold className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleItalic().run()}
+          active={editor.isActive("italic")}
+          title="斜體 (Ctrl+I)"
+        >
+          <Italic className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          active={editor.isActive("underline")}
+          title="底線 (Ctrl+U)"
+        >
+          <UnderlineIcon className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleStrike().run()}
+          active={editor.isActive("strike")}
+          title="刪除線"
+        >
+          <Strikethrough className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleCode().run()}
+          active={editor.isActive("code")}
+          title="行內程式碼 (Ctrl+E)"
+        >
+          <Code className="size-3.5" />
+        </ToolbarButton>
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      {/* Link */}
+      <ToolbarGroup>
+        <ToolbarButton
+          onClick={toggleLink}
+          active={editor.isActive("link")}
+          title="連結"
+        >
+          <LinkIcon className="size-3.5" />
+        </ToolbarButton>
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      {/* Lists */}
+      <ToolbarGroup>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          active={editor.isActive("bulletList")}
+          title="項目清單"
+        >
+          <List className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          active={editor.isActive("orderedList")}
+          title="編號清單"
+        >
+          <ListOrdered className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+          active={editor.isActive("blockquote")}
+          title="引言"
+        >
+          <Quote className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setHorizontalRule().run()}
+          title="水平線"
+        >
+          <Minus className="size-3.5" />
+        </ToolbarButton>
+      </ToolbarGroup>
+    </div>
+  );
+}
+
+// ── Toolbar primitives ────────────────────────────────────────────────────────
+
+function ToolbarGroup({ children }: { children: React.ReactNode }) {
+  return <div className="flex items-center gap-0.5">{children}</div>;
+}
+
+function ToolbarSeparator() {
+  return <div className="mx-1 h-5 w-px bg-border/60" />;
+}
+
+interface ToolbarButtonProps {
+  onClick: () => void;
+  children: React.ReactNode;
+  active?: boolean;
+  disabled?: boolean;
+  title?: string;
+}
+
+function ToolbarButton({ onClick, children, active, disabled, title }: ToolbarButtonProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`flex size-7 items-center justify-center rounded transition ${
+        active
+          ? "bg-primary text-primary-foreground"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      } disabled:opacity-30`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Build the BlockContent envelope that wraps a Tiptap JSON document. */
+function buildBlockContent(tiptapJson: object): BlockContent {
+  return {
+    type: "text",
+    richText: [], // Canonical content is the tiptapJson; richText spans are left empty.
+    properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson },
+  };
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+````
+
+## File: modules/subdomains.md
+````markdown
+# Modules Subdomains（Canonical Link）
+
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+
+- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
+- 若需調整子域分類內容，請只編輯 canonical 檔案。
+- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/app-rail.tsx
@@ -71584,6 +71147,492 @@ export function AppRail({
     </TooltipProvider>
   );
 }
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: modules/knowledge/api/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+
+export { RichTextEditor } from "../interfaces/components/RichTextEditor";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
+
+// ── BacklinkIndex ─────────────────────────────────────────────────────────────
+export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
+export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
+export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
+````
+
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../modules/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
+
+## 模組定位
+
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
+
+> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
+```
+
+## page_approved 事件規則
+
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/knowledge/context-map.md

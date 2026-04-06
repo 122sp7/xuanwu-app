@@ -57,7 +57,7 @@ export { getKnowledgePages, getKnowledgePage } from "../interfaces/queries/knowl
 
 // 3. DTO / 契約型別
 export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-export type { KnowledgePage } from "../domain/entities/content-page.entity";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
 
 // 4. Facade（聚合多個 use case 的門面）
 export { knowledgeFacade } from "./knowledge-facade";
@@ -91,15 +91,15 @@ import { Button } from "@ui-shadcn/ui/button";
 import { getFirebaseFirestore } from "@integration-firebase";
 
 // 同模組內部：可用相對路徑
-import type { KnowledgePage } from "../domain/entities/content-page.entity";
-import { FirebaseContentPageRepository } from "../infrastructure/firebase/FirebaseContentPageRepository";
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
 ```
 
 ### ❌ 禁止的 import 模式
 
 ```typescript
 // ❌ 跨模組直接 import 他模組內部層
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
 import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
 
 // ❌ 使用舊版 @/ 直接 import shared/libs
@@ -235,7 +235,7 @@ export const KNOWLEDGE_EVENT_TYPES = {
 // 供 Process Manager、Cloud Functions Trigger 或 Event Bus 使用
 
 import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api";
-import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
 
 /**
  * 處理 knowledge.page_approved 事件
@@ -244,10 +244,9 @@ import { ContentToWorkflowMaterializer } from "../application/process-managers/c
 export async function handleKnowledgePageApproved(
   event: KnowledgePageApprovedEvent,
 ): Promise<void> {
-  const materializer = new ContentToWorkflowMaterializer(
+  const materializer = new KnowledgeToWorkflowMaterializer(
     new FirebaseTaskRepository(),
     new FirebaseInvoiceRepository(),
-    new FirebaseEventStoreRepository(),
   );
   await materializer.handle(event);
 }

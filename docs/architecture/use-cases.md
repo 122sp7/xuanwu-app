@@ -1,6 +1,6 @@
 # Use Cases / Application Layer（應用層）
 
-<!-- change: Add ApproveContentPageUseCase and MaterializeTasksFromContentUseCase; PR-NUM -->
+<!-- change: Add ApproveKnowledgePageUseCase and MaterializeTasksFromKnowledgeUseCase; PR-NUM -->
 
 本文件列出 Xuanwu App 所有有界上下文的 Use Cases，說明其職責、輸入/輸出契約，以及在 Application Layer 中的角色。
 
@@ -96,7 +96,7 @@ export class VerbNounUseCase {
 
 | 能力群組 | 代表動作 | Repository / Port |
 |---------|----------|-------------------|
-| Page Lifecycle | 建立、重新命名、移動、歸檔 Knowledge Page | `ContentPageRepository` |
+| Page Lifecycle | 建立、重新命名、移動、歸檔 Knowledge Page | `KnowledgePageRepository` |
 | Block Editing | 新增、更新、刪除、重排內容區塊 | `ContentBlockRepository` |
 | Versioning | 發佈與查詢版本快照 | `ContentVersionRepository` |
 | Collection Management | 建立 collection、加入/移除 page、維護欄位 | collection repositories |
@@ -117,7 +117,7 @@ export class VerbNounUseCase {
 流程:
   1. 驗證 pageId 存在且 status = "active"（非 archived）
   2. 驗證 actorId 有權限核准（對應工作區的成員）
-  3. ContentPageRepository.update(pageId, { approvalState: "approved", approvedAtISO })
+  3. KnowledgePageRepository.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO })
   4. PublishDomainEventUseCase.execute({ eventName: "knowledge.page_approved", ... })
      └── causationId = 此次執行的 requestId（UUID）
      └── correlationId = input.correlationId ?? generateId()
@@ -261,7 +261,7 @@ export class VerbNounUseCase {
 流程:
   1. 依 extractedTasks 批量呼叫 TaskRepository.save()
   2. 每個 Task 的 status 初始化為 "draft"
-  3. 每個 Task 均攜帶 sourceReference（指回 ContentPage）
+  3. 每個 Task 均攜帶 sourceReference（指回 KnowledgePage）
   4. 冪等性保護：若已存在相同 sourceReference.causationId 的 Task，跳過建立
   5. 返回 CommandResult { success: true, aggregateId: pageId }
 
