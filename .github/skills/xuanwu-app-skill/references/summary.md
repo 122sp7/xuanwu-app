@@ -38,7 +38,7 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1002 files | 70,387 lines
+1002 files | 70,416 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
@@ -50,7 +50,7 @@ This skill contains the following reference files:
 | MERMAID | 10 | 583 |
 | JSON | 8 | 874 |
 | RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 357 |
+| JavaScript (ESM) | 2 | 386 |
 | Text | 2 | 114 |
 | Other | 3 | 753 |
 
