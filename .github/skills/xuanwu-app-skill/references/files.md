@@ -10748,16 +10748,6 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/ai/application-services.md`
 ````
 
-## File: modules/ai/application/link-extractor.service.ts
-````typescript
-/**
- * @deprecated This file has moved to modules/wiki/application/link-extractor.service.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-export {};
-````
-
 ## File: modules/ai/application/use-cases/advance-ingestion-stage.use-case.ts
 ````typescript
 import {
@@ -10965,15 +10955,6 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 | `workspace-audit` | `ai.ingestion_completed / failed` | 記錄攝入稽核軌跡 |
 ````
 
-## File: modules/ai/domain/entities/graph-node.ts
-````typescript
-/**
- * @deprecated This file has moved to modules/wiki/domain/entities/graph-node.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-````
-
 ## File: modules/ai/domain/entities/IngestionChunk.ts
 ````typescript
 export interface IngestionChunk {
@@ -11046,24 +11027,6 @@ export interface IngestionJob {
 }
 ````
 
-## File: modules/ai/domain/entities/link.ts
-````typescript
-/**
- * @deprecated This file has moved to modules/wiki/domain/entities/link.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-````
-
-## File: modules/ai/domain/repositories/GraphRepository.ts
-````typescript
-/**
- * @deprecated This file has moved to modules/wiki/domain/repositories/GraphRepository.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-````
-
 ## File: modules/ai/domain/repositories/IngestionJobRepository.ts
 ````typescript
 import type { IngestionJob, IngestionStatus } from "../entities/IngestionJob";
@@ -11082,16 +11045,6 @@ export interface IngestionJobRepository {
     readonly updatedAtISO: string;
   }): Promise<IngestionJob | null>;
 }
-````
-
-## File: modules/ai/infrastructure/InMemoryGraphRepository.ts
-````typescript
-/**
- * @deprecated This file has moved to modules/wiki/infrastructure/InMemoryGraphRepository.ts
- * modules/knowledge is being repurposed for Layer 2 Ingestion Pipeline (Parse→Chunk→Embed).
- * No new code should be added here.
- */
-export {};
 ````
 
 ## File: modules/ai/infrastructure/InMemoryIngestionJobRepository.ts
@@ -13088,6 +13041,106 @@ function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: Comme
 }
 ````
 
+## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { History, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { getVersions } from "../queries/knowledge-collaboration.queries";
+import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
+import type { Version } from "../../domain/entities/version.entity";
+
+interface VersionHistoryPanelProps {
+  accountId: string;
+  contentId: string;
+  currentUserId: string;
+}
+
+export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getVersions(accountId, contentId);
+        if (!disposed) { setVersions(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handleDelete(versionId: string) {
+    startTransition(async () => {
+      await deleteVersion({ id: versionId, accountId });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">版本歷史</span>
+        {versions.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
+        )}
+      </div>
+
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
+      ) : (
+        <ol className="space-y-2">
+          {versions.map((v, idx) => (
+            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {versions.length - idx}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
+                {v.description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {v.createdByUserId === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(v.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
 ````typescript
 /**
@@ -13588,6 +13641,123 @@ export class FirebaseViewRepository implements IViewRepository {
 }
 ````
 
+## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
+import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
+import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
+import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
+import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
+import type {
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
+import type {
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+import type {
+  CreateViewInput,
+  UpdateViewInput,
+} from "../../domain/repositories/IViewRepository";
+
+function makeDatabaseRepo() { return new FirebaseDatabaseRepository(); }
+function makeRecordRepo() { return new FirebaseRecordRepository(); }
+function makeViewRepo() { return new FirebaseViewRepository(); }
+
+export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult> {
+  try {
+    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("DATABASE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult> {
+  try {
+    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("DATABASE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
+  try {
+    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.field.name,
+      type: input.field.type,
+      config: input.field.config,
+      required: input.field.required,
+    });
+  } catch (e) {
+    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult> {
+  try {
+    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
+  } catch (e) {
+    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function createRecord(input: CreateRecordInput): Promise<CommandResult> {
+  try {
+    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("RECORD_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult> {
+  try {
+    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("RECORD_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ accountId, id: recordId });
+  } catch (e) {
+    return commandFailureFrom("RECORD_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function createView(input: CreateViewInput): Promise<CommandResult> {
+  try {
+    return await new CreateViewUseCase(makeViewRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("VIEW_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function updateView(input: UpdateViewInput): Promise<CommandResult> {
+  try {
+    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("VIEW_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteView(accountId: string, viewId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteViewUseCase(makeViewRepo()).execute({ accountId, id: viewId });
+  } catch (e) {
+    return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+````
+
 ## File: modules/knowledge-database/interfaces/components/DatabaseDialog.tsx
 ````typescript
 "use client";
@@ -13778,115 +13948,6 @@ export const KNOWLEDGE_EVENT_TYPES = {
 } as const;
 
 export type KnowledgeEventType = (typeof KNOWLEDGE_EVENT_TYPES)[keyof typeof KNOWLEDGE_EVENT_TYPES];
-````
-
-## File: modules/knowledge/api/knowledge-api.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api (cross-module facade)
- * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
- *          exposes the minimal surface needed by the demo-flow script and by
- *          other modules that communicate through the event bus.
- *
- * This is intentionally separate from KnowledgeFacade (which uses Firebase).
- * KnowledgeApi uses InMemory repos so it can run without any external service.
- */
-
-import {
-  createKnowledgePageCreatedEvent,
-} from "../../shared/domain/events/knowledge-page-created.event";
-import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
-
-import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgePage } from "../domain/entities/content-page.entity";
-import { BlockService } from "../application/block-service";
-import {
-  InMemoryKnowledgePageRepository,
-  InMemoryKnowledgeBlockRepository,
-} from "../infrastructure/InMemoryKnowledgeRepository";
-
-export class KnowledgeApi {
-  private readonly pageRepo: InMemoryKnowledgePageRepository;
-  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
-  private readonly blockService: BlockService;
-  private readonly eventBus: SimpleEventBus;
-
-  constructor(eventBus: SimpleEventBus) {
-    this.pageRepo = new InMemoryKnowledgePageRepository();
-    this.blockRepo = new InMemoryKnowledgeBlockRepository();
-    this.blockService = new BlockService(this.blockRepo, eventBus);
-    this.eventBus = eventBus;
-  }
-
-  /**
-   * Create a new page in the in-memory store and publish a
-   * `KnowledgePageCreatedEvent` so the knowledge-graph module can
-   * automatically register a GraphNode for the new page.
-   */
-  async createPage(
-    accountId: string,
-    title: string,
-    createdByUserId = "system",
-    options?: { workspaceId?: string; parentPageId?: string | null },
-  ): Promise<KnowledgePage> {
-    const page = await this.pageRepo.create({
-      accountId,
-      title,
-      createdByUserId,
-      parentPageId: options?.parentPageId ?? null,
-    });
-
-    const event = createKnowledgePageCreatedEvent(
-      page.id,
-      page.title,
-      accountId,
-      createdByUserId,
-      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
-    );
-    await this.eventBus.publish(event);
-
-    return page;
-  }
-
-  /** Add a block to an existing page and return the new block. */
-  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
-    return this.blockRepo.add({
-      accountId,
-      pageId,
-      content: { type: "text", text },
-    });
-  }
-
-  /**
-   * Update a block's text content.
-   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
-   * (e.g. knowledge) can react.
-   */
-  async updateBlock(
-    accountId: string,
-    blockId: string,
-    text: string,
-  ): Promise<KnowledgeBlock | null> {
-    return this.blockService.updateBlock({ accountId, blockId, text });
-  }
-
-  /** Return all pages for an account. */
-  async listPages(accountId: string): Promise<KnowledgePage[]> {
-    return this.pageRepo.listByAccountId(accountId);
-  }
-
-  /** Return the page with all its blocks (flat list, ordered). */
-  async getPageStructure(
-    accountId: string,
-    pageId: string,
-  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
-    const page = await this.pageRepo.findById(accountId, pageId);
-    if (!page) return null;
-    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
-    return { page, blocks };
-  }
-}
 ````
 
 ## File: modules/knowledge/api/knowledge-facade.ts
@@ -15534,6 +15595,241 @@ export class FirebaseKnowledgePageRepository implements KnowledgePageRepository 
 
 export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseContentPageRepository";
 export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
+````
+
+## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/in-memory
+ * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
+ *          Uses plain Map<string, …> — no external database required.
+ *          Designed for local demos and unit tests (Occam's Razor).
+ */
+
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+} from "../domain/entities/content-block.entity";
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "../domain/entities/content-page.entity";
+import type {
+  KnowledgeBlockRepository,
+  KnowledgePageRepository,
+} from "../domain/repositories/knowledge.repositories";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function generateSlug(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
+}
+
+// ─── Page repository ──────────────────────────────────────────────────────────
+
+export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
+  private readonly pages = new Map<string, KnowledgePage>();
+
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const page: KnowledgePage = {
+      id,
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      slug: generateSlug(input.title),
+      parentPageId: input.parentPageId ?? null,
+      order: this.pages.size,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    this.pages.set(id, page);
+    return page;
+  }
+
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      title: input.title,
+      slug: generateSlug(input.title),
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      parentPageId: input.targetParentPageId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      blockIds: [...input.blockIds],
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const page = this.pages.get(pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      status: "archived",
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(pageId, updated);
+    return updated;
+  }
+
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    if (page.status === "archived") return null;
+    const updated: KnowledgePage = {
+      ...page,
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    return this.pages.get(pageId) ?? null;
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    return [...this.pages.values()].filter((p) => p.accountId === accountId);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    return [...this.pages.values()].filter(
+      (p) => p.accountId === accountId && p.workspaceId === workspaceId,
+    );
+  }
+
+  /** Append a blockId to a page's blockIds list (called by block operations). */
+  async appendBlockId(pageId: string, blockId: string): Promise<void> {
+    const page = this.pages.get(pageId);
+    if (!page) return;
+    this.pages.set(pageId, {
+      ...page,
+      blockIds: [...page.blockIds, blockId],
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
+
+// ─── Block repository ─────────────────────────────────────────────────────────
+
+export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
+  private readonly blocks = new Map<string, KnowledgeBlock>();
+
+  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const siblingsCount = [...this.blocks.values()].filter(
+      (b) => b.pageId === input.pageId && b.accountId === input.accountId,
+    ).length;
+    const block: KnowledgeBlock = {
+      id,
+      pageId: input.pageId,
+      accountId: input.accountId,
+      content: input.content,
+      order: input.index ?? siblingsCount,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    this.blocks.set(id, block);
+    return block;
+  }
+
+  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    if (!block) return null;
+    const updated: KnowledgeBlock = {
+      ...block,
+      content: input.content,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.blocks.set(input.blockId, updated);
+    return updated;
+  }
+
+  async delete(_accountId: string, blockId: string): Promise<void> {
+    this.blocks.delete(blockId);
+  }
+
+  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
+    return this.blocks.get(blockId) ?? null;
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    return [...this.blocks.values()]
+      .filter((b) => b.accountId === accountId && b.pageId === pageId)
+      .sort((a, b) => a.order - b.order);
+  }
+}
 ````
 
 ## File: modules/knowledge/interfaces/components/PageTreeView.tsx
@@ -20952,62 +21248,6 @@ export interface DomainEvent {
   readonly aggregateId: string;
   /** 事件發生時間（ISO 8601） */
   readonly occurredAt: string;
-}
-````
-
-## File: modules/shared/domain/events/knowledge-page-created.event.ts
-````typescript
-/**
- * modules/shared — domain event: KnowledgePageCreatedEvent
- *
- * Fired by the content module whenever a new page is created.
- * The knowledge-graph module subscribes to this event to automatically
- * register a GraphNode for the new page (auto-link trigger pipeline).
- *
- * Follows Occam's Razor: minimal fields to drive downstream reactions.
- */
-
-import { v7 as generateId } from "@lib-uuid";
-
-import type { DomainEvent } from "../events";
-
-export const KNOWLEDGE_PAGE_CREATED_EVENT_TYPE = "knowledge.page_created" as const;
-
-export interface KnowledgePageCreatedEvent extends DomainEvent {
-  readonly type: typeof KNOWLEDGE_PAGE_CREATED_EVENT_TYPE;
-  /** ID of the newly created page */
-  readonly pageId: string;
-  /** Human-readable title of the page */
-  readonly title: string;
-  /** Account that owns the page */
-  readonly accountId: string;
-  /** Optional workspace the page belongs to */
-  readonly workspaceId?: string;
-  /** Optional parent page for hierarchy tracking */
-  readonly parentPageId?: string | null;
-  /** User who created the page */
-  readonly createdByUserId: string;
-}
-
-export function createKnowledgePageCreatedEvent(
-  pageId: string,
-  title: string,
-  accountId: string,
-  createdByUserId: string,
-  options?: { workspaceId?: string; parentPageId?: string | null },
-): KnowledgePageCreatedEvent {
-  return {
-    eventId: generateId(),
-    type: KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
-    aggregateId: pageId,
-    occurredAt: new Date().toISOString(),
-    pageId,
-    title,
-    accountId,
-    createdByUserId,
-    workspaceId: options?.workspaceId,
-    parentPageId: options?.parentPageId,
-  };
 }
 ````
 
@@ -27615,604 +27855,6 @@ export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Pr
 | 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |
 ````
 
-## File: modules/workspace-flow/AGENT.md
-````markdown
-# AGENT.md — workspace-flow BC
-
-## 模組定位
-
-`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 ContentToWorkflowMaterializer 訂閱 knowledge 事件。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Task` | TodoItem、WorkItem |
-| `TaskStatus` | Status（單獨使用）、State |
-| `Issue` | Bug、Ticket、Problem |
-| `IssueStatus` | Status（單獨使用） |
-| `Invoice` | Bill、Receipt、Payment |
-| `InvoiceStatus` | Status（單獨使用） |
-| `MaterializedTask` | ConvertedTask、AutoTask |
-| `sourceReference` | Origin、Source（作為物化來源） |
-| `ContentToWorkflowMaterializer` | ContentProcessor、PageConverter |
-
-## 狀態機（必須嚴格遵守）
-
-```
-TaskStatus:    draft → in_progress → qa → acceptance → accepted → archived
-IssueStatus:   open → investigating → fixing → retest → resolved → closed
-InvoiceStatus: draft → submitted → finance_review → approved → paid → closed
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceFlowApi } from "@/modules/workspace-flow/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Task } from "@/modules/workspace-flow/domain/entities/Task";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace-flow/aggregates.md
-````markdown
-# Aggregates — workspace-flow
-
-## 聚合根：Task
-
-### 職責
-可追蹤的工作單元，管理完整的任務生命週期狀態機。
-
-### 生命週期狀態機
-```
-draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Task 主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `title` | `string` | 任務標題 |
-| `status` | `TaskStatus` | 當前狀態 |
-| `assigneeId` | `string \| null` | 負責人帳戶 ID |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
-| `currentUserId` | `string` | 當前操作者 ID |
-
----
-
-## 聚合根：Issue
-
-### 生命週期狀態機
-```
-open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
-```
-
-### 關鍵屬性
-
-| 屬性 | 說明 |
-|------|------|
-| `id`, `workspaceId`, `title` | 基本屬性 |
-| `status` | `IssueStatus` |
-| `severity` | `IssueStatus` 嚴重程度 |
-| `reporterId` | 報告者帳戶 ID |
-| `assigneeId` | 負責人帳戶 ID（可選） |
-
----
-
-## 聚合根：Invoice
-
-### 生命週期狀態機
-```
-draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
-```
-
-### 關鍵屬性
-
-| 屬性 | 說明 |
-|------|------|
-| `id`, `workspaceId` | 基本屬性 |
-| `status` | `InvoiceStatus` |
-| `amount` | `number` |
-| `currency` | `string`（預設 "TWD"） |
-| `sourceReference` | 物化來源（可選） |
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
-| `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
-| `InvoiceStatus` | `"draft" \| "submitted" \| "finance_review" \| "approved" \| "paid" \| "closed"` |
-| `SourceReference` | `{ pageId: string, causationId: string }` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 說明 |
-|------|------|
-| `TaskRepository` | Task CRUD + 狀態查詢 |
-| `IssueRepository` | Issue CRUD + 狀態查詢 |
-| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
-
----
-
-## Domain Services
-
-| 服務 | 說明 |
-|------|------|
-| `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
-````
-
-## File: modules/workspace-flow/api/listeners.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file listeners.ts
- * @description Public event listener interface for workspace-flow.
- *
- * External modules (primarily the `content` module's event bus) subscribe to
- * workspace-flow through this surface.  The concrete implementation is the
- * `ContentToWorkflowMaterializer` process manager.
- *
- * ## Usage
- * ```ts
- * import { createContentToWorkflowListener } from "@/modules/workspace-flow/api";
- *
- * const listener = createContentToWorkflowListener(workspaceId);
- * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
- * ```
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
- */
-
-import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-
-// ── Public listener factory ───────────────────────────────────────────────────
-
-/**
- * Creates a pre-wired `ContentToWorkflowMaterializer` backed by Firebase repos.
- * Call `handle(event, workspaceId)` from your event bus subscriber.
- */
-export function createContentToWorkflowListener(): ContentToWorkflowMaterializer {
-  return new ContentToWorkflowMaterializer(
-    new FirebaseTaskRepository(),
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-// ── Listener type contracts ───────────────────────────────────────────────────
-
-/** Shape of any handler that can process a `content.page_approved` event. */
-export interface KnowledgePageApprovedHandler {
-  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
-}
-
-export type { KnowledgePageApprovedEvent };
-````
-
-## File: modules/workspace-flow/application-services.md
-````markdown
-# workspace-flow — Application Services
-
-> **Canonical bounded context:** `workspace-flow`
-> **模組路徑:** `modules/workspace-flow/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-flow` 的 application layer 服務與 use cases。內容與 `modules/workspace-flow/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 Task / Issue / Invoice 三條工作流程狀態機與流程物化。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/add-invoice-item.dto.ts`
-- `application/dto/create-task.dto.ts`
-- `application/dto/invoice-query.dto.ts`
-- `application/dto/issue-query.dto.ts`
-- `application/dto/materialize-from-content.dto.ts`
-- `application/dto/open-issue.dto.ts`
-- `application/dto/pagination.dto.ts`
-- `application/dto/remove-invoice-item.dto.ts`
-- `application/dto/resolve-issue.dto.ts`
-- `application/dto/task-query.dto.ts`
-- `application/dto/update-invoice-item.dto.ts`
-- `application/dto/update-task.dto.ts`
-- `application/ports/InvoiceService.ts`
-- `application/ports/IssueService.ts`
-- `application/ports/TaskService.ts`
-- `application/process-managers/content-to-workflow-materializer.ts`
-- `application/use-cases/add-invoice-item.use-case.ts`
-- `application/use-cases/approve-invoice.use-case.ts`
-- `application/use-cases/approve-task-acceptance.use-case.ts`
-- `application/use-cases/archive-task.use-case.ts`
-- `application/use-cases/assign-task.use-case.ts`
-- `application/use-cases/close-invoice.use-case.ts`
-- `application/use-cases/close-issue.use-case.ts`
-- `application/use-cases/create-invoice.use-case.ts`
-- `application/use-cases/create-task.use-case.ts`
-- `application/use-cases/fail-issue-retest.use-case.ts`
-- `application/use-cases/fix-issue.use-case.ts`
-- `application/use-cases/materialize-tasks-from-content.use-case.ts`
-- `application/use-cases/open-issue.use-case.ts`
-- `application/use-cases/pass-issue-retest.use-case.ts`
-- `application/use-cases/pass-task-qa.use-case.ts`
-- `application/use-cases/pay-invoice.use-case.ts`
-- `application/use-cases/reject-invoice.use-case.ts`
-- `application/use-cases/remove-invoice-item.use-case.ts`
-- `application/use-cases/resolve-issue.use-case.ts`
-- `application/use-cases/review-invoice.use-case.ts`
-- `application/use-cases/start-issue.use-case.ts`
-- `application/use-cases/submit-invoice.use-case.ts`
-- `application/use-cases/submit-issue-retest.use-case.ts`
-- `application/use-cases/submit-task-to-qa.use-case.ts`
-- `application/use-cases/update-invoice-item.use-case.ts`
-- `application/use-cases/update-task.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-flow/README.md`
-- 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
-````
-
-## File: modules/workspace-flow/application/dto/materialize-from-content.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file materialize-from-content.dto.ts
- * @description Command DTO for materializing Tasks and Invoices from a
- * `content.page_approved` event payload.
- *
- * This DTO is used by both:
- *  - MaterializeTasksFromContentUseCase
- *  - ContentToWorkflowMaterializer (Process Manager)
- */
-
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export interface ExtractedTaskItem {
-  readonly title: string;
-  readonly dueDate?: string;
-  readonly description?: string;
-}
-
-export interface ExtractedInvoiceItem {
-  readonly amount: number;
-  readonly description: string;
-  readonly currency?: string;
-}
-
-export interface MaterializeFromContentDto {
-  readonly workspaceId: string;
-  /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
-  readonly contentPageId: string;
-  /** Pre-built SourceReference value object to attach to every created entity. */
-  readonly sourceReference: SourceReference;
-  readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;
-  readonly extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
-}
-````
-
-## File: modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file content-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `content.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `content` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
- */
-
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromContentUseCase } from "../use-cases/materialize-tasks-from-content.use-case";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export class ContentToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `content.page_approved` event.
-   *
-   * @param event - The full event payload from the content module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
-    // ── Idempotency guard ──────────────────────────────────────────────────
-    if (this.processedCausationIds.has(event.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.pageId,
-      causationId: event.causationId,
-      correlationId: event.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromContentUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      contentPageId: event.pageId,
-      sourceReference,
-      extractedTasks: event.extractedTasks,
-      extractedInvoices: event.extractedInvoices,
-    });
-
-    if (result.success) {
-      // Mark as processed only after successful materialization
-      this.processedCausationIds.add(event.causationId);
-      return true;
-    }
-
-    return false;
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file materialize-tasks-from-content.use-case.ts
- * @description Use case: Batch-create Tasks (and optionally Invoices) from a
- * `content.page_approved` event payload.
- *
- * Idempotency: callers must ensure the same `sourceReference.causationId` is
- * not processed twice.  This use case does NOT check for duplicates itself;
- * that responsibility belongs to the ContentToWorkflowMaterializer process
- * manager which wraps this use case.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import type { MaterializeFromContentDto } from "../dto/materialize-from-content.dto";
-
-export class MaterializeTasksFromContentUseCase {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  async execute(dto: MaterializeFromContentDto): Promise<CommandResult> {
-    if (!dto.workspaceId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
-    }
-    if (!dto.contentPageId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "contentPageId is required.");
-    }
-
-    const taskIds: string[] = [];
-    for (const item of dto.extractedTasks) {
-      if (!item.title.trim()) continue;
-      const task = await this.taskRepository.create({
-        workspaceId: dto.workspaceId,
-        title: item.title.trim(),
-        description: item.description ?? "",
-        dueDateISO: item.dueDate,
-        sourceReference: dto.sourceReference,
-      });
-      taskIds.push(task.id);
-    }
-
-    const invoiceIds: string[] = [];
-    for (const item of dto.extractedInvoices) {
-      if (item.amount <= 0) continue;
-      const invoice = await this.invoiceRepository.create({
-        workspaceId: dto.workspaceId,
-        sourceReference: dto.sourceReference,
-      });
-      // Add the extracted item to the invoice.
-      // taskId is empty here because the invoice was generated from AI-extracted data
-      // before any Tasks are created; the association is completed manually by the
-      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
-      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
-      await this.invoiceRepository.addItem({
-        invoiceId: invoice.id,
-        amount: item.amount,
-        taskId: "",
-      });
-      invoiceIds.push(invoice.id);
-    }
-
-    return commandSuccess(dto.contentPageId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/context-map.md
-````markdown
-# Context Map — workspace-flow
-
-## 上游（依賴）
-
-### knowledge → workspace-flow（Published Language）
-
-**這是 workspace-flow 最重要的上游整合。**
-
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
-- 從 `extractedTasks[]` 建立 MaterializedTask
-- 從 `extractedInvoices[]` 建立 Invoice
-- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
-
-```
-knowledge.page_approved ──► ContentToWorkflowMaterializer
-                            ├─► Task.create（extractedTask）
-                            └─► Invoice.create（extractedInvoice）
-```
-
-### workspace → workspace-flow（Conformist）
-
-- Task/Issue/Invoice 都隸屬 `workspaceId`
-- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
-
----
-
-## 下游（被依賴）
-
-### workspace-flow → notification（Published Language）
-
-- 狀態變更事件觸發通知（如 task_assigned）
-
-### workspace-flow → workspace-audit（Published Language）
-
-- 狀態轉換事件供稽核紀錄消費
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| workspace → workspace-flow | workspace | workspace-flow | Conformist |
-| workspace-flow → notification | workspace-flow | notification | Published Language |
-| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |
-````
-
-## File: modules/workspace-flow/domain-events.md
-````markdown
-# Domain Events — workspace-flow
-
-## 發出事件
-
-### Task 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.task_created` | Task 建立 | `taskId`, `workspaceId`, `title`, `createdByUserId`, `occurredAt` |
-| `workspace-flow.task_status_changed` | Task 狀態變更 | `taskId`, `workspaceId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.task_assigned` | Task 指派負責人 | `taskId`, `workspaceId`, `assigneeId`, `occurredAt` |
-| `workspace-flow.task_materialized` | Task 由 ContentToWorkflowMaterializer 物化 | `taskId`, `workspaceId`, `sourceReference`, `occurredAt` |
-
-### Issue 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.issue_opened` | Issue 開啟 | `issueId`, `workspaceId`, `title`, `reporterId`, `occurredAt` |
-| `workspace-flow.issue_status_changed` | Issue 狀態變更 | `issueId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.issue_resolved` | Issue 解決 | `issueId`, `workspaceId`, `occurredAt` |
-
-### Invoice 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.invoice_created` | Invoice 建立 | `invoiceId`, `workspaceId`, `amount`, `currency`, `occurredAt` |
-| `workspace-flow.invoice_status_changed` | Invoice 狀態變更 | `invoiceId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.invoice_paid` | Invoice 標記已付款 | `invoiceId`, `workspaceId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 MaterializedTask 與 Invoice |
-
-## 消費 workspace-flow 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `notification` | `workspace-flow.task_assigned` | 通知被指派者 |
-| `workspace-audit` | 所有狀態變更事件 | 記錄稽核軌跡 |
-````
-
-## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file SourceReference.ts
- * @description Value object representing the origin of a materialized entity (Task or Invoice).
- *
- * A SourceReference is attached to Task and Invoice entities that were created
- * by the contentToWorkflowMaterializer Process Manager in response to a
- * `content.page_approved` event.  It provides full audit traceability:
- *
- *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
- */
-
-export type SourceReferenceType = "KnowledgePage";
-
-export interface SourceReference {
-  /** The type of the source aggregate. */
-  readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
-  readonly id: string;
-  /**
-   * causationId from the `content.page_approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-  readonly causationId: string;
-  /**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-  readonly correlationId: string;
-}
-````
-
 ## File: modules/workspace-flow/infrastructure/firebase/sourceReference.converter.ts
 ````typescript
 /**
@@ -28282,36 +27924,6 @@ export function toSourceReference(raw: unknown): SourceReference | undefined {
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/workspace-flow/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-flow
-
-> **範圍：** 僅限 `modules/workspace-flow/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 任務 | Task | 可追蹤的工作單元，有狀態機與負責人 |
-| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
-| 問題 | Issue | 問題追蹤記錄（Bug / 需求問題） |
-| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
-| 發票 | Invoice | 財務發票記錄 |
-| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
-| 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
-| 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
-| 工作流程物化器 | ContentToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Task` | `TodoItem`, `WorkItem`, `Job` |
-| `Issue` | `Bug`, `Ticket`, `Problem` |
-| `Invoice` | `Bill`, `Receipt` |
-| `MaterializedTask` | `ConvertedTask`, `AutoTask` |
 ````
 
 ## File: modules/workspace-flow/Workspace-Flow-Architecture.mermaid
@@ -50209,106 +49821,6 @@ export class FirebaseCommentRepository implements ICommentRepository {
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { History, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getVersions } from "../queries/knowledge-collaboration.queries";
-import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
-import type { Version } from "../../domain/entities/version.entity";
-
-interface VersionHistoryPanelProps {
-  accountId: string;
-  contentId: string;
-  currentUserId: string;
-}
-
-export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getVersions(accountId, contentId);
-        if (!disposed) { setVersions(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handleDelete(versionId: string) {
-    startTransition(async () => {
-      await deleteVersion({ id: versionId, accountId });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">版本歷史</span>
-        {versions.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
-        </div>
-      ) : versions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
-      ) : (
-        <ol className="space-y-2">
-          {versions.map((v, idx) => (
-            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-                {versions.length - idx}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
-                {v.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
-                )}
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              {v.createdByUserId === currentUserId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(v.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/knowledge-collaboration/README.md
 ````markdown
 # knowledge-collaboration — DDD Reference
@@ -50673,6 +50185,74 @@ export class ListDatabasesUseCase {
 }
 ````
 
+## File: modules/knowledge-database/application/use-cases/view.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ * Use cases for View (database view) lifecycle.
+ */
+
+import type { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IViewRepository } from "../../domain/repositories/IViewRepository";
+import {
+  CreateViewSchema,
+  UpdateViewSchema,
+  DeleteViewSchema,
+} from "../dto/knowledge-database.dto";
+
+export class CreateViewUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(input: z.infer<typeof CreateViewSchema>): Promise<CommandResult> {
+    const parsed = CreateViewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const view = await this.viewRepo.create(parsed.data);
+    return commandSuccess(view.id, 1);
+  }
+}
+
+export class UpdateViewUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(input: z.infer<typeof UpdateViewSchema>): Promise<CommandResult> {
+    const parsed = UpdateViewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const view = await this.viewRepo.update(parsed.data);
+    if (!view) {
+      return commandFailureFrom("VIEW_NOT_FOUND", "View not found");
+    }
+    return commandSuccess(view.id, 1);
+  }
+}
+
+export class DeleteViewUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(input: z.infer<typeof DeleteViewSchema>): Promise<CommandResult> {
+    const parsed = DeleteViewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    await this.viewRepo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, 1);
+  }
+}
+
+export class ListViewsUseCase {
+  constructor(private readonly viewRepo: IViewRepository) {}
+
+  async execute(accountId: string, databaseId: string) {
+    return this.viewRepo.listByDatabase(accountId, databaseId);
+  }
+}
+````
+
 ## File: modules/knowledge-database/domain-events.md
 ````markdown
 - `knowledge-database.database_created` / `database_renamed`
@@ -50891,119 +50471,109 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
 }
 ````
 
-## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
 ````typescript
-"use server";
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/databaseRecords/{recordId}
+ */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
-import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
-import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
-import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
-import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
 import type {
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
-import type {
+  IDatabaseRecordRepository,
   CreateRecordInput,
   UpdateRecordInput,
 } from "../../domain/repositories/IDatabaseRecordRepository";
-import type {
-  CreateViewInput,
-  UpdateViewInput,
-} from "../../domain/repositories/IViewRepository";
 
-function makeDatabaseRepo() { return new FirebaseDatabaseRepository(); }
-function makeRecordRepo() { return new FirebaseRecordRepository(); }
-function makeViewRepo() { return new FirebaseViewRepository(); }
-
-export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult> {
-  try {
-    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("DATABASE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
+function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "databaseRecords");
 }
 
-export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult> {
-  try {
-    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("DATABASE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
+function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
+  return doc(db, "accounts", accountId, "databaseRecords", recordId);
 }
 
-export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
-  try {
-    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
+function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    pageId: typeof data.pageId === "string" ? data.pageId : null,
+    properties: typeof data.properties === "object" && data.properties !== null
+      ? new Map(Object.entries(data.properties as Record<string, unknown>))
+      : new Map(),
+    order: typeof data.order === "number" ? data.order : 0,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseRecordRepository implements IDatabaseRecordRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
       databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
       accountId: input.accountId,
-      name: input.field.name,
-      type: input.field.type,
-      config: input.field.config,
-      required: input.field.required,
-    });
-  } catch (e) {
-    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
+      properties: input.properties ?? {},
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(recordDoc(db, input.accountId, id), data);
+    return toRecord(id, { ...data, properties: input.properties });
   }
-}
 
-export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult> {
-  try {
-    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
-  } catch (e) {
-    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const ref = recordDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updatedAtISO: now };
+    if (input.properties !== undefined) {
+      updates.properties = input.properties;
+    }
+    await updateDoc(ref, updates);
+    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
+    return toRecord(snap.id, merged);
   }
-}
 
-export async function createRecord(input: CreateRecordInput): Promise<CommandResult> {
-  try {
-    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("RECORD_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  async delete(accountId: string, recordId: string): Promise<void> {
+    const db = this.db();
+    await deleteDoc(recordDoc(db, accountId, recordId));
   }
-}
 
-export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult> {
-  try {
-    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("RECORD_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const snap = await getDoc(recordDoc(db, accountId, recordId));
+    if (!snap.exists()) return null;
+    return toRecord(snap.id, snap.data() as Record<string, unknown>);
   }
-}
 
-export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ accountId, id: recordId });
-  } catch (e) {
-    return commandFailureFrom("RECORD_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function createView(input: CreateViewInput): Promise<CommandResult> {
-  try {
-    return await new CreateViewUseCase(makeViewRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("VIEW_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateView(input: UpdateViewInput): Promise<CommandResult> {
-  try {
-    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("VIEW_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteView(accountId: string, viewId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteViewUseCase(makeViewRepo()).execute({ accountId, id: viewId });
-  } catch (e) {
-    return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+    const db = this.db();
+    const q = query(
+      recordsCol(db, accountId),
+      where("databaseId", "==", databaseId),
+      orderBy("order", "asc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
   }
 }
 ````
@@ -51743,6 +51313,115 @@ Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
 | Relation | 跨 Database 的 Record 連結欄位 |
 
 → [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
+````
+
+## File: modules/knowledge/api/knowledge-api.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api (cross-module facade)
+ * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
+ *          exposes the minimal surface needed by the demo-flow script and by
+ *          other modules that communicate through the event bus.
+ *
+ * This is intentionally separate from KnowledgeFacade (which uses Firebase).
+ * KnowledgeApi uses InMemory repos so it can run without any external service.
+ */
+
+import {
+  createKnowledgePageCreatedEvent,
+} from "../../shared/domain/events/knowledge-page-created.event";
+import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
+
+import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
+import type { KnowledgePage } from "../domain/entities/content-page.entity";
+import { BlockService } from "../application/block-service";
+import {
+  InMemoryKnowledgePageRepository,
+  InMemoryKnowledgeBlockRepository,
+} from "../infrastructure/InMemoryKnowledgeRepository";
+
+export class KnowledgeApi {
+  private readonly pageRepo: InMemoryKnowledgePageRepository;
+  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
+  private readonly blockService: BlockService;
+  private readonly eventBus: SimpleEventBus;
+
+  constructor(eventBus: SimpleEventBus) {
+    this.pageRepo = new InMemoryKnowledgePageRepository();
+    this.blockRepo = new InMemoryKnowledgeBlockRepository();
+    this.blockService = new BlockService(this.blockRepo, eventBus);
+    this.eventBus = eventBus;
+  }
+
+  /**
+   * Create a new page in the in-memory store and publish a
+    * `KnowledgePageCreatedEvent` so downstream modules can register
+    * page-related projections or structure-aware read models.
+   */
+  async createPage(
+    accountId: string,
+    title: string,
+    createdByUserId = "system",
+    options?: { workspaceId?: string; parentPageId?: string | null },
+  ): Promise<KnowledgePage> {
+    const page = await this.pageRepo.create({
+      accountId,
+      title,
+      createdByUserId,
+      parentPageId: options?.parentPageId ?? null,
+    });
+
+    const event = createKnowledgePageCreatedEvent(
+      page.id,
+      page.title,
+      accountId,
+      createdByUserId,
+      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
+    );
+    await this.eventBus.publish(event);
+
+    return page;
+  }
+
+  /** Add a block to an existing page and return the new block. */
+  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
+    return this.blockRepo.add({
+      accountId,
+      pageId,
+      content: { type: "text", text },
+    });
+  }
+
+  /**
+   * Update a block's text content.
+   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
+    * (e.g. search or notebook-adjacent ingestion flows) can react.
+   */
+  async updateBlock(
+    accountId: string,
+    blockId: string,
+    text: string,
+  ): Promise<KnowledgeBlock | null> {
+    return this.blockService.updateBlock({ accountId, blockId, text });
+  }
+
+  /** Return all pages for an account. */
+  async listPages(accountId: string): Promise<KnowledgePage[]> {
+    return this.pageRepo.listByAccountId(accountId);
+  }
+
+  /** Return the page with all its blocks (flat list, ordered). */
+  async getPageStructure(
+    accountId: string,
+    pageId: string,
+  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
+    const page = await this.pageRepo.findById(accountId, pageId);
+    if (!page) return null;
+    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
+    return { page, blocks };
+  }
+}
 ````
 
 ## File: modules/knowledge/application/block-service.ts
@@ -53173,241 +52852,6 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
     const updated = await getDoc(blockRef);
     if (!updated.exists()) return null;
     return toKnowledgeBlock(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/in-memory
- * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
- *          Uses plain Map<string, …> — no external database required.
- *          Designed for local demos and unit tests (Occam's Razor).
- */
-
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-} from "../domain/entities/content-block.entity";
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "../domain/entities/content-page.entity";
-import type {
-  KnowledgeBlockRepository,
-  KnowledgePageRepository,
-} from "../domain/repositories/knowledge.repositories";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function generateSlug(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
-}
-
-// ─── Page repository ──────────────────────────────────────────────────────────
-
-export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
-  private readonly pages = new Map<string, KnowledgePage>();
-
-  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
-    const now = new Date().toISOString();
-    const id = generateId();
-    const page: KnowledgePage = {
-      id,
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      slug: generateSlug(input.title),
-      parentPageId: input.parentPageId ?? null,
-      order: this.pages.size,
-      blockIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    this.pages.set(id, page);
-    return page;
-  }
-
-  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      title: input.title,
-      slug: generateSlug(input.title),
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      parentPageId: input.targetParentPageId,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      blockIds: [...input.blockIds],
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const page = this.pages.get(pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      status: "archived",
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(pageId, updated);
-    return updated;
-  }
-
-  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    if (page.status === "archived") return null;
-    const updated: KnowledgePage = {
-      ...page,
-      approvalState: "approved",
-      approvedAtISO: input.approvedAtISO,
-      approvedByUserId: input.approvedByUserId,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    return this.pages.get(pageId) ?? null;
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    return [...this.pages.values()].filter((p) => p.accountId === accountId);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    return [...this.pages.values()].filter(
-      (p) => p.accountId === accountId && p.workspaceId === workspaceId,
-    );
-  }
-
-  /** Append a blockId to a page's blockIds list (called by block operations). */
-  async appendBlockId(pageId: string, blockId: string): Promise<void> {
-    const page = this.pages.get(pageId);
-    if (!page) return;
-    this.pages.set(pageId, {
-      ...page,
-      blockIds: [...page.blockIds, blockId],
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-}
-
-// ─── Block repository ─────────────────────────────────────────────────────────
-
-export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
-  private readonly blocks = new Map<string, KnowledgeBlock>();
-
-  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
-    const now = new Date().toISOString();
-    const id = generateId();
-    const siblingsCount = [...this.blocks.values()].filter(
-      (b) => b.pageId === input.pageId && b.accountId === input.accountId,
-    ).length;
-    const block: KnowledgeBlock = {
-      id,
-      pageId: input.pageId,
-      accountId: input.accountId,
-      content: input.content,
-      order: input.index ?? siblingsCount,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    this.blocks.set(id, block);
-    return block;
-  }
-
-  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
-    const block = this.blocks.get(input.blockId);
-    if (!block) return null;
-    const updated: KnowledgeBlock = {
-      ...block,
-      content: input.content,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.blocks.set(input.blockId, updated);
-    return updated;
-  }
-
-  async delete(_accountId: string, blockId: string): Promise<void> {
-    this.blocks.delete(blockId);
-  }
-
-  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
-    return this.blocks.get(blockId) ?? null;
-  }
-
-  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    return [...this.blocks.values()]
-      .filter((b) => b.accountId === accountId && b.pageId === pageId)
-      .sort((a, b) => a.order - b.order);
   }
 }
 ````
@@ -54998,6 +54442,62 @@ export class PublishDomainEventUseCase {
 - `../../../modules/shared/aggregates.md`
 ````
 
+## File: modules/shared/domain/events/knowledge-page-created.event.ts
+````typescript
+/**
+ * modules/shared — domain event: KnowledgePageCreatedEvent
+ *
+ * Fired by the knowledge module whenever a new page is created.
+ * Downstream modules can subscribe to build read models, indexing flows,
+ * or future structure-aware capabilities for the new page.
+ *
+ * Follows Occam's Razor: minimal fields to drive downstream reactions.
+ */
+
+import { v7 as generateId } from "@lib-uuid";
+
+import type { DomainEvent } from "../events";
+
+export const KNOWLEDGE_PAGE_CREATED_EVENT_TYPE = "knowledge.page_created" as const;
+
+export interface KnowledgePageCreatedEvent extends DomainEvent {
+  readonly type: typeof KNOWLEDGE_PAGE_CREATED_EVENT_TYPE;
+  /** ID of the newly created page */
+  readonly pageId: string;
+  /** Human-readable title of the page */
+  readonly title: string;
+  /** Account that owns the page */
+  readonly accountId: string;
+  /** Optional workspace the page belongs to */
+  readonly workspaceId?: string;
+  /** Optional parent page for hierarchy tracking */
+  readonly parentPageId?: string | null;
+  /** User who created the page */
+  readonly createdByUserId: string;
+}
+
+export function createKnowledgePageCreatedEvent(
+  pageId: string,
+  title: string,
+  accountId: string,
+  createdByUserId: string,
+  options?: { workspaceId?: string; parentPageId?: string | null },
+): KnowledgePageCreatedEvent {
+  return {
+    eventId: generateId(),
+    type: KNOWLEDGE_PAGE_CREATED_EVENT_TYPE,
+    aggregateId: pageId,
+    occurredAt: new Date().toISOString(),
+    pageId,
+    title,
+    accountId,
+    createdByUserId,
+    workspaceId: options?.workspaceId,
+    parentPageId: options?.parentPageId,
+  };
+}
+````
+
 ## File: modules/shared/infrastructure/InMemoryEventStoreRepository.ts
 ````typescript
 /**
@@ -55704,6 +55204,152 @@ export class FirebaseWikiLibraryRepository implements WikiLibraryRepository {
 - `../../../modules/workspace-feed/aggregates.md`
 ````
 
+## File: modules/workspace-flow/AGENT.md
+````markdown
+# AGENT.md — workspace-flow BC
+
+## 模組定位
+
+`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 KnowledgeToWorkflowMaterializer 訂閱 knowledge 事件。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Task` | TodoItem、WorkItem |
+| `TaskStatus` | Status（單獨使用）、State |
+| `Issue` | Bug、Ticket、Problem |
+| `IssueStatus` | Status（單獨使用） |
+| `Invoice` | Bill、Receipt、Payment |
+| `InvoiceStatus` | Status（單獨使用） |
+| `MaterializedTask` | ConvertedTask、AutoTask |
+| `sourceReference` | Origin、Source（作為物化來源） |
+| `KnowledgeToWorkflowMaterializer` | ContentProcessor、PageConverter |
+
+## 狀態機（必須嚴格遵守）
+
+```
+TaskStatus:    draft → in_progress → qa → acceptance → accepted → archived
+IssueStatus:   open → investigating → fixing → retest → resolved → closed
+InvoiceStatus: draft → submitted → finance_review → approved → paid → closed
+```
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceFlowApi } from "@/modules/workspace-flow/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+```
+
+### ❌ 禁止
+```typescript
+import { Task } from "@/modules/workspace-flow/domain/entities/Task";
+```
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
+## File: modules/workspace-flow/aggregates.md
+````markdown
+# Aggregates — workspace-flow
+
+## 聚合根：Task
+
+### 職責
+可追蹤的工作單元，管理完整的任務生命週期狀態機。
+
+### 生命週期狀態機
+```
+draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
+```
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Task 主鍵 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `title` | `string` | 任務標題 |
+| `status` | `TaskStatus` | 當前狀態 |
+| `assigneeId` | `string \| null` | 負責人帳戶 ID |
+| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
+| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
+| `currentUserId` | `string` | 當前操作者 ID |
+
+---
+
+## 聚合根：Issue
+
+### 生命週期狀態機
+```
+open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
+```
+
+### 關鍵屬性
+
+| 屬性 | 說明 |
+|------|------|
+| `id`, `workspaceId`, `title` | 基本屬性 |
+| `status` | `IssueStatus` |
+| `severity` | `IssueStatus` 嚴重程度 |
+| `reporterId` | 報告者帳戶 ID |
+| `assigneeId` | 負責人帳戶 ID（可選） |
+
+---
+
+## 聚合根：Invoice
+
+### 生命週期狀態機
+```
+draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
+```
+
+### 關鍵屬性
+
+| 屬性 | 說明 |
+|------|------|
+| `id`, `workspaceId` | 基本屬性 |
+| `status` | `InvoiceStatus` |
+| `amount` | `number` |
+| `currency` | `string`（預設 "TWD"） |
+| `sourceReference` | 物化來源（可選） |
+
+---
+
+## 值物件
+
+| 值物件 | 說明 |
+|--------|------|
+| `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
+| `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
+| `InvoiceStatus` | `"draft" \| "submitted" \| "finance_review" \| "approved" \| "paid" \| "closed"` |
+| `SourceReference` | `{ pageId: string, causationId: string }` |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 說明 |
+|------|------|
+| `TaskRepository` | Task CRUD + 狀態查詢 |
+| `IssueRepository` | Issue CRUD + 狀態查詢 |
+| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
+
+---
+
+## Domain Services
+
+| 服務 | 說明 |
+|------|------|
+| `KnowledgeToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
+````
+
 ## File: modules/workspace-flow/api/contracts.ts
 ````typescript
 /**
@@ -55784,97 +55430,54 @@ export type { PaginationDto, PagedResult } from "../application/dto/pagination.d
 export type { CommandResult } from "@shared-types";
 ````
 
-## File: modules/workspace-flow/api/index.ts
+## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
  * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
+ * @file listeners.ts
+ * @description Public event listener interface for workspace-flow.
  *
- * External consumers MUST import only from this path:
- *   @/modules/workspace-flow/api
+ * External modules (primarily the `knowledge` module's event bus) subscribe to
+ * workspace-flow through this surface.  The concrete implementation is the
+ * `KnowledgeToWorkflowMaterializer` process manager.
  *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @since 2026-03-24
+ * ## Usage
+ * ```ts
+ * import { createKnowledgeToWorkflowListener } from "@/modules/workspace-flow/api";
+ *
+ * const listener = createKnowledgeToWorkflowListener();
+ * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
+ * ```
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
  */
 
-// ── Facade (write + summary-read surface) ────────────────────────────────────
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
+import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
 
-export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+// ── Public listener factory ───────────────────────────────────────────────────
 
-// ── Public contracts ──────────────────────────────────────────────────────────
+/**
+ * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
+ * Call `handle(event, workspaceId)` from your event bus subscriber.
+ */
+export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer {
+  return new KnowledgeToWorkflowMaterializer(
+    new FirebaseTaskRepository(),
+    new FirebaseInvoiceRepository(),
+  );
+}
 
-export type {
-  // Entities
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  // Value objects
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  // Summary projections
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  // CRUD / command DTOs
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  // Query / pagination DTOs
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  // Command result
-  CommandResult,
-} from "./contracts";
+// ── Listener type contracts ───────────────────────────────────────────────────
 
-export {
-  // Value object lists (enum arrays)
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  // Summary projection helpers
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "./contracts";
+/** Shape of any handler that can process a `knowledge.page_approved` event. */
+export interface KnowledgePageApprovedHandler {
+  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
+}
 
-// ── Read queries (server-side) ────────────────────────────────────────────────
-
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "../interfaces/queries/workspace-flow.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────────
-
-export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
-
-// ── Event listeners (content → workspace-flow integration) ───────────────────
-
-export {
-  createContentToWorkflowListener,
-} from "./listeners";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "./listeners";
+export type { KnowledgePageApprovedEvent };
 ````
 
 ## File: modules/workspace-flow/api/workspace-flow.facade.ts
@@ -56132,6 +55735,77 @@ export class WorkspaceFlowFacade {
 }
 ````
 
+## File: modules/workspace-flow/application-services.md
+````markdown
+# workspace-flow — Application Services
+
+> **Canonical bounded context:** `workspace-flow`
+> **模組路徑:** `modules/workspace-flow/`
+> **Domain Type:** Supporting Subdomain
+
+本文件記錄 `workspace-flow` 的 application layer 服務與 use cases。內容與 `modules/workspace-flow/application/` 實作保持一致。
+
+## Application Layer 職責
+
+管理 Task / Issue / Invoice 三條工作流程狀態機與流程物化。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
+- `application/dto/add-invoice-item.dto.ts`
+- `application/dto/create-task.dto.ts`
+- `application/dto/invoice-query.dto.ts`
+- `application/dto/issue-query.dto.ts`
+- `application/dto/materialize-from-knowledge.dto.ts`
+- `application/dto/open-issue.dto.ts`
+- `application/dto/pagination.dto.ts`
+- `application/dto/remove-invoice-item.dto.ts`
+- `application/dto/resolve-issue.dto.ts`
+- `application/dto/task-query.dto.ts`
+- `application/dto/update-invoice-item.dto.ts`
+- `application/dto/update-task.dto.ts`
+- `application/ports/InvoiceService.ts`
+- `application/ports/IssueService.ts`
+- `application/ports/TaskService.ts`
+- `application/process-managers/knowledge-to-workflow-materializer.ts`
+- `application/use-cases/add-invoice-item.use-case.ts`
+- `application/use-cases/approve-invoice.use-case.ts`
+- `application/use-cases/approve-task-acceptance.use-case.ts`
+- `application/use-cases/archive-task.use-case.ts`
+- `application/use-cases/assign-task.use-case.ts`
+- `application/use-cases/close-invoice.use-case.ts`
+- `application/use-cases/close-issue.use-case.ts`
+- `application/use-cases/create-invoice.use-case.ts`
+- `application/use-cases/create-task.use-case.ts`
+- `application/use-cases/fail-issue-retest.use-case.ts`
+- `application/use-cases/fix-issue.use-case.ts`
+- `application/use-cases/materialize-tasks-from-knowledge.use-case.ts`
+- `application/use-cases/open-issue.use-case.ts`
+- `application/use-cases/pass-issue-retest.use-case.ts`
+- `application/use-cases/pass-task-qa.use-case.ts`
+- `application/use-cases/pay-invoice.use-case.ts`
+- `application/use-cases/reject-invoice.use-case.ts`
+- `application/use-cases/remove-invoice-item.use-case.ts`
+- `application/use-cases/resolve-issue.use-case.ts`
+- `application/use-cases/review-invoice.use-case.ts`
+- `application/use-cases/start-issue.use-case.ts`
+- `application/use-cases/submit-invoice.use-case.ts`
+- `application/use-cases/submit-issue-retest.use-case.ts`
+- `application/use-cases/submit-task-to-qa.use-case.ts`
+- `application/use-cases/update-invoice-item.use-case.ts`
+- `application/use-cases/update-task.use-case.ts`
+
+## 設計對齊
+
+- 模組 README：`../../../modules/workspace-flow/README.md`
+- 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
+````
+
 ## File: modules/workspace-flow/application/dto/add-invoice-item.dto.ts
 ````typescript
 /**
@@ -56205,6 +55879,44 @@ export interface IssueQueryDto {
   readonly taskId: string;
   /** Optional status filter. */
   readonly status?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/materialize-from-knowledge.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file materialize-from-knowledge.dto.ts
+ * @description Command DTO for materializing Tasks and Invoices from a
+ * `knowledge.page_approved` event payload.
+ *
+ * This DTO is used by both:
+ *  - MaterializeTasksFromKnowledgeUseCase
+ *  - KnowledgeToWorkflowMaterializer (Process Manager)
+ */
+
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+export interface ExtractedTaskItem {
+  readonly title: string;
+  readonly dueDate?: string;
+  readonly description?: string;
+}
+
+export interface ExtractedInvoiceItem {
+  readonly amount: number;
+  readonly description: string;
+  readonly currency?: string;
+}
+
+export interface MaterializeFromKnowledgeDto {
+  readonly workspaceId: string;
+  /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
+  readonly knowledgePageId: string;
+  /** Pre-built SourceReference value object to attach to every created entity. */
+  readonly sourceReference: SourceReference;
+  readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;
+  readonly extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
 }
 ````
 
@@ -56417,6 +56129,97 @@ export interface TaskService {
   transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
   listTasks(query: TaskQueryDto): Promise<Task[]>;
   getTask(taskId: string): Promise<Task | null>;
+}
+````
+
+## File: modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
+````typescript
+/**
+ * @module workspace-flow/application/process-managers
+ * @file knowledge-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `knowledge.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `knowledge` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ */
+
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+export class KnowledgeToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `knowledge.page_approved` event.
+   *
+   * @param event - The full event payload from the knowledge module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.pageId,
+      causationId: event.causationId,
+      correlationId: event.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromKnowledgeUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      knowledgePageId: event.pageId,
+      sourceReference,
+      extractedTasks: event.extractedTasks,
+      extractedInvoices: event.extractedInvoices,
+    });
+
+    if (result.success) {
+      this.processedCausationIds.add(event.causationId);
+      return true;
+    }
+
+    return false;
+  }
 }
 ````
 
@@ -56901,6 +56704,72 @@ export class FixIssueUseCase {
       return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
     }
     return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-knowledge.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file materialize-tasks-from-knowledge.use-case.ts
+ * @description Use case: Batch-create Tasks (and optionally Invoices) from a
+ * `knowledge.page_approved` event payload.
+ *
+ * Idempotency: callers must ensure the same `sourceReference.causationId` is
+ * not processed twice. This use case does NOT check for duplicates itself;
+ * that responsibility belongs to the KnowledgeToWorkflowMaterializer process
+ * manager which wraps this use case.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import type { MaterializeFromKnowledgeDto } from "../dto/materialize-from-knowledge.dto";
+
+export class MaterializeTasksFromKnowledgeUseCase {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  async execute(dto: MaterializeFromKnowledgeDto): Promise<CommandResult> {
+    if (!dto.workspaceId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
+    }
+    if (!dto.knowledgePageId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "knowledgePageId is required.");
+    }
+
+    const taskIds: string[] = [];
+    for (const item of dto.extractedTasks) {
+      if (!item.title.trim()) continue;
+      const task = await this.taskRepository.create({
+        workspaceId: dto.workspaceId,
+        title: item.title.trim(),
+        description: item.description ?? "",
+        dueDateISO: item.dueDate,
+        sourceReference: dto.sourceReference,
+      });
+      taskIds.push(task.id);
+    }
+
+    const invoiceIds: string[] = [];
+    for (const item of dto.extractedInvoices) {
+      if (item.amount <= 0) continue;
+      const invoice = await this.invoiceRepository.create({
+        workspaceId: dto.workspaceId,
+        sourceReference: dto.sourceReference,
+      });
+      await this.invoiceRepository.addItem({
+        invoiceId: invoice.id,
+        amount: item.amount,
+        taskId: "",
+      });
+      invoiceIds.push(invoice.id);
+    }
+
+    return commandSuccess(dto.knowledgePageId, Date.now());
   }
 }
 ````
@@ -57526,6 +57395,101 @@ export class UpdateTaskUseCase {
 }
 ````
 
+## File: modules/workspace-flow/context-map.md
+````markdown
+# Context Map — workspace-flow
+
+## 上游（依賴）
+
+### knowledge → workspace-flow（Published Language）
+
+**這是 workspace-flow 最重要的上游整合。**
+
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
+- 從 `extractedTasks[]` 建立 MaterializedTask
+- 從 `extractedInvoices[]` 建立 Invoice
+- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
+
+```
+knowledge.page_approved ──► KnowledgeToWorkflowMaterializer
+                            ├─► Task.create（extractedTask）
+                            └─► Invoice.create（extractedInvoice）
+```
+
+### workspace → workspace-flow（Conformist）
+
+- Task/Issue/Invoice 都隸屬 `workspaceId`
+- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
+
+---
+
+## 下游（被依賴）
+
+### workspace-flow → notification（Published Language）
+
+- 狀態變更事件觸發通知（如 task_assigned）
+
+### workspace-flow → workspace-audit（Published Language）
+
+- 狀態轉換事件供稽核紀錄消費
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| workspace → workspace-flow | workspace | workspace-flow | Conformist |
+| workspace-flow → notification | workspace-flow | notification | Published Language |
+| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |
+````
+
+## File: modules/workspace-flow/domain-events.md
+````markdown
+# Domain Events — workspace-flow
+
+## 發出事件
+
+### Task 事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-flow.task_created` | Task 建立 | `taskId`, `workspaceId`, `title`, `createdByUserId`, `occurredAt` |
+| `workspace-flow.task_status_changed` | Task 狀態變更 | `taskId`, `workspaceId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-flow.task_assigned` | Task 指派負責人 | `taskId`, `workspaceId`, `assigneeId`, `occurredAt` |
+| `workspace-flow.task_materialized` | Task 由 KnowledgeToWorkflowMaterializer 物化 | `taskId`, `workspaceId`, `sourceReference`, `occurredAt` |
+
+### Issue 事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-flow.issue_opened` | Issue 開啟 | `issueId`, `workspaceId`, `title`, `reporterId`, `occurredAt` |
+| `workspace-flow.issue_status_changed` | Issue 狀態變更 | `issueId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-flow.issue_resolved` | Issue 解決 | `issueId`, `workspaceId`, `occurredAt` |
+
+### Invoice 事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-flow.invoice_created` | Invoice 建立 | `invoiceId`, `workspaceId`, `amount`, `currency`, `occurredAt` |
+| `workspace-flow.invoice_status_changed` | Invoice 狀態變更 | `invoiceId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-flow.invoice_paid` | Invoice 標記已付款 | `invoiceId`, `workspaceId`, `occurredAt` |
+
+## 訂閱事件
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 MaterializedTask 與 Invoice |
+
+## 消費 workspace-flow 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `notification` | `workspace-flow.task_assigned` | 通知被指派者 |
+| `workspace-audit` | 所有狀態變更事件 | 記錄稽核軌跡 |
+````
+
 ## File: modules/workspace-flow/domain-services.md
 ````markdown
 # workspace-flow — Domain Services
@@ -57554,48 +57518,6 @@ export class UpdateTaskUseCase {
 
 - `../../../modules/workspace-flow/domain-services.md`
 - `../../../modules/workspace-flow/aggregates.md`
-````
-
-## File: modules/workspace-flow/domain/entities/Invoice.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Invoice.ts
- * @description Invoice aggregate entity representing a billing record for accepted tasks.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as billing rules expand
- */
-
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Invoice {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: InvoiceStatus;
-  readonly totalAmount: number;
-  readonly submittedAtISO?: string;
-  readonly approvedAtISO?: string;
-  readonly paidAtISO?: string;
-  readonly closedAtISO?: string;
-  /**
-   * Present when this Invoice was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateInvoiceInput {
-  readonly workspaceId: string;
-  readonly sourceReference?: SourceReference;
-}
 ````
 
 ## File: modules/workspace-flow/domain/entities/InvoiceItem.ts
@@ -57675,60 +57597,6 @@ export interface UpdateIssueInput {
   readonly title?: string;
   readonly description?: string;
   readonly assignedTo?: string;
-}
-````
-
-## File: modules/workspace-flow/domain/entities/Task.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Task.ts
- * @description Task aggregate entity representing a work unit and its lifecycle.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as business rules expand
- */
-
-import type { TaskStatus } from "../value-objects/TaskStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Task {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: TaskStatus;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly acceptedAtISO?: string;
-  readonly archivedAtISO?: string;
-  /**
-   * Present when this Task was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateTaskInput {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly sourceReference?: SourceReference;
-}
-
-export interface UpdateTaskInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
 }
 ````
 
@@ -58515,6 +58383,40 @@ export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): bo
 /** Returns true when the issue has reached a terminal state and cannot progress. */
 export function isTerminalIssueStatus(status: IssueStatus): boolean {
   return ISSUE_NEXT[status].length === 0;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file SourceReference.ts
+ * @description Value object representing the origin of a materialized entity (Task or Invoice).
+ *
+ * A SourceReference is attached to Task and Invoice entities that were created
+ * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
+ * `knowledge.page_approved` event. It provides full audit traceability:
+ *
+ *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
+ */
+
+export type SourceReferenceType = "KnowledgePage";
+
+export interface SourceReference {
+  /** The type of the source aggregate. */
+  readonly type: SourceReferenceType;
+  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
+  readonly id: string;
+  /**
+    * causationId from the `knowledge.page_approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
+   */
+  readonly causationId: string;
+  /**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
+  readonly correlationId: string;
 }
 ````
 
@@ -60895,6 +60797,36 @@ export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<I
 
 - `../../../modules/workspace-flow/repositories.md`
 - `../../../modules/workspace-flow/aggregates.md`
+````
+
+## File: modules/workspace-flow/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — workspace-flow
+
+> **範圍：** 僅限 `modules/workspace-flow/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 任務 | Task | 可追蹤的工作單元，有狀態機與負責人 |
+| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
+| 問題 | Issue | 問題追蹤記錄（Bug / 需求問題） |
+| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
+| 發票 | Invoice | 財務發票記錄 |
+| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
+| 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
+| 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
+| 工作流程物化器 | KnowledgeToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `Task` | `TodoItem`, `WorkItem`, `Job` |
+| `Issue` | `Bug`, `Ticket`, `Problem` |
+| `Invoice` | `Bill`, `Receipt` |
+| `MaterializedTask` | `ConvertedTask`, `AutoTask` |
 ````
 
 ## File: modules/workspace-scheduling/domain-services.md
@@ -66108,74 +66040,6 @@ export {
 } from "../application/services/field-computation.service";
 ````
 
-## File: modules/knowledge-database/application/use-cases/view.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- * Use cases for View (database view) lifecycle.
- */
-
-import type { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IViewRepository } from "../../domain/repositories/IViewRepository";
-import {
-  CreateViewSchema,
-  UpdateViewSchema,
-  DeleteViewSchema,
-} from "../dto/knowledge-database.dto";
-
-export class CreateViewUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(input: z.infer<typeof CreateViewSchema>): Promise<CommandResult> {
-    const parsed = CreateViewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const view = await this.viewRepo.create(parsed.data);
-    return commandSuccess(view.id, 1);
-  }
-}
-
-export class UpdateViewUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(input: z.infer<typeof UpdateViewSchema>): Promise<CommandResult> {
-    const parsed = UpdateViewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const view = await this.viewRepo.update(parsed.data);
-    if (!view) {
-      return commandFailureFrom("VIEW_NOT_FOUND", "View not found");
-    }
-    return commandSuccess(view.id, 1);
-  }
-}
-
-export class DeleteViewUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(input: z.infer<typeof DeleteViewSchema>): Promise<CommandResult> {
-    const parsed = DeleteViewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("VIEW_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    await this.viewRepo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, 1);
-  }
-}
-
-export class ListViewsUseCase {
-  constructor(private readonly viewRepo: IViewRepository) {}
-
-  async execute(accountId: string, databaseId: string) {
-    return this.viewRepo.listByDatabase(accountId, databaseId);
-  }
-}
-````
-
 ## File: modules/knowledge-database/context-map.md
 ````markdown
 上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
@@ -66769,6 +66633,195 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 }));
 ````
 
+## File: modules/workspace-flow/api/index.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace-flow/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+// ── Facade (write + summary-read surface) ────────────────────────────────────
+
+export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+
+// ── Public contracts ──────────────────────────────────────────────────────────
+
+export type {
+  // Entities
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  // Value objects
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  // Summary projections
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+  // CRUD / command DTOs
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
+} from "./contracts";
+
+export {
+  // Value object lists (enum arrays)
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  // Summary projection helpers
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "./contracts";
+
+// ── Read queries (server-side) ────────────────────────────────────────────────
+
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "../interfaces/queries/workspace-flow.queries";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
+
+// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
+
+export {
+  createKnowledgeToWorkflowListener,
+} from "./listeners";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "./listeners";
+````
+
+## File: modules/workspace-flow/domain/entities/Invoice.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Invoice.ts
+ * @description Invoice aggregate entity representing a billing record for accepted tasks.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as billing rules expand
+ */
+
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Invoice {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: InvoiceStatus;
+  readonly totalAmount: number;
+  readonly submittedAtISO?: string;
+  readonly approvedAtISO?: string;
+  readonly paidAtISO?: string;
+  readonly closedAtISO?: string;
+  /**
+   * Present when this Invoice was materialized from a KnowledgePage via the
+    * `knowledge.page_approved` event. Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateInvoiceInput {
+  readonly workspaceId: string;
+  readonly sourceReference?: SourceReference;
+}
+````
+
+## File: modules/workspace-flow/domain/entities/Task.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Task.ts
+ * @description Task aggregate entity representing a work unit and its lifecycle.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as business rules expand
+ */
+
+import type { TaskStatus } from "../value-objects/TaskStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Task {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: TaskStatus;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly acceptedAtISO?: string;
+  readonly archivedAtISO?: string;
+  /**
+   * Present when this Task was materialized from a KnowledgePage via the
+    * `knowledge.page_approved` event. Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateTaskInput {
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly sourceReference?: SourceReference;
+}
+
+export interface UpdateTaskInput {
+  readonly title?: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+}
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
@@ -67100,14 +67153,114 @@ export function WorkspaceHubScreen({
 }
 ````
 
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
+    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
+    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
+    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0"
+  }
+}
 ````
 
 ## File: README.md
@@ -67773,113 +67926,6 @@ export default eslintConfig;
 | 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
 | 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
 | 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/databaseRecords/{recordId}
- */
-
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type {
-  IDatabaseRecordRepository,
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-
-function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "databaseRecords");
-}
-
-function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
-  return doc(db, "accounts", accountId, "databaseRecords", recordId);
-}
-
-function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    pageId: typeof data.pageId === "string" ? data.pageId : null,
-    properties: typeof data.properties === "object" && data.properties !== null
-      ? new Map(Object.entries(data.properties as Record<string, unknown>))
-      : new Map(),
-    order: typeof data.order === "number" ? data.order : 0,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRecordRepository implements IDatabaseRecordRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      properties: input.properties ?? {},
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(recordDoc(db, input.accountId, id), data);
-    return toRecord(id, { ...data, properties: input.properties });
-  }
-
-  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const ref = recordDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updatedAtISO: now };
-    if (input.properties !== undefined) {
-      updates.properties = input.properties;
-    }
-    await updateDoc(ref, updates);
-    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
-    return toRecord(snap.id, merged);
-  }
-
-  async delete(accountId: string, recordId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(recordDoc(db, accountId, recordId));
-  }
-
-  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const snap = await getDoc(recordDoc(db, accountId, recordId));
-    if (!snap.exists()) return null;
-    return toRecord(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    const db = this.db();
-    const q = query(
-      recordsCol(db, accountId),
-      where("databaseId", "==", databaseId),
-      orderBy("order", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
-  }
-}
 ````
 
 ## File: modules/knowledge-database/README.md
@@ -69770,114 +69816,14 @@ export function WorkspaceDetailScreen({
 }
 ````
 
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
-    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
-    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
-    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0"
-  }
-}
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -71022,183 +70968,6 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
-```
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
-### knowledge → knowledge-database（Open Host Service / D1）
-
-- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
-- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
-- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
-
-```
-knowledge ──(KnowledgeCollection.id)──► knowledge-database
-                                        (Database / Record / View 管理)
-```
-
-### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
-
-- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
-- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
-- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
-
-```
-knowledge ─── knowledge.page_promoted ───► knowledge-base
-                                           (Article 建立，Promote 協議完成)
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
-| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## Knowledge Collection 驗證事件
-
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-```
-
-## Promote 事件（D3：Page → Article 提升協議）
-
-`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
-
-```typescript
-interface KnowledgePagePromotedEvent {
-  readonly type: "knowledge.page_promoted";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
-  readonly promotedByUserId: string;
-  readonly occurredAt: string;       // ISO 8601
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
-````
-
 ## File: modules/knowledge/README.md
 ````markdown
 # knowledge — 知識內容上下文
@@ -71815,4 +71584,181 @@ export function AppRail({
     </TooltipProvider>
   );
 }
+````
+
+## File: modules/knowledge/context-map.md
+````markdown
+# Context Map — knowledge
+
+## 上游（依賴）
+
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
+
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+
+---
+
+## 下游（被依賴）
+
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
+
+**這是平台最重要的跨 BC 整合點。**
+
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (KnowledgeToWorkflowMaterializer)
+```
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+### knowledge → knowledge-database（Open Host Service / D1）
+
+- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
+- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
+- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
+
+```
+knowledge ──(KnowledgeCollection.id)──► knowledge-database
+                                        (Database / Record / View 管理)
+```
+
+### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
+
+- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
+- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
+- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
+
+```
+knowledge ─── knowledge.page_promoted ───► knowledge-base
+                                           (Article 建立，Promote 協議完成)
+```
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
+| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
+````
+
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## Knowledge Collection 驗證事件
+
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+```
+
+## Promote 事件（D3：Page → Article 提升協議）
+
+`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
+
+```typescript
+interface KnowledgePagePromotedEvent {
+  readonly type: "knowledge.page_promoted";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
+  readonly promotedByUserId: string;
+  readonly occurredAt: string;       // ISO 8601
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
 ````
