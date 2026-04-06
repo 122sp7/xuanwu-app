@@ -21,7 +21,7 @@ import type { KnowledgeBlockRepository } from "../domain/repositories/knowledge.
 export interface BlockServiceUpdateInput {
   readonly accountId: string;
   readonly blockId: string;
-  /** New plain-text or rich-text content */
+  /** New plain-text content (stored as a single TextSpan) */
   readonly text: string;
 }
 
@@ -39,7 +39,7 @@ export class BlockService {
     const updated = await this.blockRepo.update({
       accountId: input.accountId,
       blockId: input.blockId,
-      content: { type: "text", text: input.text },
+      content: { type: "text", richText: [{ type: "text", plainText: input.text }] },
     });
 
     if (!updated) return null;

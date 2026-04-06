@@ -25,6 +25,8 @@ export type {
   AddKnowledgeBlockInput,
   UpdateKnowledgeBlockInput,
   DeleteKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
 } from "./entities/content-block.entity";
 
 export type {
@@ -38,6 +40,19 @@ export {
   BLOCK_TYPES,
   blockContentEquals,
   emptyTextBlockContent,
+  plainTextBlockContent,
+  richTextToPlainText,
+  extractMentionedPageIds,
+  extractMentionedUserIds,
+} from "./value-objects/block-content";
+export type {
+  RichTextSpanType,
+  TextAnnotations,
+  TextSpan,
+  MentionPageSpan,
+  MentionUserSpan,
+  LinkSpan,
+  RichTextSpan,
 } from "./value-objects/block-content";
 
 export type {

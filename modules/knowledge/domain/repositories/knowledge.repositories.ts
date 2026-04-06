@@ -19,6 +19,8 @@ import type {
   KnowledgeBlock,
   AddKnowledgeBlockInput,
   UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
 } from "../entities/content-block.entity";
 import type {
   KnowledgeVersion,
@@ -59,6 +61,10 @@ export interface KnowledgeBlockRepository {
   delete(accountId: string, blockId: string): Promise<void>;
   findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
   listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
+  /** Nest a block under a parent block (creates parent → child relationship). */
+  nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  /** Unnest a block, moving it back to page-level. */
+  unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
 }
 
 export interface KnowledgeVersionRepository {

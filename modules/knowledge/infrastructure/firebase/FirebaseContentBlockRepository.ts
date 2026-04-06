@@ -25,7 +25,7 @@ import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
 
 import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { AddKnowledgeBlockInput, UpdateKnowledgeBlockInput } from "../../domain/entities/content-block.entity";
+import type { AddKnowledgeBlockInput, UpdateKnowledgeBlockInput, NestKnowledgeBlockInput, UnnestKnowledgeBlockInput } from "../../domain/entities/content-block.entity";
 import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
 import type { BlockContent } from "../../domain/value-objects/block-content";
 import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
@@ -41,14 +41,14 @@ function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockI
 const VALID_BLOCK_TYPES = new Set<string>(BLOCK_TYPES);
 
 function toBlockContent(raw: unknown): BlockContent {
-  if (typeof raw !== "object" || raw === null) return { type: "text", text: "" };
+  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
   const obj = raw as Record<string, unknown>;
   const type = typeof obj.type === "string" && VALID_BLOCK_TYPES.has(obj.type)
     ? (obj.type as BlockContent["type"])
     : "text";
   return {
     type,
-    text: typeof obj.text === "string" ? obj.text : "",
+    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
     properties: typeof obj.properties === "object" && obj.properties !== null
       ? (obj.properties as Record<string, unknown>)
       : undefined,
@@ -62,6 +62,10 @@ function toKnowledgeBlock(id: string, data: Record<string, unknown>): KnowledgeB
     accountId: typeof data.accountId === "string" ? data.accountId : "",
     content: toBlockContent(data.content),
     order: typeof data.order === "number" ? data.order : 0,
+    parentBlockId: typeof data.parentBlockId === "string" ? data.parentBlockId : null,
+    childBlockIds: Array.isArray(data.childBlockIds)
+      ? (data.childBlockIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
   };
@@ -86,6 +90,8 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
       accountId: input.accountId,
       content: input.content,
       order,
+      parentBlockId: input.parentBlockId ?? null,
+      childBlockIds: [],
       createdAtISO: nowISO,
       updatedAtISO: nowISO,
       createdAt: serverTimestamp(),
@@ -133,5 +139,66 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
       ),
     );
     return snaps.docs.map((d) => toKnowledgeBlock(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const db = this.db;
+    const blockRef = blockDoc(db, input.accountId, input.blockId);
+    const parentRef = blockDoc(db, input.accountId, input.parentBlockId);
+
+    const [blockSnap, parentSnap] = await Promise.all([getDoc(blockRef), getDoc(parentRef)]);
+    if (!blockSnap.exists() || !parentSnap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    const parentData = parentSnap.data() as Record<string, unknown>;
+    const existingChildren: string[] = Array.isArray(parentData.childBlockIds)
+      ? (parentData.childBlockIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [];
+
+    const idx = input.index !== undefined ? input.index : existingChildren.length;
+    const updatedChildren = [...existingChildren];
+    updatedChildren.splice(idx, 0, input.blockId);
+
+    await Promise.all([
+      updateDoc(blockRef, { parentBlockId: input.parentBlockId, updatedAtISO: nowISO, updatedAt: serverTimestamp() }),
+      updateDoc(parentRef, { childBlockIds: updatedChildren, updatedAtISO: nowISO, updatedAt: serverTimestamp() }),
+    ]);
+
+    const updated = await getDoc(blockRef);
+    if (!updated.exists()) return null;
+    return toKnowledgeBlock(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const db = this.db;
+    const blockRef = blockDoc(db, input.accountId, input.blockId);
+    const blockSnap = await getDoc(blockRef);
+    if (!blockSnap.exists()) return null;
+
+    const blockData = blockSnap.data() as Record<string, unknown>;
+    const parentBlockId = typeof blockData.parentBlockId === "string" ? blockData.parentBlockId : null;
+    const nowISO = new Date().toISOString();
+
+    const updates: Promise<void>[] = [
+      updateDoc(blockRef, { parentBlockId: null, updatedAtISO: nowISO, updatedAt: serverTimestamp() }),
+    ];
+
+    if (parentBlockId) {
+      const parentRef = blockDoc(db, input.accountId, parentBlockId);
+      const parentSnap = await getDoc(parentRef);
+      if (parentSnap.exists()) {
+        const parentData = parentSnap.data() as Record<string, unknown>;
+        const children: string[] = Array.isArray(parentData.childBlockIds)
+          ? (parentData.childBlockIds as unknown[]).filter((v): v is string => typeof v === "string")
+          : [];
+        const filtered = children.filter((id) => id !== input.blockId);
+        updates.push(updateDoc(parentRef, { childBlockIds: filtered, updatedAtISO: nowISO, updatedAt: serverTimestamp() }));
+      }
+    }
+
+    await Promise.all(updates);
+    const updated = await getDoc(blockRef);
+    if (!updated.exists()) return null;
+    return toKnowledgeBlock(updated.id, updated.data() as Record<string, unknown>);
   }
 }

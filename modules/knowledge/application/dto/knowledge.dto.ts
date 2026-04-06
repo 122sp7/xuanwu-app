@@ -16,7 +16,7 @@ export const BlockTypeSchema = z.enum(BLOCK_TYPES);
 
 export const BlockContentSchema = z.object({
   type: BlockTypeSchema,
-  text: z.string(),
+  richText: z.array(z.unknown()),
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -62,6 +62,7 @@ export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),
   content: BlockContentSchema,
   index: z.number().int().nonnegative().optional(),
+  parentBlockId: z.string().min(1).nullable().optional(),
 });
 
 export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
@@ -78,6 +79,21 @@ export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
 });
 
 export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
+
+export const NestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  parentBlockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type NestKnowledgeBlockDto = z.infer<typeof NestKnowledgeBlockSchema>;
+
+export const UnnestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
 
 export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
   pageId: z.string().min(1),

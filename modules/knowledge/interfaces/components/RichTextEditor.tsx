@@ -56,6 +56,7 @@ import {
   updateKnowledgeBlock,
 } from "../_actions/knowledge.actions";
 import type { BlockContent } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -142,15 +143,15 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
           const legacyHtml = blocks
             .map((b) => {
               switch (b.content.type) {
-                case "heading-1": return `<h1>${escapeHtml(b.content.text)}</h1>`;
-                case "heading-2": return `<h2>${escapeHtml(b.content.text)}</h2>`;
-                case "heading-3": return `<h3>${escapeHtml(b.content.text)}</h3>`;
-                case "quote": return `<blockquote><p>${escapeHtml(b.content.text)}</p></blockquote>`;
-                case "bullet-list": return `<ul><li><p>${escapeHtml(b.content.text)}</p></li></ul>`;
-                case "numbered-list": return `<ol><li><p>${escapeHtml(b.content.text)}</p></li></ol>`;
-                case "code": return `<pre><code>${escapeHtml(b.content.text)}</code></pre>`;
+                case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
+                case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
+                case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
+                case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
+                case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
+                case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
+                case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
                 case "divider": return "<hr />";
-                default: return `<p>${escapeHtml(b.content.text)}</p>`;
+                default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
               }
             })
             .join("");

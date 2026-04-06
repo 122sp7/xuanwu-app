@@ -47,7 +47,9 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
   updateBlock(id, text) {
     set((state) => ({
       blocks: state.blocks.map((b) =>
-        b.id === id ? { ...b, content: { ...b.content, text } } : b,
+        b.id === id
+          ? { ...b, content: { ...b.content, richText: [{ type: "text" as const, plainText: text }] } }
+          : b,
       ),
     }));
   },

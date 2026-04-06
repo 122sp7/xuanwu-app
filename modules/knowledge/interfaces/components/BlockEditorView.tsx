@@ -10,8 +10,8 @@ import {
 } from "@lib-dragdrop";
 
 import { useBlockEditorStore } from "../store/block-editor.store";
-import type { BlockType } from "../../domain/value-objects/block-content";
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
+import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
+import { BLOCK_TYPES, richTextToPlainText } from "../../domain/value-objects/block-content";
 
 /**
  * BlockEditorView
@@ -171,7 +171,7 @@ export function BlockEditorView() {
 }
 
 interface BlockRowProps {
-  readonly block: { id: string; content: { type: BlockType; text: string } };
+  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
   readonly index: number;
   readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
   readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
@@ -203,7 +203,7 @@ function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }:
     };
   }, [block.id]);
 
-  const { type, text } = block.content;
+  const { type, richText } = block.content;
 
   if (type === "divider") {
     return (
@@ -261,7 +261,7 @@ function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }:
         data-placeholder={blockPlaceholder(type)}
         className={editableClassName}
       >
-        {text}
+        {richTextToPlainText(richText)}
       </div>
     </div>
   );

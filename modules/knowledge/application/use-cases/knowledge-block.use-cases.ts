@@ -15,6 +15,10 @@ import {
   type UpdateKnowledgeBlockDto,
   DeleteKnowledgeBlockSchema,
   type DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockSchema,
+  type NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockSchema,
+  type UnnestKnowledgeBlockDto,
 } from "../dto/knowledge.dto";
 
 export class AddKnowledgeBlockUseCase {
@@ -69,5 +73,33 @@ export class ListKnowledgeBlocksUseCase {
   async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
     if (!accountId.trim() || !pageId.trim()) return [];
     return this.repo.listByPageId(accountId, pageId);
+  }
+}
+
+export class NestKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = NestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+    const updated = await this.repo.nest(parsed.data);
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent block not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class UnnestKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+    const updated = await this.repo.unnest(parsed.data);
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    return commandSuccess(updated.id, Date.now());
   }
 }
