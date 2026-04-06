@@ -31,5 +31,7 @@ export const parseGephiNetwork = visNetworkRuntime.parseGephiNetwork;
 export const networkGephiParser = visNetworkRuntime.networkGephiParser;
 export const networkOptions = visNetworkRuntime.networkOptions;
 
-type NetworkClass = typeof import("vis-network").Network;
+import type { Network as NetworkType } from "vis-network";
+
+type NetworkClass = typeof NetworkType;
 export type NetworkOptions = InstanceType<NetworkClass> extends { setOptions(opts: infer T): void } ? T : never;

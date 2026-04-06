@@ -38,6 +38,9 @@ run uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 2. Use Serena memory tools for create/update/delete.
 3. Activate project before memory operations.
 4. Execute phase-end memory update before handoff.
+5. Serena owns orchestration; subagents assist but do not replace Serena's framing and synthesis.
+6. If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating or recommending code.
+7. Project memory and index updates are authoritative only when performed through Serena tools.
 
 ## Workflow
 1. Define concrete outcome and success criteria.

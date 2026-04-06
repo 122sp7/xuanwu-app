@@ -3539,512 +3539,6 @@ See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructio
 ../.github/skills
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  FirebaseIdentityRepository,
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-} from "@/modules/identity/api";
-import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
-import {
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => {
-      const identityRepo = new FirebaseIdentityRepository();
-      const accountRepo = new FirebaseAccountRepository();
-      return {
-        signInUseCase: new SignInUseCase(identityRepo),
-        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
-        registerUseCase: new RegisterUseCase(identityRepo),
-        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
-        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
-      };
-    }, []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
-## File: app/(shell)/_components/account-switcher.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import { useApp } from "@/app/providers/app-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-}
-
-export function AccountSwitcher({
-  personalAccount,
-  organizationAccounts,
-  activeAccountId,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
-}: AccountSwitcherProps) {
-  const router = useRouter();
-  const {
-    state: { accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-
-  function resetCreateOrganizationDialog() {
-    setOrganizationName("");
-    setOrganizationError(null);
-    setIsCreatingOrganization(false);
-  }
-
-  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!personalAccount) {
-      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-
-    const nextOrganizationName = organizationName.trim();
-    if (!nextOrganizationName) {
-      setOrganizationError("請輸入組織名稱。");
-      return;
-    }
-
-    setIsCreatingOrganization(true);
-    setOrganizationError(null);
-
-    const result = await createOrganization({
-      organizationName: nextOrganizationName,
-      ownerId: personalAccount.id,
-      ownerName: personalAccount.name,
-      ownerEmail: personalAccount.email,
-    });
-
-    if (!result.success) {
-      setOrganizationError(result.error.message);
-      setIsCreatingOrganization(false);
-      return;
-    }
-
-    onOrganizationCreated?.({
-      id: result.aggregateId,
-      name: nextOrganizationName,
-      accountType: "organization",
-      ownerId: personalAccount.id,
-    });
-
-    resetCreateOrganizationDialog();
-    setIsCreateOrganizationOpen(false);
-    router.push("/organization");
-  }
-
-  return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          帳號情境
-        </p>
-        <select
-          aria-label="切換帳號情境"
-          value={activeAccountId ?? ""}
-          onChange={(event) => {
-            const nextId = event.target.value;
-            if (nextId === "__create_organization__") {
-              setIsCreateOrganizationOpen(true);
-              return;
-            }
-
-            if (!nextId || nextId === personalAccount?.id) {
-              onSelectPersonal();
-              return;
-            }
-
-            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-            if (nextAccount) {
-              onSelectOrganization(nextAccount);
-            }
-          }}
-          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-        >
-          {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
-          )}
-          {organizationAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}（組織）
-            </option>
-          ))}
-          <option value="__create_organization__">+建立組織</option>
-        </select>
-        {!accountsHydrated && (
-          <p className="text-xs text-muted-foreground">
-            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
-          </p>
-        )}
-      </div>
-
-      <Dialog
-        open={isCreateOrganizationOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrganizationOpen(open);
-          if (!open) {
-            resetCreateOrganizationDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-organization-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="create-organization-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateOrganization}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="organization-name"
-                value={organizationName}
-                onChange={(event) => {
-                  setOrganizationName(event.target.value);
-                  if (organizationError) {
-                    setOrganizationError(null);
-                  }
-                }}
-                placeholder="例如：Gig Team"
-                autoFocus
-                disabled={isCreatingOrganization}
-                maxLength={80}
-              />
-              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateOrganizationDialog();
-                  setIsCreateOrganizationOpen(false);
-                }}
-                disabled={isCreatingOrganization}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
-                {isCreatingOrganization ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-````
-
 ## File: app/(shell)/_components/app-breadcrumbs.tsx
 ````typescript
 "use client";
@@ -4725,6 +4219,68 @@ export function CustomizeNavigationDialog({
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+````
+
+## File: app/(shell)/_components/header-controls.tsx
+````typescript
+"use client";
+
+/**
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
+ */
+
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { NotificationBell } from "@/modules/notification/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { TranslationSwitcher } from "./translation-switcher";
+
+const THEME_KEY = "xuanwu_theme";
+
+export function HeaderControls() {
+  const { state: authState } = useAuth();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const storedTheme = window.localStorage.getItem(THEME_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
+
+  const recipientId = authState.user?.id ?? "";
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <TranslationSwitcher />
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="text-muted-foreground"
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+
+      <NotificationBell recipientId={recipientId} />
+    </div>
   );
 }
 ````
@@ -13196,6 +12752,73 @@ export class BacklinkExtractorService {
 }
 ````
 
+## File: modules/knowledge-base/index.ts
+````typescript
+/**
+ * knowledge-base module — public barrel export
+ *
+ * Cross-module access: only import from this file.
+ * Internal layers (domain/, application/, infrastructure/) are NOT exported here.
+ *
+ * @module knowledge-base
+ */
+
+export * from "./api";
+````
+
+## File: modules/knowledge-collaboration/api/index.ts
+````typescript
+/**
+ * knowledge-collaboration public API boundary
+ *
+ * Other modules MUST import knowledge-collaboration resources from this file only.
+ */
+
+// ── Domain types ───────────────────────────────────────────────────────────────
+export type { Comment } from "../domain/entities/comment.entity";
+export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
+export type { Version } from "../domain/entities/version.entity";
+
+export type CommentId = string;
+export type PermissionId = string;
+export type VersionId = string;
+
+// ── DTOs ───────────────────────────────────────────────────────────────────────
+export type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+  CreateVersionDto,
+  DeleteVersionDto,
+  GrantPermissionDto,
+  RevokePermissionDto,
+} from "../application/dto/knowledge-collaboration.dto";
+
+// ── Server Actions (mutations) ─────────────────────────────────────────────────
+export {
+  createComment,
+  updateComment,
+  resolveComment,
+  deleteComment,
+  createVersion,
+  deleteVersion,
+  grantPermission,
+  revokePermission,
+} from "../interfaces/_actions/knowledge-collaboration.actions";
+
+// ── Queries (reads) ────────────────────────────────────────────────────────────
+export {
+  getComments,
+  getVersions,
+  getPermissions,
+} from "../interfaces/queries/knowledge-collaboration.queries";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+````
+
 ## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
 ````typescript
 /**
@@ -13351,6 +12974,62 @@ export class ListCommentsUseCase {
   async execute(accountId: string, contentId: string): Promise<Comment[]> {
     if (!accountId.trim() || !contentId.trim()) return [];
     return this.repo.listByContent(accountId, contentId);
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/use-cases
+ * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Permission } from "../../domain/entities/permission.entity";
+import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
+import {
+  GrantPermissionSchema, type GrantPermissionDto,
+  RevokePermissionSchema, type RevokePermissionDto,
+} from "../dto/knowledge-collaboration.dto";
+
+export class GrantPermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: GrantPermissionDto): Promise<CommandResult> {
+    const parsed = GrantPermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO } = parsed.data;
+    const permission = await this.repo.grant({
+      accountId, workspaceId, subjectId, subjectType,
+      principalId, principalType, level, grantedByUserId,
+      expiresAtISO: expiresAtISO ?? null,
+    });
+    return commandSuccess(permission.id, Date.now());
+  }
+}
+
+export class RevokePermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: RevokePermissionDto): Promise<CommandResult> {
+    const parsed = RevokePermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListPermissionsBySubjectUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
+    return this.repo.listBySubject(accountId, subjectId);
   }
 }
 ````
@@ -13557,6 +13236,18 @@ export interface IVersionRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/index.ts
+````typescript
+/**
+ * knowledge-collaboration module — public barrel export
+ *
+ * Cross-module access → use api/ exports only.
+ * Internal imports use relative paths.
+ */
+
+export * from "./api";
+````
+
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
 ````typescript
 /**
@@ -13671,6 +13362,99 @@ export class FirebaseCommentRepository implements ICommentRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Permission, PermissionLevel } from "../../domain/entities/permission.entity";
+import type {
+  IPermissionRepository,
+  GrantPermissionInput,
+} from "../../domain/repositories/IPermissionRepository";
+
+function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationPermissions");
+}
+
+function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationPermissions", id);
+}
+
+function toPermission(id: string, data: Record<string, unknown>): Permission {
+  return {
+    id,
+    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
+    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    principalId: typeof data.principalId === "string" ? data.principalId : "",
+    principalType: (data.principalType as Permission["principalType"]) ?? "user",
+    level: (data.level as PermissionLevel) ?? "view",
+    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
+    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+  };
+}
+
+export class FirebasePermissionRepository implements IPermissionRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async grant(input: GrantPermissionInput): Promise<Permission> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      subjectId: input.subjectId,
+      subjectType: input.subjectType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      principalId: input.principalId,
+      principalType: input.principalType,
+      level: input.level,
+      grantedByUserId: input.grantedByUserId,
+      grantedAtISO: now,
+      expiresAtISO: input.expiresAtISO ?? null,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(permissionDoc(db, input.accountId, id), data);
+    return toPermission(id, data);
+  }
+
+  async revoke(accountId: string, permissionId: string): Promise<void> {
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
+  }
+
+  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
+    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
+    if (!snap.exists()) return null;
+    return toPermission(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
 ````typescript
 /**
@@ -13754,6 +13538,168 @@ export class FirebaseVersionRepository implements IVersionRepository {
     await deleteDoc(versionDoc(db, accountId, versionId));
   }
 }
+````
+
+## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
+import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
+
+function makeCommentRepo() { return new FirebaseCommentRepository(); }
+function makeVersionRepo() { return new FirebaseVersionRepository(); }
+function makePermissionRepo() { return new FirebasePermissionRepository(); }
+
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
+  try {
+    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
+  try {
+    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
+  try {
+    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
+  try {
+    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/queries
+ */
+
+import type { Comment } from "../../domain/entities/comment.entity";
+import type { Version } from "../../domain/entities/version.entity";
+import type { Permission } from "../../domain/entities/permission.entity";
+import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
+import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
+import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+
+export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
+  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+}
+
+export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
+  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+}
+
+export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
+  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
+}
+````
+
+## File: modules/knowledge-database/api/index.ts
+````typescript
+/**
+ * knowledge-database public API boundary
+ */
+
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
+
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
+
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/knowledge-database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
+
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
 ````
 
 ## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
@@ -13867,90 +13813,6 @@ export const DeleteViewSchema = z.object({
   accountId: z.string().min(1),
 });
 export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
-````
-
-## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-import type { Database } from "../../domain/entities/database.entity";
-import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
-import {
-  CreateDatabaseSchema, type CreateDatabaseDto,
-  UpdateDatabaseSchema, type UpdateDatabaseDto,
-  AddFieldSchema, type AddFieldDto,
-  ArchiveDatabaseSchema, type ArchiveDatabaseDto,
-} from "../dto/knowledge-database.dto";
-
-export class CreateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: CreateDatabaseDto): Promise<CommandResult> {
-    const parsed = CreateDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, name, description, createdByUserId } = parsed.data;
-    const db = await this.repo.create({ accountId, workspaceId, name: name.trim(), description, createdByUserId });
-    return commandSuccess(db.id, Date.now());
-  }
-}
-
-export class UpdateDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
-    const parsed = UpdateDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AddFieldUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: AddFieldDto): Promise<CommandResult> {
-    const parsed = AddFieldSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    const { databaseId, accountId, name, type, config = {}, required = false } = parsed.data;
-    const result = await this.repo.addField({ databaseId, accountId, field: { name, type, config, required } });
-    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class ArchiveDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
-    const parsed = ArchiveDatabaseSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
-    await this.repo.archive(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class GetDatabaseUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<Database | null> {
-    return this.repo.findById(accountId, databaseId);
-  }
-}
-
-export class ListDatabasesUseCase {
-  constructor(private readonly repo: IDatabaseRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<Database[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    return this.repo.listByWorkspace(accountId, workspaceId);
-  }
-}
 ````
 
 ## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
@@ -14218,6 +14080,14 @@ export interface IViewRepository {
 }
 ````
 
+## File: modules/knowledge-database/index.ts
+````typescript
+/**
+ * knowledge-database module — public barrel export
+ */
+export * from "./api";
+````
+
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseViewRepository.ts
 ````typescript
 /**
@@ -14349,6 +14219,119 @@ export class FirebaseViewRepository implements IViewRepository {
 }
 ````
 
+## File: modules/knowledge-database/interfaces/components/DatabaseDialog.tsx
+````typescript
+"use client";
+
+import { useState, useTransition } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { createDatabase } from "../_actions/knowledge-database.actions";
+
+interface DatabaseDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  onSuccess?: (databaseId?: string) => void;
+}
+
+export function DatabaseDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onSuccess,
+}: DatabaseDialogProps) {
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() {
+    setName("");
+    setDescription("");
+    setError(null);
+  }
+
+  function handleOpenChange(next: boolean) {
+    if (!next) reset();
+    onOpenChange(next);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) { setError("資料庫名稱為必填"); return; }
+    setError(null);
+    startTransition(async () => {
+      const result = await createDatabase({
+        accountId,
+        workspaceId,
+        name: name.trim(),
+        description: description.trim() || null,
+        createdByUserId: currentUserId,
+      });
+      if (result.success) {
+        reset();
+        onOpenChange(false);
+        onSuccess?.(result.aggregateId);
+      } else {
+        setError(result.error.message ?? "建立失敗");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>新增資料庫</DialogTitle>
+        </DialogHeader>
+        <form id="db-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="db-name">名稱 *</Label>
+            <Input
+              id="db-name"
+              placeholder="資料庫名稱"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="db-desc">說明</Label>
+            <Textarea
+              id="db-desc"
+              placeholder="選填：說明此資料庫的用途"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={isPending}
+            />
+          </div>
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button type="submit" form="db-form" disabled={isPending || !name.trim()}>
+            {isPending ? "建立中…" : "建立"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/knowledge-database/interfaces/queries/knowledge-database.queries.ts
 ````typescript
 /**
@@ -14426,6 +14409,120 @@ export const KNOWLEDGE_EVENT_TYPES = {
 } as const;
 
 export type KnowledgeEventType = (typeof KNOWLEDGE_EVENT_TYPES)[keyof typeof KNOWLEDGE_EVENT_TYPES];
+````
+
+## File: modules/knowledge/api/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+export type { KnowledgePage } from "../domain/entities/content-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/api/knowledge-api.ts
@@ -17282,6 +17379,177 @@ export async function assignKnowledgePageOwner(
 }
 ````
 
+## File: modules/knowledge/interfaces/components/PageTreeView.tsx
+````typescript
+"use client";
+
+import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import { PageDialog } from "./PageDialog";
+
+interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onPageClick,
+  onCreated,
+  depth,
+}: {
+  node: KnowledgePageTreeNode;
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+
+  return (
+    <li>
+      <div
+        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
+        style={{ paddingLeft: `${8 + depth * 16}px` }}
+      >
+        <button
+          type="button"
+          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {hasChildren ? (
+            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <FileText className="h-3.5 w-3.5" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-sm"
+          onClick={() => onPageClick?.(node.id)}
+        >
+          {node.title}
+        </button>
+
+        <button
+          type="button"
+          className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
+          onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
+          title="新增子頁面"
+        >
+          <FilePlus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {expanded && hasChildren && (
+        <ul className="list-none">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.id}
+              node={child}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              currentUserId={currentUserId}
+              onPageClick={onPageClick}
+              onCreated={onCreated}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+      )}
+
+      <PageDialog
+        open={addChildOpen}
+        onOpenChange={setAddChildOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        parentPageId={node.id}
+        onSuccess={() => onCreated?.()}
+      />
+    </li>
+  );
+}
+
+export function PageTreeView({
+  nodes,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onPageClick,
+  onCreated,
+}: PageTreeViewProps) {
+  const [addRootOpen, setAddRootOpen] = useState(false);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => setAddRootOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
+        </Button>
+      </div>
+
+      {nodes.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無頁面。點擊「新增頁面」開始建立。</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 bg-background py-1">
+          <ul className="list-none">
+            {nodes.map((node) => (
+              <TreeNode
+                key={node.id}
+                node={node}
+                accountId={accountId}
+                workspaceId={workspaceId}
+                currentUserId={currentUserId}
+                onPageClick={onPageClick}
+                onCreated={onCreated}
+                depth={0}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <PageDialog
+        open={addRootOpen}
+        onOpenChange={setAddRootOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        parentPageId={null}
+        onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/knowledge/interfaces/index.ts
 ````typescript
 /**
@@ -18142,6 +18410,95 @@ npm run build
 | `NotificationRepository` | `save()`, `findByRecipient()`, `markAsRead()` |
 ````
 
+## File: modules/notification/api/index.ts
+````typescript
+/**
+ * Module: notification
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Notification domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Facade ───────────────────────────────────────────────────────────────────
+
+export { NotificationFacade, notificationFacade } from "./notification.facade";
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "../domain/entities/Notification";
+
+// ─── UI components ────────────────────────────────────────────────────────────
+
+export { NotificationBell } from "../interfaces/components/NotificationBell";
+````
+
+## File: modules/notification/api/notification.facade.ts
+````typescript
+/**
+ * Module: notification
+ * Layer: api/facade
+ * Purpose: Public programmatic entry-point for cross-module notification dispatch.
+ *
+ * Other modules MUST use `notificationFacade` — never reach into domain/,
+ * application/, or infrastructure/ directly.
+ */
+
+import { type CommandResult } from "@shared-types";
+import {
+  DispatchNotificationUseCase,
+  MarkAllNotificationsReadUseCase,
+  MarkNotificationReadUseCase,
+} from "../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
+import { FirebaseNotificationRepository } from "../infrastructure/firebase/FirebaseNotificationRepository";
+import type { NotificationRepository } from "../domain/repositories/NotificationRepository";
+
+export class NotificationFacade {
+  private readonly repo: NotificationRepository;
+
+  constructor(repo: NotificationRepository = new FirebaseNotificationRepository()) {
+    this.repo = repo;
+  }
+
+  /** Dispatch a new notification to a recipient. */
+  async dispatch(input: DispatchNotificationInput): Promise<CommandResult> {
+    return new DispatchNotificationUseCase(this.repo).execute(input);
+  }
+
+  /** Mark a single notification as read. */
+  async markAsRead(notificationId: string, recipientId: string): Promise<CommandResult> {
+    return new MarkNotificationReadUseCase(this.repo).execute(notificationId, recipientId);
+  }
+
+  /** Mark all notifications for a recipient as read. */
+  async markAllAsRead(recipientId: string): Promise<CommandResult> {
+    return new MarkAllNotificationsReadUseCase(this.repo).execute(recipientId);
+  }
+
+  /** Retrieve recent notifications for a recipient. */
+  async getForRecipient(recipientId: string, limit = 50): Promise<NotificationEntity[]> {
+    const normalised = recipientId.trim();
+    if (!normalised) return [];
+    return this.repo.findByRecipient(normalised, limit);
+  }
+
+  /** Return unread notification count for a recipient. */
+  async getUnreadCount(recipientId: string): Promise<number> {
+    const normalised = recipientId.trim();
+    if (!normalised) return 0;
+    return this.repo.getUnreadCount(normalised);
+  }
+}
+
+export const notificationFacade = new NotificationFacade();
+````
+
 ## File: modules/notification/application-services.md
 ````markdown
 # notification — Application Services
@@ -18358,6 +18715,25 @@ export interface NotificationRepository {
 }
 ````
 
+## File: modules/notification/index.ts
+````typescript
+/**
+ * notification module public API
+ *
+ * Cross-module callers must use `notificationFacade` or the exported types.
+ * Internal layers (domain/, application/, infrastructure/) remain private.
+ */
+
+export { NotificationFacade, notificationFacade } from "./api";
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "./api";
+
+export { NotificationBell } from "./interfaces";
+````
+
 ## File: modules/notification/infrastructure/firebase/FirebaseNotificationRepository.ts
 ````typescript
 /**
@@ -18514,6 +18890,190 @@ export async function markAllNotificationsRead(recipientId: string): Promise<Com
     return commandFailureFrom("NOTIFICATION_MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
+````
+
+## File: modules/notification/interfaces/components/NotificationBell.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notification
+ * Layer: interfaces/components
+ * Purpose: Reusable notification bell with dropdown for shell header.
+ *
+ * Consumes use-cases via the module facade (no direct infrastructure imports).
+ * Server-action mutations are wired through the local _actions module.
+ */
+
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+interface NotificationBellProps {
+  readonly recipientId: string;
+}
+
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+````
+
+## File: modules/notification/interfaces/index.ts
+````typescript
+export { NotificationBell } from "./components/NotificationBell";
 ````
 
 ## File: modules/notification/interfaces/queries/notification.queries.ts
@@ -20060,234 +20620,6 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
 }
 ````
 
-## File: modules/organization/interfaces/_actions/organization.actions.ts
-````typescript
-"use server";
-
-/**
- * Organization Core Server Actions — thin adapter: Server Actions → Application Use Cases.
- * Covers: org lifecycle (create, update settings, delete).
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../../application/use-cases/organization-policy.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── Org Lifecycle ────────────────────────────────────────────────────────────
-
-export async function createOrganization(
-  command: CreateOrganizationCommand,
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createOrganizationWithTeam(
-  command: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
-  } catch (err) {
-    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrganizationSettings(
-  command: UpdateOrganizationSettingsCommand,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ─── Members ─────────────────────────────────────────────────────────────────
-
-export async function inviteMember(input: import("../../domain/entities/Organization").InviteMemberInput): Promise<CommandResult> {
-  try {
-    return await new InviteMemberUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
-  } catch (err) {
-    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissMember(
-  organizationId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try {
-    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ─── Teams ───────────────────────────────────────────────────────────────────
-
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try {
-    return await new CreateTeamUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteTeam(
-  organizationId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try {
-    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ─── Partners ─────────────────────────────────────────────────────────────────
-
-export async function createPartnerGroup(
-  organizationId: string,
-  groupName: string,
-): Promise<CommandResult> {
-  try {
-    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
-  } catch (err) {
-    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
-  } catch (err) {
-    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ─── Policy ───────────────────────────────────────────────────────────────────
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try {
-    return await new CreateOrgPolicyUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrgPolicy(
-  policyId: string,
-  data: UpdateOrgPolicyInput,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrgPolicyUseCase(orgRepo).execute(policyId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrgPolicyUseCase(orgRepo).execute(policyId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
 ## File: modules/organization/interfaces/queries/organization.queries.ts
 ````typescript
 /**
@@ -20534,98 +20866,6 @@ npm run build
 | `RagGenerationRepository` | AI 答案生成（組合 chunks + Genkit 呼叫） |
 | `RagQueryFeedbackRepository` | 反饋持久化 |
 | `WikiContentRepository` | Wiki 整合 RAG 查詢（`queryWikiRag()`, `reindexWikiDocument()`） |
-````
-
-## File: modules/search/api/index.ts
-````typescript
-/**
- * modules/search — public API barrel.
- *
- * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
- * Other modules MUST import from here only.
- */
-
-export type {
-  IVectorStore,
-  VectorDocument,
-  VectorSearchResult,
-} from "../domain/ports/vector-store";
-
-export type {
-  AnswerRagQueryInput,
-  AnswerRagQueryOutput,
-  AnswerRagQueryResult,
-  RagCitation,
-  RagRetrievedChunk,
-  RagRetrievalSummary,
-  RagStreamEvent,
-} from "../domain/entities/RagQuery";
-
-export type {
-  RagRetrievalRepository,
-  RetrieveRagChunksInput,
-} from "../domain/repositories/RagRetrievalRepository";
-
-export type {
-  GenerateRagAnswerInput,
-  GenerateRagAnswerOutput,
-  GenerateRagAnswerResult,
-  RagGenerationRepository,
-} from "../domain/repositories/RagGenerationRepository";
-
-// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
-export type {
-  RagQueryFeedback,
-  RagFeedbackRating,
-  SubmitRagQueryFeedbackInput,
-} from "../domain/entities/RagQueryFeedback";
-
-export type { RagQueryFeedbackRepository } from "../domain/repositories/RagQueryFeedbackRepository";
-
-export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
-
-export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
-
-// ── Wiki RAG types (owned by search domain) ────────────────────────────────
-export type {
-  WikiCitation,
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/entities/WikiRagTypes";
-
-// ── Wiki RAG use-cases ─────────────────────────────────────────────────────
-import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
-import {
-  runWikiRagQuery as _runWikiRagQuery,
-  reindexWikiDocument as _reindexWikiDocument,
-  listWikiParsedDocuments as _listWikiParsedDocuments,
-} from "../application/use-cases/wiki-rag.use-case";
-import type {
-  WikiParsedDocument,
-  WikiRagQueryResult,
-  WikiReindexInput,
-} from "../domain/entities/WikiRagTypes";
-
-const _defaultContentRepository = new FirebaseWikiContentRepository();
-
-export function runWikiRagQuery(
-  query: string,
-  accountId: string,
-  workspaceId: string,
-  topK = 4,
-  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
-): Promise<WikiRagQueryResult> {
-  return _runWikiRagQuery(query, accountId, workspaceId, topK, options, _defaultContentRepository);
-}
-
-export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
-  return _reindexWikiDocument(input, _defaultContentRepository);
-}
-
-export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
-  return _listWikiParsedDocuments(accountId, limitCount, _defaultContentRepository);
-}
 ````
 
 ## File: modules/search/api/server.ts
@@ -22933,59 +23173,6 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/shared/application-services.md`
 ````
 
-## File: modules/shared/application/publish-domain-event.ts
-````typescript
-/**
- * modules/shared — application: PublishDomainEventUseCase
- * Moved from modules/event/application/use-cases/publish-domain-event.ts.
- *
- * Write-side orchestration for event capture, persistence, and dispatch.
- */
-import {
-  EventRecord,
-  EventRecordPayload,
-  EventMetadata,
-  IEventBusRepository,
-  IEventStoreRepository,
-} from '../domain/event-record';
-
-export interface PublishDomainEventDTO {
-  id: string;
-  eventName: string;
-  aggregateType: string;
-  aggregateId: string;
-  payload: EventRecordPayload;
-  metadata?: EventMetadata;
-  occurredAt?: Date;
-}
-
-export class PublishDomainEventUseCase {
-  constructor(
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
-    const event = new EventRecord(
-      dto.id,
-      dto.eventName,
-      dto.aggregateType,
-      dto.aggregateId,
-      dto.occurredAt ?? new Date(),
-      dto.payload,
-      dto.metadata,
-    );
-
-    await this.eventStore.save(event);
-    await this.eventBus.publish(event);
-    event.markDispatched(new Date());
-    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
-
-    return event;
-  }
-}
-````
-
 ## File: modules/shared/context-map.md
 ````markdown
 # Context Map — shared
@@ -23394,65 +23581,6 @@ export { PublishDomainEventUseCase } from "./application/publish-domain-event";
 export type { PublishDomainEventDTO } from "./application/publish-domain-event";
 export { InMemoryEventStoreRepository } from "./infrastructure/InMemoryEventStoreRepository";
 export { NoopEventBusRepository } from "./infrastructure/NoopEventBusRepository";
-````
-
-## File: modules/shared/infrastructure/InMemoryEventStoreRepository.ts
-````typescript
-/**
- * modules/shared — infrastructure: InMemoryEventStoreRepository
- * Moved from modules/event/infrastructure/repositories/in-memory-event-store.repository.ts.
- *
- * In-memory adapter for the event store — used in local development and tests.
- */
-import { EventRecord, IEventStoreRepository } from '../domain/event-record';
-
-export class InMemoryEventStoreRepository implements IEventStoreRepository {
-  private readonly events = new Map<string, EventRecord>();
-
-  async save(event: EventRecord): Promise<void> {
-    this.events.set(event.id, event);
-  }
-
-  async findById(id: string): Promise<EventRecord | null> {
-    return this.events.get(id) ?? null;
-  }
-
-  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
-    return [...this.events.values()]
-      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
-  }
-
-  async findUndispatched(limit: number): Promise<EventRecord[]> {
-    return [...this.events.values()]
-      .filter((e) => !e.isDispatched)
-      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
-      .slice(0, Math.max(limit, 0));
-  }
-
-  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
-    const event = this.events.get(id);
-    if (event) event.markDispatched(dispatchedAt);
-  }
-}
-````
-
-## File: modules/shared/infrastructure/NoopEventBusRepository.ts
-````typescript
-/**
- * modules/shared — infrastructure: NoopEventBusRepository
- * Moved from modules/event/infrastructure/repositories/noop-event-bus.repository.ts.
- *
- * No-op event bus adapter used in tests and scaffold before a real transport is wired.
- */
-import { EventRecord, IEventBusRepository } from '../domain/event-record';
-
-export class NoopEventBusRepository implements IEventBusRepository {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async publish(_event: EventRecord): Promise<void> {
-    // Intentional no-op: replace with a real transport adapter when needed.
-  }
-}
 ````
 
 ## File: modules/shared/infrastructure/SimpleEventBus.ts
@@ -27298,6 +27426,41 @@ export async function getWorkspaceRagDocuments(
 | `RetentionPolicy` | `Policy`, `LifecycleRule` |
 ````
 
+## File: modules/system.ts
+````typescript
+/**
+ * modules/system.ts — Composition Root
+ *
+ * Architecture Phase 3: Interface Wiring
+ *
+ * Initialises and wires the singleton instances that power the
+ * Content → EventBus demo loop.
+ *
+ * Responsibilities:
+ *   1. Create the shared SimpleEventBus.
+ *   2. Create KnowledgeApi (injected with the event bus).
+ *
+ * All state lives here — never in page files or global variables.
+ *
+ * MDDD boundary rule:
+ *   Imports only from the api/ barrel of each module and from
+ *   shared/infrastructure.  Never reaches into domain/, application/,
+ *   or infrastructure/ layers of other modules.
+ */
+
+import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
+import { KnowledgeApi } from "./knowledge/api/knowledge-api";
+
+// ── Shared account used by the in-memory demo ──────────────────────────────
+
+export const DEMO_ACCOUNT_ID = "demo-account";
+
+// ── Singleton instances ────────────────────────────────────────────────────
+
+const eventBus = new SimpleEventBus();
+export const contentApi = new KnowledgeApi(eventBus);
+````
+
 ## File: modules/workspace-audit/AGENT.md
 ````markdown
 # AGENT.md — workspace-audit BC
@@ -30212,179 +30375,6 @@ draft ──► submitted ──► finance_review ──► approved ──► 
 | `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
 ````
 
-## File: modules/workspace-flow/api/contracts.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file contracts.ts
- * @description Public contracts exposed through the workspace-flow module boundary.
- *
- * All types, DTOs, and projection helpers that external consumers need are
- * re-exported from this single file.  XState internals (canTransition*, nextStatus,
- * isTerminal*) are intentionally NOT exposed here — status machines are internal.
- *
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-// ── Entity types ──────────────────────────────────────────────────────────────
-
-export type { Task } from "../domain/entities/Task";
-export type { Issue } from "../domain/entities/Issue";
-export type { Invoice } from "../domain/entities/Invoice";
-export type { InvoiceItem } from "../domain/entities/InvoiceItem";
-
-// ── Value objects (enum / list only — no transition helpers) ──────────────────
-
-export type { TaskStatus } from "../domain/value-objects/TaskStatus";
-export { TASK_STATUSES } from "../domain/value-objects/TaskStatus";
-
-export type { IssueStatus } from "../domain/value-objects/IssueStatus";
-export { ISSUE_STATUSES } from "../domain/value-objects/IssueStatus";
-
-export type { IssueStage } from "../domain/value-objects/IssueStage";
-export { ISSUE_STAGES } from "../domain/value-objects/IssueStage";
-
-export type { InvoiceStatus } from "../domain/value-objects/InvoiceStatus";
-export { INVOICE_STATUSES } from "../domain/value-objects/InvoiceStatus";
-
-// ── Source reference (content → workspace-flow provenance) ────────────────────
-
-export type { SourceReference, SourceReferenceType } from "../domain/value-objects/SourceReference";
-
-// ── Summary projections ───────────────────────────────────────────────────────
-
-export type {
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-
-export {
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-
-// ── CRUD / command DTOs ───────────────────────────────────────────────────────
-
-export type { CreateTaskDto } from "../application/dto/create-task.dto";
-export type { UpdateTaskDto } from "../application/dto/update-task.dto";
-
-export type { OpenIssueDto } from "../application/dto/open-issue.dto";
-export type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
-
-export type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-export type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-export type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-
-// ── Query / pagination DTOs ───────────────────────────────────────────────────
-
-export type { TaskQueryDto } from "../application/dto/task-query.dto";
-export type { IssueQueryDto } from "../application/dto/issue-query.dto";
-export type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-export type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-
-// ── Command / operation result ────────────────────────────────────────────────
-
-export type { CommandResult } from "@shared-types";
-````
-
-## File: modules/workspace-flow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace-flow/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-
-export { WorkspaceFlowFacade } from "./workspace-flow.facade";
-
-// ── Public contracts ──────────────────────────────────────────────────────────
-
-export type {
-  // Entities
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  // Value objects
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  // Summary projections
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  // CRUD / command DTOs
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  // Query / pagination DTOs
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  // Command result
-  CommandResult,
-} from "./contracts";
-
-export {
-  // Value object lists (enum arrays)
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  // Summary projection helpers
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "./contracts";
-
-// ── Read queries (server-side) ────────────────────────────────────────────────
-
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "../interfaces/queries/workspace-flow.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────────
-
-export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
-
-// ── Event listeners (content → workspace-flow integration) ───────────────────
-
-export {
-  createContentToWorkflowListener,
-} from "./listeners";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "./listeners";
-````
-
 ## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
@@ -30433,261 +30423,6 @@ export interface KnowledgePageApprovedHandler {
 }
 
 export type { KnowledgePageApprovedEvent };
-````
-
-## File: modules/workspace-flow/api/workspace-flow.facade.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file workspace-flow.facade.ts
- * @description Public facade for executing workspace-flow operations from external consumers.
- *
- * All CRUD and workflow write operations are exposed exclusively through this class.
- * List operations return {@link PagedResult} for uniform pagination.
- * Scalar-get summary operations return the appropriate {@link *Summary} projection.
- *
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-import type { TaskRepository } from "../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
-import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
-
-import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
-import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
-import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
-import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
-import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
-import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
-import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
-
-import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
-import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
-import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
-import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
-import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
-import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
-import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
-import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
-
-import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
-import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
-import { UpdateInvoiceItemUseCase } from "../application/use-cases/update-invoice-item.use-case";
-import { RemoveInvoiceItemUseCase } from "../application/use-cases/remove-invoice-item.use-case";
-import { SubmitInvoiceUseCase } from "../application/use-cases/submit-invoice.use-case";
-import { ReviewInvoiceUseCase } from "../application/use-cases/review-invoice.use-case";
-import { ApproveInvoiceUseCase } from "../application/use-cases/approve-invoice.use-case";
-import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.use-case";
-import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
-import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
-
-import type { CreateTaskDto } from "../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../application/dto/update-task.dto";
-import type { OpenIssueDto } from "../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
-import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-import type { TaskQueryDto } from "../application/dto/task-query.dto";
-import type { IssueQueryDto } from "../application/dto/issue-query.dto";
-import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
-import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
-
-import type {
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-import {
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-
-import type { CommandResult } from "@shared-types";
-
-// ── Pagination helper ─────────────────────────────────────────────────────────
-
-function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
-  const page = pagination?.page ?? 1;
-  const pageSize = pagination?.pageSize ?? (items.length || 20);
-  const start = (page - 1) * pageSize;
-  const paged = items.slice(start, start + pageSize);
-  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
-}
-
-/**
- * WorkspaceFlowFacade
- *
- * Single entry point for all workspace-flow write and read-summary operations.
- * External consumers must construct this with concrete repository implementations.
- *
- * @example
- * ```ts
- * const facade = new WorkspaceFlowFacade(
- *   new FirebaseTaskRepository(),
- *   new FirebaseIssueRepository(),
- *   new FirebaseInvoiceRepository(),
- * );
- * await facade.createTask({ workspaceId, title: "My task" });
- * ```
- */
-export class WorkspaceFlowFacade {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly issueRepository: IssueRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  // ── Task write operations ────────────────────────────────────────────────────
-
-  async createTask(dto: CreateTaskDto): Promise<CommandResult> {
-    return new CreateTaskUseCase(this.taskRepository).execute(dto);
-  }
-
-  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
-  }
-
-  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);
-  }
-
-  async submitTaskToQa(taskId: string): Promise<CommandResult> {
-    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);
-  }
-
-  async passTaskQa(taskId: string): Promise<CommandResult> {
-    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);
-  }
-
-  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {
-    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);
-  }
-
-  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
-  }
-
-  // ── Task read operations ─────────────────────────────────────────────────────
-
-  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
-    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
-    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
-    const assigneeFiltered = query.assigneeId
-      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
-      : filtered;
-    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
-  }
-
-  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
-    const task = await this.taskRepository.findById(taskId);
-    return task ? toTaskSummary(task) : null;
-  }
-
-  // ── Issue write operations ───────────────────────────────────────────────────
-
-  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
-    return new OpenIssueUseCase(this.issueRepository).execute(dto);
-  }
-
-  async startIssue(issueId: string): Promise<CommandResult> {
-    return new StartIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async fixIssue(issueId: string): Promise<CommandResult> {
-    return new FixIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async submitIssueRetest(issueId: string): Promise<CommandResult> {
-    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async passIssueRetest(issueId: string): Promise<CommandResult> {
-    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async failIssueRetest(issueId: string): Promise<CommandResult> {
-    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
-  }
-
-  async closeIssue(issueId: string): Promise<CommandResult> {
-    return new CloseIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  // ── Issue read operations ────────────────────────────────────────────────────
-
-  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
-    const all = await this.issueRepository.findByTaskId(query.taskId);
-    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
-    return toPagedResult(filtered.map(toIssueSummary), pagination);
-  }
-
-  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
-    const issue = await this.issueRepository.findById(issueId);
-    return issue ? toIssueSummary(issue) : null;
-  }
-
-  // ── Invoice write operations ─────────────────────────────────────────────────
-
-  async createInvoice(workspaceId: string): Promise<CommandResult> {
-    return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);
-  }
-
-  async addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-    return new AddInvoiceItemUseCase(this.invoiceRepository).execute(dto);
-  }
-
-  async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-    return new UpdateInvoiceItemUseCase(this.invoiceRepository).execute(invoiceItemId, dto);
-  }
-
-  async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(dto.invoiceId, dto.invoiceItemId);
-  }
-
-  async submitInvoice(invoiceId: string): Promise<CommandResult> {
-    return new SubmitInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async reviewInvoice(invoiceId: string): Promise<CommandResult> {
-    return new ReviewInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async approveInvoice(invoiceId: string): Promise<CommandResult> {
-    return new ApproveInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async rejectInvoice(invoiceId: string): Promise<CommandResult> {
-    return new RejectInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async payInvoice(invoiceId: string): Promise<CommandResult> {
-    return new PayInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  async closeInvoice(invoiceId: string): Promise<CommandResult> {
-    return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
-  }
-
-  // ── Invoice read operations ──────────────────────────────────────────────────
-
-  async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {
-    const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);
-    const filtered = query.status ? all.filter((inv) => inv.status === query.status) : all;
-    return toPagedResult(filtered.map(toInvoiceSummary), pagination);
-  }
-
-  async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    return invoice ? toInvoiceSummary(invoice) : null;
-  }
-}
 ````
 
 ## File: modules/workspace-flow/application-services.md
@@ -30761,82 +30496,6 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
 ````
 
-## File: modules/workspace-flow/application/dto/add-invoice-item.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file add-invoice-item.dto.ts
- * @description Command DTO for adding an item to an invoice.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add Zod schema when validation layer is wired in
- */
-
-export interface AddInvoiceItemDto {
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: number;
-}
-````
-
-## File: modules/workspace-flow/application/dto/create-task.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file create-task.dto.ts
- * @description Command DTO for creating a new task.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add Zod schema when validation layer is wired in
- */
-
-export interface CreateTaskDto {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace-flow/application/dto/invoice-query.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file invoice-query.dto.ts
- * @description Query parameters DTO for listing invoices.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add pagination support when invoice lists grow large
- */
-
-export interface InvoiceQueryDto {
-  /** Filter invoices by workspace. Required for scoped queries. */
-  readonly workspaceId: string;
-  /** Optional status filter. */
-  readonly status?: string;
-}
-````
-
-## File: modules/workspace-flow/application/dto/issue-query.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file issue-query.dto.ts
- * @description Query parameters DTO for listing issues.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add pagination support when issue lists grow large
- */
-
-export interface IssueQueryDto {
-  /** Filter issues by task. */
-  readonly taskId: string;
-  /** Optional status filter. */
-  readonly status?: string;
-}
-````
-
 ## File: modules/workspace-flow/application/dto/materialize-from-content.dto.ts
 ````typescript
 /**
@@ -30872,218 +30531,6 @@ export interface MaterializeFromContentDto {
   readonly sourceReference: SourceReference;
   readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;
   readonly extractedInvoices: ReadonlyArray<ExtractedInvoiceItem>;
-}
-````
-
-## File: modules/workspace-flow/application/dto/open-issue.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file open-issue.dto.ts
- * @description Command DTO for opening a new issue against a task.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add Zod schema when validation layer is wired in
- */
-
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-
-export interface OpenIssueDto {
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description?: string;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-}
-````
-
-## File: modules/workspace-flow/application/dto/pagination.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file pagination.dto.ts
- * @description Shared pagination request / response DTOs for workspace-flow list queries.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-export interface PaginationDto {
-  /** 1-based page number. Defaults to 1. */
-  readonly page?: number;
-  /** Items per page. Defaults to 20. */
-  readonly pageSize?: number;
-}
-
-export interface PagedResult<T> {
-  readonly items: T[];
-  readonly total: number;
-  readonly page: number;
-  readonly pageSize: number;
-  readonly hasMore: boolean;
-}
-````
-
-## File: modules/workspace-flow/application/dto/remove-invoice-item.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file remove-invoice-item.dto.ts
- * @description Command DTO for removing an item from an invoice.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-export interface RemoveInvoiceItemDto {
-  readonly invoiceId: string;
-  readonly invoiceItemId: string;
-}
-````
-
-## File: modules/workspace-flow/application/dto/resolve-issue.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file resolve-issue.dto.ts
- * @description Command DTO for resolving an issue (retest passed → resolved).
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-export interface ResolveIssueDto {
-  readonly issueId: string;
-  readonly resolutionNote?: string;
-}
-````
-
-## File: modules/workspace-flow/application/dto/task-query.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file task-query.dto.ts
- * @description Query parameters DTO for listing tasks.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add pagination support when task lists grow large
- */
-
-export interface TaskQueryDto {
-  /** Filter tasks by workspace. Required for scoped queries. */
-  readonly workspaceId: string;
-  /** Optional status filter. */
-  readonly status?: string;
-  /** Optional assignee filter. */
-  readonly assigneeId?: string;
-}
-````
-
-## File: modules/workspace-flow/application/dto/update-invoice-item.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file update-invoice-item.dto.ts
- * @description Command DTO for updating the amount of an existing invoice item.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-export interface UpdateInvoiceItemDto {
-  /** Updated billing amount (must be > 0). */
-  readonly amount: number;
-}
-````
-
-## File: modules/workspace-flow/application/dto/update-task.dto.ts
-````typescript
-/**
- * @module workspace-flow/application/dto
- * @file update-task.dto.ts
- * @description Command DTO for updating mutable fields on an existing task.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-export interface UpdateTaskDto {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace-flow/application/ports/InvoiceService.ts
-````typescript
-/**
- * @module workspace-flow/application/ports
- * @file InvoiceService.ts
- * @description Application port interface for Invoice operations.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Wire use cases and implement concrete adapters
- */
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import type { AddInvoiceItemDto } from "../dto/add-invoice-item.dto";
-import type { InvoiceQueryDto } from "../dto/invoice-query.dto";
-
-export interface InvoiceService {
-  createInvoice(workspaceId: string): Promise<Invoice>;
-  addItem(dto: AddInvoiceItemDto): Promise<InvoiceItem>;
-  removeItem(invoiceItemId: string): Promise<void>;
-  transitionStatus(invoiceId: string, to: InvoiceStatus): Promise<Invoice>;
-  listInvoices(query: InvoiceQueryDto): Promise<Invoice[]>;
-  getInvoice(invoiceId: string): Promise<Invoice | null>;
-}
-````
-
-## File: modules/workspace-flow/application/ports/IssueService.ts
-````typescript
-/**
- * @module workspace-flow/application/ports
- * @file IssueService.ts
- * @description Application port interface for Issue operations.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Wire use cases and implement concrete adapters
- */
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { IssueStatus } from "../../domain/value-objects/IssueStatus";
-import type { OpenIssueDto } from "../dto/open-issue.dto";
-import type { IssueQueryDto } from "../dto/issue-query.dto";
-
-export interface IssueService {
-  openIssue(dto: OpenIssueDto): Promise<Issue>;
-  transitionStatus(issueId: string, to: IssueStatus): Promise<Issue>;
-  listIssues(query: IssueQueryDto): Promise<Issue[]>;
-  getIssue(issueId: string): Promise<Issue | null>;
-}
-````
-
-## File: modules/workspace-flow/application/ports/TaskService.ts
-````typescript
-/**
- * @module workspace-flow/application/ports
- * @file TaskService.ts
- * @description Application port interface for Task operations.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Wire use cases and implement concrete adapters
- */
-
-import type { Task } from "../../domain/entities/Task";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import type { CreateTaskDto } from "../dto/create-task.dto";
-import type { TaskQueryDto } from "../dto/task-query.dto";
-
-export interface TaskService {
-  createTask(dto: CreateTaskDto): Promise<Task>;
-  assignTask(taskId: string, assigneeId: string): Promise<Task>;
-  transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
-  listTasks(query: TaskQueryDto): Promise<Task[]>;
-  getTask(taskId: string): Promise<Task | null>;
 }
 ````
 
@@ -31180,491 +30627,6 @@ export class ContentToWorkflowMaterializer {
 }
 ````
 
-## File: modules/workspace-flow/application/use-cases/add-invoice-item.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file add-invoice-item.use-case.ts
- * @description Use case: Add an item to a draft invoice.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceItemAddedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { invoiceIsEditable } from "../../domain/services/invoice-guards";
-import type { AddInvoiceItemDto } from "../dto/add-invoice-item.dto";
-
-export class AddInvoiceItemUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(dto: AddInvoiceItemDto): Promise<CommandResult> {
-    if (!dto.invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-    if (!dto.taskId.trim()) {
-      return commandFailureFrom("WF_INVOICE_TASK_REQUIRED", "Task id is required.");
-    }
-    if (dto.amount <= 0) {
-      return commandFailureFrom("WF_INVOICE_AMOUNT_INVALID", "Amount must be greater than zero.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(dto.invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-    if (!invoiceIsEditable(invoice.status)) {
-      return commandFailureFrom(
-        "WF_INVOICE_NOT_EDITABLE",
-        "Items can only be added to draft invoices.",
-      );
-    }
-
-    const item = await this.invoiceRepository.addItem(dto);
-    return commandSuccess(item.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/approve-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file approve-invoice.use-case.ts
- * @description Use case: Approve an invoice in finance review (finance_review → approved).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceApprovedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-
-export class ApproveInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-
-    const guard = evaluateInvoiceTransition(invoice.status, "approved");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "approved", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/approve-task-acceptance.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file approve-task-acceptance.use-case.ts
- * @description Use case: Approve a task at acceptance stage (acceptance → accepted). Requires no open issues.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit TaskAcceptanceApprovedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-import { hasNoOpenIssues } from "../../domain/services/task-guards";
-
-export class ApproveTaskAcceptanceUseCase {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly issueRepository: IssueRepository,
-  ) {}
-
-  async execute(taskId: string): Promise<CommandResult> {
-    if (!taskId.trim()) {
-      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
-    }
-
-    const task = await this.taskRepository.findById(taskId);
-    if (!task) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
-    }
-
-    const guard = evaluateTaskTransition(task.status, "accepted");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
-    }
-
-    const openIssues = await this.issueRepository.countOpenByTaskId(taskId);
-    if (!hasNoOpenIssues(openIssues)) {
-      return commandFailureFrom(
-        "WF_TASK_HAS_OPEN_ISSUES",
-        "Task cannot be accepted: there are open issues that must be resolved first.",
-      );
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.taskRepository.transitionStatus(taskId, "accepted", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/archive-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file archive-task.use-case.ts
- * @description Use case: Archive a task (accepted → archived). Requires invoice closed or none.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit TaskArchivedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-import { invoiceAllowsArchive } from "../../domain/services/task-guards";
-
-export class ArchiveTaskUseCase {
-  constructor(private readonly taskRepository: TaskRepository) {}
-
-  /**
-   * @param taskId       - ID of the task to archive
-   * @param invoiceStatus - Status of the linked invoice, or undefined if none
-   */
-  async execute(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-    if (!taskId.trim()) {
-      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
-    }
-
-    const task = await this.taskRepository.findById(taskId);
-    if (!task) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
-    }
-
-    const guard = evaluateTaskTransition(task.status, "archived");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
-    }
-
-    if (!invoiceAllowsArchive(invoiceStatus)) {
-      return commandFailureFrom(
-        "WF_TASK_INVOICE_NOT_CLOSED",
-        "Task cannot be archived: the linked invoice must be closed first.",
-      );
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.taskRepository.transitionStatus(taskId, "archived", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/assign-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file assign-task.use-case.ts
- * @description Use case: Assign a task to a user and transition status to in_progress.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add permission check for assignee
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-
-export class AssignTaskUseCase {
-  constructor(private readonly taskRepository: TaskRepository) {}
-
-  async execute(taskId: string, assigneeId: string): Promise<CommandResult> {
-    if (!taskId.trim()) {
-      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
-    }
-    if (!assigneeId.trim()) {
-      return commandFailureFrom("WF_TASK_ASSIGNEE_REQUIRED", "Assignee id is required.");
-    }
-
-    const task = await this.taskRepository.findById(taskId);
-    if (!task) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
-    }
-
-    const guard = evaluateTaskTransition(task.status, "in_progress");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
-    }
-
-    // Persist the assignee before transitioning status
-    await this.taskRepository.update(taskId, { assigneeId: assigneeId.trim() });
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.taskRepository.transitionStatus(taskId, "in_progress", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/close-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file close-invoice.use-case.ts
- * @description Use case: Close a paid invoice (paid → closed).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceClosedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-
-export class CloseInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-
-    const guard = evaluateInvoiceTransition(invoice.status, "closed");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "closed", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/close-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file close-issue.use-case.ts
- * @description Use case: Close a resolved issue (resolved → closed).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueClosedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-
-export class CloseIssueUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(issueId: string): Promise<CommandResult> {
-    if (!issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "closed");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(issueId, "closed", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/create-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file create-invoice.use-case.ts
- * @description Use case: Create a new invoice for a workspace.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceCreatedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-
-export class CreateInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    if (!workspaceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_WORKSPACE_REQUIRED", "Workspace is required.");
-    }
-
-    const invoice = await this.invoiceRepository.create({ workspaceId: workspaceId.trim() });
-    return commandSuccess(invoice.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/create-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file create-task.use-case.ts
- * @description Use case: Create a new task in the workspace-flow context.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add input validation with Zod schema
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { CreateTaskDto } from "../dto/create-task.dto";
-
-export class CreateTaskUseCase {
-  constructor(private readonly taskRepository: TaskRepository) {}
-
-  async execute(dto: CreateTaskDto): Promise<CommandResult> {
-    const workspaceId = dto.workspaceId.trim();
-    const title = dto.title.trim();
-
-    if (!workspaceId) {
-      return commandFailureFrom("WF_TASK_WORKSPACE_REQUIRED", "Workspace is required.");
-    }
-    if (!title) {
-      return commandFailureFrom("WF_TASK_TITLE_REQUIRED", "Task title is required.");
-    }
-
-    const task = await this.taskRepository.create({ ...dto, workspaceId, title });
-    return commandSuccess(task.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/fail-issue-retest.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file fail-issue-retest.use-case.ts
- * @description Use case: Fail an issue's retest (retest → fixing).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueRetestFailedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-
-export class FailIssueRetestUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(issueId: string): Promise<CommandResult> {
-    if (!issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "fixing");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(issueId, "fixing", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/fix-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file fix-issue.use-case.ts
- * @description Use case: Mark an issue as being fixed (investigating → fixing).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueFixedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-
-export class FixIssueUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(issueId: string): Promise<CommandResult> {
-    if (!issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "fixing");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(issueId, "fixing", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
 ## File: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
 ````typescript
 /**
@@ -31732,627 +30694,6 @@ export class MaterializeTasksFromContentUseCase {
     }
 
     return commandSuccess(dto.contentPageId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/open-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file open-issue.use-case.ts
- * @description Use case: Open a new issue against a task.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueOpenedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import type { OpenIssueDto } from "../dto/open-issue.dto";
-
-export class OpenIssueUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(dto: OpenIssueDto): Promise<CommandResult> {
-    if (!dto.taskId.trim()) {
-      return commandFailureFrom("WF_ISSUE_TASK_REQUIRED", "Task id is required.");
-    }
-    if (!dto.title.trim()) {
-      return commandFailureFrom("WF_ISSUE_TITLE_REQUIRED", "Issue title is required.");
-    }
-    if (!dto.createdBy.trim()) {
-      return commandFailureFrom("WF_ISSUE_CREATED_BY_REQUIRED", "Creator id is required.");
-    }
-
-    const issue = await this.issueRepository.create({
-      ...dto,
-      taskId: dto.taskId.trim(),
-      title: dto.title.trim(),
-    });
-    return commandSuccess(issue.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/pass-issue-retest.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file pass-issue-retest.use-case.ts
- * @description Use case: Pass an issue's retest (retest → resolved).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueRetestPassedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-
-export class PassIssueRetestUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(issueId: string): Promise<CommandResult> {
-    if (!issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "resolved");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(issueId, "resolved", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/pass-task-qa.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file pass-task-qa.use-case.ts
- * @description Use case: Pass a task's QA review (qa → acceptance). Requires no open issues.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit TaskQaPassedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-import { hasNoOpenIssues } from "../../domain/services/task-guards";
-
-export class PassTaskQaUseCase {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly issueRepository: IssueRepository,
-  ) {}
-
-  async execute(taskId: string): Promise<CommandResult> {
-    if (!taskId.trim()) {
-      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
-    }
-
-    const task = await this.taskRepository.findById(taskId);
-    if (!task) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
-    }
-
-    const guard = evaluateTaskTransition(task.status, "acceptance");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
-    }
-
-    const openIssues = await this.issueRepository.countOpenByTaskId(taskId);
-    if (!hasNoOpenIssues(openIssues)) {
-      return commandFailureFrom(
-        "WF_TASK_HAS_OPEN_ISSUES",
-        "Task cannot advance: there are open issues that must be resolved first.",
-      );
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.taskRepository.transitionStatus(taskId, "acceptance", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/pay-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file pay-invoice.use-case.ts
- * @description Use case: Mark an approved invoice as paid (approved → paid).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoicePaidEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-
-export class PayInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-
-    const guard = evaluateInvoiceTransition(invoice.status, "paid");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "paid", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/reject-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file reject-invoice.use-case.ts
- * @description Use case: Reject an invoice back to submitted (finance_review → submitted).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceRejectedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-
-export class RejectInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-
-    const guard = evaluateInvoiceTransition(invoice.status, "submitted");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "submitted", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/remove-invoice-item.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file remove-invoice-item.use-case.ts
- * @description Use case: Remove an item from a draft invoice.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceItemRemovedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { invoiceIsEditable } from "../../domain/services/invoice-guards";
-
-export class RemoveInvoiceItemUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string, invoiceItemId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-    if (!invoiceItemId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ITEM_ID_REQUIRED", "Invoice item id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-    if (!invoiceIsEditable(invoice.status)) {
-      return commandFailureFrom(
-        "WF_INVOICE_NOT_EDITABLE",
-        "Items can only be removed from draft invoices.",
-      );
-    }
-
-    await this.invoiceRepository.removeItem(invoiceItemId);
-    return commandSuccess(invoiceItemId, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/resolve-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file resolve-issue.use-case.ts
- * @description Use case: Resolve an issue (retest-pending → resolved).
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-import type { ResolveIssueDto } from "../dto/resolve-issue.dto";
-
-export class ResolveIssueUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(dto: ResolveIssueDto): Promise<CommandResult> {
-    if (!dto.issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(dto.issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "resolved");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(dto.issueId, "resolved", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/review-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file review-invoice.use-case.ts
- * @description Use case: Move an invoice into finance review (submitted → finance_review).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceReviewedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-
-export class ReviewInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-
-    const guard = evaluateInvoiceTransition(invoice.status, "finance_review");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "finance_review", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/start-issue.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file start-issue.use-case.ts
- * @description Use case: Start investigating an issue (open → investigating).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueStartedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-
-export class StartIssueUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(issueId: string): Promise<CommandResult> {
-    if (!issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "investigating");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(issueId, "investigating", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/submit-invoice.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-invoice.use-case.ts
- * @description Use case: Submit an invoice for review (draft → submitted). Requires at least one item.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit InvoiceSubmittedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
-import { invoiceHasItems } from "../../domain/services/invoice-guards";
-
-export class SubmitInvoiceUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceId: string): Promise<CommandResult> {
-    if (!invoiceId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-
-    const guard = evaluateInvoiceTransition(invoice.status, "submitted");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const items = await this.invoiceRepository.listItems(invoiceId);
-    if (!invoiceHasItems(items.length)) {
-      return commandFailureFrom(
-        "WF_INVOICE_NO_ITEMS",
-        "Invoice cannot be submitted: at least one item is required.",
-      );
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "submitted", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/submit-issue-retest.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-issue-retest.use-case.ts
- * @description Use case: Submit an issue for retest (fixing → retest).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Emit IssueRetestSubmittedEvent to event bus
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
-
-export class SubmitIssueRetestUseCase {
-  constructor(private readonly issueRepository: IssueRepository) {}
-
-  async execute(issueId: string): Promise<CommandResult> {
-    if (!issueId.trim()) {
-      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
-    }
-
-    const issue = await this.issueRepository.findById(issueId);
-    if (!issue) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
-    }
-
-    const guard = evaluateIssueTransition(issue.status, "retest");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.issueRepository.transitionStatus(issueId, "retest", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/submit-task-to-qa.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file submit-task-to-qa.use-case.ts
- * @description Use case: Submit a task for QA review (in_progress → qa).
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add pre-submission checks (e.g. assignee present)
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
-
-export class SubmitTaskToQaUseCase {
-  constructor(private readonly taskRepository: TaskRepository) {}
-
-  async execute(taskId: string): Promise<CommandResult> {
-    if (!taskId.trim()) {
-      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
-    }
-
-    const task = await this.taskRepository.findById(taskId);
-    if (!task) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
-    }
-
-    const guard = evaluateTaskTransition(task.status, "qa");
-    if (!guard.allowed) {
-      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
-    }
-
-    const nowISO = new Date().toISOString();
-    const updated = await this.taskRepository.transitionStatus(taskId, "qa", nowISO);
-    if (!updated) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/update-invoice-item.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file update-invoice-item.use-case.ts
- * @description Use case: Update the amount of an existing invoice item on a draft invoice.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { invoiceIsEditable } from "../../domain/services/invoice-guards";
-import type { UpdateInvoiceItemDto } from "../dto/update-invoice-item.dto";
-
-export class UpdateInvoiceItemUseCase {
-  constructor(private readonly invoiceRepository: InvoiceRepository) {}
-
-  async execute(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-    if (!invoiceItemId.trim()) {
-      return commandFailureFrom("WF_INVOICE_ITEM_ID_REQUIRED", "Invoice item id is required.");
-    }
-    if (dto.amount <= 0) {
-      return commandFailureFrom("WF_INVOICE_AMOUNT_INVALID", "Amount must be greater than zero.");
-    }
-
-    const item = await this.invoiceRepository.findItemById(invoiceItemId);
-    if (!item) {
-      return commandFailureFrom("WF_INVOICE_ITEM_NOT_FOUND", "Invoice item not found.");
-    }
-
-    const invoice = await this.invoiceRepository.findById(item.invoiceId);
-    if (!invoice) {
-      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
-    }
-    if (!invoiceIsEditable(invoice.status)) {
-      return commandFailureFrom(
-        "WF_INVOICE_NOT_EDITABLE",
-        "Items can only be updated on draft invoices.",
-      );
-    }
-
-    const updated = await this.invoiceRepository.updateItem(invoiceItemId, dto.amount);
-    if (!updated) {
-      return commandFailureFrom("WF_INVOICE_ITEM_NOT_FOUND", "Invoice item not found after update.");
-    }
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/workspace-flow/application/use-cases/update-task.use-case.ts
-````typescript
-/**
- * @module workspace-flow/application/use-cases
- * @file update-task.use-case.ts
- * @description Use case: Update mutable fields on an existing task.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { UpdateTaskDto } from "../dto/update-task.dto";
-
-export class UpdateTaskUseCase {
-  constructor(private readonly taskRepository: TaskRepository) {}
-
-  async execute(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-    if (!taskId.trim()) {
-      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
-    }
-
-    const existing = await this.taskRepository.findById(taskId);
-    if (!existing) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
-    }
-
-    const updated = await this.taskRepository.update(taskId, dto);
-    if (!updated) {
-      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after update.");
-    }
-    return commandSuccess(updated.id, Date.now());
   }
 }
 ````
@@ -32482,968 +30823,6 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 - `../../../docs/ddd/workspace-flow/aggregates.md`
 ````
 
-## File: modules/workspace-flow/domain/entities/Invoice.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Invoice.ts
- * @description Invoice aggregate entity representing a billing record for accepted tasks.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add domain validation methods as billing rules expand
- */
-
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Invoice {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: InvoiceStatus;
-  readonly totalAmount: number;
-  readonly submittedAtISO?: string;
-  readonly approvedAtISO?: string;
-  readonly paidAtISO?: string;
-  readonly closedAtISO?: string;
-  /**
-   * Present when this Invoice was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateInvoiceInput {
-  readonly workspaceId: string;
-  readonly sourceReference?: SourceReference;
-}
-````
-
-## File: modules/workspace-flow/domain/entities/InvoiceItem.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file InvoiceItem.ts
- * @description InvoiceItem entity linking a task to an invoice with an amount.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add domain validation methods as billing rules expand
- */
-
-// ── Entity ────────────────────────────────────────────────────────────────────
-
-export interface InvoiceItem {
-  readonly id: string;
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: number;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface AddInvoiceItemInput {
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: number;
-}
-````
-
-## File: modules/workspace-flow/domain/entities/Issue.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Issue.ts
- * @description Issue aggregate entity representing a defect or anomaly raised during workflow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add domain validation methods as business rules expand
- */
-
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import type { IssueStage } from "../value-objects/IssueStage";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Issue {
-  readonly id: string;
-  readonly taskId: string;
-  /** Which stage of the task workflow this issue was raised in. */
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description: string;
-  readonly status: IssueStatus;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-  readonly resolvedAtISO?: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface OpenIssueInput {
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly title: string;
-  readonly description?: string;
-  readonly createdBy: string;
-  readonly assignedTo?: string;
-}
-
-export interface UpdateIssueInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assignedTo?: string;
-}
-````
-
-## File: modules/workspace-flow/domain/entities/Task.ts
-````typescript
-/**
- * @module workspace-flow/domain/entities
- * @file Task.ts
- * @description Task aggregate entity representing a work unit and its lifecycle.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add domain validation methods as business rules expand
- */
-
-import type { TaskStatus } from "../value-objects/TaskStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
-
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Task {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: TaskStatus;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly acceptedAtISO?: string;
-  readonly archivedAtISO?: string;
-  /**
-   * Present when this Task was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateTaskInput {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly sourceReference?: SourceReference;
-}
-
-export interface UpdateTaskInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace-flow/domain/events/InvoiceEvent.ts
-````typescript
-/**
- * @module workspace-flow/domain/events
- * @file InvoiceEvent.ts
- * @description Discriminated-union event types emitted by the Invoice aggregate.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Wire to event bus via @/modules/event IEventBusRepository
- */
-
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-
-// ── Individual event shapes ───────────────────────────────────────────────────
-
-export interface InvoiceCreatedEvent {
-  readonly type: "workspace-flow.invoice.created";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceItemAddedEvent {
-  readonly type: "workspace-flow.invoice.item_added";
-  readonly invoiceId: string;
-  readonly invoiceItemId: string;
-  readonly taskId: string;
-  readonly amount: number;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceItemRemovedEvent {
-  readonly type: "workspace-flow.invoice.item_removed";
-  readonly invoiceId: string;
-  readonly invoiceItemId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceSubmittedEvent {
-  readonly type: "workspace-flow.invoice.submitted";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly submittedAtISO: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceReviewedEvent {
-  readonly type: "workspace-flow.invoice.reviewed";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceApprovedEvent {
-  readonly type: "workspace-flow.invoice.approved";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly approvedAtISO: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceRejectedEvent {
-  readonly type: "workspace-flow.invoice.rejected";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoicePaidEvent {
-  readonly type: "workspace-flow.invoice.paid";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly paidAtISO: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceClosedEvent {
-  readonly type: "workspace-flow.invoice.closed";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly closedAtISO: string;
-  readonly occurredAtISO: string;
-}
-
-export interface InvoiceStatusChangedEvent {
-  readonly type: "workspace-flow.invoice.status_changed";
-  readonly invoiceId: string;
-  readonly workspaceId: string;
-  readonly from: InvoiceStatus;
-  readonly to: InvoiceStatus;
-  readonly occurredAtISO: string;
-}
-
-// ── Discriminated union ───────────────────────────────────────────────────────
-
-export type InvoiceEvent =
-  | InvoiceCreatedEvent
-  | InvoiceItemAddedEvent
-  | InvoiceItemRemovedEvent
-  | InvoiceSubmittedEvent
-  | InvoiceReviewedEvent
-  | InvoiceApprovedEvent
-  | InvoiceRejectedEvent
-  | InvoicePaidEvent
-  | InvoiceClosedEvent
-  | InvoiceStatusChangedEvent;
-````
-
-## File: modules/workspace-flow/domain/events/IssueEvent.ts
-````typescript
-/**
- * @module workspace-flow/domain/events
- * @file IssueEvent.ts
- * @description Discriminated-union event types emitted by the Issue aggregate.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Wire to event bus via @/modules/event IEventBusRepository
- */
-
-import type { IssueStatus } from "../value-objects/IssueStatus";
-import type { IssueStage } from "../value-objects/IssueStage";
-
-// ── Individual event shapes ───────────────────────────────────────────────────
-
-export interface IssueOpenedEvent {
-  readonly type: "workspace-flow.issue.opened";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly createdBy: string;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueStartedEvent {
-  readonly type: "workspace-flow.issue.started";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueFixedEvent {
-  readonly type: "workspace-flow.issue.fixed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueRetestSubmittedEvent {
-  readonly type: "workspace-flow.issue.retest_submitted";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueRetestPassedEvent {
-  readonly type: "workspace-flow.issue.retest_passed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly stage: IssueStage;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueRetestFailedEvent {
-  readonly type: "workspace-flow.issue.retest_failed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueClosedEvent {
-  readonly type: "workspace-flow.issue.closed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface IssueStatusChangedEvent {
-  readonly type: "workspace-flow.issue.status_changed";
-  readonly issueId: string;
-  readonly taskId: string;
-  readonly from: IssueStatus;
-  readonly to: IssueStatus;
-  readonly occurredAtISO: string;
-}
-
-// ── Discriminated union ───────────────────────────────────────────────────────
-
-export type IssueEvent =
-  | IssueOpenedEvent
-  | IssueStartedEvent
-  | IssueFixedEvent
-  | IssueRetestSubmittedEvent
-  | IssueRetestPassedEvent
-  | IssueRetestFailedEvent
-  | IssueClosedEvent
-  | IssueStatusChangedEvent;
-````
-
-## File: modules/workspace-flow/domain/events/TaskEvent.ts
-````typescript
-/**
- * @module workspace-flow/domain/events
- * @file TaskEvent.ts
- * @description Discriminated-union event types emitted by the Task aggregate.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Wire to event bus via @/modules/event IEventBusRepository
- */
-
-import type { TaskStatus } from "../value-objects/TaskStatus";
-
-// ── Individual event shapes ───────────────────────────────────────────────────
-
-export interface TaskCreatedEvent {
-  readonly type: "workspace-flow.task.created";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly occurredAtISO: string;
-}
-
-export interface TaskAssignedEvent {
-  readonly type: "workspace-flow.task.assigned";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly assigneeId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface TaskSubmittedToQaEvent {
-  readonly type: "workspace-flow.task.submitted_to_qa";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface TaskQaPassedEvent {
-  readonly type: "workspace-flow.task.qa_passed";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly occurredAtISO: string;
-}
-
-export interface TaskAcceptanceApprovedEvent {
-  readonly type: "workspace-flow.task.acceptance_approved";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly acceptedAtISO: string;
-  readonly occurredAtISO: string;
-}
-
-export interface TaskArchivedEvent {
-  readonly type: "workspace-flow.task.archived";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly archivedAtISO: string;
-  readonly occurredAtISO: string;
-}
-
-export interface TaskStatusChangedEvent {
-  readonly type: "workspace-flow.task.status_changed";
-  readonly taskId: string;
-  readonly workspaceId: string;
-  readonly from: TaskStatus;
-  readonly to: TaskStatus;
-  readonly occurredAtISO: string;
-}
-
-// ── Discriminated union ───────────────────────────────────────────────────────
-
-export type TaskEvent =
-  | TaskCreatedEvent
-  | TaskAssignedEvent
-  | TaskSubmittedToQaEvent
-  | TaskQaPassedEvent
-  | TaskAcceptanceApprovedEvent
-  | TaskArchivedEvent
-  | TaskStatusChangedEvent;
-````
-
-## File: modules/workspace-flow/domain/repositories/InvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file InvoiceRepository.ts
- * @description Repository port interface for Invoice persistence.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Implement in infrastructure/repositories/FirebaseInvoiceRepository
- */
-
-import type { Invoice, CreateInvoiceInput } from "../entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../entities/InvoiceItem";
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-
-export interface InvoiceRepository {
-  /** Persist a new invoice and return the created aggregate. */
-  create(input: CreateInvoiceInput): Promise<Invoice>;
-  /** Hard-delete an invoice by id. */
-  delete(invoiceId: string): Promise<void>;
-  /** Retrieve an invoice by its id. Returns null if not found. */
-  findById(invoiceId: string): Promise<Invoice | null>;
-  /** List all invoices for a given workspace. */
-  findByWorkspaceId(workspaceId: string): Promise<Invoice[]>;
-  /** Persist a lifecycle status transition and stamp relevant timestamp. */
-  transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<Invoice | null>;
-  /** Add an item to an invoice and recalculate totalAmount. */
-  addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>;
-  /** Retrieve a single invoice item by its id. Returns null if not found. */
-  findItemById(invoiceItemId: string): Promise<InvoiceItem | null>;
-  /** Update the amount of an existing item and recalculate totalAmount. Returns null if not found. */
-  updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>;
-  /** Remove an item from an invoice and recalculate totalAmount. */
-  removeItem(invoiceItemId: string): Promise<void>;
-  /** List all items for an invoice. */
-  listItems(invoiceId: string): Promise<InvoiceItem[]>;
-}
-````
-
-## File: modules/workspace-flow/domain/repositories/IssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file IssueRepository.ts
- * @description Repository port interface for Issue persistence.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Implement in infrastructure/repositories/FirebaseIssueRepository
- */
-
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../entities/Issue";
-import type { IssueStatus } from "../value-objects/IssueStatus";
-
-export interface IssueRepository {
-  /** Persist a new issue and return the created aggregate. */
-  create(input: OpenIssueInput): Promise<Issue>;
-  /** Update mutable fields on an existing issue. Returns null if not found. */
-  update(issueId: string, input: UpdateIssueInput): Promise<Issue | null>;
-  /** Hard-delete an issue by id. */
-  delete(issueId: string): Promise<void>;
-  /** Retrieve an issue by its id. Returns null if not found. */
-  findById(issueId: string): Promise<Issue | null>;
-  /** List all issues for a given task. */
-  findByTaskId(taskId: string): Promise<Issue[]>;
-  /** Count open issues for a given task (used in guard conditions). */
-  countOpenByTaskId(taskId: string): Promise<number>;
-  /** Persist a lifecycle status transition and stamp resolvedAtISO if to==="resolved". */
-  transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>;
-}
-````
-
-## File: modules/workspace-flow/domain/repositories/TaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/domain/repositories
- * @file TaskRepository.ts
- * @description Repository port interface for Task persistence.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Implement in infrastructure/repositories/FirebaseTaskRepository
- */
-
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../entities/Task";
-import type { TaskStatus } from "../value-objects/TaskStatus";
-
-export interface TaskRepository {
-  /** Persist a new task and return the created aggregate. */
-  create(input: CreateTaskInput): Promise<Task>;
-  /** Update mutable fields on an existing task. Returns null if not found. */
-  update(taskId: string, input: UpdateTaskInput): Promise<Task | null>;
-  /** Hard-delete a task by id. */
-  delete(taskId: string): Promise<void>;
-  /** Retrieve a task by its id. Returns null if not found. */
-  findById(taskId: string): Promise<Task | null>;
-  /** List all tasks belonging to a workspace, ordered by updatedAtISO desc. */
-  findByWorkspaceId(workspaceId: string): Promise<Task[]>;
-  /** Persist a lifecycle status transition and stamp acceptedAtISO / archivedAtISO as appropriate. */
-  transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>;
-}
-````
-
-## File: modules/workspace-flow/domain/services/invoice-guards.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file invoice-guards.ts
- * @description Pure domain guards for invoice lifecycle invariants.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add guards for additional billing invariants as rules evolve
- */
-
-// ── Guard: item count > 0 before submit ───────────────────────────────────────
-
-/**
- * Asserts that an invoice has at least one item before allowing submission.
- *
- * @param itemCount - Number of items currently on the invoice
- * @returns true if the invoice may be submitted; false if it has no items
- */
-export function invoiceHasItems(itemCount: number): boolean {
-  return itemCount > 0;
-}
-
-// ── Guard: invoice is in draft before item mutation ───────────────────────────
-
-/**
- * Asserts that an invoice is in draft status before allowing item add/remove.
- *
- * @param status - Current invoice status
- * @returns true if items may be mutated; false otherwise
- */
-export function invoiceIsEditable(status: string): boolean {
-  return status === "draft";
-}
-````
-
-## File: modules/workspace-flow/domain/services/invoice-transition-policy.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file invoice-transition-policy.ts
- * @description Pure domain service encapsulating allowed Invoice status transitions.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Expand with additional guard conditions as billing rules evolve
- */
-
-import { canTransitionInvoiceStatus, type InvoiceStatus } from "../value-objects/InvoiceStatus";
-
-export type InvoiceTransitionResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
-
-/**
- * Evaluates whether an invoice lifecycle transition is permitted.
- *
- * @param from - Current invoice status
- * @param to   - Requested next status
- * @returns InvoiceTransitionResult indicating whether the transition is allowed
- */
-export function evaluateInvoiceTransition(
-  from: InvoiceStatus,
-  to: InvoiceStatus,
-): InvoiceTransitionResult {
-  if (!canTransitionInvoiceStatus(from, to)) {
-    return {
-      allowed: false,
-      reason: `Invoice transition from "${from}" to "${to}" is not permitted.`,
-    };
-  }
-  return { allowed: true };
-}
-````
-
-## File: modules/workspace-flow/domain/services/issue-transition-policy.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file issue-transition-policy.ts
- * @description Pure domain service encapsulating allowed Issue status transitions.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Expand with additional guard conditions as business rules evolve
- */
-
-import { canTransitionIssueStatus, type IssueStatus } from "../value-objects/IssueStatus";
-
-export type IssueTransitionResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
-
-/**
- * Evaluates whether an issue lifecycle transition is permitted.
- *
- * @param from - Current issue status
- * @param to   - Requested next status
- * @returns IssueTransitionResult indicating whether the transition is allowed
- */
-export function evaluateIssueTransition(
-  from: IssueStatus,
-  to: IssueStatus,
-): IssueTransitionResult {
-  if (!canTransitionIssueStatus(from, to)) {
-    return {
-      allowed: false,
-      reason: `Issue transition from "${from}" to "${to}" is not permitted.`,
-    };
-  }
-  return { allowed: true };
-}
-````
-
-## File: modules/workspace-flow/domain/services/task-guards.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file task-guards.ts
- * @description Pure domain guards for task lifecycle invariants.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add guards for additional business invariants as rules evolve
- */
-
-// ── Guard: no open issues ─────────────────────────────────────────────────────
-
-/**
- * Asserts that a task has no open issues before allowing QA-pass or acceptance-approve.
- *
- * @param openIssueCount - The number of open issues currently linked to the task
- * @returns true if the task may proceed; false if blocked by open issues
- */
-export function hasNoOpenIssues(openIssueCount: number): boolean {
-  return openIssueCount === 0;
-}
-
-// ── Guard: invoice closed or none ─────────────────────────────────────────────
-
-/**
- * Asserts that any linked invoice is closed (or none exists) before allowing archive.
- *
- * @param invoiceStatus - The status of the linked invoice, or undefined if none
- * @returns true if the task may be archived; false if blocked by an active invoice
- */
-export function invoiceAllowsArchive(
-  invoiceStatus: string | undefined,
-): boolean {
-  if (invoiceStatus === undefined) return true;
-  return invoiceStatus === "closed";
-}
-````
-
-## File: modules/workspace-flow/domain/services/task-transition-policy.ts
-````typescript
-/**
- * @module workspace-flow/domain/services
- * @file task-transition-policy.ts
- * @description Pure domain service encapsulating allowed Task status transitions.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Expand with multi-branch transitions if workflow rules evolve
- */
-
-import { canTransitionTaskStatus, type TaskStatus } from "../value-objects/TaskStatus";
-
-export type TaskTransitionResult =
-  | { allowed: true }
-  | { allowed: false; reason: string };
-
-/**
- * Evaluates whether a task lifecycle transition is permitted.
- *
- * @param from - Current task status
- * @param to   - Requested next status
- * @returns TaskTransitionResult indicating whether the transition is allowed
- */
-export function evaluateTaskTransition(
-  from: TaskStatus,
-  to: TaskStatus,
-): TaskTransitionResult {
-  if (!canTransitionTaskStatus(from, to)) {
-    return {
-      allowed: false,
-      reason: `Task transition from "${from}" to "${to}" is not permitted.`,
-    };
-  }
-  return { allowed: true };
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/InvoiceId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file InvoiceId.ts
- * @description Branded string value object for Invoice identifiers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-
-declare const __invoiceIdBrand: unique symbol;
-
-/** Branded string that prevents mixing Invoice IDs with other string IDs. */
-export type InvoiceId = string & { readonly [__invoiceIdBrand]: void };
-
-/** Creates an InvoiceId from a plain string (e.g. a Firestore document ID). */
-export function invoiceId(raw: string): InvoiceId {
-  return raw as InvoiceId;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/InvoiceItemId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file InvoiceItemId.ts
- * @description Branded string value object for InvoiceItem identifiers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-
-declare const __invoiceItemIdBrand: unique symbol;
-
-/** Branded string that prevents mixing InvoiceItem IDs with other string IDs. */
-export type InvoiceItemId = string & { readonly [__invoiceItemIdBrand]: void };
-
-/** Creates an InvoiceItemId from a plain string (e.g. a Firestore document ID). */
-export function invoiceItemId(raw: string): InvoiceItemId {
-  return raw as InvoiceItemId;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/InvoiceStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file InvoiceStatus.ts
- * @description Invoice lifecycle status union, transition table, and helpers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add additional transition guards as billing rules evolve
- */
-
-// ── Status ─────────────────────────────────────────────────────────────────────
-
-export type InvoiceStatus =
-  | "draft"
-  | "submitted"
-  | "finance_review"
-  | "approved"
-  | "paid"
-  | "closed";
-
-export const INVOICE_STATUSES = [
-  "draft",
-  "submitted",
-  "finance_review",
-  "approved",
-  "paid",
-  "closed",
-] as const satisfies readonly InvoiceStatus[];
-
-// ── Transition table ──────────────────────────────────────────────────────────
-
-/**
- * Multi-successor transition map for invoice lifecycle.
- *
- * draft → submitted (SUBMIT / item_count > 0)
- * submitted → finance_review (REVIEW)
- * finance_review → approved (APPROVE)
- * finance_review → submitted (REJECT — back to submitted for resubmission)
- * approved → paid (PAY)
- * paid → closed (CLOSE)
- */
-const INVOICE_NEXT: Readonly<Record<InvoiceStatus, readonly InvoiceStatus[]>> = {
-  draft: ["submitted"],
-  submitted: ["finance_review"],
-  finance_review: ["approved", "submitted"],
-  approved: ["paid"],
-  paid: ["closed"],
-  closed: [],
-};
-
-/** Returns true if moving from `from` to `to` is a valid transition. */
-export function canTransitionInvoiceStatus(from: InvoiceStatus, to: InvoiceStatus): boolean {
-  return INVOICE_NEXT[from].includes(to);
-}
-
-/** Returns true when the invoice has reached a terminal state and cannot progress. */
-export function isTerminalInvoiceStatus(status: InvoiceStatus): boolean {
-  return INVOICE_NEXT[status].length === 0;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/IssueId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file IssueId.ts
- * @description Branded string value object for Issue identifiers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-
-declare const __issueIdBrand: unique symbol;
-
-/** Branded string that prevents mixing Issue IDs with other string IDs. */
-export type IssueId = string & { readonly [__issueIdBrand]: void };
-
-/** Creates an IssueId from a plain string (e.g. a Firestore document ID). */
-export function issueId(raw: string): IssueId {
-  return raw as IssueId;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/IssueStage.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file IssueStage.ts
- * @description Cross-domain stage reference indicating at which task-flow stage an issue was raised.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Extend stage list if workflow introduces additional stages
- */
-
-// ── IssueStage ─────────────────────────────────────────────────────────────────
-
-/**
- * Indicates which stage of the task workflow this issue was raised in.
- * Used to route issue resolution back to the originating workflow step.
- */
-export type IssueStage = "task" | "qa" | "acceptance";
-
-export const ISSUE_STAGES = [
-  "task",
-  "qa",
-  "acceptance",
-] as const satisfies readonly IssueStage[];
-````
-
-## File: modules/workspace-flow/domain/value-objects/IssueStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file IssueStatus.ts
- * @description Issue lifecycle status union, multi-successor transition table, and helpers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add additional transition guards as business rules evolve
- */
-
-// ── Status ─────────────────────────────────────────────────────────────────────
-
-export type IssueStatus =
-  | "open"
-  | "investigating"
-  | "fixing"
-  | "retest"
-  | "resolved"
-  | "closed";
-
-export const ISSUE_STATUSES = [
-  "open",
-  "investigating",
-  "fixing",
-  "retest",
-  "resolved",
-  "closed",
-] as const satisfies readonly IssueStatus[];
-
-// ── Transition table ──────────────────────────────────────────────────────────
-
-/**
- * Multi-successor transition map for issue lifecycle.
- *
- * open → investigating (START)
- * investigating → fixing (FIX)
- * fixing → retest (SUBMIT_RETEST)
- * retest → resolved (PASS_RETEST)
- * retest → fixing (FAIL_RETEST — back-edge within the Issue fix cycle)
- * resolved → closed (CLOSE)
- */
-const ISSUE_NEXT: Readonly<Record<IssueStatus, readonly IssueStatus[]>> = {
-  open: ["investigating"],
-  investigating: ["fixing"],
-  fixing: ["retest"],
-  retest: ["resolved", "fixing"],
-  resolved: ["closed"],
-  closed: [],
-};
-
-/** Returns true if moving from `from` to `to` is a valid transition. */
-export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): boolean {
-  return ISSUE_NEXT[from].includes(to);
-}
-
-/** Returns true when the issue has reached a terminal state and cannot progress. */
-export function isTerminalIssueStatus(status: IssueStatus): boolean {
-  return ISSUE_NEXT[status].length === 0;
-}
-````
-
 ## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
 ````typescript
 /**
@@ -33478,340 +30857,6 @@ export interface SourceReference {
 }
 ````
 
-## File: modules/workspace-flow/domain/value-objects/TaskId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskId.ts
- * @description Branded string value object for Task identifiers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-
-declare const __taskIdBrand: unique symbol;
-
-/** Branded string that prevents mixing Task IDs with other string IDs. */
-export type TaskId = string & { readonly [__taskIdBrand]: void };
-
-/** Creates a TaskId from a plain string (e.g. a Firestore document ID). */
-export function taskId(raw: string): TaskId {
-  return raw as TaskId;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/TaskStatus.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file TaskStatus.ts
- * @description Task lifecycle status union, transition table, and pure helper functions.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add additional transition guards as business rules evolve
- */
-
-// ── Status ─────────────────────────────────────────────────────────────────────
-
-export type TaskStatus =
-  | "draft"
-  | "in_progress"
-  | "qa"
-  | "acceptance"
-  | "accepted"
-  | "archived";
-
-/** Ordered tuple used by Zod schemas (z.enum needs a const tuple). */
-export const TASK_STATUSES = [
-  "draft",
-  "in_progress",
-  "qa",
-  "acceptance",
-  "accepted",
-  "archived",
-] as const satisfies readonly TaskStatus[];
-
-// ── Transition table ──────────────────────────────────────────────────────────
-
-/**
- * Maps each status to its single valid successor (null = terminal).
- *
- * The flow is intentionally forward-only.
- * draft → in_progress (ASSIGN)
- * in_progress → qa (SUBMIT_QA)
- * qa → acceptance (PASS_QA)
- * acceptance → accepted (APPROVE_ACCEPTANCE)
- * accepted → archived (ARCHIVE)
- */
-const TASK_NEXT: Readonly<Record<TaskStatus, TaskStatus | null>> = {
-  draft: "in_progress",
-  in_progress: "qa",
-  qa: "acceptance",
-  acceptance: "accepted",
-  accepted: "archived",
-  archived: null,
-};
-
-/** Returns true if moving from `from` to `to` is a valid forward transition. */
-export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean {
-  return TASK_NEXT[from] === to;
-}
-
-/** Returns the next status in the main flow, or null if already terminal. */
-export function nextTaskStatus(current: TaskStatus): TaskStatus | null {
-  return TASK_NEXT[current];
-}
-
-/** Returns true when the task has reached a terminal state and cannot progress. */
-export function isTerminalTaskStatus(status: TaskStatus): boolean {
-  return TASK_NEXT[status] === null;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/UserId.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file UserId.ts
- * @description Branded string value object for User identifiers.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Consider using a stronger opaque type if ID generation logic is added
- */
-
-declare const __userIdBrand: unique symbol;
-
-/** Branded string that prevents mixing User IDs with other string IDs. */
-export type UserId = string & { readonly [__userIdBrand]: void };
-
-/** Creates a UserId from a plain string (e.g. a Firebase Auth UID). */
-export function userId(raw: string): UserId {
-  return raw as UserId;
-}
-````
-
-## File: modules/workspace-flow/index.ts
-````typescript
-/**
- * @module workspace-flow
- * @file index.ts
- * @description Local module barrel for workspace-flow.
- *
- * This file is for same-module convenience only.
- * Cross-module consumers MUST import from @/modules/workspace-flow/api instead.
- *
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-// ── Domain: entities ──────────────────────────────────────────────────────────
-export type { Task, CreateTaskInput, UpdateTaskInput } from "./domain/entities/Task";
-export type { Issue, OpenIssueInput, UpdateIssueInput } from "./domain/entities/Issue";
-export type { Invoice, CreateInvoiceInput } from "./domain/entities/Invoice";
-export type { InvoiceItem, AddInvoiceItemInput } from "./domain/entities/InvoiceItem";
-
-// ── Domain: value objects (enum lists only — no XState helpers) ───────────────
-export type { TaskStatus } from "./domain/value-objects/TaskStatus";
-export { TASK_STATUSES } from "./domain/value-objects/TaskStatus";
-
-export type { IssueStatus } from "./domain/value-objects/IssueStatus";
-export { ISSUE_STATUSES } from "./domain/value-objects/IssueStatus";
-
-export type { IssueStage } from "./domain/value-objects/IssueStage";
-export { ISSUE_STAGES } from "./domain/value-objects/IssueStage";
-
-export type { InvoiceStatus } from "./domain/value-objects/InvoiceStatus";
-export { INVOICE_STATUSES } from "./domain/value-objects/InvoiceStatus";
-
-// ── Domain: repository interfaces ─────────────────────────────────────────────
-export type { TaskRepository } from "./domain/repositories/TaskRepository";
-export type { IssueRepository } from "./domain/repositories/IssueRepository";
-export type { InvoiceRepository } from "./domain/repositories/InvoiceRepository";
-
-// ── Domain: events ────────────────────────────────────────────────────────────
-export type { TaskEvent } from "./domain/events/TaskEvent";
-export type { IssueEvent } from "./domain/events/IssueEvent";
-export type { InvoiceEvent } from "./domain/events/InvoiceEvent";
-
-// ── Application: DTOs ─────────────────────────────────────────────────────────
-export type { CreateTaskDto } from "./application/dto/create-task.dto";
-export type { UpdateTaskDto } from "./application/dto/update-task.dto";
-export type { OpenIssueDto } from "./application/dto/open-issue.dto";
-export type { ResolveIssueDto } from "./application/dto/resolve-issue.dto";
-export type { AddInvoiceItemDto } from "./application/dto/add-invoice-item.dto";
-export type { UpdateInvoiceItemDto } from "./application/dto/update-invoice-item.dto";
-export type { RemoveInvoiceItemDto } from "./application/dto/remove-invoice-item.dto";
-export type { TaskQueryDto } from "./application/dto/task-query.dto";
-export type { IssueQueryDto } from "./application/dto/issue-query.dto";
-export type { InvoiceQueryDto } from "./application/dto/invoice-query.dto";
-export type { PaginationDto, PagedResult } from "./application/dto/pagination.dto";
-
-// ── API: Facade ───────────────────────────────────────────────────────────────
-export { WorkspaceFlowFacade } from "./api/workspace-flow.facade";
-
-// ── Infrastructure: repositories ──────────────────────────────────────────────
-export { FirebaseTaskRepository } from "./infrastructure/repositories/FirebaseTaskRepository";
-export { FirebaseIssueRepository } from "./infrastructure/repositories/FirebaseIssueRepository";
-export { FirebaseInvoiceRepository } from "./infrastructure/repositories/FirebaseInvoiceRepository";
-export { FirebaseInvoiceItemRepository } from "./infrastructure/repositories/FirebaseInvoiceItemRepository";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
-export {
-  wfCreateTask,
-  wfUpdateTask,
-  wfAssignTask,
-  wfSubmitTaskToQa,
-  wfPassTaskQa,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfOpenIssue,
-  wfResolveIssue,
-  wfStartIssue,
-  wfFixIssue,
-  wfSubmitIssueRetest,
-  wfPassIssueRetest,
-  wfFailIssueRetest,
-  wfCloseIssue,
-  wfCreateInvoice,
-  wfAddInvoiceItem,
-  wfUpdateInvoiceItem,
-  wfRemoveInvoiceItem,
-  wfSubmitInvoice,
-  wfReviewInvoice,
-  wfApproveInvoice,
-  wfRejectInvoice,
-  wfPayInvoice,
-  wfCloseInvoice,
-} from "./interfaces/_actions/workspace-flow.actions";
-
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "./interfaces/queries/workspace-flow.queries";
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/invoice-item.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file invoice-item.converter.ts
- * @description Firestore document-to-entity converter for InvoiceItem.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-
-/**
- * Converts a raw Firestore document data map into a typed InvoiceItem entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toInvoiceItem(id: string, data: Record<string, unknown>): InvoiceItem {
-  return {
-    id,
-    invoiceId: typeof data.invoiceId === "string" ? data.invoiceId : "",
-    taskId: typeof data.taskId === "string" ? data.taskId : "",
-    amount: typeof data.amount === "number" ? data.amount : 0,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/invoice.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file invoice.converter.ts
- * @description Firestore document-to-entity converter for Invoice.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toSourceReference } from "./sourceReference.converter";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-/**
- * Converts a raw Firestore document data map into a typed Invoice entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
-  const rawStatus = data.status as InvoiceStatus;
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : 0,
-    submittedAtISO: typeof data.submittedAtISO === "string" ? data.submittedAtISO : undefined,
-    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
-    paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
-    closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
-    sourceReference: toSourceReference(data.sourceReference),
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/issue.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file issue.converter.ts
- * @description Firestore document-to-entity converter for Issue.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-
-import type { Issue } from "../../domain/entities/Issue";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { ISSUE_STAGES, type IssueStage } from "../../domain/value-objects/IssueStage";
-
-const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
-const VALID_STAGES = new Set<IssueStage>(ISSUE_STAGES);
-const DEFAULT_STATUS: IssueStatus = "open";
-const DEFAULT_STAGE: IssueStage = "task";
-
-/**
- * Converts a raw Firestore document data map into a typed Issue entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toIssue(id: string, data: Record<string, unknown>): Issue {
-  const rawStatus = data.status as IssueStatus;
-  const rawStage = data.stage as IssueStage;
-  return {
-    id,
-    taskId: typeof data.taskId === "string" ? data.taskId : "",
-    stage: VALID_STAGES.has(rawStage) ? rawStage : DEFAULT_STAGE,
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
-    assignedTo: typeof data.assignedTo === "string" ? data.assignedTo : undefined,
-    resolvedAtISO: typeof data.resolvedAtISO === "string" ? data.resolvedAtISO : undefined,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-````
-
 ## File: modules/workspace-flow/infrastructure/firebase/sourceReference.converter.ts
 ````typescript
 /**
@@ -33839,2007 +30884,6 @@ export function toSourceReference(raw: unknown): SourceReference | undefined {
     return undefined;
   }
   return { type: "KnowledgePage", id: r.id, causationId: r.causationId, correlationId: r.correlationId };
-}
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/task.converter.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file task.converter.ts
- * @description Firestore document-to-entity converter for Task.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Harden unknown field handling with stricter runtime validation
- */
-
-import type { Task } from "../../domain/entities/Task";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toSourceReference } from "./sourceReference.converter";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-/**
- * Converts a raw Firestore document data map into a typed Task entity.
- *
- * @param id   - Firestore document ID
- * @param data - Raw document fields from Firestore
- */
-export function toTask(id: string, data: Record<string, unknown>): Task {
-  const rawStatus = data.status as TaskStatus;
-  return {
-    id,
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    title: typeof data.title === "string" ? data.title : "",
-    description: typeof data.description === "string" ? data.description : "",
-    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
-    assigneeId: typeof data.assigneeId === "string" ? data.assigneeId : undefined,
-    dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
-    acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
-    archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
-    sourceReference: toSourceReference(data.sourceReference),
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-````
-
-## File: modules/workspace-flow/infrastructure/firebase/workspace-flow.collections.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/firebase
- * @file workspace-flow.collections.ts
- * @description Firestore collection path constants for the workspace-flow module.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Update collection names to match production Firestore schema
- */
-
-/** Top-level Firestore collection for workspace-flow tasks. */
-export const WF_TASKS_COLLECTION = "workspaceFlowTasks" as const;
-
-/** Top-level Firestore collection for workspace-flow issues. */
-export const WF_ISSUES_COLLECTION = "workspaceFlowIssues" as const;
-
-/** Top-level Firestore collection for workspace-flow invoices. */
-export const WF_INVOICES_COLLECTION = "workspaceFlowInvoices" as const;
-
-/** Top-level Firestore collection for workspace-flow invoice items. */
-export const WF_INVOICE_ITEMS_COLLECTION = "workspaceFlowInvoiceItems" as const;
-````
-
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceItemRepository.ts
- * @description Firebase Firestore repository for InvoiceItem CRUD operations.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-export class FirebaseInvoiceItemRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async findById(itemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.collectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async delete(itemId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
-  }
-}
-````
-
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseInvoiceRepository.ts
- * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  increment,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
-import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import { toInvoice } from "../firebase/invoice.converter";
-import { toInvoiceItem } from "../firebase/invoice-item.converter";
-import {
-  WF_INVOICES_COLLECTION,
-  WF_INVOICE_ITEMS_COLLECTION,
-} from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
-const DEFAULT_STATUS: InvoiceStatus = "draft";
-
-export class FirebaseInvoiceRepository implements InvoiceRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get invoiceCollectionRef() {
-    return collection(this.db, WF_INVOICES_COLLECTION);
-  }
-
-  private get itemCollectionRef() {
-    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
-  }
-
-  async create(input: CreateInvoiceInput): Promise<Invoice> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      submittedAtISO: null,
-      approvedAtISO: null,
-      paidAtISO: null,
-      closedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.invoiceCollectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      status: DEFAULT_STATUS,
-      totalAmount: 0,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async delete(invoiceId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-  }
-
-  async findById(invoiceId: string): Promise<Invoice | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
-    if (!snap.exists()) return null;
-    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
-    const snaps = await getDocs(
-      query(
-        this.invoiceCollectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
-    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
-  }
-
-  async transitionStatus(
-    invoiceId: string,
-    to: InvoiceStatus,
-    nowISO: string,
-  ): Promise<Invoice | null> {
-    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
-    const snap = await getDoc(invoiceRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "submitted") patch.submittedAtISO = nowISO;
-    if (validTo === "approved") patch.approvedAtISO = nowISO;
-    if (validTo === "paid") patch.paidAtISO = nowISO;
-    if (validTo === "closed") patch.closedAtISO = nowISO;
-
-    await updateDoc(invoiceRef, patch);
-    const updated = await getDoc(invoiceRef);
-    if (!updated.exists()) return null;
-    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.itemCollectionRef, {
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    // Update invoice totalAmount
-    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
-      totalAmount: increment(input.amount),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      invoiceId: input.invoiceId,
-      taskId: input.taskId,
-      amount: input.amount,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
-    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
-    if (!snap.exists()) return null;
-    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-    const nowISO = new Date().toISOString();
-
-    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(amount - oldAmount),
-        updatedAtISO: nowISO,
-        updatedAt: serverTimestamp(),
-      });
-    }
-
-    const updated = await getDoc(itemRef);
-    if (!updated.exists()) return null;
-    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async removeItem(invoiceItemId: string): Promise<void> {
-    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
-    const snap = await getDoc(itemRef);
-    if (!snap.exists()) return;
-
-    const data = snap.data() as Record<string, unknown>;
-    const amount = typeof data.amount === "number" ? data.amount : 0;
-    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
-
-    await deleteDoc(itemRef);
-
-    if (invoiceId) {
-      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
-        totalAmount: increment(-amount),
-        updatedAtISO: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      });
-    }
-  }
-
-  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
-    const snaps = await getDocs(
-      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
-    );
-    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseIssueRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseIssueRepository.ts
- * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
-import type { IssueRepository } from "../../domain/repositories/IssueRepository";
-import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
-import { toIssue } from "../firebase/issue.converter";
-import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
-const DEFAULT_STATUS: IssueStatus = "open";
-const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
-
-export class FirebaseIssueRepository implements IssueRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_ISSUES_COLLECTION);
-  }
-
-  async create(input: OpenIssueInput): Promise<Issue> {
-    const nowISO = new Date().toISOString();
-    const docRef = await addDoc(this.collectionRef, {
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo ?? null,
-      resolvedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    return {
-      id: docRef.id,
-      taskId: input.taskId,
-      stage: input.stage,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      createdBy: input.createdBy,
-      assignedTo: input.assignedTo,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
-    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
-    const snap = await getDoc(issueRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
-
-    await updateDoc(issueRef, patch);
-    const updated = await getDoc(issueRef);
-    if (!updated.exists()) return null;
-    return toIssue(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(issueId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
-  }
-
-  async findById(issueId: string): Promise<Issue | null> {
-    const snap = await getDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
-    if (!snap.exists()) return null;
-    return toIssue(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByTaskId(taskId: string): Promise<Issue[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("taskId", "==", taskId),
-        orderBy("createdAtISO", "desc"),
-      ),
-    );
-    return snaps.docs.map((d) => toIssue(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async countOpenByTaskId(taskId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("taskId", "==", taskId),
-        where("status", "in", OPEN_STATUSES),
-      ),
-    );
-    return snaps.size;
-  }
-
-  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
-    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
-    const snap = await getDoc(issueRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
-
-    await updateDoc(issueRef, patch);
-    const updated = await getDoc(issueRef);
-    if (!updated.exists()) return null;
-    return toIssue(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/workspace-flow/infrastructure/repositories/FirebaseTaskRepository.ts
-````typescript
-/**
- * @module workspace-flow/infrastructure/repositories
- * @file FirebaseTaskRepository.ts
- * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add query pagination support and composite indexes
- */
-
-import {
-  addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  query,
-  serverTimestamp,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
-import { toTask } from "../firebase/task.converter";
-import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
-
-const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
-const DEFAULT_STATUS: TaskStatus = "draft";
-
-export class FirebaseTaskRepository implements TaskRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private get collectionRef() {
-    return collection(this.db, WF_TASKS_COLLECTION);
-  }
-
-  async create(input: CreateTaskInput): Promise<Task> {
-    const nowISO = new Date().toISOString();
-    const docData: Record<string, unknown> = {
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId ?? null,
-      dueDateISO: input.dueDateISO ?? null,
-      acceptedAtISO: null,
-      archivedAtISO: null,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.sourceReference) {
-      docData.sourceReference = { ...input.sourceReference };
-    }
-
-    const docRef = await addDoc(this.collectionRef, docData);
-
-    return {
-      id: docRef.id,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      description: input.description ?? "",
-      status: DEFAULT_STATUS,
-      assigneeId: input.assigneeId,
-      dueDateISO: input.dueDateISO,
-      sourceReference: input.sourceReference,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-    };
-  }
-
-  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const patch: Record<string, unknown> = {
-      updatedAtISO: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    };
-    if (typeof input.title === "string") patch.title = input.title;
-    if (typeof input.description === "string") patch.description = input.description;
-    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
-    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async delete(taskId: string): Promise<void> {
-    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-  }
-
-  async findById(taskId: string): Promise<Task | null> {
-    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
-    if (!snap.exists()) return null;
-    return toTask(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
-    const snaps = await getDocs(
-      query(
-        this.collectionRef,
-        where("workspaceId", "==", workspaceId),
-      ),
-    );
-    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
-    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
-  }
-
-  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
-    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
-    const snap = await getDoc(taskRef);
-    if (!snap.exists()) return null;
-
-    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
-    const patch: Record<string, unknown> = {
-      status: validTo,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    };
-    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
-    if (validTo === "archived") patch.archivedAtISO = nowISO;
-
-    await updateDoc(taskRef, patch);
-    const updated = await getDoc(taskRef);
-    if (!updated.exists()) return null;
-    return toTask(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow.actions.ts
- * @description Server Actions for workspace-flow write operations.
- * @author workspace-flow
- * @created 2026-03-24
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { CreateTaskDto } from "../../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
-import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
-import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
-import { CreateTaskUseCase } from "../../application/use-cases/create-task.use-case";
-import { UpdateTaskUseCase } from "../../application/use-cases/update-task.use-case";
-import { AssignTaskUseCase } from "../../application/use-cases/assign-task.use-case";
-import { SubmitTaskToQaUseCase } from "../../application/use-cases/submit-task-to-qa.use-case";
-import { PassTaskQaUseCase } from "../../application/use-cases/pass-task-qa.use-case";
-import { ApproveTaskAcceptanceUseCase } from "../../application/use-cases/approve-task-acceptance.use-case";
-import { ArchiveTaskUseCase } from "../../application/use-cases/archive-task.use-case";
-import { OpenIssueUseCase } from "../../application/use-cases/open-issue.use-case";
-import { StartIssueUseCase } from "../../application/use-cases/start-issue.use-case";
-import { FixIssueUseCase } from "../../application/use-cases/fix-issue.use-case";
-import { SubmitIssueRetestUseCase } from "../../application/use-cases/submit-issue-retest.use-case";
-import { PassIssueRetestUseCase } from "../../application/use-cases/pass-issue-retest.use-case";
-import { FailIssueRetestUseCase } from "../../application/use-cases/fail-issue-retest.use-case";
-import { ResolveIssueUseCase } from "../../application/use-cases/resolve-issue.use-case";
-import { CloseIssueUseCase } from "../../application/use-cases/close-issue.use-case";
-import { CreateInvoiceUseCase } from "../../application/use-cases/create-invoice.use-case";
-import { AddInvoiceItemUseCase } from "../../application/use-cases/add-invoice-item.use-case";
-import { UpdateInvoiceItemUseCase } from "../../application/use-cases/update-invoice-item.use-case";
-import { RemoveInvoiceItemUseCase } from "../../application/use-cases/remove-invoice-item.use-case";
-import { SubmitInvoiceUseCase } from "../../application/use-cases/submit-invoice.use-case";
-import { ReviewInvoiceUseCase } from "../../application/use-cases/review-invoice.use-case";
-import { ApproveInvoiceUseCase } from "../../application/use-cases/approve-invoice.use-case";
-import { RejectInvoiceUseCase } from "../../application/use-cases/reject-invoice.use-case";
-import { PayInvoiceUseCase } from "../../application/use-cases/pay-invoice.use-case";
-import { CloseInvoiceUseCase } from "../../application/use-cases/close-invoice.use-case";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-
-// ── Repository factories ──────────────────────────────────────────────────────
-
-function makeTaskRepo() { return new FirebaseTaskRepository(); }
-function makeIssueRepo() { return new FirebaseIssueRepository(); }
-function makeInvoiceRepo() { return new FirebaseInvoiceRepository(); }
-
-// ── Task actions ──────────────────────────────────────────────────────────────
-
-export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
-  try {
-    return await new CreateTaskUseCase(makeTaskRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-  try {
-    return await new UpdateTaskUseCase(makeTaskRepo()).execute(taskId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-  try {
-    return await new AssignTaskUseCase(makeTaskRepo()).execute(taskId, assigneeId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await new SubmitTaskToQaUseCase(makeTaskRepo()).execute(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await new PassTaskQaUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
-  try {
-    return await new ApproveTaskAcceptanceUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-  try {
-    return await new ArchiveTaskUseCase(makeTaskRepo()).execute(taskId, invoiceStatus);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ── Issue actions ─────────────────────────────────────────────────────────────
-
-export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
-  try {
-    return await new OpenIssueUseCase(makeIssueRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfStartIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await new StartIssueUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFixIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await new FixIssueUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await new SubmitIssueRetestUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await new PassIssueRetestUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await new FailIssueRetestUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-  try {
-    return await new ResolveIssueUseCase(makeIssueRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await new CloseIssueUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ── Invoice actions ───────────────────────────────────────────────────────────
-
-export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
-  try {
-    return await new CreateInvoiceUseCase(makeInvoiceRepo()).execute(workspaceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await new AddInvoiceItemUseCase(makeInvoiceRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await new UpdateInvoiceItemUseCase(makeInvoiceRepo()).execute(invoiceItemId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await new RemoveInvoiceItemUseCase(makeInvoiceRepo()).execute(dto.invoiceId, dto.invoiceItemId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new SubmitInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new ReviewInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new ApproveInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new RejectInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new PayInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new CloseInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
-````typescript
-"use client";
-
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @created 2026-03-27
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import {
-  wfApproveInvoice,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfAssignTask,
-  wfCloseInvoice,
-  wfCloseIssue,
-  wfCreateInvoice,
-  wfCreateTask,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfOpenIssue,
-  wfPassIssueRetest,
-  wfPassTaskQa,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfStartIssue,
-  wfSubmitInvoice,
-  wfSubmitIssueRetest,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-
-// ── Status display maps ────────────────────────────────────────────────────────
-
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
-
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatCurrency(amount: number): string {
-  try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
-  }
-}
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-}
-
-// ── Create Task Dialog ─────────────────────────────────────────────────────────
-
-interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-
-function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDateISO, setDueDateISO] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setDueDateISO("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入任務標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfCreateTask({
-        workspaceId,
-        title: t,
-        description: description.trim() || undefined,
-        assigneeId: assigneeId.trim() || undefined,
-        dueDateISO: dueDateISO || undefined,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立任務</DialogTitle>
-          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">標題 *</Label>
-            <Input
-              id="task-title"
-              placeholder="任務名稱"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-description">描述（選填）</Label>
-            <Textarea
-              id="task-description"
-              placeholder="任務詳情或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
-              <Input
-                id="task-assignee"
-                placeholder="用戶 ID"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="task-due">截止日期（選填）</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={dueDateISO}
-                onChange={(e) => setDueDateISO(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Assign Task Dialog ─────────────────────────────────────────────────────────
-
-interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-
-function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Open Issue Dialog ──────────────────────────────────────────────────────────
-
-interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<IssueStage>("task");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setStage("task");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入議題標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfOpenIssue({
-        taskId,
-        stage,
-        title: t,
-        description: description.trim() || undefined,
-        createdBy: currentUserId,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>開啟議題</DialogTitle>
-          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-title">標題 *</Label>
-            <Input
-              id="issue-title"
-              placeholder="問題簡述"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-description">描述（選填）</Label>
-            <Textarea
-              id="issue-description"
-              placeholder="問題詳情、重現步驟…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>發生階段</Label>
-            <div className="flex gap-2">
-              {(["task", "qa", "acceptance"] as const).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={stage === s ? "default" : "outline"}
-                  onClick={() => setStage(s)}
-                  disabled={submitting}
-                >
-                  {ISSUE_STAGE_LABEL[s]}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ── Issue Row ──────────────────────────────────────────────────────────────────
-
-interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-
-function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Task Row ───────────────────────────────────────────────────────────────────
-
-interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
-
-function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoaded, setIssuesLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadIssues = useCallback(async () => {
-    try {
-      const data = await getWorkspaceFlowIssues(task.id);
-      setIssues(data);
-      setIssuesLoaded(true);
-    } catch {
-      // non-fatal
-    }
-  }, [task.id]);
-
-  async function toggleIssues() {
-    if (!issuesExpanded && !issuesLoaded) {
-      await loadIssues();
-    }
-    setIssuesExpanded((v) => !v);
-  }
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderTaskAction() {
-    switch (task.status) {
-      case "draft":
-        return (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
-            指派任務
-          </Button>
-        );
-      case "in_progress":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
-      case "qa":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
-      case "acceptance":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
-      case "accepted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
-      {/* ── Task header ─────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-          )}
-          {task.assigneeId && (
-            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
-          {task.dueDateISO && (
-            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── Action row ──────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {renderTaskAction()}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setIssueDialogOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          開議題
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground ml-auto"
-          onClick={toggleIssues}
-        >
-          {issuesExpanded ? (
-            <ChevronDown className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="mr-1 h-3.5 w-3.5" />
-          )}
-          議題{issuesLoaded ? ` (${issues.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Issues sub-list ─────────────────── */}
-      {issuesExpanded && (
-        <div className="space-y-2 pl-1">
-          {issues.length === 0 ? (
-            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
-          ) : (
-            issues.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                onTransitioned={loadIssues}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ── Dialogs ─────────────────────────── */}
-      <AssignTaskDialog
-        open={assignDialogOpen}
-        taskId={task.id}
-        onClose={() => setAssignDialogOpen(false)}
-        onDone={onTransitioned}
-      />
-      <OpenIssueDialog
-        open={issueDialogOpen}
-        taskId={task.id}
-        currentUserId={currentUserId}
-        onClose={() => setIssueDialogOpen(false)}
-        onCreated={async () => {
-          await loadIssues();
-          if (!issuesExpanded) setIssuesExpanded(true);
-        }}
-      />
-    </div>
-  );
-}
-
-// ── Invoice Row ────────────────────────────────────────────────────────────────
-
-interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/contracts
- * @file workspace-flow.contract.ts
- * @description Module-local interface contracts for workspace-flow UI adapters.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Expand with view-model contracts as UI adapters are added
- */
-
-import type { Task } from "../../domain/entities/Task";
-import type { Issue } from "../../domain/entities/Issue";
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-
-// ── Summary read models (lean projections for UI) ─────────────────────────────
-
-export interface TaskSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly status: Task["status"];
-  readonly assigneeId?: string;
-}
-
-export interface IssueSummary {
-  readonly id: string;
-  readonly taskId: string;
-  readonly title: string;
-  readonly status: Issue["status"];
-  readonly stage: Issue["stage"];
-}
-
-export interface InvoiceSummary {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: Invoice["status"];
-  readonly totalAmount: number;
-}
-
-export interface InvoiceItemSummary {
-  readonly id: string;
-  readonly invoiceId: string;
-  readonly taskId: string;
-  readonly amount: InvoiceItem["amount"];
-}
-
-// ── Projection helpers ────────────────────────────────────────────────────────
-
-export function toTaskSummary(task: Task): TaskSummary {
-  return {
-    id: task.id,
-    workspaceId: task.workspaceId,
-    title: task.title,
-    status: task.status,
-    assigneeId: task.assigneeId,
-  };
-}
-
-export function toIssueSummary(issue: Issue): IssueSummary {
-  return {
-    id: issue.id,
-    taskId: issue.taskId,
-    title: issue.title,
-    status: issue.status,
-    stage: issue.stage,
-  };
-}
-
-export function toInvoiceSummary(invoice: Invoice): InvoiceSummary {
-  return {
-    id: invoice.id,
-    workspaceId: invoice.workspaceId,
-    status: invoice.status,
-    totalAmount: invoice.totalAmount,
-  };
-}
-
-export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
-  return {
-    id: item.id,
-    invoiceId: item.invoiceId,
-    taskId: item.taskId,
-    amount: item.amount,
-  };
-}
-````
-
-## File: modules/workspace-flow/interfaces/queries/workspace-flow.queries.ts
-````typescript
-/**
- * @module workspace-flow/interfaces/queries
- * @file workspace-flow.queries.ts
- * @description Server-side read queries for workspace-flow entities.
- * @author workspace-flow
- * @created 2026-03-24
- * @todo Add pagination support and caching layer
- */
-
-import type { Task } from "../../domain/entities/Task";
-import type { Issue } from "../../domain/entities/Issue";
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-
-function makeTaskRepo() {
-  return new FirebaseTaskRepository();
-}
-
-function makeIssueRepo() {
-  return new FirebaseIssueRepository();
-}
-
-function makeInvoiceRepo() {
-  return new FirebaseInvoiceRepository();
-}
-
-/**
- * List all tasks for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {
-  return makeTaskRepo().findByWorkspaceId(workspaceId);
-}
-
-/**
- * Get a single task by id.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {
-  return makeTaskRepo().findById(taskId);
-}
-
-/**
- * List all issues for a task.
- *
- * @param taskId - The task identifier
- */
-export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {
-  return makeIssueRepo().findByTaskId(taskId);
-}
-
-/**
- * List all invoices for a workspace.
- *
- * @param workspaceId - The workspace to query
- */
-export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {
-  return makeInvoiceRepo().findByWorkspaceId(workspaceId);
-}
-
-/**
- * Get items for an invoice.
- *
- * @param invoiceId - The invoice identifier
- */
-export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
-  return makeInvoiceRepo().listItems(invoiceId);
 }
 ````
 
@@ -37953,208 +32997,6 @@ export function CalendarWidget({ demands, onDayClick }: CalendarWidgetProps) {
         ))}
       </div>
     </div>
-  );
-}
-````
-
-## File: modules/workspace-scheduling/interfaces/components/CreateDemandForm.tsx
-````typescript
-"use client";
-
-/**
- * Module: workspace-scheduling
- * Layer: interfaces/components
- * Purpose: Quick-capture form for creating a new WorkDemand.
- *
- * Inspired by Postiz's "Schedule Post" dialog — focused, minimal,
- * opens when the user clicks a calendar day or "New Demand" button.
- */
-
-import { useState } from "react";
-
-import { format } from "@lib-date-fns";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { DEMAND_PRIORITY_LABELS } from "../../domain/types";
-import type { DemandPriority } from "../../domain/types";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface CreateDemandFormValues {
-  title: string;
-  description: string;
-  priority: DemandPriority;
-  scheduledAt: string; // "YYYY-MM-DD"
-}
-
-interface CreateDemandFormProps {
-  open: boolean;
-  /** Pre-fill the scheduled date (e.g. from a calendar day click). */
-  initialDate?: Date;
-  onClose: () => void;
-  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
-}
-
-// ── Form ──────────────────────────────────────────────────────────────────────
-
-export function CreateDemandForm({
-  open,
-  initialDate,
-  onClose,
-  onSubmit,
-}: CreateDemandFormProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [priority, setPriority] = useState<DemandPriority>("medium");
-  const [scheduledAt, setScheduledAt] = useState(
-    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  // Re-sync date when the prop changes (e.g. user clicks a different day)
-  const handleOpen = (isOpen: boolean) => {
-    if (isOpen && initialDate) {
-      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
-    }
-    if (!isOpen) handleClose();
-  };
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setPriority("medium");
-    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) {
-      setError("請輸入需求標題。");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立工作需求</DialogTitle>
-          <DialogDescription>
-            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
-          </DialogDescription>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Title */}
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-title">標題 *</Label>
-            <Input
-              id="demand-title"
-              placeholder="需要完成什麼工作？"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              autoFocus
-            />
-          </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <Label htmlFor="demand-description">描述（選填）</Label>
-            <Textarea
-              id="demand-description"
-              placeholder="詳細說明需求背景或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-
-          {/* Priority + Date row */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-priority">優先級</Label>
-              <Select
-                value={priority}
-                onValueChange={(v) => setPriority(v as DemandPriority)}
-                disabled={submitting}
-              >
-                <SelectTrigger id="demand-priority">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(["low", "medium", "high"] as const).map((p) => (
-                    <SelectItem key={p} value={p}>
-                      {DEMAND_PRIORITY_LABELS[p]}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="demand-date">排程日期 *</Label>
-              <Input
-                id="demand-date"
-                type="date"
-                value={scheduledAt}
-                onChange={(e) => setScheduledAt(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-
-          {/* Error message */}
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
-            </p>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
-              取消
-            </Button>
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "提交中…" : "建立需求"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }
 ````
@@ -40398,6 +35240,124 @@ export async function getWorkspaceByIdForAccount(
 }
 ````
 
+## File: modules/workspace/interfaces/workspace-tabs.ts
+````typescript
+export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+
+export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+
+export const WORKSPACE_TAB_VALUES = [
+  "Overview",
+  "Favorites",
+  "Recent",
+  "Engineering",
+  "Product",
+  "Design",
+  "Docs",
+  "SOP",
+  "Meeting Notes",
+  "Members",
+  "Projects",
+  "Notes",
+  "Documents",
+  "Assets",
+  "CRM",
+  "Roadmap",
+  "Daily",
+  "Tags",
+  "Files",
+  "Templates",
+  "Wiki",
+  "Schedule",
+  "Audit",
+  "Tasks",
+  "Feed",
+  "Trash",
+] as const;
+
+export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
+
+interface WorkspaceTabMeta {
+  readonly label: string;
+  readonly prefId: string;
+  readonly group: WorkspaceTabGroup;
+  readonly status: WorkspaceTabDevStatus;
+}
+
+export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
+  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
+  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
+  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
+  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
+  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
+  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
+  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
+  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
+  "Meeting Notes": {
+    label: "Meeting Notes",
+    prefId: "meeting-notes",
+    group: "spaces",
+    status: "🚧",
+  },
+  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
+  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
+  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
+  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
+  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
+  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
+  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
+  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
+  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
+  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
+  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
+  Wiki: {
+    label: "Wiki",
+    prefId: "wiki",
+    group: "spaces",
+    status: "🏗️",
+  },
+  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
+  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
+  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
+  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
+  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
+};
+
+export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
+  primary: ["Overview", "Recent", "Favorites"],
+  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
+  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
+  library: ["Files", "Tags", "Templates", "Members", "Trash"],
+  modules: ["Daily", "Schedule", "Audit", "Tasks", "Feed"],
+};
+
+const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+
+export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
+  return WORKSPACE_TAB_VALUE_SET.has(value);
+}
+
+export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
+  return WORKSPACE_TAB_META[tab];
+}
+
+export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
+  return WORKSPACE_TAB_META[tab].status;
+}
+
+export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].label;
+}
+
+export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
+  return WORKSPACE_TAB_META[tab].prefId;
+}
+
+export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
+  return WORKSPACE_TAB_GROUPS[group];
+}
+````
+
 ## File: modules/workspace/ports/.gitkeep
 ````
 
@@ -41585,45 +36545,6 @@ export {
 } from "vis-data/esnext";
 ````
 
-## File: packages/lib-vis/graph3d.ts
-````typescript
-/**
- * @module libs/vis/graph3d
- * Thin wrapper for vis-graph3d.
- *
- * vis-graph3d provides interactive 3D graph visualization with surfaces,
- * lines, dots, and blocks with extensive styling options.
- *
- * Usage:
- *   import { Graph3d } from "@/libs/vis/graph3d";
- *   const graph3d = new Graph3d(container, data, options);
- */
-
-import * as VisGraph3dNamespace from "vis-graph3d";
-
-export { Graph3d } from "vis-graph3d";
-export * from "vis-graph3d";
-
-const visGraph3dRuntime = VisGraph3dNamespace as unknown as {
-	Graph3dCamera?: unknown;
-	Graph3dFilter?: unknown;
-	Graph3dPoint2d?: unknown;
-	Graph3dPoint3d?: unknown;
-	Graph3dSlider?: unknown;
-	Graph3dStepNumber?: unknown;
-};
-
-export const Graph3dCamera = visGraph3dRuntime.Graph3dCamera;
-export const Graph3dFilter = visGraph3dRuntime.Graph3dFilter;
-export const Graph3dPoint2d = visGraph3dRuntime.Graph3dPoint2d;
-export const Graph3dPoint3d = visGraph3dRuntime.Graph3dPoint3d;
-export const Graph3dSlider = visGraph3dRuntime.Graph3dSlider;
-export const Graph3dStepNumber = visGraph3dRuntime.Graph3dStepNumber;
-
-type Graph3dClass = typeof import("vis-graph3d").Graph3d;
-export type Graph3dOptions = InstanceType<Graph3dClass> extends { setOptions(opts: infer T): void } ? T : never;
-````
-
 ## File: packages/lib-vis/index.ts
 ````typescript
 /**
@@ -41666,69 +36587,6 @@ export {
   Graph3dStepNumber,
 } from "./graph3d";
 export type { Graph3dOptions } from "./graph3d";
-````
-
-## File: packages/lib-vis/network.ts
-````typescript
-/**
- * @module libs/vis/network
- * Thin wrapper for vis-network.
- *
- * vis-network provides interactive visualization of network graphs with nodes,
- * edges, physics simulation, and extensive customization options.
- *
- * Usage:
- *   import { Network } from "@/libs/vis/network";
- *   const network = new Network(container, data, options);
- */
-
-import * as VisNetworkNamespace from "vis-network";
-
-export { Network } from "vis-network";
-export * from "vis-network";
-
-const visNetworkRuntime = VisNetworkNamespace as unknown as {
-  NetworkImages?: unknown;
-  networkDOTParser?: unknown;
-  parseDOTNetwork?: unknown;
-  parseGephiNetwork?: unknown;
-  networkGephiParser?: unknown;
-  networkOptions?: unknown;
-};
-
-export const NetworkImages = visNetworkRuntime.NetworkImages;
-export const networkDOTParser = visNetworkRuntime.networkDOTParser;
-export const parseDOTNetwork = visNetworkRuntime.parseDOTNetwork;
-export const parseGephiNetwork = visNetworkRuntime.parseGephiNetwork;
-export const networkGephiParser = visNetworkRuntime.networkGephiParser;
-export const networkOptions = visNetworkRuntime.networkOptions;
-
-type NetworkClass = typeof import("vis-network").Network;
-export type NetworkOptions = InstanceType<NetworkClass> extends { setOptions(opts: infer T): void } ? T : never;
-````
-
-## File: packages/lib-vis/timeline.ts
-````typescript
-/**
- * @module libs/vis/timeline
- * Thin wrapper for vis-timeline.
- *
- * vis-timeline provides interactive, fully customizable timelines and 2D graphs
- * with items, ranges, and comprehensive event handling.
- *
- * Usage:
- *   import { Timeline } from "@/libs/vis/timeline";
- *   const timeline = new Timeline(container, items, options);
- */
-
-export { Timeline, Graph2d } from "vis-timeline";
-export * from "vis-timeline";
-
-type TimelineClass = typeof import("vis-timeline").Timeline;
-type Graph2dClass = typeof import("vis-timeline").Graph2d;
-
-export type TimelineOptions = InstanceType<TimelineClass> extends { setOptions(opts: infer T): void } ? T : never;
-export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opts: infer T): void } ? T : never;
 ````
 
 ## File: packages/lib-xstate/index.ts
@@ -45180,166 +40038,6 @@ function HoverCardContent({
 export { HoverCard, HoverCardTrigger, HoverCardContent }
 ````
 
-## File: packages/ui-shadcn/ui/input-group.tsx
-````typescript
-"use client"
-
-import * as React from "react"
-import { cva, type VariantProps } from "class-variance-authority"
-
-import { cn } from "../utils"
-import { Button } from "./button"
-import { Input } from "./input"
-import { Textarea } from "./textarea"
-
-function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
-  return (
-    <div
-      data-slot="input-group"
-      role="group"
-      className={cn(
-        "group/input-group relative flex h-8 w-full min-w-0 items-center rounded-lg border border-input transition-colors outline-none in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot][aria-invalid=true]]:ring-3 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-const inputGroupAddonVariants = cva(
-  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
-  {
-    variants: {
-      align: {
-        "inline-start":
-          "order-first pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
-        "inline-end":
-          "order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
-        "block-start":
-          "order-first w-full justify-start px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2",
-        "block-end":
-          "order-last w-full justify-start px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2",
-      },
-    },
-    defaultVariants: {
-      align: "inline-start",
-    },
-  }
-)
-
-function InputGroupAddon({
-  className,
-  align = "inline-start",
-  ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
-  return (
-    <div
-      role="group"
-      data-slot="input-group-addon"
-      data-align={align}
-      className={cn(inputGroupAddonVariants({ align }), className)}
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest("button")) {
-          return
-        }
-        e.currentTarget.parentElement?.querySelector("input")?.focus()
-      }}
-      {...props}
-    />
-  )
-}
-
-const inputGroupButtonVariants = cva(
-  "flex items-center gap-2 text-sm shadow-none",
-  {
-    variants: {
-      size: {
-        xs: "h-6 gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
-        sm: "",
-        "icon-xs":
-          "size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0",
-        "icon-sm": "size-8 p-0 has-[>svg]:p-0",
-      },
-    },
-    defaultVariants: {
-      size: "xs",
-    },
-  }
-)
-
-function InputGroupButton({
-  className,
-  type = "button",
-  variant = "ghost",
-  size = "xs",
-  ...props
-}: Omit<React.ComponentProps<typeof Button>, "size"> &
-  VariantProps<typeof inputGroupButtonVariants>) {
-  return (
-    <Button
-      type={type}
-      data-size={size}
-      variant={variant}
-      className={cn(inputGroupButtonVariants({ size }), className)}
-      {...props}
-    />
-  )
-}
-
-function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
-  return (
-    <span
-      className={cn(
-        "flex items-center gap-2 text-sm text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function InputGroupInput({
-  className,
-  ...props
-}: React.ComponentProps<"input">) {
-  return (
-    <Input
-      data-slot="input-group-control"
-      className={cn(
-        "flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function InputGroupTextarea({
-  className,
-  ...props
-}: React.ComponentProps<"textarea">) {
-  return (
-    <Textarea
-      data-slot="input-group-control"
-      className={cn(
-        "flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-export {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupButton,
-  InputGroupText,
-  InputGroupInput,
-  InputGroupTextarea,
-}
-````
-
 ## File: packages/ui-shadcn/ui/input-otp.tsx
 ````typescript
 "use client"
@@ -45961,139 +40659,6 @@ export {
   NavigationMenuIndicator,
   NavigationMenuViewport,
   navigationMenuTriggerStyle,
-}
-````
-
-## File: packages/ui-shadcn/ui/pagination.tsx
-````typescript
-import * as React from "react"
-
-import { cn } from "../utils"
-import { Button } from "./button"
-import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
-
-function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
-  return (
-    <nav
-      role="navigation"
-      aria-label="pagination"
-      data-slot="pagination"
-      className={cn("mx-auto flex w-full justify-center", className)}
-      {...props}
-    />
-  )
-}
-
-function PaginationContent({
-  className,
-  ...props
-}: React.ComponentProps<"ul">) {
-  return (
-    <ul
-      data-slot="pagination-content"
-      className={cn("flex items-center gap-0.5", className)}
-      {...props}
-    />
-  )
-}
-
-function PaginationItem({ ...props }: React.ComponentProps<"li">) {
-  return <li data-slot="pagination-item" {...props} />
-}
-
-type PaginationLinkProps = {
-  isActive?: boolean
-} & Pick<React.ComponentProps<typeof Button>, "size"> &
-  React.ComponentProps<"a">
-
-function PaginationLink({
-  className,
-  isActive,
-  size = "icon",
-  ...props
-}: PaginationLinkProps) {
-  return (
-    <Button
-      asChild
-      variant={isActive ? "outline" : "ghost"}
-      size={size}
-      className={cn(className)}
-    >
-      <a
-        aria-current={isActive ? "page" : undefined}
-        data-slot="pagination-link"
-        data-active={isActive}
-        {...props}
-      />
-    </Button>
-  )
-}
-
-function PaginationPrevious({
-  className,
-  text = "Previous",
-  ...props
-}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
-  return (
-    <PaginationLink
-      aria-label="Go to previous page"
-      size="default"
-      className={cn("pl-1.5!", className)}
-      {...props}
-    >
-      <ChevronLeftIcon data-icon="inline-start" />
-      <span className="hidden sm:block">{text}</span>
-    </PaginationLink>
-  )
-}
-
-function PaginationNext({
-  className,
-  text = "Next",
-  ...props
-}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
-  return (
-    <PaginationLink
-      aria-label="Go to next page"
-      size="default"
-      className={cn("pr-1.5!", className)}
-      {...props}
-    >
-      <span className="hidden sm:block">{text}</span>
-      <ChevronRightIcon data-icon="inline-end" />
-    </PaginationLink>
-  )
-}
-
-function PaginationEllipsis({
-  className,
-  ...props
-}: React.ComponentProps<"span">) {
-  return (
-    <span
-      aria-hidden
-      data-slot="pagination-ellipsis"
-      className={cn(
-        "flex size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
-        className
-      )}
-      {...props}
-    >
-      <MoreHorizontalIcon
-      />
-      <span className="sr-only">More pages</span>
-    </span>
-  )
-}
-
-export {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
 }
 ````
 
@@ -48064,156 +42629,6 @@ export { VisTimeline } from "./timeline";
 export type { VisTimelineProps } from "./timeline";
 ````
 
-## File: packages/ui-vis/network.tsx
-````typescript
-"use client";
-
-/**
- * @module ui/vis/network
- * React wrapper for vis-network.
- *
- * Provides a drop-in React component for interactive network visualization.
- * Simplifies ref management and event handling for Next.js environments.
- */
-
-import { useRef, useEffect, FC } from "react";
-import Graph from "react-graph-vis";
-import type { Network, Options } from "vis-network";
-
-export interface VisNetworkProps {
-  /**
-   * Nodes data array
-   */
-  nodes?: Array<{ id: string | number; label?: string; [key: string]: unknown }>;
-
-  /**
-   * Edges data array
-   */
-  edges?: Array<{ from: string | number; to: string | number; [key: string]: unknown }>;
-
-  /**
-   * vis-network options
-   */
-  options?: Options;
-
-  /**
-   * Fired when a node is clicked
-   */
-  onSelectNode?: (nodeId: string | number) => void;
-
-  /**
-   * Fired when a node is double-clicked
-   */
-  onDoubleClickNode?: (nodeId: string | number) => void;
-
-  /**
-   * Fired when physics simulation finishes
-   */
-  onPhysicsStabilized?: () => void;
-
-  /**
-   * Container CSS class
-   */
-  className?: string;
-
-  /**
-   * Container CSS styles
-   */
-  style?: React.CSSProperties;
-}
-
-/**
- * VisNetwork component - interactive network graph with React integration.
- *
- * @example
- * ```tsx
- * <VisNetwork
- *   nodes={[{ id: 1, label: "Node 1" }]}
- *   edges={[{ from: 1, to: 2 }]}
- *   options={{ physics: { enabled: true } }}
- *   onSelectNode={(id) => console.log("Selected:", id)}
- * />
- * ```
- */
-export const VisNetwork: FC<VisNetworkProps> = ({
-  nodes = [],
-  edges = [],
-  options = {},
-  onSelectNode,
-  onDoubleClickNode,
-  onPhysicsStabilized,
-  className,
-  style = { width: "100%", height: "600px" },
-}) => {
-  const networkRef = useRef<Network | null>(null);
-
-  const defaultOptions: Options = {
-    physics: {
-      enabled: true,
-      barnesHut: {
-        gravitationalConstant: -26000,
-        centralGravity: 0.3,
-        springLength: 200,
-      },
-    },
-    interaction: {
-      navigationButtons: true,
-      keyboard: true,
-    },
-    ...options,
-  };
-
-  useEffect(() => {
-    if (!networkRef.current) return;
-
-    const handleSelectNode = (event: { nodes: (string | number)[] }) => {
-      if (event.nodes.length > 0 && onSelectNode) {
-        onSelectNode(event.nodes[0]);
-      }
-    };
-
-    const handleDoubleClickNode = (event: { nodes: (string | number)[] }) => {
-      if (event.nodes.length > 0 && onDoubleClickNode) {
-        onDoubleClickNode(event.nodes[0]);
-      }
-    };
-
-    const handlePhysicsStabilized = () => {
-      if (onPhysicsStabilized) {
-        onPhysicsStabilized();
-      }
-    };
-
-    networkRef.current.on("selectNode", handleSelectNode);
-    networkRef.current.on("doubleClick", handleDoubleClickNode);
-    networkRef.current.on("stabilizationIterationsDone", handlePhysicsStabilized);
-
-    return () => {
-      if (networkRef.current) {
-        networkRef.current.off("selectNode", handleSelectNode);
-        networkRef.current.off("doubleClick", handleDoubleClickNode);
-        networkRef.current.off("stabilizationIterationsDone", handlePhysicsStabilized);
-      }
-    };
-  }, [onSelectNode, onDoubleClickNode, onPhysicsStabilized]);
-
-  return (
-    <div className={className} style={style}>
-      <Graph
-        graph={{ nodes, edges }}
-        options={defaultOptions}
-        events={{}}
-        getNetwork={(network: Network) => {
-          networkRef.current = network;
-        }}
-      />
-    </div>
-  );
-};
-
-export default VisNetwork;
-````
-
 ## File: packages/ui-vis/react-graph-vis.d.ts
 ````typescript
 declare module "react-graph-vis" {
@@ -48238,133 +42653,6 @@ declare module "react-graph-vis" {
   const Graph: ComponentType<GraphProps>;
   export default Graph;
 }
-````
-
-## File: packages/ui-vis/timeline.tsx
-````typescript
-"use client";
-
-/**
- * @module ui/vis/timeline
- * React wrapper for vis-timeline.
- *
- * Provides a drop-in React component for interactive timeline visualization.
- */
-
-import { useRef, useEffect, FC } from "react";
-import { Timeline, DataSet } from "@lib-vis";
-
-export interface VisTimelineProps {
-  /**
-   * Timeline items (events)
-   */
-  items?: Array<{
-    id: string | number;
-    content: string;
-    start: string | Date;
-    end?: string | Date;
-    [key: string]: unknown;
-  }>;
-
-  /**
-   * Timeline groups (categories)
-   */
-  groups?: Array<{
-    id: string | number;
-    content: string;
-    [key: string]: unknown;
-  }>;
-
-  /**
-   * Timeline options
-   */
-  options?: Record<string, unknown>;
-
-  /**
-   * Fired when selection changes
-   */
-  onSelect?: (selection: (string | number)[]) => void;
-
-  /**
-   * Container CSS class
-   */
-  className?: string;
-
-  /**
-   * Container CSS styles
-   */
-  style?: React.CSSProperties;
-}
-
-/**
- * VisTimeline component - interactive timeline with React integration.
- *
- * @example
- * ```tsx
- * <VisTimeline
- *   items={[{ id: 1, content: "Event 1", start: new Date() }]}
- *   options={{ height: "100%" }}
- *   onSelect={(ids) => console.log("Selected:", ids)}
- * />
- * ```
- */
-export const VisTimeline: FC<VisTimelineProps> = ({
-  items = [],
-  groups,
-  options = { height: "400px" },
-  onSelect,
-  className,
-  style = { width: "100%", height: "400px" },
-}) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const timelineRef = useRef<Timeline | null>(null);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-
-    const timelineItems = new DataSet(items);
-    const timelineGroups = groups ? new DataSet(groups) : new DataSet([]);
-
-    const mergedOptions = {
-      ...options,
-    };
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const TimelineConstructor = Timeline as any;
-    timelineRef.current = new TimelineConstructor(containerRef.current, timelineItems, timelineGroups, mergedOptions);
-
-    if (onSelect) {
-      const handleSelect = (event: { selection: (string | number)[] }) => {
-        onSelect(event.selection);
-      };
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const timelineInstance = timelineRef.current as any;
-      timelineInstance.on("select", handleSelect);
-
-      return () => {
-        if (timelineInstance) {
-          timelineInstance.off("select", handleSelect);
-          timelineInstance.destroy();
-          timelineRef.current = null;
-        }
-      };
-    }
-
-    return () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const timelineInstance = timelineRef.current as any;
-      if (timelineInstance) {
-        timelineInstance.destroy();
-        timelineRef.current = null;
-      }
-    };
-  }, [items, groups, options, onSelect]);
-
-  return <div ref={containerRef} className={className} style={style} />;
-};
-
-export default VisTimeline;
 ````
 
 ## File: PERMISSIONS.md
@@ -52571,6 +46859,59 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()
 ````
 
+## File: scripts/demo-flow.ts
+````typescript
+/**
+ * scripts/demo-flow.ts
+ *
+ * Architecture Phase 2 — The Proof (Occam's Razor Edition)
+ *
+ * Demonstrates the Content → EventBus loop using only in-memory adapters.
+ * Note: modules/wiki has been removed; graph steps are no longer included.
+ *
+ * Run with:
+ *   npx tsx scripts/demo-flow.ts
+ */
+
+import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
+import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+
+async function main() {
+  const ACCOUNT_ID = "demo-account";
+  const USER_ID = "demo-user";
+
+  console.log("[1] Initialising event bus...");
+  const eventBus = new SimpleEventBus();
+  console.log("    ✓ SimpleEventBus ready\n");
+
+  console.log("[2] Creating KnowledgeApi...");
+  const contentApi = new ContentKnowledgeApi(eventBus);
+  console.log("    ✓ KnowledgeApi ready\n");
+
+  console.log('[3] Creating page "Hello World"...');
+  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
+  console.log(`    ✓ page created  id=${page.id}\n`);
+
+  console.log("[4] Adding an empty block to the page...");
+  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
+  console.log(`    ✓ block created  id=${block.id}\n`);
+
+  console.log('[5] Updating block → "Hello [[World]]"...');
+  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
+  if (!updated) {
+    throw new Error("ASSERTION FAILED: updateBlock returned null");
+  }
+  console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
+
+  console.log("✅  Demo flow completed successfully.");
+}
+
+main().catch((err) => {
+  console.error("❌  Demo flow failed:", err);
+  process.exit(1);
+});
+````
+
 ## File: SPEC-WORKFLOW.md
 ````markdown
 # Spec-Driven Development Workflow
@@ -53368,6 +47709,7 @@ venv/
 *.db
 .beads-credential-key
 .playwright-mcp
+.tmp-eslint*.json
 ````
 
 ## File: .mcp.json
@@ -53449,6 +47791,516 @@ venv/
       ]
     }
   }
+}
+````
+
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  FirebaseIdentityRepository,
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+} from "@/modules/identity/api";
+import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => {
+      const identityRepo = new FirebaseIdentityRepository();
+      const accountRepo = new FirebaseAccountRepository();
+      return {
+        signInUseCase: new SignInUseCase(identityRepo),
+        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
+        registerUseCase: new RegisterUseCase(identityRepo),
+        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
+        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
+      };
+    }, []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
+## File: app/(shell)/_components/account-switcher.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import { useApp } from "@/app/providers/app-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+}
+
+export function AccountSwitcher({
+  personalAccount,
+  organizationAccounts,
+  activeAccountId,
+  onSelectPersonal,
+  onSelectOrganization,
+  onOrganizationCreated,
+}: AccountSwitcherProps) {
+  const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
+
+  function resetCreateOrganizationDialog() {
+    setOrganizationName("");
+    setOrganizationError(null);
+    setIsCreatingOrganization(false);
+  }
+
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!personalAccount) {
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+
+    const nextOrganizationName = organizationName.trim();
+    if (!nextOrganizationName) {
+      setOrganizationError("請輸入組織名稱。");
+      return;
+    }
+
+    setIsCreatingOrganization(true);
+    setOrganizationError(null);
+
+    const result = await createOrganization({
+      organizationName: nextOrganizationName,
+      ownerId: personalAccount.id,
+      ownerName: personalAccount.name,
+      ownerEmail: personalAccount.email,
+    });
+
+    if (!result.success) {
+      setOrganizationError(result.error.message);
+      setIsCreatingOrganization(false);
+      return;
+    }
+
+    onOrganizationCreated?.({
+      id: result.aggregateId,
+      name: nextOrganizationName,
+      accountType: "organization",
+      ownerId: personalAccount.id,
+    });
+
+    resetCreateOrganizationDialog();
+    setIsCreateOrganizationOpen(false);
+    router.push("/organization");
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          帳號情境
+        </p>
+        <select
+          aria-label="切換帳號情境"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
+
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
+
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}（組織）
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
+          </p>
+        )}
+      </div>
+
+      <Dialog
+        open={isCreateOrganizationOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrganizationOpen(open);
+          if (!open) {
+            resetCreateOrganizationDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-organization-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="create-organization-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateOrganization}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => {
+                  setOrganizationName(event.target.value);
+                  if (organizationError) {
+                    setOrganizationError(null);
+                  }
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingOrganization}
+                maxLength={80}
+              />
+              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateOrganizationDialog();
+                  setIsCreateOrganizationOpen(false);
+                }}
+                disabled={isCreatingOrganization}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
+                {isCreatingOrganization ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
 ````
 
@@ -53549,68 +48401,6 @@ export function useGlobalSearch() {
   }, []);
 
   return { open, setOpen };
-}
-````
-
-## File: app/(shell)/_components/header-controls.tsx
-````typescript
-"use client";
-
-/**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
- */
-
-import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { NotificationBell } from "@/modules/notification/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { TranslationSwitcher } from "./translation-switcher";
-
-const THEME_KEY = "xuanwu_theme";
-
-export function HeaderControls() {
-  const { state: authState } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
-
-  const recipientId = authState.user?.id ?? "";
-
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <NotificationBell recipientId={recipientId} />
-    </div>
-  );
 }
 ````
 
@@ -53781,882 +48571,6 @@ export async function sendChatMessage(
 
 export { saveThread, loadThread };
 export type { Thread };
-````
-
-## File: app/(shell)/dev-tools/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: dev-tools page — /dev-tools
- * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
- * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
- * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
- */
-
-import { useRef, useState, useEffect } from "react";
-import {
-  FlaskConical,
-  FileUp,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  AlertCircle,
-  FileText,
-  Trash2,
-  Code2,
-  ExternalLink,
-} from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-import { Button } from "@ui-shadcn/ui/button";
-
-// ── 型別 ─────────────────────────────────────────────────────────────────────
-
-interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-
-interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-
-type Status = "idle" | "uploading" | "waiting" | "done" | "error";
-
-// ── 常數 ─────────────────────────────────────────────────────────────────────
-
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const WATCH_PATH = "uploads/";
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif / .tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg / .jpeg",
-};
-
-const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-function formatDateTime(value: Date | null): string {
-  if (!value) return "—";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
-
-function deriveJsonUri(gcsUri: string): string {
-  if (!gcsUri.startsWith("gs://")) return "";
-  const withoutPrefix = gcsUri.slice(5);
-  const firstSlash = withoutPrefix.indexOf("/");
-  if (firstSlash < 0) return "";
-
-  const bucket = withoutPrefix.slice(0, firstSlash);
-  const objectPath = withoutPrefix.slice(firstSlash + 1);
-  if (!objectPath.startsWith("uploads/")) return "";
-
-  const relativePath = objectPath.slice("uploads/".length);
-  const dotIndex = relativePath.lastIndexOf(".");
-  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
-  return `gs://${bucket}/files/${stem}.json`;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function asDate(value: unknown): Date | null {
-  if (value instanceof Date) {
-    return value;
-  }
-  if (value && typeof value === "object" && "toDate" in value) {
-    if (typeof (value as { toDate?: unknown }).toDate === "function") {
-      const converted = (value as { toDate: () => unknown }).toDate();
-      return converted instanceof Date ? converted : null;
-    }
-  }
-  return null;
-}
-
-function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
-  const data = asRecord(doc.data());
-  const source = asRecord(data.source);
-  const parsed = asRecord(data.parsed);
-  const rag = asRecord(data.rag);
-  const err = asRecord(data.error);
-
-  return {
-    id: doc.id,
-    status: asString(data.status, "unknown"),
-    filename: asString(source.filename, doc.id),
-    gcs_uri: asString(source.gcs_uri),
-    uploaded_at: asDate(source.uploaded_at),
-    page_count: asNumber(parsed.page_count),
-    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
-    error_message: asString(err.message) || undefined,
-    rag_status: asString(rag.status) || undefined,
-    rag_chunk_count: asNumber(rag.chunk_count),
-    rag_vector_count: asNumber(rag.vector_count),
-    rag_raw_chars: asNumber(rag.raw_chars),
-    rag_normalized_chars: asNumber(rag.normalized_chars),
-    rag_normalization_version: asString(rag.normalization_version) || undefined,
-    rag_language_hint: asString(rag.language_hint) || undefined,
-    rag_error: asString(rag.error) || undefined,
-  };
-}
-
-function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
-  if (status === "completed") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> 完成
-      </span>
-    );
-  }
-  if (status === "processing") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> 處理中
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={errorMessage}
-      >
-        <XCircle className="size-3" /> 錯誤
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
-}
-
-function RagBadge({ status, error }: { status?: string; error?: string }) {
-  if (status === "ready") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> RAG Ready
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={error}
-      >
-        <XCircle className="size-3" /> RAG Error
-      </span>
-    );
-  }
-  if (status) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> {status}
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">—</span>;
-}
-
-// ── Page component ─────────────────────────────────────────────────────────
-
-export default function DevToolsPage() {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
-  const [result, setResult] = useState<ParseResult | null>(null);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-  const [jsonContent, setJsonContent] = useState<string | null>(null);
-  const [jsonLoading, setJsonLoading] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [reindexingId, setReindexingId] = useState<string | null>(null);
-
-  // Firestore 監聽器 unsubscribe 函數
-  const unsubscribeRef = useRef<(() => void) | null>(null);
-  const unsubscribeListRef = useRef<(() => void) | null>(null);
-
-  function closeJsonPreview() {
-    setSelectedDocId(null);
-    setJsonContent(null);
-  }
-
-  function appendLog(msg: string) {
-    setLogs((prev) => [...prev, `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`]);
-  }
-
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0] ?? null;
-    setSelectedFile(file);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
-  }
-
-  function buildUuidUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {
-    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
-    const docId = crypto.randomUUID();
-    return {
-      uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`,
-      docId,
-    };
-  }
-
-  // 監聽 Firestore 文件狀態變化
-  function watchDocument(docId: string) {
-    if (!activeAccountId) {
-      appendLog("❌ 缺少 active account，無法監聽文件狀態");
-      return;
-    }
-    try {
-      const db = getFirebaseFirestore();
-      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
-
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-
-      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
-        if (!snapshot.exists()) {
-          appendLog("等待 Firestore 初始化…");
-          return;
-        }
-
-        const data = asRecord(snapshot.data());
-        const docStatus = asString(data.status, "unknown");
-
-        appendLog(`Firestore update: status=${docStatus}`);
-
-        if (docStatus === "completed") {
-          const parsed = asRecord(data.parsed);
-          const result: ParseResult = {
-            doc_id: docId,
-            status: "completed",
-            page_count: asNumber(parsed.page_count) ?? 0,
-            json_gcs_uri: asString(parsed.json_gcs_uri),
-          };
-          setResult(result);
-          setStatus("done");
-          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
-
-          // 取消監聽
-          if (unsubscribeRef.current) {
-            unsubscribeRef.current();
-            unsubscribeRef.current = null;
-          }
-        } else if (docStatus === "error") {
-          const error = asRecord(data.error);
-          const msg = asString(error.message, "未知錯誤");
-          setErrorMsg(msg);
-          setStatus("error");
-          appendLog(`❌ 錯誤：${msg}`);
-
-          // 取消監聽
-          if (unsubscribeRef.current) {
-            unsubscribeRef.current();
-            unsubscribeRef.current = null;
-          }
-        }
-      });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 監聽失敗：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  async function handleUploadAndParse() {
-    if (!selectedFile) return;
-    if (!activeAccountId) {
-      setErrorMsg("缺少 active account，無法上傳與解析");
-      setStatus("error");
-      return;
-    }
-
-    setStatus("uploading");
-    setResult(null);
-    setErrorMsg(null);
-    appendLog("📤 上傳檔案到 Cloud Storage…");
-
-    try {
-      // ── Step 1: Upload to GCS ────────────────────────────────────────
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
-      const fileRef = storageApi.ref(storage, uploadPath);
-
-      appendLog(`GCS path: gs://${UPLOAD_BUCKET}/${uploadPath}`);
-      appendLog(`doc_id(uuid): ${docId}`);
-
-      await storageApi.uploadBytes(fileRef, selectedFile);
-      appendLog(`✅ 上傳完成`);
-
-      // ── Step 2: Watch Firestore for status updates ──────────────────
-      setStatus("waiting");
-      appendLog("🔍 已觸發 Storage pipeline，開始監聽 Firestore…");
-      watchDocument(docId);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 錯誤：${msg}`);
-      setErrorMsg(msg);
-      setStatus("error");
-    }
-  }
-
-  function reset() {
-    // 取消 Firestore 監聽
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-
-    setSelectedFile(null);
-    setResult(null);
-    setErrorMsg(null);
-    setStatus("idle");
-    setLogs([]);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  // 監聽所有已上傳文件列表
-  useEffect(() => {
-    if (!activeAccountId) {
-      setAllDocs([]);
-      return;
-    }
-
-    try {
-      const db = getFirebaseFirestore();
-      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
-      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
-        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
-        // 最新上傳在最上面
-        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
-        setAllDocs(docs);
-      });
-    } catch (_) {}
-    return () => {
-      unsubscribeListRef.current?.();
-    };
-  }, [activeAccountId]);
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-      }
-    };
-  }, []);
-
-  async function handleViewOriginal(doc: DocRecord) {
-    if (!doc.gcs_uri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, doc.gcs_uri);
-      const url = await storageApi.getDownloadURL(fileRef);
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (err: unknown) {
-      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-
-  async function handleViewJson(doc: DocRecord) {
-    if (!doc.json_gcs_uri) return;
-    if (selectedDocId === doc.id && jsonContent !== null) {
-      closeJsonPreview();
-      return;
-    }
-    setSelectedDocId(doc.id);
-    setJsonContent(null);
-    setJsonLoading(true);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
-      const url = await storageApi.getDownloadURL(jsonRef);
-      const res = await fetch(url);
-      const text = await res.text();
-      setJsonContent(text);
-    } catch (err: unknown) {
-      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setJsonLoading(false);
-    }
-  }
-
-  async function handleDeleteDoc(doc: DocRecord) {
-    if (!window.confirm(`確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`)) return;
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const db = getFirebaseFirestore();
-      // 刪除 GCS 原始檔案
-      if (doc.gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_) {}
-      }
-      // 刪除 GCS JSON
-      if (doc.json_gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_) {}
-      }
-      // 刪除 Firestore 記錄
-      if (!activeAccountId) {
-        throw new Error("缺少 active account");
-      }
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
-      // 若正在預覽此文件，清除預覽
-      if (selectedDocId === doc.id) {
-        closeJsonPreview();
-      }
-    } catch (err: unknown) {
-      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleManualProcess(doc: DocRecord) {
-    if (!doc.json_gcs_uri) return;
-    if (!activeAccountId) {
-      alert("缺少 active account，無法手動整理");
-      return;
-    }
-    setReindexingId(doc.id);
-    appendLog(`🧹 手動整理開始：${doc.id}`);
-    try {
-      const functions = getFirebaseFunctions("asia-southeast1");
-      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
-      await callable({
-        account_id: activeAccountId,
-        doc_id: doc.id,
-        json_gcs_uri: doc.json_gcs_uri,
-        source_gcs_uri: doc.gcs_uri,
-        filename: doc.filename,
-        page_count: doc.page_count ?? 0,
-      });
-      appendLog(`✅ 手動整理完成：${doc.id}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      appendLog(`❌ 手動整理失敗：${msg}`);
-      alert(`手動整理失敗：${msg}`);
-    } finally {
-      setReindexingId(null);
-    }
-  }
-
-  const isLoading = status === "uploading" || status === "waiting";
-  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
-  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
-  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
-
-  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : null;
-
-  function formatNormalizationRatio(doc: DocRecord): string {
-    const raw = doc.rag_raw_chars ?? 0;
-    const normalized = doc.rag_normalized_chars ?? 0;
-    if (raw <= 0 || normalized <= 0) return "—";
-    const ratio = (normalized / raw) * 100;
-    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
-  }
-
-  return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      {/* ── Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-3">
-        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
-          <FlaskConical className="size-5 text-amber-500" />
-        </div>
-        <div>
-          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
-          <p className="text-xs text-muted-foreground">
-            py_fn · parse_document · Document AI · Firestore 實時監聽
-          </p>
-        </div>
-      </div>
-
-      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
-          <p className="text-[11px] text-muted-foreground">全部文件</p>
-          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-          <p className="text-[11px] text-emerald-700">解析完成</p>
-          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
-        </div>
-        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
-          <p className="text-[11px] text-blue-700">RAG Ready</p>
-          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
-        </div>
-        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
-          <p className="text-[11px] text-destructive">RAG Error</p>
-          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
-        </div>
-      </section>
-
-      {/* ── File picker ────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          1. 選擇檔案
-        </h2>
-        <label
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
-            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
-        >
-          <FileUp className="size-8 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">
-              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={handleFileChange}
-          />
-        </label>
-      </section>
-
-      {/* ── Actions ────────────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-          2. 執行上傳 & 解析
-        </h2>
-        <div className="flex gap-3">
-          <Button
-            onClick={handleUploadAndParse}
-            disabled={!selectedFile || isLoading}
-            className="gap-2"
-          >
-            {isLoading ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <FlaskConical className="size-4" />
-            )}
-            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={isLoading}>
-            重置
-          </Button>
-        </div>
-      </section>
-
-      {/* ── Result ─────────────────────────────────────────────────── */}
-      {(status === "done" || status === "error") && (
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            3. 結果
-          </h2>
-          {status === "done" && result && (
-            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle2 className="size-4 shrink-0" />
-                <span className="text-sm font-medium">解析成功</span>
-              </div>
-              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <dt className="text-muted-foreground">doc_id</dt>
-                <dd className="font-mono text-xs">{result.doc_id}</dd>
-                <dt className="text-muted-foreground">page_count</dt>
-                <dd className="font-bold">{result.page_count}</dd>
-                <dt className="text-muted-foreground">JSON 位置</dt>
-                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
-              </dl>
-            </div>
-          )}
-          {status === "error" && (
-            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <XCircle className="mt-0.5 size-4 shrink-0" />
-              <span>{errorMsg}</span>
-            </div>
-          )}
-        </section>
-      )}
-
-      {status === "waiting" && (
-        <section className="space-y-3">
-          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
-            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
-            <div>
-              <p className="font-medium">處理中…</p>
-              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── 已上傳檔案列表 ──────────────────────────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <FileText className="size-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已上傳檔案（{allDocs.length}）
-          </h2>
-        </div>
-        {allDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無上傳記錄
-          </p>
-        ) : (
-          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-sm">
-              <thead>
-                <tr className="border-b border-border/60 bg-muted/40">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {allDocs.map((doc, i) => (
-                  <tr
-                    key={doc.id}
-                    className={`border-b border-border/40 last:border-0 transition-colors ${
-                      selectedDocId === doc.id
-                        ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
-                        : i % 2 === 0 ? "bg-background" : "bg-muted/20"
-                    }`}
-                  >
-                    <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
-                      {doc.filename}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <StatusBadge status={doc.status} errorMessage={doc.error_message} />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                    </td>
-                    <td className="px-4 py-2.5 text-xs">
-                      {doc.page_count != null ? doc.page_count : "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(doc.uploaded_at)}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center justify-end gap-1">
-                        {/* 查看原始檔案 */}
-                        <button
-                          onClick={() => handleViewOriginal(doc)}
-                          disabled={!doc.gcs_uri}
-                          title="查看原始檔案"
-                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
-                        >
-                          <ExternalLink className="size-3.5" />
-                        </button>
-                        {/* 查看 JSON */}
-                        <button
-                          onClick={() => handleViewJson(doc)}
-                          disabled={doc.status !== "completed" || !doc.json_gcs_uri}
-                          title="查看 JSON 解析結果"
-                          className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
-                            selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                          }`}
-                        >
-                          <Code2 className="size-3.5" />
-                        </button>
-                        {/* 刪除 */}
-                        <button
-                          onClick={() => handleDeleteDoc(doc)}
-                          disabled={deletingId === doc.id}
-                          title="刪除"
-                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
-                        >
-                          {deletingId === doc.id
-                            ? <Loader2 className="size-3.5 animate-spin" />
-                            : <Trash2 className="size-3.5" />}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              </table>
-            </div>
-
-            {/* ── JSON 預覽面板 ──────────────────────────────────── */}
-            {selectedDocId && (
-              <div className="border-t border-border/60 bg-[#0d1117]">
-                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
-                  <div className="flex items-center gap-2 text-xs text-green-400">
-                    <Code2 className="size-3.5" />
-                    <span className="font-mono">
-                      {selectedDoc?.filename ?? selectedDocId} — JSON
-                    </span>
-                  </div>
-                  <button
-                    onClick={closeJsonPreview}
-                    className="text-white/30 hover:text-white/70 transition text-xs"
-                  >
-                    ✕ 關閉
-                  </button>
-                </div>
-                {selectedDoc?.rag_status === "error" && (
-                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
-                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
-                  </div>
-                )}
-                <div className="max-h-80 overflow-y-auto p-4">
-                  {jsonLoading ? (
-                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
-                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
-                    </div>
-                  ) : (
-                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
-                      {jsonContent}
-                    </pre>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-
-      {/* ── 已解析檔案列表（status=completed）──────────────────────── */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="size-4 text-emerald-600" />
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            已解析檔案（{parsedDocs.length}）
-          </h2>
-        </div>
-        {parsedDocs.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
-            尚無解析完成檔案
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-xl border border-emerald-500/20">
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1100px] text-sm">
-              <thead>
-                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
-                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
-                </tr>
-              </thead>
-              <tbody>
-                {parsedDocs.map((doc, i) => (
-                  <tr key={`parsed-${doc.id}`} className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
-                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
-                      {doc.filename}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-xs">
-                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {(doc.rag_chunk_count ?? 0).toLocaleString()} / {(doc.rag_vector_count ?? 0).toLocaleString()}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {formatNormalizationRatio(doc)}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs font-mono">
-                      {(doc.rag_normalization_version || "—").toUpperCase()} / {(doc.rag_language_hint || "—").toUpperCase()}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
-                      {doc.json_gcs_uri ? (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleViewJson(doc)}
-                            className="font-mono text-left truncate text-primary hover:underline"
-                            title={doc.json_gcs_uri}
-                          >
-                            {doc.json_gcs_uri}
-                          </button>
-                          <button
-                            onClick={() => handleManualProcess(doc)}
-                            disabled={reindexingId === doc.id}
-                            title="手動整理（Normalization + RAG）"
-                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
-                          >
-                            {reindexingId === doc.id ? (
-                              <Loader2 className="size-3 animate-spin" />
-                            ) : (
-                              <FlaskConical className="size-3" />
-                            )}
-                            手動整理
-                          </button>
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
-                      {formatDateTime(doc.uploaded_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* ── Console log ────────────────────────────────────────────── */}
-      {logs.length > 0 && (
-        <section className="space-y-2">
-          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-            Console
-          </h2>
-          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
-            {logs.map((line, i) => (
-              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
-                {line}
-              </p>
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
-  );
-}
 ````
 
 ## File: app/(shell)/knowledge-base/page.tsx
@@ -55445,6 +49359,331 @@ export default function KnowledgePagesPage() {
         />
       )}
     </div>
+  );
+}
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
+
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "Knowledge Hub",
+  "/knowledge/pages": "Knowledge · 頁面",
+  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
+  "/knowledge-base/articles": "Knowledge Base · 文章",
+  "/knowledge-database/databases": "Knowledge Database · 資料庫",
+  "/source/documents": "Source · 文件來源",
+  "/source/libraries": "Source · Libraries",
+  "/notebook/rag-query": "Notebook · Ask / Cite",
+  "/ai-chat": "AI Chat",
+  "/dev-tools": "開發工具",
+};
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
+
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export default function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <DashboardSidebar
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
   );
 }
 ````
@@ -57979,35 +52218,6 @@ npm run build
 ```
 ````
 
-## File: modules/knowledge-base/AGENT.md
-````markdown
-# knowledge-base — DDD Agent
-
-## 戰略分類
-
-| 屬性 | 值 |
-|---|---|
-| **Domain Type** | **Core Domain** — 產品差異化核心 |
-| **Module** | `modules/knowledge-base/` |
-| **Aggregates** | Article, Category |
-| **Key Events** | article_created / published / verified, category_created |
-
-## 為何是 Core Domain
-
-組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
-
-## 關鍵設計決策
-
-1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
-2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
-3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
-4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
-
-## 詳細實作文件
-
-→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
-````
-
 ## File: modules/knowledge-base/aggregates.md
 ````markdown
 # knowledge-base — 聚合根摘要
@@ -58038,55 +52248,48 @@ npm run build
 | `articleIds` | 直屬文章 ID 列表 |
 ````
 
-## File: modules/knowledge-base/application-services.md
-````markdown
-# knowledge-base — Application Services
+## File: modules/knowledge-base/api/index.ts
+````typescript
+/**
+ * knowledge-base public API boundary
+ *
+ * Other modules MUST import knowledge-base resources from this file only.
+ * Never import from domain/, application/, or infrastructure/ directly.
+ */
 
-> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
+export type { Category } from "../domain/entities/category.entity";
 
-**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
 
-**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
-````
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/knowledge-base.actions";
 
-## File: modules/knowledge-base/context-map.md
-````markdown
-# knowledge-base — Context Map
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export {
+  getArticles,
+  getArticle,
+  getCategories,
+  getBacklinks,
+} from "../interfaces/queries/knowledge-base.queries";
 
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
-
-## 上游
-
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
-
-## 下游
-
-- `knowledge` — 頁面可提升（Promote）為 Article
-- `knowledge-database` — Article 可與 Record 連結（ACL）
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
-````
-
-## File: modules/knowledge-base/domain-events.md
-````markdown
-# knowledge-base — 領域事件
-
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
-
-## 事件清單
-
-| 事件 | 觸發條件 |
-|---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft） |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
 ````
 
 ## File: modules/knowledge-base/domain-services.md
@@ -58098,20 +52301,6 @@ npm run build
 - `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
 - `ArticleSlugService` — title → URL-safe slug 轉換
 - `CategoryDepthValidator` — 驗證分類層級不超過 5 層
-````
-
-## File: modules/knowledge-base/index.ts
-````typescript
-/**
- * knowledge-base module — public barrel export
- *
- * Cross-module access: only import from this file.
- * Internal layers (domain/, application/, infrastructure/) are NOT exported here.
- *
- * @module knowledge-base
- */
-
-export * from "./api";
 ````
 
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseCategoryRepository.ts
@@ -58200,7 +52389,7 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
   async save(category: Category): Promise<void> {
     const db = this.db();
     const ref = categoryDoc(db, category.accountId, category.id);
-    const { id, ...data } = category;
+    const { id: _id, ...data } = category;
     await setDoc(ref, { ...data, _createdAt: serverTimestamp() }, { merge: true });
   }
 
@@ -58219,58 +52408,43 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
-## File: modules/knowledge-base/README.md
-````markdown
-# knowledge-base — DDD Reference
+## File: modules/knowledge-base/interfaces/queries/knowledge-base.queries.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: interfaces/queries
+ * Direct-instantiation query functions (read-side).
+ */
 
-> **Domain Type:** Core Domain
-> **Module:** `modules/knowledge-base/`
-> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
+import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
+import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
+import type { Article, ArticleStatus } from "../../domain/entities/article.entity";
+import type { Category } from "../../domain/entities/category.entity";
 
-## 戰略定位
+export async function getArticles(params: {
+  accountId: string;
+  workspaceId: string;
+  categoryId?: string;
+  status?: ArticleStatus;
+}): Promise<Article[]> {
+  const repo = new FirebaseArticleRepository();
+  return repo.list(params);
+}
 
-`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
+export async function getArticle(accountId: string, articleId: string): Promise<Article | null> {
+  const repo = new FirebaseArticleRepository();
+  return repo.getArticleById(accountId, articleId);
+}
 
-## Bounded Context 邊界
+export async function getCategories(accountId: string, workspaceId: string): Promise<Category[]> {
+  const repo = new FirebaseCategoryRepository().withAccountId(accountId);
+  return repo.listByWorkspace(workspaceId, accountId);
+}
 
-- **擁有：** Article（文章）、Category（分類）
-- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
-
-## 核心聚合
-
-詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
-
-- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
-- **Category** — 層級分類目錄（最多 5 層）
-
-## 主要領域事件
-
-詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
-
-- `knowledge-base.article_created`
-- `knowledge-base.article_published`
-- `knowledge-base.article_verified`
-- `knowledge-base.article_review_requested`
-- `knowledge-base.category_created`
-
-## 通用語言
-
-詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
-
-- **Article** ≠ Page（個人筆記）≠ Document（泛型）
-- **VerificationState** ≠ ApprovalState（knowledge 的審核）
-- **Backlink** = `[[Article Title]]` wikilink 解析結果
-
-## 上下文關係
-
-詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 下游 | `knowledge` (promote) | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed` | Published Language |
+export async function getBacklinks(accountId: string, articleId: string): Promise<Article[]> {
+  const repo = new FirebaseArticleRepository();
+  return repo.listByLinkedArticleId(accountId, articleId);
+}
 ````
 
 ## File: modules/knowledge-base/repositories.md
@@ -58323,59 +52497,6 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 → 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
 ````
 
-## File: modules/knowledge-collaboration/api/index.ts
-````typescript
-/**
- * knowledge-collaboration public API boundary
- *
- * Other modules MUST import knowledge-collaboration resources from this file only.
- */
-
-// ── Domain types ───────────────────────────────────────────────────────────────
-export type { Comment } from "../domain/entities/comment.entity";
-export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
-export type { Version } from "../domain/entities/version.entity";
-
-export type CommentId = string;
-export type PermissionId = string;
-export type VersionId = string;
-
-// ── DTOs ───────────────────────────────────────────────────────────────────────
-export type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-  CreateVersionDto,
-  DeleteVersionDto,
-  GrantPermissionDto,
-  RevokePermissionDto,
-} from "../application/dto/knowledge-collaboration.dto";
-
-// ── Server Actions (mutations) ─────────────────────────────────────────────────
-export {
-  createComment,
-  updateComment,
-  resolveComment,
-  deleteComment,
-  createVersion,
-  deleteVersion,
-  grantPermission,
-  revokePermission,
-} from "../interfaces/_actions/knowledge-collaboration.actions";
-
-// ── Queries (reads) ────────────────────────────────────────────────────────────
-export {
-  getComments,
-  getVersions,
-  getPermissions,
-} from "../interfaces/queries/knowledge-collaboration.queries";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
-````
-
 ## File: modules/knowledge-collaboration/application-services.md
 ````markdown
 Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
@@ -58383,62 +52504,6 @@ Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
 Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
 
 → 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
-````
-
-## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/use-cases
- * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { Permission } from "../../domain/entities/permission.entity";
-import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
-import {
-  GrantPermissionSchema, type GrantPermissionDto,
-  RevokePermissionSchema, type RevokePermissionDto,
-} from "../dto/knowledge-collaboration.dto";
-
-export class GrantPermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
-
-  async execute(input: GrantPermissionDto): Promise<CommandResult> {
-    const parsed = GrantPermissionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO } = parsed.data;
-    const permission = await this.repo.grant({
-      accountId, workspaceId, subjectId, subjectType,
-      principalId, principalType, level, grantedByUserId,
-      expiresAtISO: expiresAtISO ?? null,
-    });
-    return commandSuccess(permission.id, Date.now());
-  }
-}
-
-export class RevokePermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
-
-  async execute(input: RevokePermissionDto): Promise<CommandResult> {
-    const parsed = RevokePermissionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
-    }
-    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListPermissionsBySubjectUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
-
-  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
-    return this.repo.listBySubject(accountId, subjectId);
-  }
-}
 ````
 
 ## File: modules/knowledge-collaboration/context-map.md
@@ -58467,225 +52532,205 @@ export class ListPermissionsBySubjectUseCase {
 → [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
 ````
 
-## File: modules/knowledge-collaboration/index.ts
+## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
 ````typescript
-/**
- * knowledge-collaboration module — public barrel export
- *
- * Cross-module access → use api/ exports only.
- * Internal imports use relative paths.
- */
+"use client";
 
-export * from "./api";
-````
+import { useEffect, useRef, useState, useTransition } from "react";
+import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
 
-## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationPermissions/{id}
- */
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
 
 import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Permission, PermissionLevel } from "../../domain/entities/permission.entity";
-import type {
-  IPermissionRepository,
-  GrantPermissionInput,
-} from "../../domain/repositories/IPermissionRepository";
-
-function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationPermissions");
-}
-
-function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationPermissions", id);
-}
-
-function toPermission(id: string, data: Record<string, unknown>): Permission {
-  return {
-    id,
-    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
-    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    principalId: typeof data.principalId === "string" ? data.principalId : "",
-    principalType: (data.principalType as Permission["principalType"]) ?? "user",
-    level: (data.level as PermissionLevel) ?? "view",
-    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
-    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
-    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
-  };
-}
-
-export class FirebasePermissionRepository implements IPermissionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async grant(input: GrantPermissionInput): Promise<Permission> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      subjectId: input.subjectId,
-      subjectType: input.subjectType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      principalId: input.principalId,
-      principalType: input.principalType,
-      level: input.level,
-      grantedByUserId: input.grantedByUserId,
-      grantedAtISO: now,
-      expiresAtISO: input.expiresAtISO ?? null,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(permissionDoc(db, input.accountId, id), data);
-    return toPermission(id, data);
-  }
-
-  async revoke(accountId: string, permissionId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
-  }
-
-  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
-    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
-    if (!snap.exists()) return null;
-    return toPermission(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
-    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
-    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
-import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
-import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
-
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
-function makeVersionRepo() { return new FirebaseVersionRepository(); }
-function makePermissionRepo() { return new FirebasePermissionRepository(); }
-
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
-  try {
-    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
-  try {
-    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
-  try {
-    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
-  try {
-    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/queries
- */
-
+  getComments,
+} from "../queries/knowledge-collaboration.queries";
+import {
+  createComment,
+  resolveComment,
+  deleteComment,
+} from "../_actions/knowledge-collaboration.actions";
 import type { Comment } from "../../domain/entities/comment.entity";
-import type { Version } from "../../domain/entities/version.entity";
-import type { Permission } from "../../domain/entities/permission.entity";
-import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
-import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
-import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
 
-export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
-  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
 }
 
-export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
-  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [body, setBody] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getComments(accountId, contentId);
+        if (!disposed) { setComments(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    startTransition(async () => {
+      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
+      const fresh = await getComments(accountId, contentId);
+      setComments(fresh);
+      setBody("");
+      textareaRef.current?.focus();
+    });
+  }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+      const fresh = await getComments(accountId, contentId);
+      setComments(fresh);
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  const active = comments.filter((c) => !c.resolvedAt);
+  const resolved = comments.filter((c) => c.resolvedAt);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {active.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
+        )}
+      </div>
+
+      {/* Comment input */}
+      <div className="flex flex-col gap-2">
+        <Textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="新增留言..."
+          rows={2}
+          className="resize-none text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
+          }}
+        />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            送出
+          </Button>
+        </div>
+      </div>
+
+      {/* Comment list */}
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
+        </div>
+      ) : active.length === 0 && resolved.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無留言。</p>
+      ) : (
+        <div className="space-y-2">
+          {active.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              isOwner={c.authorId === currentUserId}
+              onResolve={() => handleResolve(c.id)}
+              onDelete={() => handleDelete(c.id)}
+              isPending={isPending}
+            />
+          ))}
+          {resolved.length > 0 && (
+            <details className="text-xs text-muted-foreground cursor-pointer">
+              <summary className="select-none">已解決 ({resolved.length})</summary>
+              <div className="mt-2 space-y-2">
+                {resolved.map((c) => (
+                  <CommentItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={c.authorId === currentUserId}
+                    onDelete={() => handleDelete(c.id)}
+                    isPending={isPending}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
-export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
-  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
+interface CommentItemProps {
+  comment: Comment;
+  isOwner: boolean;
+  onResolve?: () => void;
+  onDelete?: () => void;
+  isPending: boolean;
+}
+
+function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
+  const resolved = !!comment.resolvedAt;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
+      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
+        <div className="ml-auto flex gap-1">
+          {!resolved && onResolve && (
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="標記為已解決"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isOwner && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+              title="刪除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 ````
 
@@ -58776,51 +52821,6 @@ Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
 → [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
 ````
 
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
-
-// UI Components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-````
-
 ## File: modules/knowledge-database/application-services.md
 ````markdown
 Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
@@ -58830,12 +52830,87 @@ Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, Query
 → [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
 ````
 
-## File: modules/knowledge-database/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge-collaboration`(Permission)
-下游: `knowledge`(inline db), `knowledge-base`(article-record link), `workspace-feed`, `notification`
+## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ */
 
-→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Database } from "../../domain/entities/database.entity";
+import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
+import {
+  CreateDatabaseSchema, type CreateDatabaseDto,
+  UpdateDatabaseSchema, type UpdateDatabaseDto,
+  AddFieldSchema, type AddFieldDto,
+  ArchiveDatabaseSchema, type ArchiveDatabaseDto,
+} from "../dto/knowledge-database.dto";
+
+export class CreateDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: CreateDatabaseDto): Promise<CommandResult> {
+    const parsed = CreateDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, name, description, createdByUserId } = parsed.data;
+    const db = await this.repo.create({ accountId, workspaceId, name: name.trim(), description, createdByUserId });
+    return commandSuccess(db.id, Date.now());
+  }
+}
+
+export class UpdateDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
+    const parsed = UpdateDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AddFieldUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: AddFieldDto): Promise<CommandResult> {
+    const parsed = AddFieldSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    const { databaseId, accountId, name, type, config = {}, required = false } = parsed.data;
+    const result = await this.repo.addField({ databaseId, accountId, field: { name, type, config, required } });
+    if (!result) return commandFailureFrom("DATABASE_NOT_FOUND", "Database not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class ArchiveDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(input: ArchiveDatabaseDto): Promise<CommandResult> {
+    const parsed = ArchiveDatabaseSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("DATABASE_INVALID_INPUT", parsed.error.message);
+    await this.repo.archive(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class GetDatabaseUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<Database | null> {
+    return this.repo.findById(accountId, databaseId);
+  }
+}
+
+export class ListDatabasesUseCase {
+  constructor(private readonly repo: IDatabaseRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<Database[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listByWorkspace(accountId, workspaceId);
+  }
+}
 ````
 
 ## File: modules/knowledge-database/domain-events.md
@@ -58855,14 +52930,6 @@ Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, Query
 - `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
 
 → [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
-````
-
-## File: modules/knowledge-database/index.ts
-````typescript
-/**
- * knowledge-database module — public barrel export
- */
-export * from "./api";
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
@@ -59010,116 +53077,120 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
 }
 ````
 
-## File: modules/knowledge-database/interfaces/components/DatabaseDialog.tsx
+## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
 ````typescript
-"use client";
+"use server";
 
-import { useState, useTransition } from "react";
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
+import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
+import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
+import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
+import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
+import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
+import type {
+  CreateDatabaseInput,
+  UpdateDatabaseInput,
+  AddFieldInput,
+} from "../../domain/repositories/IDatabaseRepository";
+import type {
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+import type {
+  CreateViewInput,
+  UpdateViewInput,
+} from "../../domain/repositories/IViewRepository";
 
-import { Button } from "@ui-shadcn/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
+function makeDatabaseRepo() { return new FirebaseDatabaseRepository(); }
+function makeRecordRepo() { return new FirebaseRecordRepository(); }
+function makeViewRepo() { return new FirebaseViewRepository(); }
 
-import { createDatabase } from "../_actions/knowledge-database.actions";
-
-interface DatabaseDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-  onSuccess?: (databaseId?: string) => void;
+export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult> {
+  try {
+    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("DATABASE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
 }
 
-export function DatabaseDialog({
-  open,
-  onOpenChange,
-  accountId,
-  workspaceId,
-  currentUserId,
-  onSuccess,
-}: DatabaseDialogProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  function reset() {
-    setName("");
-    setDescription("");
-    setError(null);
+export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult> {
+  try {
+    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("DATABASE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
+}
 
-  function handleOpenChange(next: boolean) {
-    if (!next) reset();
-    onOpenChange(next);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) { setError("資料庫名稱為必填"); return; }
-    setError(null);
-    startTransition(async () => {
-      const result = await createDatabase({
-        accountId,
-        workspaceId,
-        name: name.trim(),
-        description: description.trim() || null,
-        createdByUserId: currentUserId,
-      });
-      if (result.success) {
-        reset();
-        onOpenChange(false);
-        onSuccess?.(result.aggregateId);
-      } else {
-        setError(result.error.message ?? "建立失敗");
-      }
+export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
+  try {
+    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.field.name,
+      type: input.field.type,
+      config: input.field.config,
+      required: input.field.required,
     });
+  } catch (e) {
+    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
   }
+}
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>新增資料庫</DialogTitle>
-        </DialogHeader>
-        <form id="db-form" className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="db-name">名稱 *</Label>
-            <Input
-              id="db-name"
-              placeholder="資料庫名稱"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="db-desc">說明</Label>
-            <Textarea
-              id="db-desc"
-              placeholder="選填：說明此資料庫的用途"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={isPending}
-            />
-          </div>
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button type="submit" form="db-form" disabled={isPending || !name.trim()}>
-            {isPending ? "建立中…" : "建立"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult> {
+  try {
+    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
+  } catch (e) {
+    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function createRecord(input: CreateRecordInput): Promise<CommandResult> {
+  try {
+    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("RECORD_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult> {
+  try {
+    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("RECORD_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ accountId, id: recordId });
+  } catch (e) {
+    return commandFailureFrom("RECORD_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function createView(input: CreateViewInput): Promise<CommandResult> {
+  try {
+    return await new CreateViewUseCase(makeViewRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("VIEW_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function updateView(input: UpdateViewInput): Promise<CommandResult> {
+  try {
+    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("VIEW_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteView(accountId: string, viewId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteViewUseCase(makeViewRepo()).execute({ accountId, id: viewId });
+  } catch (e) {
+    return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
 }
 ````
 
@@ -59249,7 +53320,7 @@ export function DatabaseTableView({
     }));
   }
 
-  function handleCellBlur(record: DatabaseRecord, fieldId: string) {
+  function _handleCellBlur(record: DatabaseRecord, fieldId: string) {
     const fieldEdits = edits[record.id];
     if (!fieldEdits || !(fieldId in fieldEdits)) return;
     const newProperties = setProperty(record, fieldId, fieldEdits[fieldId]);
@@ -59384,61 +53455,6 @@ export function DatabaseTableView({
     </div>
   );
 }
-````
-
-## File: modules/knowledge-database/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
-
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
-
-## 戰略定位
-
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
-
-## 核心聚合
-
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
-
-## 視圖類型
-
-`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
-
-## 欄位類型
-
-`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
-
-## 主要領域事件
-
-- `knowledge-database.database_created`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
-| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
 ````
 
 ## File: modules/knowledge-database/repositories.md
@@ -59793,365 +53809,6 @@ export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
-## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { GripVertical, ChevronDown } from "lucide-react";
-
-import {
-  draggable,
-  dropTargetForElements,
-  monitorForElements,
-} from "@lib-dragdrop";
-
-import { useBlockEditorStore } from "../store/block-editor.store";
-import type { BlockType } from "../../domain/value-objects/block-content";
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-
-/**
- * BlockEditorView
- *
- * Block-based editor with typed content (BlockContent value object).
- * Supports: text, heading-1/2/3, quote, divider, code, bullet-list, numbered-list.
- *
- * - Enter: add new block after current and focus it
- * - Backspace (empty block): delete current and focus previous
- * - Type selector: dropdown button left of drag handle
- * - Drag handle: reorder blocks via pragmatic-drag-and-drop
- */
-
-const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
-  "text": "T",
-  "heading-1": "H1",
-  "heading-2": "H2",
-  "heading-3": "H3",
-  "image": "🖼",
-  "code": "<>",
-  "bullet-list": "•",
-  "numbered-list": "1.",
-  "divider": "—",
-  "quote": "❝",
-};
-
-const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
-  "text": "文字",
-  "heading-1": "標題 1",
-  "heading-2": "標題 2",
-  "heading-3": "標題 3",
-  "image": "圖片",
-  "code": "程式碼",
-  "bullet-list": "項目清單",
-  "numbered-list": "編號清單",
-  "divider": "分隔線",
-  "quote": "引言",
-};
-
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, changeBlockType, deleteBlock, moveBlock, init } =
-    useBlockEditorStore();
-  // focusNextRef encodes the intent:
-  //   "__after:{id}" → focus the block immediately after the one with the given id
-  //   "<id>"         → focus the block with the given id directly
-  const focusNextRef = useRef<string | null>(null);
-  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const setBlockRef = useCallback((id: string, el: HTMLDivElement | null) => {
-    blockRefs.current[id] = el;
-  }, []);
-
-  // Seed first block on mount (avoids SSR UUID mismatch)
-  useEffect(() => {
-    init();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Focus resolution after every render
-  useEffect(() => {
-    const intent = focusNextRef.current;
-    if (!intent) return;
-
-    let targetId: string | undefined;
-    if (intent.startsWith("__after:")) {
-      const afterId = intent.slice("__after:".length);
-      const idx = blocks.findIndex((b) => b.id === afterId);
-      targetId = blocks[idx + 1]?.id;
-    } else {
-      targetId = intent;
-    }
-
-    if (targetId) {
-      const el = blockRefs.current[targetId];
-      if (el) {
-        el.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
-        range.selectNodeContents(el);
-        range.collapse(false);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-        focusNextRef.current = null;
-      }
-    }
-  });
-
-  // Set up DnD monitor once
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const fromId = source.data["blockId"] as string | undefined;
-        const toId = target.data["blockId"] as string | undefined;
-        if (!fromId || !toId || fromId === toId) return;
-        const fromIdx = blocks.findIndex((b) => b.id === fromId);
-        const toIdx = blocks.findIndex((b) => b.id === toId);
-        if (fromIdx !== -1 && toIdx !== -1) {
-          moveBlock(fromIdx, toIdx);
-        }
-      },
-    });
-  }, [blocks, moveBlock]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        addBlock(blockId);
-        focusNextRef.current = `__after:${blockId}`;
-      } else if (event.key === "Backspace") {
-        const el = blockRefs.current[blockId];
-        if (!el?.textContent) {
-          event.preventDefault();
-          const idx = blocks.findIndex((b) => b.id === blockId);
-          if (idx > 0) {
-            const prevId = blocks[idx - 1].id;
-            deleteBlock(blockId);
-            focusNextRef.current = prevId;
-          }
-        }
-      }
-    },
-    [addBlock, blocks, deleteBlock],
-  );
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Block Editor</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">區塊編輯器</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          支援 10 種區塊類型 · Enter 換行 · Backspace 刪除空白區塊 · 拖曳重排
-        </p>
-      </div>
-
-      <div className="space-y-0.5">
-        {blocks.map((block, idx) => (
-          <BlockRow
-            key={block.id}
-            block={block}
-            index={idx}
-            setBlockRef={setBlockRef}
-            onKeyDown={handleKeyDown}
-            onTextChange={(text) => updateBlock(block.id, text)}
-            onTypeChange={(type) => changeBlockType(block.id, type)}
-          />
-        ))}
-      </div>
-
-      <p className="text-[11px] text-muted-foreground/60">
-        {blocks.length} 個區塊 · Enter 新增 · Backspace 刪除空白區塊 · 拖曳重排
-      </p>
-    </section>
-  );
-}
-
-interface BlockRowProps {
-  readonly block: { id: string; content: { type: BlockType; text: string } };
-  readonly index: number;
-  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
-  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
-  readonly onTextChange: (text: string) => void;
-  readonly onTypeChange: (type: BlockType) => void;
-}
-
-function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const dropEl = dropRef.current;
-    if (!handleEl || !dropEl) return;
-
-    const cleanupDraggable = draggable({
-      element: handleEl,
-      getInitialData: () => ({ blockId: block.id }),
-    });
-    const cleanupDrop = dropTargetForElements({
-      element: dropEl,
-      getData: () => ({ blockId: block.id }),
-    });
-    return () => {
-      cleanupDraggable();
-      cleanupDrop();
-    };
-  }, [block.id]);
-
-  const { type, text } = block.content;
-
-  if (type === "divider") {
-    return (
-      <div ref={dropRef} className="group flex items-center gap-1 py-1">
-        <TypeSelectorButton
-          currentType={type}
-          open={typeMenuOpen}
-          onOpenChange={setTypeMenuOpen}
-          onSelect={onTypeChange}
-        />
-        <button
-          ref={dragHandleRef}
-          type="button"
-          aria-label="拖曳重排"
-          className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
-        >
-          <GripVertical className="size-4 text-muted-foreground" />
-        </button>
-        <hr className="flex-1 border-t border-border/60" />
-      </div>
-    );
-  }
-
-  const editableClassName = blockEditableClass(type);
-
-  return (
-    <div ref={dropRef} className="group flex items-start gap-1">
-      <TypeSelectorButton
-        currentType={type}
-        open={typeMenuOpen}
-        onOpenChange={setTypeMenuOpen}
-        onSelect={onTypeChange}
-      />
-      <button
-        ref={dragHandleRef}
-        type="button"
-        aria-label="拖曳重排"
-        className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
-      >
-        <GripVertical className="size-4 text-muted-foreground" />
-      </button>
-
-      {type === "bullet-list" && (
-        <span className="mt-1 select-none text-sm text-foreground">•</span>
-      )}
-
-      <div
-        ref={(el) => setBlockRef(block.id, el)}
-        contentEditable
-        suppressContentEditableWarning
-        onKeyDown={(e) => onKeyDown(e, block.id)}
-        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
-        data-placeholder={blockPlaceholder(type)}
-        className={editableClassName}
-      >
-        {text}
-      </div>
-    </div>
-  );
-}
-
-function blockEditableClass(type: BlockType): string {
-  const base =
-    "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
-  switch (type) {
-    case "heading-1":
-      return `${base} text-3xl font-bold`;
-    case "heading-2":
-      return `${base} text-2xl font-semibold`;
-    case "heading-3":
-      return `${base} text-xl font-medium`;
-    case "quote":
-      return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
-    case "code":
-      return `${base} font-mono text-sm bg-muted rounded`;
-    case "bullet-list":
-    case "numbered-list":
-      return `${base} text-sm text-foreground`;
-    default:
-      return `${base} min-h-[1.75rem] text-sm text-foreground`;
-  }
-}
-
-function blockPlaceholder(type: BlockType): string {
-  switch (type) {
-    case "heading-1": return "標題 1";
-    case "heading-2": return "標題 2";
-    case "heading-3": return "標題 3";
-    case "quote": return "引言…";
-    case "code": return "// 程式碼";
-    case "bullet-list": return "清單項目…";
-    case "numbered-list": return "清單項目…";
-    default: return "輸入文字…";
-  }
-}
-
-interface TypeSelectorButtonProps {
-  currentType: BlockType;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onSelect: (type: BlockType) => void;
-}
-
-function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeSelectorButtonProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onOpenChange(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [open, onOpenChange]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => onOpenChange(!open)}
-        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
-        aria-label="切換區塊類型"
-        title="切換區塊類型"
-      >
-        {BLOCK_TYPE_LABELS[currentType]}
-        <ChevronDown className="size-3" />
-      </button>
-
-      {open && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover shadow-md">
-          {BLOCK_TYPES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => { onSelect(t); onOpenChange(false); }}
-              className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted ${t === currentType ? "font-semibold text-primary" : "text-foreground"}`}
-            >
-              <span className="w-5 font-mono text-[10px] text-muted-foreground">{BLOCK_TYPE_LABELS[t]}</span>
-              {BLOCK_TYPE_NAMES[t]}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: modules/knowledge/interfaces/components/PageDialog.tsx
 ````typescript
 "use client";
@@ -60235,6 +53892,7 @@ export function PageDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isPending}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>
@@ -60248,177 +53906,6 @@ export function PageDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-````
-
-## File: modules/knowledge/interfaces/components/PageTreeView.tsx
-````typescript
-"use client";
-
-import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
-import { PageDialog } from "./PageDialog";
-
-interface PageTreeViewProps {
-  nodes: KnowledgePageTreeNode[];
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-}
-
-function TreeNode({
-  node,
-  accountId,
-  workspaceId,
-  currentUserId,
-  onPageClick,
-  onCreated,
-  depth,
-}: {
-  node: KnowledgePageTreeNode;
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-  depth: number;
-}) {
-  const [expanded, setExpanded] = useState(depth < 1);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-
-  return (
-    <li>
-      <div
-        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
-        style={{ paddingLeft: `${8 + depth * 16}px` }}
-      >
-        <button
-          type="button"
-          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
-          onClick={() => setExpanded((v) => !v)}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {hasChildren ? (
-            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
-          ) : (
-            <FileText className="h-3.5 w-3.5" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          className="min-w-0 flex-1 truncate text-left text-sm"
-          onClick={() => onPageClick?.(node.id)}
-        >
-          {node.title}
-        </button>
-
-        <button
-          type="button"
-          className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
-          onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
-          title="新增子頁面"
-        >
-          <FilePlus className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {expanded && hasChildren && (
-        <ul className="list-none">
-          {node.children.map((child) => (
-            <TreeNode
-              key={child.id}
-              node={child}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              currentUserId={currentUserId}
-              onPageClick={onPageClick}
-              onCreated={onCreated}
-              depth={depth + 1}
-            />
-          ))}
-        </ul>
-      )}
-
-      <PageDialog
-        open={addChildOpen}
-        onOpenChange={setAddChildOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        parentPageId={node.id}
-        onSuccess={() => onCreated?.()}
-      />
-    </li>
-  );
-}
-
-export function PageTreeView({
-  nodes,
-  accountId,
-  workspaceId,
-  currentUserId,
-  onPageClick,
-  onCreated,
-}: PageTreeViewProps) {
-  const [addRootOpen, setAddRootOpen] = useState(false);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={() => setAddRootOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
-        </Button>
-      </div>
-
-      {nodes.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無頁面。點擊「新增頁面」開始建立。</p>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border/60 bg-background py-1">
-          <ul className="list-none">
-            {nodes.map((node) => (
-              <TreeNode
-                key={node.id}
-                node={node}
-                accountId={accountId}
-                workspaceId={workspaceId}
-                currentUserId={currentUserId}
-                onPageClick={onPageClick}
-                onCreated={onCreated}
-                depth={0}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <PageDialog
-        open={addRootOpen}
-        onOpenChange={setAddRootOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        parentPageId={null}
-        onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
-      />
-    </div>
   );
 }
 ````
@@ -60661,296 +54148,369 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 }
 ````
 
-## File: modules/notification/api/index.ts
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/organization/interfaces/_actions/organization.actions.ts
 ````typescript
+"use server";
+
 /**
- * Module: notification
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Notification domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+ * Organization Core Server Actions — thin adapter: Server Actions → Application Use Cases.
+ * Covers: org lifecycle (create, update settings, delete).
  */
 
-// ─── Facade ───────────────────────────────────────────────────────────────────
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { InviteMemberInput } from "../../domain/entities/Organization";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../../application/use-cases/organization-policy.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../../domain/entities/Organization";
 
-export { NotificationFacade, notificationFacade } from "./notification.facade";
+const orgRepo = new FirebaseOrganizationRepository();
 
-// ─── Core entity types ────────────────────────────────────────────────────────
+// ─── Org Lifecycle ────────────────────────────────────────────────────────────
+
+export async function createOrganization(
+  command: CreateOrganizationCommand,
+): Promise<CommandResult> {
+  try {
+    return await new CreateOrganizationUseCase(orgRepo).execute(command);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createOrganizationWithTeam(
+  command: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try {
+    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
+  } catch (err) {
+    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateOrganizationSettings(
+  command: UpdateOrganizationSettingsCommand,
+): Promise<CommandResult> {
+  try {
+    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// ─── Members ─────────────────────────────────────────────────────────────────
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try {
+    return await new InviteMemberUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
+  } catch (err) {
+    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function dismissMember(
+  organizationId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try {
+    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
+  } catch (err) {
+    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try {
+    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// ─── Teams ───────────────────────────────────────────────────────────────────
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try {
+    return await new CreateTeamUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteTeam(
+  organizationId: string,
+  teamId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try {
+    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// ─── Partners ─────────────────────────────────────────────────────────────────
+
+export async function createPartnerGroup(
+  organizationId: string,
+  groupName: string,
+): Promise<CommandResult> {
+  try {
+    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
+  } catch (err) {
+    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
+  } catch (err) {
+    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
+  } catch (err) {
+    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// ─── Policy ───────────────────────────────────────────────────────────────────
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try {
+    return await new CreateOrgPolicyUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateOrgPolicy(
+  policyId: string,
+  data: UpdateOrgPolicyInput,
+): Promise<CommandResult> {
+  try {
+    return await new UpdateOrgPolicyUseCase(orgRepo).execute(policyId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteOrgPolicyUseCase(orgRepo).execute(policyId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/search/api/index.ts
+````typescript
+/**
+ * modules/search — public API barrel.
+ *
+ * Layer 3: RAG Query — Dense + Sparse + Rerank + Citation.
+ * Other modules MUST import from here only.
+ */
 
 export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
+  IVectorStore,
+  VectorDocument,
+  VectorSearchResult,
+} from "../domain/ports/vector-store";
 
-// ─── UI components ────────────────────────────────────────────────────────────
-
-export { NotificationBell } from "../interfaces/components/NotificationBell";
-````
-
-## File: modules/notification/api/notification.facade.ts
-````typescript
-/**
- * Module: notification
- * Layer: api/facade
- * Purpose: Public programmatic entry-point for cross-module notification dispatch.
- *
- * Other modules MUST use `notificationFacade` — never reach into domain/,
- * application/, or infrastructure/ directly.
- */
-
-import { type CommandResult } from "@shared-types";
-import {
-  DispatchNotificationUseCase,
-  MarkAllNotificationsReadUseCase,
-  MarkNotificationReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
-import { FirebaseNotificationRepository } from "../infrastructure/firebase/FirebaseNotificationRepository";
-import type { NotificationRepository } from "../domain/repositories/NotificationRepository";
-
-export class NotificationFacade {
-  private readonly repo: NotificationRepository;
-
-  constructor(repo: NotificationRepository = new FirebaseNotificationRepository()) {
-    this.repo = repo;
-  }
-
-  /** Dispatch a new notification to a recipient. */
-  async dispatch(input: DispatchNotificationInput): Promise<CommandResult> {
-    return new DispatchNotificationUseCase(this.repo).execute(input);
-  }
-
-  /** Mark a single notification as read. */
-  async markAsRead(notificationId: string, recipientId: string): Promise<CommandResult> {
-    return new MarkNotificationReadUseCase(this.repo).execute(notificationId, recipientId);
-  }
-
-  /** Mark all notifications for a recipient as read. */
-  async markAllAsRead(recipientId: string): Promise<CommandResult> {
-    return new MarkAllNotificationsReadUseCase(this.repo).execute(recipientId);
-  }
-
-  /** Retrieve recent notifications for a recipient. */
-  async getForRecipient(recipientId: string, limit = 50): Promise<NotificationEntity[]> {
-    const normalised = recipientId.trim();
-    if (!normalised) return [];
-    return this.repo.findByRecipient(normalised, limit);
-  }
-
-  /** Return unread notification count for a recipient. */
-  async getUnreadCount(recipientId: string): Promise<number> {
-    const normalised = recipientId.trim();
-    if (!normalised) return 0;
-    return this.repo.getUnreadCount(normalised);
-  }
-}
-
-export const notificationFacade = new NotificationFacade();
-````
-
-## File: modules/notification/index.ts
-````typescript
-/**
- * notification module public API
- *
- * Cross-module callers must use `notificationFacade` or the exported types.
- * Internal layers (domain/, application/, infrastructure/) remain private.
- */
-
-export { NotificationFacade, notificationFacade } from "./api";
 export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "./api";
+  AnswerRagQueryInput,
+  AnswerRagQueryOutput,
+  AnswerRagQueryResult,
+  RagCitation,
+  RagRetrievedChunk,
+  RagRetrievalSummary,
+  RagStreamEvent,
+} from "../domain/entities/RagQuery";
 
-export { NotificationBell } from "./interfaces";
-````
+export type {
+  RagRetrievalRepository,
+  RetrieveRagChunksInput,
+} from "../domain/repositories/RagRetrievalRepository";
 
-## File: modules/notification/interfaces/components/NotificationBell.tsx
-````typescript
-"use client";
+export type {
+  GenerateRagAnswerInput,
+  GenerateRagAnswerOutput,
+  GenerateRagAnswerResult,
+  RagGenerationRepository,
+} from "../domain/repositories/RagGenerationRepository";
 
-/**
- * Module: notification
- * Layer: interfaces/components
- * Purpose: Reusable notification bell with dropdown for shell header.
- *
- * Consumes use-cases via the module facade (no direct infrastructure imports).
- * Server-action mutations are wired through the local _actions module.
- */
+// ── RAG Feedback Loop ─────────────────────────────────────────────────────────
+export type {
+  RagQueryFeedback,
+  RagFeedbackRating,
+  SubmitRagQueryFeedbackInput,
+} from "../domain/entities/RagQueryFeedback";
 
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+export type { RagQueryFeedbackRepository } from "../domain/repositories/RagQueryFeedbackRepository";
 
+export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-rag-feedback.use-case";
+
+export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
+
+// ── UI Components ─────────────────────────────────────────────────────────
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+
+// ── Wiki RAG types (owned by search domain) ────────────────────────────────
+export type {
+  WikiCitation,
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../domain/entities/WikiRagTypes";
+
+// ── Wiki RAG use-cases ─────────────────────────────────────────────────────
+import { FirebaseWikiContentRepository } from "../infrastructure/firebase/FirebaseWikiContentRepository";
 import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../domain/entities/Notification";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
+  runWikiRagQuery as _runWikiRagQuery,
+  reindexWikiDocument as _reindexWikiDocument,
+  listWikiParsedDocuments as _listWikiParsedDocuments,
+} from "../application/use-cases/wiki-rag.use-case";
+import type {
+  WikiParsedDocument,
+  WikiRagQueryResult,
+  WikiReindexInput,
+} from "../domain/entities/WikiRagTypes";
 
-const NOTIFICATION_LIMIT = 20;
+const _defaultContentRepository = new FirebaseWikiContentRepository();
 
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
+export function runWikiRagQuery(
+  query: string,
+  accountId: string,
+  workspaceId: string,
+  topK = 4,
+  options: { taxonomyFilters?: string[]; maxAgeDays?: number; requireReady?: boolean } = {},
+): Promise<WikiRagQueryResult> {
+  return _runWikiRagQuery(query, accountId, workspaceId, topK, options, _defaultContentRepository);
 }
 
-interface NotificationBellProps {
-  readonly recipientId: string;
+export function reindexWikiDocument(input: WikiReindexInput): Promise<void> {
+  return _reindexWikiDocument(input, _defaultContentRepository);
 }
 
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+export function listWikiParsedDocuments(accountId: string, limitCount = 20): Promise<WikiParsedDocument[]> {
+  return _listWikiParsedDocuments(accountId, limitCount, _defaultContentRepository);
 }
-````
-
-## File: modules/notification/interfaces/index.ts
-````typescript
-export { NotificationBell } from "./components/NotificationBell";
 ````
 
 ## File: modules/search/README.md
@@ -60992,6 +54552,117 @@ export { NotificationBell } from "./components/NotificationBell";
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/shared/application/publish-domain-event.ts
+````typescript
+/**
+ * modules/shared — application: PublishDomainEventUseCase
+ * Moved from modules/event/application/use-cases/publish-domain-event.ts.
+ *
+ * Write-side orchestration for event capture, persistence, and dispatch.
+ */
+import { EventRecord } from '../domain/event-record';
+import type {
+  EventRecordPayload,
+  EventMetadata,
+  IEventBusRepository,
+  IEventStoreRepository,
+} from '../domain/event-record';
+
+export interface PublishDomainEventDTO {
+  id: string;
+  eventName: string;
+  aggregateType: string;
+  aggregateId: string;
+  payload: EventRecordPayload;
+  metadata?: EventMetadata;
+  occurredAt?: Date;
+}
+
+export class PublishDomainEventUseCase {
+  constructor(
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(dto: PublishDomainEventDTO): Promise<EventRecord> {
+    const event = new EventRecord(
+      dto.id,
+      dto.eventName,
+      dto.aggregateType,
+      dto.aggregateId,
+      dto.occurredAt ?? new Date(),
+      dto.payload,
+      dto.metadata,
+    );
+
+    await this.eventStore.save(event);
+    await this.eventBus.publish(event);
+    event.markDispatched(new Date());
+    await this.eventStore.markDispatched(event.id, event.dispatchedAt ?? new Date());
+
+    return event;
+  }
+}
+````
+
+## File: modules/shared/infrastructure/InMemoryEventStoreRepository.ts
+````typescript
+/**
+ * modules/shared — infrastructure: InMemoryEventStoreRepository
+ * Moved from modules/event/infrastructure/repositories/in-memory-event-store.repository.ts.
+ *
+ * In-memory adapter for the event store — used in local development and tests.
+ */
+import type { EventRecord, IEventStoreRepository } from '../domain/event-record';
+
+export class InMemoryEventStoreRepository implements IEventStoreRepository {
+  private readonly events = new Map<string, EventRecord>();
+
+  async save(event: EventRecord): Promise<void> {
+    this.events.set(event.id, event);
+  }
+
+  async findById(id: string): Promise<EventRecord | null> {
+    return this.events.get(id) ?? null;
+  }
+
+  async findByAggregate(aggregateType: string, aggregateId: string): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => e.aggregateType === aggregateType && e.aggregateId === aggregateId)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime());
+  }
+
+  async findUndispatched(limit: number): Promise<EventRecord[]> {
+    return [...this.events.values()]
+      .filter((e) => !e.isDispatched)
+      .sort((a, b) => a.occurredAt.getTime() - b.occurredAt.getTime())
+      .slice(0, Math.max(limit, 0));
+  }
+
+  async markDispatched(id: string, dispatchedAt: Date): Promise<void> {
+    const event = this.events.get(id);
+    if (event) event.markDispatched(dispatchedAt);
+  }
+}
+````
+
+## File: modules/shared/infrastructure/NoopEventBusRepository.ts
+````typescript
+/**
+ * modules/shared — infrastructure: NoopEventBusRepository
+ * Moved from modules/event/infrastructure/repositories/noop-event-bus.repository.ts.
+ *
+ * No-op event bus adapter used in tests and scaffold before a real transport is wired.
+ */
+import type { EventRecord, IEventBusRepository } from '../domain/event-record';
+
+export class NoopEventBusRepository implements IEventBusRepository {
+  async publish(_event: EventRecord): Promise<void> {
+    // Intentional no-op: replace with a real transport adapter when needed.
+  }
+}
 ````
 
 ## File: modules/source/api/index.ts
@@ -61359,39 +55030,5329 @@ export class FirebaseWikiLibraryRepository implements WikiLibraryRepository {
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
-## File: modules/system.ts
+## File: modules/workspace-flow/api/contracts.ts
 ````typescript
 /**
- * modules/system.ts — Composition Root
+ * @module workspace-flow/api
+ * @file contracts.ts
+ * @description Public contracts exposed through the workspace-flow module boundary.
  *
- * Architecture Phase 3: Interface Wiring
+ * All types, DTOs, and projection helpers that external consumers need are
+ * re-exported from this single file.  XState internals (canTransition*, nextStatus,
+ * isTerminal*) are intentionally NOT exposed here — status machines are internal.
  *
- * Initialises and wires the singleton instances that power the
- * Content → EventBus demo loop.
- *
- * Responsibilities:
- *   1. Create the shared SimpleEventBus.
- *   2. Create KnowledgeApi (injected with the event bus).
- *
- * All state lives here — never in page files or global variables.
- *
- * MDDD boundary rule:
- *   Imports only from the api/ barrel of each module and from
- *   shared/infrastructure.  Never reaches into domain/, application/,
- *   or infrastructure/ layers of other modules.
+ * @author workspace-flow
+ * @since 2026-03-24
  */
 
-import { SimpleEventBus } from "./shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi } from "./knowledge/api/knowledge-api";
+// ── Entity types ──────────────────────────────────────────────────────────────
 
-// ── Shared account used by the in-memory demo ──────────────────────────────
+export type { Task } from "../domain/entities/Task";
+export type { Issue } from "../domain/entities/Issue";
+export type { Invoice } from "../domain/entities/Invoice";
+export type { InvoiceItem } from "../domain/entities/InvoiceItem";
 
-export const DEMO_ACCOUNT_ID = "demo-account";
+// ── Value objects (enum / list only — no transition helpers) ──────────────────
 
-// ── Singleton instances ────────────────────────────────────────────────────
+export type { TaskStatus } from "../domain/value-objects/TaskStatus";
+export { TASK_STATUSES } from "../domain/value-objects/TaskStatus";
 
-const eventBus = new SimpleEventBus();
-export const contentApi = new KnowledgeApi(eventBus);
+export type { IssueStatus } from "../domain/value-objects/IssueStatus";
+export { ISSUE_STATUSES } from "../domain/value-objects/IssueStatus";
+
+export type { IssueStage } from "../domain/value-objects/IssueStage";
+export { ISSUE_STAGES } from "../domain/value-objects/IssueStage";
+
+export type { InvoiceStatus } from "../domain/value-objects/InvoiceStatus";
+export { INVOICE_STATUSES } from "../domain/value-objects/InvoiceStatus";
+
+// ── Source reference (content → workspace-flow provenance) ────────────────────
+
+export type { SourceReference, SourceReferenceType } from "../domain/value-objects/SourceReference";
+
+// ── Summary projections ───────────────────────────────────────────────────────
+
+export type {
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+export {
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+// ── CRUD / command DTOs ───────────────────────────────────────────────────────
+
+export type { CreateTaskDto } from "../application/dto/create-task.dto";
+export type { UpdateTaskDto } from "../application/dto/update-task.dto";
+
+export type { OpenIssueDto } from "../application/dto/open-issue.dto";
+export type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+
+export type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+export type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+export type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+
+// ── Query / pagination DTOs ───────────────────────────────────────────────────
+
+export type { TaskQueryDto } from "../application/dto/task-query.dto";
+export type { IssueQueryDto } from "../application/dto/issue-query.dto";
+export type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+export type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+// ── Command / operation result ────────────────────────────────────────────────
+
+export type { CommandResult } from "@shared-types";
+````
+
+## File: modules/workspace-flow/api/index.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace-flow/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+// ── Facade (write + summary-read surface) ────────────────────────────────────
+
+export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+
+// ── Public contracts ──────────────────────────────────────────────────────────
+
+export type {
+  // Entities
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  // Value objects
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  // Summary projections
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+  // CRUD / command DTOs
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
+} from "./contracts";
+
+export {
+  // Value object lists (enum arrays)
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  // Summary projection helpers
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "./contracts";
+
+// ── Read queries (server-side) ────────────────────────────────────────────────
+
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "../interfaces/queries/workspace-flow.queries";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
+
+// ── Event listeners (content → workspace-flow integration) ───────────────────
+
+export {
+  createContentToWorkflowListener,
+} from "./listeners";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "./listeners";
+````
+
+## File: modules/workspace-flow/api/workspace-flow.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow.facade.ts
+ * @description Public facade for executing workspace-flow operations from external consumers.
+ *
+ * All CRUD and workflow write operations are exposed exclusively through this class.
+ * List operations return {@link PagedResult} for uniform pagination.
+ * Scalar-get summary operations return the appropriate {@link *Summary} projection.
+ *
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import type { TaskRepository } from "../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
+
+import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
+import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
+import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
+import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
+import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
+import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
+import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
+
+import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
+import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
+import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
+import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
+import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
+import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
+import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
+import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
+
+import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
+import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
+import { UpdateInvoiceItemUseCase } from "../application/use-cases/update-invoice-item.use-case";
+import { RemoveInvoiceItemUseCase } from "../application/use-cases/remove-invoice-item.use-case";
+import { SubmitInvoiceUseCase } from "../application/use-cases/submit-invoice.use-case";
+import { ReviewInvoiceUseCase } from "../application/use-cases/review-invoice.use-case";
+import { ApproveInvoiceUseCase } from "../application/use-cases/approve-invoice.use-case";
+import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.use-case";
+import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
+import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
+
+import type { CreateTaskDto } from "../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../application/dto/update-task.dto";
+import type { OpenIssueDto } from "../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+import type { TaskQueryDto } from "../application/dto/task-query.dto";
+import type { IssueQueryDto } from "../application/dto/issue-query.dto";
+import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type {
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+import {
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
+
+/**
+ * WorkspaceFlowFacade
+ *
+ * Single entry point for all workspace-flow write and read-summary operations.
+ * External consumers must construct this with concrete repository implementations.
+ *
+ * @example
+ * ```ts
+ * const facade = new WorkspaceFlowFacade(
+ *   new FirebaseTaskRepository(),
+ *   new FirebaseIssueRepository(),
+ *   new FirebaseInvoiceRepository(),
+ * );
+ * await facade.createTask({ workspaceId, title: "My task" });
+ * ```
+ */
+export class WorkspaceFlowFacade {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly issueRepository: IssueRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  // ── Task write operations ────────────────────────────────────────────────────
+
+  async createTask(dto: CreateTaskDto): Promise<CommandResult> {
+    return new CreateTaskUseCase(this.taskRepository).execute(dto);
+  }
+
+  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
+  }
+
+  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);
+  }
+
+  async submitTaskToQa(taskId: string): Promise<CommandResult> {
+    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);
+  }
+
+  async passTaskQa(taskId: string): Promise<CommandResult> {
+    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);
+  }
+
+  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {
+    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);
+  }
+
+  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
+  }
+
+  // ── Task read operations ─────────────────────────────────────────────────────
+
+  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
+    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
+    const assigneeFiltered = query.assigneeId
+      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
+      : filtered;
+    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
+  }
+
+  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
+    const task = await this.taskRepository.findById(taskId);
+    return task ? toTaskSummary(task) : null;
+  }
+
+  // ── Issue write operations ───────────────────────────────────────────────────
+
+  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
+    return new OpenIssueUseCase(this.issueRepository).execute(dto);
+  }
+
+  async startIssue(issueId: string): Promise<CommandResult> {
+    return new StartIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async fixIssue(issueId: string): Promise<CommandResult> {
+    return new FixIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async submitIssueRetest(issueId: string): Promise<CommandResult> {
+    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async passIssueRetest(issueId: string): Promise<CommandResult> {
+    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async failIssueRetest(issueId: string): Promise<CommandResult> {
+    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
+  }
+
+  async closeIssue(issueId: string): Promise<CommandResult> {
+    return new CloseIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  // ── Issue read operations ────────────────────────────────────────────────────
+
+  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
+    const all = await this.issueRepository.findByTaskId(query.taskId);
+    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
+    return toPagedResult(filtered.map(toIssueSummary), pagination);
+  }
+
+  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
+    const issue = await this.issueRepository.findById(issueId);
+    return issue ? toIssueSummary(issue) : null;
+  }
+
+  // ── Invoice write operations ─────────────────────────────────────────────────
+
+  async createInvoice(workspaceId: string): Promise<CommandResult> {
+    return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);
+  }
+
+  async addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
+    return new AddInvoiceItemUseCase(this.invoiceRepository).execute(dto);
+  }
+
+  async updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+    return new UpdateInvoiceItemUseCase(this.invoiceRepository).execute(invoiceItemId, dto);
+  }
+
+  async removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+    return new RemoveInvoiceItemUseCase(this.invoiceRepository).execute(dto.invoiceId, dto.invoiceItemId);
+  }
+
+  async submitInvoice(invoiceId: string): Promise<CommandResult> {
+    return new SubmitInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async reviewInvoice(invoiceId: string): Promise<CommandResult> {
+    return new ReviewInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async approveInvoice(invoiceId: string): Promise<CommandResult> {
+    return new ApproveInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async rejectInvoice(invoiceId: string): Promise<CommandResult> {
+    return new RejectInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async payInvoice(invoiceId: string): Promise<CommandResult> {
+    return new PayInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  async closeInvoice(invoiceId: string): Promise<CommandResult> {
+    return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
+  }
+
+  // ── Invoice read operations ──────────────────────────────────────────────────
+
+  async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {
+    const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((inv) => inv.status === query.status) : all;
+    return toPagedResult(filtered.map(toInvoiceSummary), pagination);
+  }
+
+  async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    return invoice ? toInvoiceSummary(invoice) : null;
+  }
+}
+````
+
+## File: modules/workspace-flow/application/dto/add-invoice-item.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file add-invoice-item.dto.ts
+ * @description Command DTO for adding an item to an invoice.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add Zod schema when validation layer is wired in
+ */
+
+export interface AddInvoiceItemDto {
+  readonly invoiceId: string;
+  readonly taskId: string;
+  readonly amount: number;
+}
+````
+
+## File: modules/workspace-flow/application/dto/create-task.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file create-task.dto.ts
+ * @description Command DTO for creating a new task.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add Zod schema when validation layer is wired in
+ */
+
+export interface CreateTaskDto {
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/invoice-query.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file invoice-query.dto.ts
+ * @description Query parameters DTO for listing invoices.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support when invoice lists grow large
+ */
+
+export interface InvoiceQueryDto {
+  /** Filter invoices by workspace. Required for scoped queries. */
+  readonly workspaceId: string;
+  /** Optional status filter. */
+  readonly status?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/issue-query.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file issue-query.dto.ts
+ * @description Query parameters DTO for listing issues.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support when issue lists grow large
+ */
+
+export interface IssueQueryDto {
+  /** Filter issues by task. */
+  readonly taskId: string;
+  /** Optional status filter. */
+  readonly status?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/open-issue.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file open-issue.dto.ts
+ * @description Command DTO for opening a new issue against a task.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add Zod schema when validation layer is wired in
+ */
+
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+
+export interface OpenIssueDto {
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description?: string;
+  readonly createdBy: string;
+  readonly assignedTo?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/pagination.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file pagination.dto.ts
+ * @description Shared pagination request / response DTOs for workspace-flow list queries.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+export interface PaginationDto {
+  /** 1-based page number. Defaults to 1. */
+  readonly page?: number;
+  /** Items per page. Defaults to 20. */
+  readonly pageSize?: number;
+}
+
+export interface PagedResult<T> {
+  readonly items: T[];
+  readonly total: number;
+  readonly page: number;
+  readonly pageSize: number;
+  readonly hasMore: boolean;
+}
+````
+
+## File: modules/workspace-flow/application/dto/remove-invoice-item.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file remove-invoice-item.dto.ts
+ * @description Command DTO for removing an item from an invoice.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+export interface RemoveInvoiceItemDto {
+  readonly invoiceId: string;
+  readonly invoiceItemId: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/resolve-issue.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file resolve-issue.dto.ts
+ * @description Command DTO for resolving an issue (retest passed → resolved).
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+export interface ResolveIssueDto {
+  readonly issueId: string;
+  readonly resolutionNote?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/task-query.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file task-query.dto.ts
+ * @description Query parameters DTO for listing tasks.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support when task lists grow large
+ */
+
+export interface TaskQueryDto {
+  /** Filter tasks by workspace. Required for scoped queries. */
+  readonly workspaceId: string;
+  /** Optional status filter. */
+  readonly status?: string;
+  /** Optional assignee filter. */
+  readonly assigneeId?: string;
+}
+````
+
+## File: modules/workspace-flow/application/dto/update-invoice-item.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file update-invoice-item.dto.ts
+ * @description Command DTO for updating the amount of an existing invoice item.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+export interface UpdateInvoiceItemDto {
+  /** Updated billing amount (must be > 0). */
+  readonly amount: number;
+}
+````
+
+## File: modules/workspace-flow/application/dto/update-task.dto.ts
+````typescript
+/**
+ * @module workspace-flow/application/dto
+ * @file update-task.dto.ts
+ * @description Command DTO for updating mutable fields on an existing task.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+export interface UpdateTaskDto {
+  readonly title?: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+}
+````
+
+## File: modules/workspace-flow/application/ports/InvoiceService.ts
+````typescript
+/**
+ * @module workspace-flow/application/ports
+ * @file InvoiceService.ts
+ * @description Application port interface for Invoice operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Wire use cases and implement concrete adapters
+ */
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import type { AddInvoiceItemDto } from "../dto/add-invoice-item.dto";
+import type { InvoiceQueryDto } from "../dto/invoice-query.dto";
+
+export interface InvoiceService {
+  createInvoice(workspaceId: string): Promise<Invoice>;
+  addItem(dto: AddInvoiceItemDto): Promise<InvoiceItem>;
+  removeItem(invoiceItemId: string): Promise<void>;
+  transitionStatus(invoiceId: string, to: InvoiceStatus): Promise<Invoice>;
+  listInvoices(query: InvoiceQueryDto): Promise<Invoice[]>;
+  getInvoice(invoiceId: string): Promise<Invoice | null>;
+}
+````
+
+## File: modules/workspace-flow/application/ports/IssueService.ts
+````typescript
+/**
+ * @module workspace-flow/application/ports
+ * @file IssueService.ts
+ * @description Application port interface for Issue operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Wire use cases and implement concrete adapters
+ */
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { IssueStatus } from "../../domain/value-objects/IssueStatus";
+import type { OpenIssueDto } from "../dto/open-issue.dto";
+import type { IssueQueryDto } from "../dto/issue-query.dto";
+
+export interface IssueService {
+  openIssue(dto: OpenIssueDto): Promise<Issue>;
+  transitionStatus(issueId: string, to: IssueStatus): Promise<Issue>;
+  listIssues(query: IssueQueryDto): Promise<Issue[]>;
+  getIssue(issueId: string): Promise<Issue | null>;
+}
+````
+
+## File: modules/workspace-flow/application/ports/TaskService.ts
+````typescript
+/**
+ * @module workspace-flow/application/ports
+ * @file TaskService.ts
+ * @description Application port interface for Task operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Wire use cases and implement concrete adapters
+ */
+
+import type { Task } from "../../domain/entities/Task";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import type { CreateTaskDto } from "../dto/create-task.dto";
+import type { TaskQueryDto } from "../dto/task-query.dto";
+
+export interface TaskService {
+  createTask(dto: CreateTaskDto): Promise<Task>;
+  assignTask(taskId: string, assigneeId: string): Promise<Task>;
+  transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
+  listTasks(query: TaskQueryDto): Promise<Task[]>;
+  getTask(taskId: string): Promise<Task | null>;
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/add-invoice-item.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file add-invoice-item.use-case.ts
+ * @description Use case: Add an item to a draft invoice.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceItemAddedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { invoiceIsEditable } from "../../domain/services/invoice-guards";
+import type { AddInvoiceItemDto } from "../dto/add-invoice-item.dto";
+
+export class AddInvoiceItemUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(dto: AddInvoiceItemDto): Promise<CommandResult> {
+    if (!dto.invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+    if (!dto.taskId.trim()) {
+      return commandFailureFrom("WF_INVOICE_TASK_REQUIRED", "Task id is required.");
+    }
+    if (dto.amount <= 0) {
+      return commandFailureFrom("WF_INVOICE_AMOUNT_INVALID", "Amount must be greater than zero.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(dto.invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+    if (!invoiceIsEditable(invoice.status)) {
+      return commandFailureFrom(
+        "WF_INVOICE_NOT_EDITABLE",
+        "Items can only be added to draft invoices.",
+      );
+    }
+
+    const item = await this.invoiceRepository.addItem(dto);
+    return commandSuccess(item.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/approve-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file approve-invoice.use-case.ts
+ * @description Use case: Approve an invoice in finance review (finance_review → approved).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceApprovedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
+
+export class ApproveInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+
+    const guard = evaluateInvoiceTransition(invoice.status, "approved");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "approved", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/approve-task-acceptance.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file approve-task-acceptance.use-case.ts
+ * @description Use case: Approve a task at acceptance stage (acceptance → accepted). Requires no open issues.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit TaskAcceptanceApprovedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
+import { hasNoOpenIssues } from "../../domain/services/task-guards";
+
+export class ApproveTaskAcceptanceUseCase {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly issueRepository: IssueRepository,
+  ) {}
+
+  async execute(taskId: string): Promise<CommandResult> {
+    if (!taskId.trim()) {
+      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
+    }
+
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
+    }
+
+    const guard = evaluateTaskTransition(task.status, "accepted");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
+    }
+
+    const openIssues = await this.issueRepository.countOpenByTaskId(taskId);
+    if (!hasNoOpenIssues(openIssues)) {
+      return commandFailureFrom(
+        "WF_TASK_HAS_OPEN_ISSUES",
+        "Task cannot be accepted: there are open issues that must be resolved first.",
+      );
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.taskRepository.transitionStatus(taskId, "accepted", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/archive-task.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file archive-task.use-case.ts
+ * @description Use case: Archive a task (accepted → archived). Requires invoice closed or none.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit TaskArchivedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
+import { invoiceAllowsArchive } from "../../domain/services/task-guards";
+
+export class ArchiveTaskUseCase {
+  constructor(private readonly taskRepository: TaskRepository) {}
+
+  /**
+   * @param taskId       - ID of the task to archive
+   * @param invoiceStatus - Status of the linked invoice, or undefined if none
+   */
+  async execute(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+    if (!taskId.trim()) {
+      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
+    }
+
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
+    }
+
+    const guard = evaluateTaskTransition(task.status, "archived");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
+    }
+
+    if (!invoiceAllowsArchive(invoiceStatus)) {
+      return commandFailureFrom(
+        "WF_TASK_INVOICE_NOT_CLOSED",
+        "Task cannot be archived: the linked invoice must be closed first.",
+      );
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.taskRepository.transitionStatus(taskId, "archived", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/assign-task.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file assign-task.use-case.ts
+ * @description Use case: Assign a task to a user and transition status to in_progress.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add permission check for assignee
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
+
+export class AssignTaskUseCase {
+  constructor(private readonly taskRepository: TaskRepository) {}
+
+  async execute(taskId: string, assigneeId: string): Promise<CommandResult> {
+    if (!taskId.trim()) {
+      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
+    }
+    if (!assigneeId.trim()) {
+      return commandFailureFrom("WF_TASK_ASSIGNEE_REQUIRED", "Assignee id is required.");
+    }
+
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
+    }
+
+    const guard = evaluateTaskTransition(task.status, "in_progress");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
+    }
+
+    // Persist the assignee before transitioning status
+    await this.taskRepository.update(taskId, { assigneeId: assigneeId.trim() });
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.taskRepository.transitionStatus(taskId, "in_progress", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/close-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file close-invoice.use-case.ts
+ * @description Use case: Close a paid invoice (paid → closed).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceClosedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
+
+export class CloseInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+
+    const guard = evaluateInvoiceTransition(invoice.status, "closed");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "closed", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/close-issue.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file close-issue.use-case.ts
+ * @description Use case: Close a resolved issue (resolved → closed).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueClosedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+
+export class CloseIssueUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    if (!issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "closed");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(issueId, "closed", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/create-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file create-invoice.use-case.ts
+ * @description Use case: Create a new invoice for a workspace.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceCreatedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+
+export class CreateInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    if (!workspaceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_WORKSPACE_REQUIRED", "Workspace is required.");
+    }
+
+    const invoice = await this.invoiceRepository.create({ workspaceId: workspaceId.trim() });
+    return commandSuccess(invoice.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/create-task.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file create-task.use-case.ts
+ * @description Use case: Create a new task in the workspace-flow context.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add input validation with Zod schema
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { CreateTaskDto } from "../dto/create-task.dto";
+
+export class CreateTaskUseCase {
+  constructor(private readonly taskRepository: TaskRepository) {}
+
+  async execute(dto: CreateTaskDto): Promise<CommandResult> {
+    const workspaceId = dto.workspaceId.trim();
+    const title = dto.title.trim();
+
+    if (!workspaceId) {
+      return commandFailureFrom("WF_TASK_WORKSPACE_REQUIRED", "Workspace is required.");
+    }
+    if (!title) {
+      return commandFailureFrom("WF_TASK_TITLE_REQUIRED", "Task title is required.");
+    }
+
+    const task = await this.taskRepository.create({ ...dto, workspaceId, title });
+    return commandSuccess(task.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/fail-issue-retest.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file fail-issue-retest.use-case.ts
+ * @description Use case: Fail an issue's retest (retest → fixing).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueRetestFailedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+
+export class FailIssueRetestUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    if (!issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "fixing");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(issueId, "fixing", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/fix-issue.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file fix-issue.use-case.ts
+ * @description Use case: Mark an issue as being fixed (investigating → fixing).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueFixedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+
+export class FixIssueUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    if (!issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "fixing");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(issueId, "fixing", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/open-issue.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file open-issue.use-case.ts
+ * @description Use case: Open a new issue against a task.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueOpenedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import type { OpenIssueDto } from "../dto/open-issue.dto";
+
+export class OpenIssueUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(dto: OpenIssueDto): Promise<CommandResult> {
+    if (!dto.taskId.trim()) {
+      return commandFailureFrom("WF_ISSUE_TASK_REQUIRED", "Task id is required.");
+    }
+    if (!dto.title.trim()) {
+      return commandFailureFrom("WF_ISSUE_TITLE_REQUIRED", "Issue title is required.");
+    }
+    if (!dto.createdBy.trim()) {
+      return commandFailureFrom("WF_ISSUE_CREATED_BY_REQUIRED", "Creator id is required.");
+    }
+
+    const issue = await this.issueRepository.create({
+      ...dto,
+      taskId: dto.taskId.trim(),
+      title: dto.title.trim(),
+    });
+    return commandSuccess(issue.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/pass-issue-retest.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file pass-issue-retest.use-case.ts
+ * @description Use case: Pass an issue's retest (retest → resolved).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueRetestPassedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+
+export class PassIssueRetestUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    if (!issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "resolved");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(issueId, "resolved", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/pass-task-qa.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file pass-task-qa.use-case.ts
+ * @description Use case: Pass a task's QA review (qa → acceptance). Requires no open issues.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit TaskQaPassedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
+import { hasNoOpenIssues } from "../../domain/services/task-guards";
+
+export class PassTaskQaUseCase {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly issueRepository: IssueRepository,
+  ) {}
+
+  async execute(taskId: string): Promise<CommandResult> {
+    if (!taskId.trim()) {
+      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
+    }
+
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
+    }
+
+    const guard = evaluateTaskTransition(task.status, "acceptance");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
+    }
+
+    const openIssues = await this.issueRepository.countOpenByTaskId(taskId);
+    if (!hasNoOpenIssues(openIssues)) {
+      return commandFailureFrom(
+        "WF_TASK_HAS_OPEN_ISSUES",
+        "Task cannot advance: there are open issues that must be resolved first.",
+      );
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.taskRepository.transitionStatus(taskId, "acceptance", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/pay-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file pay-invoice.use-case.ts
+ * @description Use case: Mark an approved invoice as paid (approved → paid).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoicePaidEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
+
+export class PayInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+
+    const guard = evaluateInvoiceTransition(invoice.status, "paid");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "paid", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/reject-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file reject-invoice.use-case.ts
+ * @description Use case: Reject an invoice back to submitted (finance_review → submitted).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceRejectedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
+
+export class RejectInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+
+    const guard = evaluateInvoiceTransition(invoice.status, "submitted");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "submitted", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/remove-invoice-item.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file remove-invoice-item.use-case.ts
+ * @description Use case: Remove an item from a draft invoice.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceItemRemovedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { invoiceIsEditable } from "../../domain/services/invoice-guards";
+
+export class RemoveInvoiceItemUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string, invoiceItemId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+    if (!invoiceItemId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ITEM_ID_REQUIRED", "Invoice item id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+    if (!invoiceIsEditable(invoice.status)) {
+      return commandFailureFrom(
+        "WF_INVOICE_NOT_EDITABLE",
+        "Items can only be removed from draft invoices.",
+      );
+    }
+
+    await this.invoiceRepository.removeItem(invoiceItemId);
+    return commandSuccess(invoiceItemId, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/resolve-issue.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file resolve-issue.use-case.ts
+ * @description Use case: Resolve an issue (retest-pending → resolved).
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+import type { ResolveIssueDto } from "../dto/resolve-issue.dto";
+
+export class ResolveIssueUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(dto: ResolveIssueDto): Promise<CommandResult> {
+    if (!dto.issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(dto.issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "resolved");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(dto.issueId, "resolved", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/review-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file review-invoice.use-case.ts
+ * @description Use case: Move an invoice into finance review (submitted → finance_review).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceReviewedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
+
+export class ReviewInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+
+    const guard = evaluateInvoiceTransition(invoice.status, "finance_review");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "finance_review", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/start-issue.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file start-issue.use-case.ts
+ * @description Use case: Start investigating an issue (open → investigating).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueStartedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+
+export class StartIssueUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    if (!issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "investigating");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(issueId, "investigating", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/submit-invoice.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file submit-invoice.use-case.ts
+ * @description Use case: Submit an invoice for review (draft → submitted). Requires at least one item.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit InvoiceSubmittedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { evaluateInvoiceTransition } from "../../domain/services/invoice-transition-policy";
+import { invoiceHasItems } from "../../domain/services/invoice-guards";
+
+export class SubmitInvoiceUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceId: string): Promise<CommandResult> {
+    if (!invoiceId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ID_REQUIRED", "Invoice id is required.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+
+    const guard = evaluateInvoiceTransition(invoice.status, "submitted");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_INVOICE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const items = await this.invoiceRepository.listItems(invoiceId);
+    if (!invoiceHasItems(items.length)) {
+      return commandFailureFrom(
+        "WF_INVOICE_NO_ITEMS",
+        "Invoice cannot be submitted: at least one item is required.",
+      );
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.invoiceRepository.transitionStatus(invoiceId, "submitted", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/submit-issue-retest.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file submit-issue-retest.use-case.ts
+ * @description Use case: Submit an issue for retest (fixing → retest).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Emit IssueRetestSubmittedEvent to event bus
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { evaluateIssueTransition } from "../../domain/services/issue-transition-policy";
+
+export class SubmitIssueRetestUseCase {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  async execute(issueId: string): Promise<CommandResult> {
+    if (!issueId.trim()) {
+      return commandFailureFrom("WF_ISSUE_ID_REQUIRED", "Issue id is required.");
+    }
+
+    const issue = await this.issueRepository.findById(issueId);
+    if (!issue) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found.");
+    }
+
+    const guard = evaluateIssueTransition(issue.status, "retest");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_ISSUE_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.issueRepository.transitionStatus(issueId, "retest", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_ISSUE_NOT_FOUND", "Issue not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/submit-task-to-qa.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file submit-task-to-qa.use-case.ts
+ * @description Use case: Submit a task for QA review (in_progress → qa).
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pre-submission checks (e.g. assignee present)
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { evaluateTaskTransition } from "../../domain/services/task-transition-policy";
+
+export class SubmitTaskToQaUseCase {
+  constructor(private readonly taskRepository: TaskRepository) {}
+
+  async execute(taskId: string): Promise<CommandResult> {
+    if (!taskId.trim()) {
+      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
+    }
+
+    const task = await this.taskRepository.findById(taskId);
+    if (!task) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
+    }
+
+    const guard = evaluateTaskTransition(task.status, "qa");
+    if (!guard.allowed) {
+      return commandFailureFrom("WF_TASK_INVALID_TRANSITION", guard.reason);
+    }
+
+    const nowISO = new Date().toISOString();
+    const updated = await this.taskRepository.transitionStatus(taskId, "qa", nowISO);
+    if (!updated) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after transition.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/update-invoice-item.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file update-invoice-item.use-case.ts
+ * @description Use case: Update the amount of an existing invoice item on a draft invoice.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { invoiceIsEditable } from "../../domain/services/invoice-guards";
+import type { UpdateInvoiceItemDto } from "../dto/update-invoice-item.dto";
+
+export class UpdateInvoiceItemUseCase {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
+
+  async execute(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+    if (!invoiceItemId.trim()) {
+      return commandFailureFrom("WF_INVOICE_ITEM_ID_REQUIRED", "Invoice item id is required.");
+    }
+    if (dto.amount <= 0) {
+      return commandFailureFrom("WF_INVOICE_AMOUNT_INVALID", "Amount must be greater than zero.");
+    }
+
+    const item = await this.invoiceRepository.findItemById(invoiceItemId);
+    if (!item) {
+      return commandFailureFrom("WF_INVOICE_ITEM_NOT_FOUND", "Invoice item not found.");
+    }
+
+    const invoice = await this.invoiceRepository.findById(item.invoiceId);
+    if (!invoice) {
+      return commandFailureFrom("WF_INVOICE_NOT_FOUND", "Invoice not found.");
+    }
+    if (!invoiceIsEditable(invoice.status)) {
+      return commandFailureFrom(
+        "WF_INVOICE_NOT_EDITABLE",
+        "Items can only be updated on draft invoices.",
+      );
+    }
+
+    const updated = await this.invoiceRepository.updateItem(invoiceItemId, dto.amount);
+    if (!updated) {
+      return commandFailureFrom("WF_INVOICE_ITEM_NOT_FOUND", "Invoice item not found after update.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/application/use-cases/update-task.use-case.ts
+````typescript
+/**
+ * @module workspace-flow/application/use-cases
+ * @file update-task.use-case.ts
+ * @description Use case: Update mutable fields on an existing task.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { UpdateTaskDto } from "../dto/update-task.dto";
+
+export class UpdateTaskUseCase {
+  constructor(private readonly taskRepository: TaskRepository) {}
+
+  async execute(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+    if (!taskId.trim()) {
+      return commandFailureFrom("WF_TASK_ID_REQUIRED", "Task id is required.");
+    }
+
+    const existing = await this.taskRepository.findById(taskId);
+    if (!existing) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found.");
+    }
+
+    const updated = await this.taskRepository.update(taskId, dto);
+    if (!updated) {
+      return commandFailureFrom("WF_TASK_NOT_FOUND", "Task not found after update.");
+    }
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-flow/domain/entities/Invoice.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Invoice.ts
+ * @description Invoice aggregate entity representing a billing record for accepted tasks.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as billing rules expand
+ */
+
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Invoice {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: InvoiceStatus;
+  readonly totalAmount: number;
+  readonly submittedAtISO?: string;
+  readonly approvedAtISO?: string;
+  readonly paidAtISO?: string;
+  readonly closedAtISO?: string;
+  /**
+   * Present when this Invoice was materialized from a KnowledgePage via the
+   * `content.page_approved` event.  Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateInvoiceInput {
+  readonly workspaceId: string;
+  readonly sourceReference?: SourceReference;
+}
+````
+
+## File: modules/workspace-flow/domain/entities/InvoiceItem.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file InvoiceItem.ts
+ * @description InvoiceItem entity linking a task to an invoice with an amount.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as billing rules expand
+ */
+
+// ── Entity ────────────────────────────────────────────────────────────────────
+
+export interface InvoiceItem {
+  readonly id: string;
+  readonly invoiceId: string;
+  readonly taskId: string;
+  readonly amount: number;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface AddInvoiceItemInput {
+  readonly invoiceId: string;
+  readonly taskId: string;
+  readonly amount: number;
+}
+````
+
+## File: modules/workspace-flow/domain/entities/Issue.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Issue.ts
+ * @description Issue aggregate entity representing a defect or anomaly raised during workflow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as business rules expand
+ */
+
+import type { IssueStatus } from "../value-objects/IssueStatus";
+import type { IssueStage } from "../value-objects/IssueStage";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Issue {
+  readonly id: string;
+  readonly taskId: string;
+  /** Which stage of the task workflow this issue was raised in. */
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description: string;
+  readonly status: IssueStatus;
+  readonly createdBy: string;
+  readonly assignedTo?: string;
+  readonly resolvedAtISO?: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface OpenIssueInput {
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly title: string;
+  readonly description?: string;
+  readonly createdBy: string;
+  readonly assignedTo?: string;
+}
+
+export interface UpdateIssueInput {
+  readonly title?: string;
+  readonly description?: string;
+  readonly assignedTo?: string;
+}
+````
+
+## File: modules/workspace-flow/domain/entities/Task.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Task.ts
+ * @description Task aggregate entity representing a work unit and its lifecycle.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as business rules expand
+ */
+
+import type { TaskStatus } from "../value-objects/TaskStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Task {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: TaskStatus;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly acceptedAtISO?: string;
+  readonly archivedAtISO?: string;
+  /**
+   * Present when this Task was materialized from a KnowledgePage via the
+   * `content.page_approved` event.  Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
+}
+
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateTaskInput {
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly sourceReference?: SourceReference;
+}
+
+export interface UpdateTaskInput {
+  readonly title?: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+}
+````
+
+## File: modules/workspace-flow/domain/events/InvoiceEvent.ts
+````typescript
+/**
+ * @module workspace-flow/domain/events
+ * @file InvoiceEvent.ts
+ * @description Discriminated-union event types emitted by the Invoice aggregate.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Wire to event bus via @/modules/event IEventBusRepository
+ */
+
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+
+// ── Individual event shapes ───────────────────────────────────────────────────
+
+export interface InvoiceCreatedEvent {
+  readonly type: "workspace-flow.invoice.created";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceItemAddedEvent {
+  readonly type: "workspace-flow.invoice.item_added";
+  readonly invoiceId: string;
+  readonly invoiceItemId: string;
+  readonly taskId: string;
+  readonly amount: number;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceItemRemovedEvent {
+  readonly type: "workspace-flow.invoice.item_removed";
+  readonly invoiceId: string;
+  readonly invoiceItemId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceSubmittedEvent {
+  readonly type: "workspace-flow.invoice.submitted";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly submittedAtISO: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceReviewedEvent {
+  readonly type: "workspace-flow.invoice.reviewed";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceApprovedEvent {
+  readonly type: "workspace-flow.invoice.approved";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly approvedAtISO: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceRejectedEvent {
+  readonly type: "workspace-flow.invoice.rejected";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoicePaidEvent {
+  readonly type: "workspace-flow.invoice.paid";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly paidAtISO: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceClosedEvent {
+  readonly type: "workspace-flow.invoice.closed";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly closedAtISO: string;
+  readonly occurredAtISO: string;
+}
+
+export interface InvoiceStatusChangedEvent {
+  readonly type: "workspace-flow.invoice.status_changed";
+  readonly invoiceId: string;
+  readonly workspaceId: string;
+  readonly from: InvoiceStatus;
+  readonly to: InvoiceStatus;
+  readonly occurredAtISO: string;
+}
+
+// ── Discriminated union ───────────────────────────────────────────────────────
+
+export type InvoiceEvent =
+  | InvoiceCreatedEvent
+  | InvoiceItemAddedEvent
+  | InvoiceItemRemovedEvent
+  | InvoiceSubmittedEvent
+  | InvoiceReviewedEvent
+  | InvoiceApprovedEvent
+  | InvoiceRejectedEvent
+  | InvoicePaidEvent
+  | InvoiceClosedEvent
+  | InvoiceStatusChangedEvent;
+````
+
+## File: modules/workspace-flow/domain/events/IssueEvent.ts
+````typescript
+/**
+ * @module workspace-flow/domain/events
+ * @file IssueEvent.ts
+ * @description Discriminated-union event types emitted by the Issue aggregate.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Wire to event bus via @/modules/event IEventBusRepository
+ */
+
+import type { IssueStatus } from "../value-objects/IssueStatus";
+import type { IssueStage } from "../value-objects/IssueStage";
+
+// ── Individual event shapes ───────────────────────────────────────────────────
+
+export interface IssueOpenedEvent {
+  readonly type: "workspace-flow.issue.opened";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly createdBy: string;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueStartedEvent {
+  readonly type: "workspace-flow.issue.started";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueFixedEvent {
+  readonly type: "workspace-flow.issue.fixed";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueRetestSubmittedEvent {
+  readonly type: "workspace-flow.issue.retest_submitted";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueRetestPassedEvent {
+  readonly type: "workspace-flow.issue.retest_passed";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly stage: IssueStage;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueRetestFailedEvent {
+  readonly type: "workspace-flow.issue.retest_failed";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueClosedEvent {
+  readonly type: "workspace-flow.issue.closed";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface IssueStatusChangedEvent {
+  readonly type: "workspace-flow.issue.status_changed";
+  readonly issueId: string;
+  readonly taskId: string;
+  readonly from: IssueStatus;
+  readonly to: IssueStatus;
+  readonly occurredAtISO: string;
+}
+
+// ── Discriminated union ───────────────────────────────────────────────────────
+
+export type IssueEvent =
+  | IssueOpenedEvent
+  | IssueStartedEvent
+  | IssueFixedEvent
+  | IssueRetestSubmittedEvent
+  | IssueRetestPassedEvent
+  | IssueRetestFailedEvent
+  | IssueClosedEvent
+  | IssueStatusChangedEvent;
+````
+
+## File: modules/workspace-flow/domain/events/TaskEvent.ts
+````typescript
+/**
+ * @module workspace-flow/domain/events
+ * @file TaskEvent.ts
+ * @description Discriminated-union event types emitted by the Task aggregate.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Wire to event bus via @/modules/event IEventBusRepository
+ */
+
+import type { TaskStatus } from "../value-objects/TaskStatus";
+
+// ── Individual event shapes ───────────────────────────────────────────────────
+
+export interface TaskCreatedEvent {
+  readonly type: "workspace-flow.task.created";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly occurredAtISO: string;
+}
+
+export interface TaskAssignedEvent {
+  readonly type: "workspace-flow.task.assigned";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly assigneeId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface TaskSubmittedToQaEvent {
+  readonly type: "workspace-flow.task.submitted_to_qa";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface TaskQaPassedEvent {
+  readonly type: "workspace-flow.task.qa_passed";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly occurredAtISO: string;
+}
+
+export interface TaskAcceptanceApprovedEvent {
+  readonly type: "workspace-flow.task.acceptance_approved";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly acceptedAtISO: string;
+  readonly occurredAtISO: string;
+}
+
+export interface TaskArchivedEvent {
+  readonly type: "workspace-flow.task.archived";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly archivedAtISO: string;
+  readonly occurredAtISO: string;
+}
+
+export interface TaskStatusChangedEvent {
+  readonly type: "workspace-flow.task.status_changed";
+  readonly taskId: string;
+  readonly workspaceId: string;
+  readonly from: TaskStatus;
+  readonly to: TaskStatus;
+  readonly occurredAtISO: string;
+}
+
+// ── Discriminated union ───────────────────────────────────────────────────────
+
+export type TaskEvent =
+  | TaskCreatedEvent
+  | TaskAssignedEvent
+  | TaskSubmittedToQaEvent
+  | TaskQaPassedEvent
+  | TaskAcceptanceApprovedEvent
+  | TaskArchivedEvent
+  | TaskStatusChangedEvent;
+````
+
+## File: modules/workspace-flow/domain/repositories/InvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/domain/repositories
+ * @file InvoiceRepository.ts
+ * @description Repository port interface for Invoice persistence.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Implement in infrastructure/repositories/FirebaseInvoiceRepository
+ */
+
+import type { Invoice, CreateInvoiceInput } from "../entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../entities/InvoiceItem";
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+
+export interface InvoiceRepository {
+  /** Persist a new invoice and return the created aggregate. */
+  create(input: CreateInvoiceInput): Promise<Invoice>;
+  /** Hard-delete an invoice by id. */
+  delete(invoiceId: string): Promise<void>;
+  /** Retrieve an invoice by its id. Returns null if not found. */
+  findById(invoiceId: string): Promise<Invoice | null>;
+  /** List all invoices for a given workspace. */
+  findByWorkspaceId(workspaceId: string): Promise<Invoice[]>;
+  /** Persist a lifecycle status transition and stamp relevant timestamp. */
+  transitionStatus(invoiceId: string, to: InvoiceStatus, nowISO: string): Promise<Invoice | null>;
+  /** Add an item to an invoice and recalculate totalAmount. */
+  addItem(input: AddInvoiceItemInput): Promise<InvoiceItem>;
+  /** Retrieve a single invoice item by its id. Returns null if not found. */
+  findItemById(invoiceItemId: string): Promise<InvoiceItem | null>;
+  /** Update the amount of an existing item and recalculate totalAmount. Returns null if not found. */
+  updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null>;
+  /** Remove an item from an invoice and recalculate totalAmount. */
+  removeItem(invoiceItemId: string): Promise<void>;
+  /** List all items for an invoice. */
+  listItems(invoiceId: string): Promise<InvoiceItem[]>;
+}
+````
+
+## File: modules/workspace-flow/domain/repositories/IssueRepository.ts
+````typescript
+/**
+ * @module workspace-flow/domain/repositories
+ * @file IssueRepository.ts
+ * @description Repository port interface for Issue persistence.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Implement in infrastructure/repositories/FirebaseIssueRepository
+ */
+
+import type { Issue, OpenIssueInput, UpdateIssueInput } from "../entities/Issue";
+import type { IssueStatus } from "../value-objects/IssueStatus";
+
+export interface IssueRepository {
+  /** Persist a new issue and return the created aggregate. */
+  create(input: OpenIssueInput): Promise<Issue>;
+  /** Update mutable fields on an existing issue. Returns null if not found. */
+  update(issueId: string, input: UpdateIssueInput): Promise<Issue | null>;
+  /** Hard-delete an issue by id. */
+  delete(issueId: string): Promise<void>;
+  /** Retrieve an issue by its id. Returns null if not found. */
+  findById(issueId: string): Promise<Issue | null>;
+  /** List all issues for a given task. */
+  findByTaskId(taskId: string): Promise<Issue[]>;
+  /** Count open issues for a given task (used in guard conditions). */
+  countOpenByTaskId(taskId: string): Promise<number>;
+  /** Persist a lifecycle status transition and stamp resolvedAtISO if to==="resolved". */
+  transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null>;
+}
+````
+
+## File: modules/workspace-flow/domain/repositories/TaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/domain/repositories
+ * @file TaskRepository.ts
+ * @description Repository port interface for Task persistence.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Implement in infrastructure/repositories/FirebaseTaskRepository
+ */
+
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../entities/Task";
+import type { TaskStatus } from "../value-objects/TaskStatus";
+
+export interface TaskRepository {
+  /** Persist a new task and return the created aggregate. */
+  create(input: CreateTaskInput): Promise<Task>;
+  /** Update mutable fields on an existing task. Returns null if not found. */
+  update(taskId: string, input: UpdateTaskInput): Promise<Task | null>;
+  /** Hard-delete a task by id. */
+  delete(taskId: string): Promise<void>;
+  /** Retrieve a task by its id. Returns null if not found. */
+  findById(taskId: string): Promise<Task | null>;
+  /** List all tasks belonging to a workspace, ordered by updatedAtISO desc. */
+  findByWorkspaceId(workspaceId: string): Promise<Task[]>;
+  /** Persist a lifecycle status transition and stamp acceptedAtISO / archivedAtISO as appropriate. */
+  transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null>;
+}
+````
+
+## File: modules/workspace-flow/domain/services/invoice-guards.ts
+````typescript
+/**
+ * @module workspace-flow/domain/services
+ * @file invoice-guards.ts
+ * @description Pure domain guards for invoice lifecycle invariants.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add guards for additional billing invariants as rules evolve
+ */
+
+// ── Guard: item count > 0 before submit ───────────────────────────────────────
+
+/**
+ * Asserts that an invoice has at least one item before allowing submission.
+ *
+ * @param itemCount - Number of items currently on the invoice
+ * @returns true if the invoice may be submitted; false if it has no items
+ */
+export function invoiceHasItems(itemCount: number): boolean {
+  return itemCount > 0;
+}
+
+// ── Guard: invoice is in draft before item mutation ───────────────────────────
+
+/**
+ * Asserts that an invoice is in draft status before allowing item add/remove.
+ *
+ * @param status - Current invoice status
+ * @returns true if items may be mutated; false otherwise
+ */
+export function invoiceIsEditable(status: string): boolean {
+  return status === "draft";
+}
+````
+
+## File: modules/workspace-flow/domain/services/invoice-transition-policy.ts
+````typescript
+/**
+ * @module workspace-flow/domain/services
+ * @file invoice-transition-policy.ts
+ * @description Pure domain service encapsulating allowed Invoice status transitions.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Expand with additional guard conditions as billing rules evolve
+ */
+
+import { canTransitionInvoiceStatus, type InvoiceStatus } from "../value-objects/InvoiceStatus";
+
+export type InvoiceTransitionResult =
+  | { allowed: true }
+  | { allowed: false; reason: string };
+
+/**
+ * Evaluates whether an invoice lifecycle transition is permitted.
+ *
+ * @param from - Current invoice status
+ * @param to   - Requested next status
+ * @returns InvoiceTransitionResult indicating whether the transition is allowed
+ */
+export function evaluateInvoiceTransition(
+  from: InvoiceStatus,
+  to: InvoiceStatus,
+): InvoiceTransitionResult {
+  if (!canTransitionInvoiceStatus(from, to)) {
+    return {
+      allowed: false,
+      reason: `Invoice transition from "${from}" to "${to}" is not permitted.`,
+    };
+  }
+  return { allowed: true };
+}
+````
+
+## File: modules/workspace-flow/domain/services/issue-transition-policy.ts
+````typescript
+/**
+ * @module workspace-flow/domain/services
+ * @file issue-transition-policy.ts
+ * @description Pure domain service encapsulating allowed Issue status transitions.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Expand with additional guard conditions as business rules evolve
+ */
+
+import { canTransitionIssueStatus, type IssueStatus } from "../value-objects/IssueStatus";
+
+export type IssueTransitionResult =
+  | { allowed: true }
+  | { allowed: false; reason: string };
+
+/**
+ * Evaluates whether an issue lifecycle transition is permitted.
+ *
+ * @param from - Current issue status
+ * @param to   - Requested next status
+ * @returns IssueTransitionResult indicating whether the transition is allowed
+ */
+export function evaluateIssueTransition(
+  from: IssueStatus,
+  to: IssueStatus,
+): IssueTransitionResult {
+  if (!canTransitionIssueStatus(from, to)) {
+    return {
+      allowed: false,
+      reason: `Issue transition from "${from}" to "${to}" is not permitted.`,
+    };
+  }
+  return { allowed: true };
+}
+````
+
+## File: modules/workspace-flow/domain/services/task-guards.ts
+````typescript
+/**
+ * @module workspace-flow/domain/services
+ * @file task-guards.ts
+ * @description Pure domain guards for task lifecycle invariants.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add guards for additional business invariants as rules evolve
+ */
+
+// ── Guard: no open issues ─────────────────────────────────────────────────────
+
+/**
+ * Asserts that a task has no open issues before allowing QA-pass or acceptance-approve.
+ *
+ * @param openIssueCount - The number of open issues currently linked to the task
+ * @returns true if the task may proceed; false if blocked by open issues
+ */
+export function hasNoOpenIssues(openIssueCount: number): boolean {
+  return openIssueCount === 0;
+}
+
+// ── Guard: invoice closed or none ─────────────────────────────────────────────
+
+/**
+ * Asserts that any linked invoice is closed (or none exists) before allowing archive.
+ *
+ * @param invoiceStatus - The status of the linked invoice, or undefined if none
+ * @returns true if the task may be archived; false if blocked by an active invoice
+ */
+export function invoiceAllowsArchive(
+  invoiceStatus: string | undefined,
+): boolean {
+  if (invoiceStatus === undefined) return true;
+  return invoiceStatus === "closed";
+}
+````
+
+## File: modules/workspace-flow/domain/services/task-transition-policy.ts
+````typescript
+/**
+ * @module workspace-flow/domain/services
+ * @file task-transition-policy.ts
+ * @description Pure domain service encapsulating allowed Task status transitions.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Expand with multi-branch transitions if workflow rules evolve
+ */
+
+import { canTransitionTaskStatus, type TaskStatus } from "../value-objects/TaskStatus";
+
+export type TaskTransitionResult =
+  | { allowed: true }
+  | { allowed: false; reason: string };
+
+/**
+ * Evaluates whether a task lifecycle transition is permitted.
+ *
+ * @param from - Current task status
+ * @param to   - Requested next status
+ * @returns TaskTransitionResult indicating whether the transition is allowed
+ */
+export function evaluateTaskTransition(
+  from: TaskStatus,
+  to: TaskStatus,
+): TaskTransitionResult {
+  if (!canTransitionTaskStatus(from, to)) {
+    return {
+      allowed: false,
+      reason: `Task transition from "${from}" to "${to}" is not permitted.`,
+    };
+  }
+  return { allowed: true };
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/InvoiceId.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file InvoiceId.ts
+ * @description Branded string value object for Invoice identifiers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Consider using a stronger opaque type if ID generation logic is added
+ */
+
+declare const InvoiceIdBrand: unique symbol;
+
+/** Branded string that prevents mixing Invoice IDs with other string IDs. */
+export type InvoiceId = string & { readonly [InvoiceIdBrand]: void };
+
+/** Creates an InvoiceId from a plain string (e.g. a Firestore document ID). */
+export function invoiceId(raw: string): InvoiceId {
+  return raw as InvoiceId;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/InvoiceItemId.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file InvoiceItemId.ts
+ * @description Branded string value object for InvoiceItem identifiers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Consider using a stronger opaque type if ID generation logic is added
+ */
+
+declare const InvoiceItemIdBrand: unique symbol;
+
+/** Branded string that prevents mixing InvoiceItem IDs with other string IDs. */
+export type InvoiceItemId = string & { readonly [InvoiceItemIdBrand]: void };
+
+/** Creates an InvoiceItemId from a plain string (e.g. a Firestore document ID). */
+export function invoiceItemId(raw: string): InvoiceItemId {
+  return raw as InvoiceItemId;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/InvoiceStatus.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file InvoiceStatus.ts
+ * @description Invoice lifecycle status union, transition table, and helpers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add additional transition guards as billing rules evolve
+ */
+
+// ── Status ─────────────────────────────────────────────────────────────────────
+
+export type InvoiceStatus =
+  | "draft"
+  | "submitted"
+  | "finance_review"
+  | "approved"
+  | "paid"
+  | "closed";
+
+export const INVOICE_STATUSES = [
+  "draft",
+  "submitted",
+  "finance_review",
+  "approved",
+  "paid",
+  "closed",
+] as const satisfies readonly InvoiceStatus[];
+
+// ── Transition table ──────────────────────────────────────────────────────────
+
+/**
+ * Multi-successor transition map for invoice lifecycle.
+ *
+ * draft → submitted (SUBMIT / item_count > 0)
+ * submitted → finance_review (REVIEW)
+ * finance_review → approved (APPROVE)
+ * finance_review → submitted (REJECT — back to submitted for resubmission)
+ * approved → paid (PAY)
+ * paid → closed (CLOSE)
+ */
+const INVOICE_NEXT: Readonly<Record<InvoiceStatus, readonly InvoiceStatus[]>> = {
+  draft: ["submitted"],
+  submitted: ["finance_review"],
+  finance_review: ["approved", "submitted"],
+  approved: ["paid"],
+  paid: ["closed"],
+  closed: [],
+};
+
+/** Returns true if moving from `from` to `to` is a valid transition. */
+export function canTransitionInvoiceStatus(from: InvoiceStatus, to: InvoiceStatus): boolean {
+  return INVOICE_NEXT[from].includes(to);
+}
+
+/** Returns true when the invoice has reached a terminal state and cannot progress. */
+export function isTerminalInvoiceStatus(status: InvoiceStatus): boolean {
+  return INVOICE_NEXT[status].length === 0;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/IssueId.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file IssueId.ts
+ * @description Branded string value object for Issue identifiers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Consider using a stronger opaque type if ID generation logic is added
+ */
+
+declare const IssueIdBrand: unique symbol;
+
+/** Branded string that prevents mixing Issue IDs with other string IDs. */
+export type IssueId = string & { readonly [IssueIdBrand]: void };
+
+/** Creates an IssueId from a plain string (e.g. a Firestore document ID). */
+export function issueId(raw: string): IssueId {
+  return raw as IssueId;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/IssueStage.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file IssueStage.ts
+ * @description Cross-domain stage reference indicating at which task-flow stage an issue was raised.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Extend stage list if workflow introduces additional stages
+ */
+
+// ── IssueStage ─────────────────────────────────────────────────────────────────
+
+/**
+ * Indicates which stage of the task workflow this issue was raised in.
+ * Used to route issue resolution back to the originating workflow step.
+ */
+export type IssueStage = "task" | "qa" | "acceptance";
+
+export const ISSUE_STAGES = [
+  "task",
+  "qa",
+  "acceptance",
+] as const satisfies readonly IssueStage[];
+````
+
+## File: modules/workspace-flow/domain/value-objects/IssueStatus.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file IssueStatus.ts
+ * @description Issue lifecycle status union, multi-successor transition table, and helpers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add additional transition guards as business rules evolve
+ */
+
+// ── Status ─────────────────────────────────────────────────────────────────────
+
+export type IssueStatus =
+  | "open"
+  | "investigating"
+  | "fixing"
+  | "retest"
+  | "resolved"
+  | "closed";
+
+export const ISSUE_STATUSES = [
+  "open",
+  "investigating",
+  "fixing",
+  "retest",
+  "resolved",
+  "closed",
+] as const satisfies readonly IssueStatus[];
+
+// ── Transition table ──────────────────────────────────────────────────────────
+
+/**
+ * Multi-successor transition map for issue lifecycle.
+ *
+ * open → investigating (START)
+ * investigating → fixing (FIX)
+ * fixing → retest (SUBMIT_RETEST)
+ * retest → resolved (PASS_RETEST)
+ * retest → fixing (FAIL_RETEST — back-edge within the Issue fix cycle)
+ * resolved → closed (CLOSE)
+ */
+const ISSUE_NEXT: Readonly<Record<IssueStatus, readonly IssueStatus[]>> = {
+  open: ["investigating"],
+  investigating: ["fixing"],
+  fixing: ["retest"],
+  retest: ["resolved", "fixing"],
+  resolved: ["closed"],
+  closed: [],
+};
+
+/** Returns true if moving from `from` to `to` is a valid transition. */
+export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): boolean {
+  return ISSUE_NEXT[from].includes(to);
+}
+
+/** Returns true when the issue has reached a terminal state and cannot progress. */
+export function isTerminalIssueStatus(status: IssueStatus): boolean {
+  return ISSUE_NEXT[status].length === 0;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/TaskId.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file TaskId.ts
+ * @description Branded string value object for Task identifiers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Consider using a stronger opaque type if ID generation logic is added
+ */
+
+declare const TaskIdBrand: unique symbol;
+
+/** Branded string that prevents mixing Task IDs with other string IDs. */
+export type TaskId = string & { readonly [TaskIdBrand]: void };
+
+/** Creates a TaskId from a plain string (e.g. a Firestore document ID). */
+export function taskId(raw: string): TaskId {
+  return raw as TaskId;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/TaskStatus.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file TaskStatus.ts
+ * @description Task lifecycle status union, transition table, and pure helper functions.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add additional transition guards as business rules evolve
+ */
+
+// ── Status ─────────────────────────────────────────────────────────────────────
+
+export type TaskStatus =
+  | "draft"
+  | "in_progress"
+  | "qa"
+  | "acceptance"
+  | "accepted"
+  | "archived";
+
+/** Ordered tuple used by Zod schemas (z.enum needs a const tuple). */
+export const TASK_STATUSES = [
+  "draft",
+  "in_progress",
+  "qa",
+  "acceptance",
+  "accepted",
+  "archived",
+] as const satisfies readonly TaskStatus[];
+
+// ── Transition table ──────────────────────────────────────────────────────────
+
+/**
+ * Maps each status to its single valid successor (null = terminal).
+ *
+ * The flow is intentionally forward-only.
+ * draft → in_progress (ASSIGN)
+ * in_progress → qa (SUBMIT_QA)
+ * qa → acceptance (PASS_QA)
+ * acceptance → accepted (APPROVE_ACCEPTANCE)
+ * accepted → archived (ARCHIVE)
+ */
+const TASK_NEXT: Readonly<Record<TaskStatus, TaskStatus | null>> = {
+  draft: "in_progress",
+  in_progress: "qa",
+  qa: "acceptance",
+  acceptance: "accepted",
+  accepted: "archived",
+  archived: null,
+};
+
+/** Returns true if moving from `from` to `to` is a valid forward transition. */
+export function canTransitionTaskStatus(from: TaskStatus, to: TaskStatus): boolean {
+  return TASK_NEXT[from] === to;
+}
+
+/** Returns the next status in the main flow, or null if already terminal. */
+export function nextTaskStatus(current: TaskStatus): TaskStatus | null {
+  return TASK_NEXT[current];
+}
+
+/** Returns true when the task has reached a terminal state and cannot progress. */
+export function isTerminalTaskStatus(status: TaskStatus): boolean {
+  return TASK_NEXT[status] === null;
+}
+````
+
+## File: modules/workspace-flow/domain/value-objects/UserId.ts
+````typescript
+/**
+ * @module workspace-flow/domain/value-objects
+ * @file UserId.ts
+ * @description Branded string value object for User identifiers.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Consider using a stronger opaque type if ID generation logic is added
+ */
+
+declare const UserIdBrand: unique symbol;
+
+/** Branded string that prevents mixing User IDs with other string IDs. */
+export type UserId = string & { readonly [UserIdBrand]: void };
+
+/** Creates a UserId from a plain string (e.g. a Firebase Auth UID). */
+export function userId(raw: string): UserId {
+  return raw as UserId;
+}
+````
+
+## File: modules/workspace-flow/index.ts
+````typescript
+/**
+ * @module workspace-flow
+ * @file index.ts
+ * @description Local module barrel for workspace-flow.
+ *
+ * This file is for same-module convenience only.
+ * Cross-module consumers MUST import from @/modules/workspace-flow/api instead.
+ *
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+// ── Domain: entities ──────────────────────────────────────────────────────────
+export type { Task, CreateTaskInput, UpdateTaskInput } from "./domain/entities/Task";
+export type { Issue, OpenIssueInput, UpdateIssueInput } from "./domain/entities/Issue";
+export type { Invoice, CreateInvoiceInput } from "./domain/entities/Invoice";
+export type { InvoiceItem, AddInvoiceItemInput } from "./domain/entities/InvoiceItem";
+
+// ── Domain: value objects (enum lists only — no XState helpers) ───────────────
+export type { TaskStatus } from "./domain/value-objects/TaskStatus";
+export { TASK_STATUSES } from "./domain/value-objects/TaskStatus";
+
+export type { IssueStatus } from "./domain/value-objects/IssueStatus";
+export { ISSUE_STATUSES } from "./domain/value-objects/IssueStatus";
+
+export type { IssueStage } from "./domain/value-objects/IssueStage";
+export { ISSUE_STAGES } from "./domain/value-objects/IssueStage";
+
+export type { InvoiceStatus } from "./domain/value-objects/InvoiceStatus";
+export { INVOICE_STATUSES } from "./domain/value-objects/InvoiceStatus";
+
+// ── Domain: repository interfaces ─────────────────────────────────────────────
+export type { TaskRepository } from "./domain/repositories/TaskRepository";
+export type { IssueRepository } from "./domain/repositories/IssueRepository";
+export type { InvoiceRepository } from "./domain/repositories/InvoiceRepository";
+
+// ── Domain: events ────────────────────────────────────────────────────────────
+export type { TaskEvent } from "./domain/events/TaskEvent";
+export type { IssueEvent } from "./domain/events/IssueEvent";
+export type { InvoiceEvent } from "./domain/events/InvoiceEvent";
+
+// ── Application: DTOs ─────────────────────────────────────────────────────────
+export type { CreateTaskDto } from "./application/dto/create-task.dto";
+export type { UpdateTaskDto } from "./application/dto/update-task.dto";
+export type { OpenIssueDto } from "./application/dto/open-issue.dto";
+export type { ResolveIssueDto } from "./application/dto/resolve-issue.dto";
+export type { AddInvoiceItemDto } from "./application/dto/add-invoice-item.dto";
+export type { UpdateInvoiceItemDto } from "./application/dto/update-invoice-item.dto";
+export type { RemoveInvoiceItemDto } from "./application/dto/remove-invoice-item.dto";
+export type { TaskQueryDto } from "./application/dto/task-query.dto";
+export type { IssueQueryDto } from "./application/dto/issue-query.dto";
+export type { InvoiceQueryDto } from "./application/dto/invoice-query.dto";
+export type { PaginationDto, PagedResult } from "./application/dto/pagination.dto";
+
+// ── API: Facade ───────────────────────────────────────────────────────────────
+export { WorkspaceFlowFacade } from "./api/workspace-flow.facade";
+
+// ── Infrastructure: repositories ──────────────────────────────────────────────
+export { FirebaseTaskRepository } from "./infrastructure/repositories/FirebaseTaskRepository";
+export { FirebaseIssueRepository } from "./infrastructure/repositories/FirebaseIssueRepository";
+export { FirebaseInvoiceRepository } from "./infrastructure/repositories/FirebaseInvoiceRepository";
+export { FirebaseInvoiceItemRepository } from "./infrastructure/repositories/FirebaseInvoiceItemRepository";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export {
+  wfCreateTask,
+  wfUpdateTask,
+  wfAssignTask,
+  wfSubmitTaskToQa,
+  wfPassTaskQa,
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfOpenIssue,
+  wfResolveIssue,
+  wfStartIssue,
+  wfFixIssue,
+  wfSubmitIssueRetest,
+  wfPassIssueRetest,
+  wfFailIssueRetest,
+  wfCloseIssue,
+  wfCreateInvoice,
+  wfAddInvoiceItem,
+  wfUpdateInvoiceItem,
+  wfRemoveInvoiceItem,
+  wfSubmitInvoice,
+  wfReviewInvoice,
+  wfApproveInvoice,
+  wfRejectInvoice,
+  wfPayInvoice,
+  wfCloseInvoice,
+} from "./interfaces/_actions/workspace-flow.actions";
+
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "./interfaces/queries/workspace-flow.queries";
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/invoice-item.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file invoice-item.converter.ts
+ * @description Firestore document-to-entity converter for InvoiceItem.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+
+/**
+ * Converts a raw Firestore document data map into a typed InvoiceItem entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toInvoiceItem(id: string, data: Record<string, unknown>): InvoiceItem {
+  return {
+    id,
+    invoiceId: typeof data.invoiceId === "string" ? data.invoiceId : "",
+    taskId: typeof data.taskId === "string" ? data.taskId : "",
+    amount: typeof data.amount === "number" ? data.amount : 0,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/invoice.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file invoice.converter.ts
+ * @description Firestore document-to-entity converter for Invoice.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toSourceReference } from "./sourceReference.converter";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+/**
+ * Converts a raw Firestore document data map into a typed Invoice entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toInvoice(id: string, data: Record<string, unknown>): Invoice {
+  const rawStatus = data.status as InvoiceStatus;
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    totalAmount: typeof data.totalAmount === "number" ? data.totalAmount : 0,
+    submittedAtISO: typeof data.submittedAtISO === "string" ? data.submittedAtISO : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    paidAtISO: typeof data.paidAtISO === "string" ? data.paidAtISO : undefined,
+    closedAtISO: typeof data.closedAtISO === "string" ? data.closedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/issue.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file issue.converter.ts
+ * @description Firestore document-to-entity converter for Issue.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Issue } from "../../domain/entities/Issue";
+import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
+import { ISSUE_STAGES, type IssueStage } from "../../domain/value-objects/IssueStage";
+
+const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
+const VALID_STAGES = new Set<IssueStage>(ISSUE_STAGES);
+const DEFAULT_STATUS: IssueStatus = "open";
+const DEFAULT_STAGE: IssueStage = "task";
+
+/**
+ * Converts a raw Firestore document data map into a typed Issue entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toIssue(id: string, data: Record<string, unknown>): Issue {
+  const rawStatus = data.status as IssueStatus;
+  const rawStage = data.stage as IssueStage;
+  return {
+    id,
+    taskId: typeof data.taskId === "string" ? data.taskId : "",
+    stage: VALID_STAGES.has(rawStage) ? rawStage : DEFAULT_STAGE,
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    createdBy: typeof data.createdBy === "string" ? data.createdBy : "",
+    assignedTo: typeof data.assignedTo === "string" ? data.assignedTo : undefined,
+    resolvedAtISO: typeof data.resolvedAtISO === "string" ? data.resolvedAtISO : undefined,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/task.converter.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file task.converter.ts
+ * @description Firestore document-to-entity converter for Task.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Harden unknown field handling with stricter runtime validation
+ */
+
+import type { Task } from "../../domain/entities/Task";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toSourceReference } from "./sourceReference.converter";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+/**
+ * Converts a raw Firestore document data map into a typed Task entity.
+ *
+ * @param id   - Firestore document ID
+ * @param data - Raw document fields from Firestore
+ */
+export function toTask(id: string, data: Record<string, unknown>): Task {
+  const rawStatus = data.status as TaskStatus;
+  return {
+    id,
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    title: typeof data.title === "string" ? data.title : "",
+    description: typeof data.description === "string" ? data.description : "",
+    status: VALID_STATUSES.has(rawStatus) ? rawStatus : DEFAULT_STATUS,
+    assigneeId: typeof data.assigneeId === "string" ? data.assigneeId : undefined,
+    dueDateISO: typeof data.dueDateISO === "string" ? data.dueDateISO : undefined,
+    acceptedAtISO: typeof data.acceptedAtISO === "string" ? data.acceptedAtISO : undefined,
+    archivedAtISO: typeof data.archivedAtISO === "string" ? data.archivedAtISO : undefined,
+    sourceReference: toSourceReference(data.sourceReference),
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+````
+
+## File: modules/workspace-flow/infrastructure/firebase/workspace-flow.collections.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/firebase
+ * @file workspace-flow.collections.ts
+ * @description Firestore collection path constants for the workspace-flow module.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Update collection names to match production Firestore schema
+ */
+
+/** Top-level Firestore collection for workspace-flow tasks. */
+export const WF_TASKS_COLLECTION = "workspaceFlowTasks" as const;
+
+/** Top-level Firestore collection for workspace-flow issues. */
+export const WF_ISSUES_COLLECTION = "workspaceFlowIssues" as const;
+
+/** Top-level Firestore collection for workspace-flow invoices. */
+export const WF_INVOICES_COLLECTION = "workspaceFlowInvoices" as const;
+
+/** Top-level Firestore collection for workspace-flow invoice items. */
+export const WF_INVOICE_ITEMS_COLLECTION = "workspaceFlowInvoiceItems" as const;
+````
+
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceItemRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceItemRepository.ts
+ * @description Firebase Firestore repository for InvoiceItem CRUD operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support
+ */
+
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import { WF_INVOICE_ITEMS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+export class FirebaseInvoiceItemRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get collectionRef() {
+    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
+  }
+
+  async findById(itemId: string): Promise<InvoiceItem | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
+    if (!snap.exists()) return null;
+    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByInvoiceId(invoiceId: string): Promise<InvoiceItem[]> {
+    const snaps = await getDocs(
+      query(this.collectionRef, where("invoiceId", "==", invoiceId)),
+    );
+    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async delete(itemId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, itemId));
+  }
+}
+````
+
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseInvoiceRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseInvoiceRepository.ts
+ * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  increment,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Invoice, CreateInvoiceInput } from "../../domain/entities/Invoice";
+import type { InvoiceItem, AddInvoiceItemInput } from "../../domain/entities/InvoiceItem";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { INVOICE_STATUSES, type InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import { toInvoice } from "../firebase/invoice.converter";
+import { toInvoiceItem } from "../firebase/invoice-item.converter";
+import {
+  WF_INVOICES_COLLECTION,
+  WF_INVOICE_ITEMS_COLLECTION,
+} from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<InvoiceStatus>(INVOICE_STATUSES);
+const DEFAULT_STATUS: InvoiceStatus = "draft";
+
+export class FirebaseInvoiceRepository implements InvoiceRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get invoiceCollectionRef() {
+    return collection(this.db, WF_INVOICES_COLLECTION);
+  }
+
+  private get itemCollectionRef() {
+    return collection(this.db, WF_INVOICE_ITEMS_COLLECTION);
+  }
+
+  async create(input: CreateInvoiceInput): Promise<Invoice> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      submittedAtISO: null,
+      approvedAtISO: null,
+      paidAtISO: null,
+      closedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.invoiceCollectionRef, docData);
+
+    return {
+      id: docRef.id,
+      workspaceId: input.workspaceId,
+      status: DEFAULT_STATUS,
+      totalAmount: 0,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async delete(invoiceId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+  }
+
+  async findById(invoiceId: string): Promise<Invoice | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId));
+    if (!snap.exists()) return null;
+    return toInvoice(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Invoice[]> {
+    const snaps = await getDocs(
+      query(
+        this.invoiceCollectionRef,
+        where("workspaceId", "==", workspaceId),
+      ),
+    );
+    const invoices = snaps.docs.map((d) => toInvoice(d.id, d.data() as Record<string, unknown>));
+    return invoices.sort((a, b) => b.createdAtISO.localeCompare(a.createdAtISO));
+  }
+
+  async transitionStatus(
+    invoiceId: string,
+    to: InvoiceStatus,
+    nowISO: string,
+  ): Promise<Invoice | null> {
+    const invoiceRef = doc(this.db, WF_INVOICES_COLLECTION, invoiceId);
+    const snap = await getDoc(invoiceRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "submitted") patch.submittedAtISO = nowISO;
+    if (validTo === "approved") patch.approvedAtISO = nowISO;
+    if (validTo === "paid") patch.paidAtISO = nowISO;
+    if (validTo === "closed") patch.closedAtISO = nowISO;
+
+    await updateDoc(invoiceRef, patch);
+    const updated = await getDoc(invoiceRef);
+    if (!updated.exists()) return null;
+    return toInvoice(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async addItem(input: AddInvoiceItemInput): Promise<InvoiceItem> {
+    const nowISO = new Date().toISOString();
+    const docRef = await addDoc(this.itemCollectionRef, {
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    // Update invoice totalAmount
+    await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, input.invoiceId), {
+      totalAmount: increment(input.amount),
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      id: docRef.id,
+      invoiceId: input.invoiceId,
+      taskId: input.taskId,
+      amount: input.amount,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async findItemById(invoiceItemId: string): Promise<InvoiceItem | null> {
+    const snap = await getDoc(doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId));
+    if (!snap.exists()) return null;
+    return toInvoiceItem(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async updateItem(invoiceItemId: string, amount: number): Promise<InvoiceItem | null> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    const oldAmount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+    const nowISO = new Date().toISOString();
+
+    await updateDoc(itemRef, { amount, updatedAtISO: nowISO, updatedAt: serverTimestamp() });
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(amount - oldAmount),
+        updatedAtISO: nowISO,
+        updatedAt: serverTimestamp(),
+      });
+    }
+
+    const updated = await getDoc(itemRef);
+    if (!updated.exists()) return null;
+    return toInvoiceItem(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async removeItem(invoiceItemId: string): Promise<void> {
+    const itemRef = doc(this.db, WF_INVOICE_ITEMS_COLLECTION, invoiceItemId);
+    const snap = await getDoc(itemRef);
+    if (!snap.exists()) return;
+
+    const data = snap.data() as Record<string, unknown>;
+    const amount = typeof data.amount === "number" ? data.amount : 0;
+    const invoiceId = typeof data.invoiceId === "string" ? data.invoiceId : "";
+
+    await deleteDoc(itemRef);
+
+    if (invoiceId) {
+      await updateDoc(doc(this.db, WF_INVOICES_COLLECTION, invoiceId), {
+        totalAmount: increment(-amount),
+        updatedAtISO: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      });
+    }
+  }
+
+  async listItems(invoiceId: string): Promise<InvoiceItem[]> {
+    const snaps = await getDocs(
+      query(this.itemCollectionRef, where("invoiceId", "==", invoiceId)),
+    );
+    return snaps.docs.map((d) => toInvoiceItem(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseIssueRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseIssueRepository.ts
+ * @description Firebase Firestore implementation of IssueRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Issue, OpenIssueInput, UpdateIssueInput } from "../../domain/entities/Issue";
+import type { IssueRepository } from "../../domain/repositories/IssueRepository";
+import { ISSUE_STATUSES, type IssueStatus } from "../../domain/value-objects/IssueStatus";
+import { toIssue } from "../firebase/issue.converter";
+import { WF_ISSUES_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<IssueStatus>(ISSUE_STATUSES);
+const DEFAULT_STATUS: IssueStatus = "open";
+const OPEN_STATUSES: IssueStatus[] = ["open", "investigating", "fixing", "retest"];
+
+export class FirebaseIssueRepository implements IssueRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get collectionRef() {
+    return collection(this.db, WF_ISSUES_COLLECTION);
+  }
+
+  async create(input: OpenIssueInput): Promise<Issue> {
+    const nowISO = new Date().toISOString();
+    const docRef = await addDoc(this.collectionRef, {
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo ?? null,
+      resolvedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    return {
+      id: docRef.id,
+      taskId: input.taskId,
+      stage: input.stage,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      createdBy: input.createdBy,
+      assignedTo: input.assignedTo,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(issueId: string, input: UpdateIssueInput): Promise<Issue | null> {
+    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
+    const snap = await getDoc(issueRef);
+    if (!snap.exists()) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assignedTo === "string") patch.assignedTo = input.assignedTo;
+
+    await updateDoc(issueRef, patch);
+    const updated = await getDoc(issueRef);
+    if (!updated.exists()) return null;
+    return toIssue(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async delete(issueId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
+  }
+
+  async findById(issueId: string): Promise<Issue | null> {
+    const snap = await getDoc(doc(this.db, WF_ISSUES_COLLECTION, issueId));
+    if (!snap.exists()) return null;
+    return toIssue(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByTaskId(taskId: string): Promise<Issue[]> {
+    const snaps = await getDocs(
+      query(
+        this.collectionRef,
+        where("taskId", "==", taskId),
+        orderBy("createdAtISO", "desc"),
+      ),
+    );
+    return snaps.docs.map((d) => toIssue(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async countOpenByTaskId(taskId: string): Promise<number> {
+    const snaps = await getDocs(
+      query(
+        this.collectionRef,
+        where("taskId", "==", taskId),
+        where("status", "in", OPEN_STATUSES),
+      ),
+    );
+    return snaps.size;
+  }
+
+  async transitionStatus(issueId: string, to: IssueStatus, nowISO: string): Promise<Issue | null> {
+    const issueRef = doc(this.db, WF_ISSUES_COLLECTION, issueId);
+    const snap = await getDoc(issueRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "resolved") patch.resolvedAtISO = nowISO;
+
+    await updateDoc(issueRef, patch);
+    const updated = await getDoc(issueRef);
+    if (!updated.exists()) return null;
+    return toIssue(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/workspace-flow/infrastructure/repositories/FirebaseTaskRepository.ts
+````typescript
+/**
+ * @module workspace-flow/infrastructure/repositories
+ * @file FirebaseTaskRepository.ts
+ * @description Firebase Firestore implementation of TaskRepository for workspace-flow.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add query pagination support and composite indexes
+ */
+
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Task, CreateTaskInput, UpdateTaskInput } from "../../domain/entities/Task";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import { TASK_STATUSES, type TaskStatus } from "../../domain/value-objects/TaskStatus";
+import { toTask } from "../firebase/task.converter";
+import { WF_TASKS_COLLECTION } from "../firebase/workspace-flow.collections";
+
+const VALID_STATUSES = new Set<TaskStatus>(TASK_STATUSES);
+const DEFAULT_STATUS: TaskStatus = "draft";
+
+export class FirebaseTaskRepository implements TaskRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private get collectionRef() {
+    return collection(this.db, WF_TASKS_COLLECTION);
+  }
+
+  async create(input: CreateTaskInput): Promise<Task> {
+    const nowISO = new Date().toISOString();
+    const docData: Record<string, unknown> = {
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId ?? null,
+      dueDateISO: input.dueDateISO ?? null,
+      acceptedAtISO: null,
+      archivedAtISO: null,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.sourceReference) {
+      docData.sourceReference = { ...input.sourceReference };
+    }
+
+    const docRef = await addDoc(this.collectionRef, docData);
+
+    return {
+      id: docRef.id,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      description: input.description ?? "",
+      status: DEFAULT_STATUS,
+      assigneeId: input.assigneeId,
+      dueDateISO: input.dueDateISO,
+      sourceReference: input.sourceReference,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+    };
+  }
+
+  async update(taskId: string, input: UpdateTaskInput): Promise<Task | null> {
+    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) return null;
+
+    const patch: Record<string, unknown> = {
+      updatedAtISO: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+    if (typeof input.title === "string") patch.title = input.title;
+    if (typeof input.description === "string") patch.description = input.description;
+    if (typeof input.assigneeId === "string") patch.assigneeId = input.assigneeId;
+    if (typeof input.dueDateISO === "string") patch.dueDateISO = input.dueDateISO;
+
+    await updateDoc(taskRef, patch);
+    const updated = await getDoc(taskRef);
+    if (!updated.exists()) return null;
+    return toTask(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async delete(taskId: string): Promise<void> {
+    await deleteDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+  }
+
+  async findById(taskId: string): Promise<Task | null> {
+    const snap = await getDoc(doc(this.db, WF_TASKS_COLLECTION, taskId));
+    if (!snap.exists()) return null;
+    return toTask(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByWorkspaceId(workspaceId: string): Promise<Task[]> {
+    const snaps = await getDocs(
+      query(
+        this.collectionRef,
+        where("workspaceId", "==", workspaceId),
+      ),
+    );
+    const tasks = snaps.docs.map((d) => toTask(d.id, d.data() as Record<string, unknown>));
+    return tasks.sort((a, b) => b.updatedAtISO.localeCompare(a.updatedAtISO));
+  }
+
+  async transitionStatus(taskId: string, to: TaskStatus, nowISO: string): Promise<Task | null> {
+    const taskRef = doc(this.db, WF_TASKS_COLLECTION, taskId);
+    const snap = await getDoc(taskRef);
+    if (!snap.exists()) return null;
+
+    const validTo = VALID_STATUSES.has(to) ? to : DEFAULT_STATUS;
+    const patch: Record<string, unknown> = {
+      status: validTo,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    };
+    if (validTo === "accepted") patch.acceptedAtISO = nowISO;
+    if (validTo === "archived") patch.archivedAtISO = nowISO;
+
+    await updateDoc(taskRef, patch);
+    const updated = await getDoc(taskRef);
+    if (!updated.exists()) return null;
+    return toTask(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow.actions.ts
+ * @description Server Actions for workspace-flow write operations.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { CreateTaskDto } from "../../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
+import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
+import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
+import { CreateTaskUseCase } from "../../application/use-cases/create-task.use-case";
+import { UpdateTaskUseCase } from "../../application/use-cases/update-task.use-case";
+import { AssignTaskUseCase } from "../../application/use-cases/assign-task.use-case";
+import { SubmitTaskToQaUseCase } from "../../application/use-cases/submit-task-to-qa.use-case";
+import { PassTaskQaUseCase } from "../../application/use-cases/pass-task-qa.use-case";
+import { ApproveTaskAcceptanceUseCase } from "../../application/use-cases/approve-task-acceptance.use-case";
+import { ArchiveTaskUseCase } from "../../application/use-cases/archive-task.use-case";
+import { OpenIssueUseCase } from "../../application/use-cases/open-issue.use-case";
+import { StartIssueUseCase } from "../../application/use-cases/start-issue.use-case";
+import { FixIssueUseCase } from "../../application/use-cases/fix-issue.use-case";
+import { SubmitIssueRetestUseCase } from "../../application/use-cases/submit-issue-retest.use-case";
+import { PassIssueRetestUseCase } from "../../application/use-cases/pass-issue-retest.use-case";
+import { FailIssueRetestUseCase } from "../../application/use-cases/fail-issue-retest.use-case";
+import { ResolveIssueUseCase } from "../../application/use-cases/resolve-issue.use-case";
+import { CloseIssueUseCase } from "../../application/use-cases/close-issue.use-case";
+import { CreateInvoiceUseCase } from "../../application/use-cases/create-invoice.use-case";
+import { AddInvoiceItemUseCase } from "../../application/use-cases/add-invoice-item.use-case";
+import { UpdateInvoiceItemUseCase } from "../../application/use-cases/update-invoice-item.use-case";
+import { RemoveInvoiceItemUseCase } from "../../application/use-cases/remove-invoice-item.use-case";
+import { SubmitInvoiceUseCase } from "../../application/use-cases/submit-invoice.use-case";
+import { ReviewInvoiceUseCase } from "../../application/use-cases/review-invoice.use-case";
+import { ApproveInvoiceUseCase } from "../../application/use-cases/approve-invoice.use-case";
+import { RejectInvoiceUseCase } from "../../application/use-cases/reject-invoice.use-case";
+import { PayInvoiceUseCase } from "../../application/use-cases/pay-invoice.use-case";
+import { CloseInvoiceUseCase } from "../../application/use-cases/close-invoice.use-case";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+
+// ── Repository factories ──────────────────────────────────────────────────────
+
+function makeTaskRepo() { return new FirebaseTaskRepository(); }
+function makeIssueRepo() { return new FirebaseIssueRepository(); }
+function makeInvoiceRepo() { return new FirebaseInvoiceRepository(); }
+
+// ── Task actions ──────────────────────────────────────────────────────────────
+
+export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
+  try {
+    return await new CreateTaskUseCase(makeTaskRepo()).execute(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+  try {
+    return await new UpdateTaskUseCase(makeTaskRepo()).execute(taskId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+  try {
+    return await new AssignTaskUseCase(makeTaskRepo()).execute(taskId, assigneeId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await new SubmitTaskToQaUseCase(makeTaskRepo()).execute(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await new PassTaskQaUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
+  try {
+    return await new ApproveTaskAcceptanceUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+  try {
+    return await new ArchiveTaskUseCase(makeTaskRepo()).execute(taskId, invoiceStatus);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// ── Issue actions ─────────────────────────────────────────────────────────────
+
+export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
+  try {
+    return await new OpenIssueUseCase(makeIssueRepo()).execute(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfStartIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await new StartIssueUseCase(makeIssueRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFixIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await new FixIssueUseCase(makeIssueRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await new SubmitIssueRetestUseCase(makeIssueRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await new PassIssueRetestUseCase(makeIssueRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await new FailIssueRetestUseCase(makeIssueRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+  try {
+    return await new ResolveIssueUseCase(makeIssueRepo()).execute(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await new CloseIssueUseCase(makeIssueRepo()).execute(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+// ── Invoice actions ───────────────────────────────────────────────────────────
+
+export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
+  try {
+    return await new CreateInvoiceUseCase(makeInvoiceRepo()).execute(workspaceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await new AddInvoiceItemUseCase(makeInvoiceRepo()).execute(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await new UpdateInvoiceItemUseCase(makeInvoiceRepo()).execute(invoiceItemId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await new RemoveInvoiceItemUseCase(makeInvoiceRepo()).execute(dto.invoiceId, dto.invoiceItemId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await new SubmitInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await new ReviewInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await new ApproveInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await new RejectInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await new PayInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await new CloseInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+"use client";
+
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { Issue } from "../../domain/entities/Issue";
+import type { Task } from "../../domain/entities/Task";
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import {
+  wfApproveInvoice,
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfAssignTask,
+  wfCloseInvoice,
+  wfCloseIssue,
+  wfCreateInvoice,
+  wfCreateTask,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfOpenIssue,
+  wfPassIssueRetest,
+  wfPassTaskQa,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfStartIssue,
+  wfSubmitInvoice,
+  wfSubmitIssueRetest,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import {
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+
+// ── Status display maps ────────────────────────────────────────────────────────
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
+  }
+}
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type FlowSection = "tasks" | "invoices";
+
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+}
+
+// ── Create Task Dialog ─────────────────────────────────────────────────────────
+
+interface CreateTaskDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  workspaceId: string;
+}
+
+function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDateISO, setDueDateISO] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setAssigneeId("");
+    setDueDateISO("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入任務標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfCreateTask({
+        workspaceId,
+        title: t,
+        description: description.trim() || undefined,
+        assigneeId: assigneeId.trim() || undefined,
+        dueDateISO: dueDateISO || undefined,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立任務</DialogTitle>
+          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">標題 *</Label>
+            <Input
+              id="task-title"
+              placeholder="任務名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-description">描述（選填）</Label>
+            <Textarea
+              id="task-description"
+              placeholder="任務詳情或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
+              <Input
+                id="task-assignee"
+                placeholder="用戶 ID"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">截止日期（選填）</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDateISO}
+                onChange={(e) => setDueDateISO(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Assign Task Dialog ─────────────────────────────────────────────────────────
+
+interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Open Issue Dialog ──────────────────────────────────────────────────────────
+
+interface OpenIssueDialogProps {
+  open: boolean;
+  taskId: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setStage("task");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入議題標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfOpenIssue({
+        taskId,
+        stage,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: currentUserId,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>開啟議題</DialogTitle>
+          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-title">標題 *</Label>
+            <Input
+              id="issue-title"
+              placeholder="問題簡述"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-description">描述（選填）</Label>
+            <Textarea
+              id="issue-description"
+              placeholder="問題詳情、重現步驟…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>發生階段</Label>
+            <div className="flex gap-2">
+              {(["task", "qa", "acceptance"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={stage === s ? "default" : "outline"}
+                  onClick={() => setStage(s)}
+                  disabled={submitting}
+                >
+                  {ISSUE_STAGE_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Issue Row ──────────────────────────────────────────────────────────────────
+
+interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+
+// ── Task Row ───────────────────────────────────────────────────────────────────
+
+interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+
+function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoaded, setIssuesLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIssues = useCallback(async () => {
+    try {
+      const data = await getWorkspaceFlowIssues(task.id);
+      setIssues(data);
+      setIssuesLoaded(true);
+    } catch {
+      // non-fatal
+    }
+  }, [task.id]);
+
+  async function toggleIssues() {
+    if (!issuesExpanded && !issuesLoaded) {
+      await loadIssues();
+    }
+    setIssuesExpanded((v) => !v);
+  }
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderTaskAction() {
+    switch (task.status) {
+      case "draft":
+        return (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
+            指派任務
+          </Button>
+        );
+      case "in_progress":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
+      case "qa":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
+      case "acceptance":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
+      case "accepted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
+      {/* ── Task header ─────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+          {task.assigneeId && (
+            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+          {task.dueDateISO && (
+            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Action row ──────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {renderTaskAction()}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={() => setIssueDialogOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          開議題
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground ml-auto"
+          onClick={toggleIssues}
+        >
+          {issuesExpanded ? (
+            <ChevronDown className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+          )}
+          議題{issuesLoaded ? ` (${issues.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Issues sub-list ─────────────────── */}
+      {issuesExpanded && (
+        <div className="space-y-2 pl-1">
+          {issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
+          ) : (
+            issues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onTransitioned={loadIssues}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Dialogs ─────────────────────────── */}
+      <AssignTaskDialog
+        open={assignDialogOpen}
+        taskId={task.id}
+        onClose={() => setAssignDialogOpen(false)}
+        onDone={onTransitioned}
+      />
+      <OpenIssueDialog
+        open={issueDialogOpen}
+        taskId={task.id}
+        currentUserId={currentUserId}
+        onClose={() => setIssueDialogOpen(false)}
+        onCreated={async () => {
+          await loadIssues();
+          if (!issuesExpanded) setIssuesExpanded(true);
+        }}
+      />
+    </div>
+  );
+}
+
+// ── Invoice Row ────────────────────────────────────────────────────────────────
+
+interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>("tasks");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
+      )}
+
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>發票</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/contracts
+ * @file workspace-flow.contract.ts
+ * @description Module-local interface contracts for workspace-flow UI adapters.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Expand with view-model contracts as UI adapters are added
+ */
+
+import type { Task } from "../../domain/entities/Task";
+import type { Issue } from "../../domain/entities/Issue";
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+
+// ── Summary read models (lean projections for UI) ─────────────────────────────
+
+export interface TaskSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly status: Task["status"];
+  readonly assigneeId?: string;
+}
+
+export interface IssueSummary {
+  readonly id: string;
+  readonly taskId: string;
+  readonly title: string;
+  readonly status: Issue["status"];
+  readonly stage: Issue["stage"];
+}
+
+export interface InvoiceSummary {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: Invoice["status"];
+  readonly totalAmount: number;
+}
+
+export interface InvoiceItemSummary {
+  readonly id: string;
+  readonly invoiceId: string;
+  readonly taskId: string;
+  readonly amount: InvoiceItem["amount"];
+}
+
+// ── Projection helpers ────────────────────────────────────────────────────────
+
+export function toTaskSummary(task: Task): TaskSummary {
+  return {
+    id: task.id,
+    workspaceId: task.workspaceId,
+    title: task.title,
+    status: task.status,
+    assigneeId: task.assigneeId,
+  };
+}
+
+export function toIssueSummary(issue: Issue): IssueSummary {
+  return {
+    id: issue.id,
+    taskId: issue.taskId,
+    title: issue.title,
+    status: issue.status,
+    stage: issue.stage,
+  };
+}
+
+export function toInvoiceSummary(invoice: Invoice): InvoiceSummary {
+  return {
+    id: invoice.id,
+    workspaceId: invoice.workspaceId,
+    status: invoice.status,
+    totalAmount: invoice.totalAmount,
+  };
+}
+
+export function toInvoiceItemSummary(item: InvoiceItem): InvoiceItemSummary {
+  return {
+    id: item.id,
+    invoiceId: item.invoiceId,
+    taskId: item.taskId,
+    amount: item.amount,
+  };
+}
+````
+
+## File: modules/workspace-flow/interfaces/queries/workspace-flow.queries.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/queries
+ * @file workspace-flow.queries.ts
+ * @description Server-side read queries for workspace-flow entities.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add pagination support and caching layer
+ */
+
+import type { Task } from "../../domain/entities/Task";
+import type { Issue } from "../../domain/entities/Issue";
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceItem } from "../../domain/entities/InvoiceItem";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+
+function makeTaskRepo() {
+  return new FirebaseTaskRepository();
+}
+
+function makeIssueRepo() {
+  return new FirebaseIssueRepository();
+}
+
+function makeInvoiceRepo() {
+  return new FirebaseInvoiceRepository();
+}
+
+/**
+ * List all tasks for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowTasks(workspaceId: string): Promise<Task[]> {
+  return makeTaskRepo().findByWorkspaceId(workspaceId);
+}
+
+/**
+ * Get a single task by id.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowTask(taskId: string): Promise<Task | null> {
+  return makeTaskRepo().findById(taskId);
+}
+
+/**
+ * List all issues for a task.
+ *
+ * @param taskId - The task identifier
+ */
+export async function getWorkspaceFlowIssues(taskId: string): Promise<Issue[]> {
+  return makeIssueRepo().findByTaskId(taskId);
+}
+
+/**
+ * List all invoices for a workspace.
+ *
+ * @param workspaceId - The workspace to query
+ */
+export async function getWorkspaceFlowInvoices(workspaceId: string): Promise<Invoice[]> {
+  return makeInvoiceRepo().findByWorkspaceId(workspaceId);
+}
+
+/**
+ * Get items for an invoice.
+ *
+ * @param invoiceId - The invoice identifier
+ */
+export async function getWorkspaceFlowInvoiceItems(invoiceId: string): Promise<InvoiceItem[]> {
+  return makeInvoiceRepo().listItems(invoiceId);
+}
+````
+
+## File: modules/workspace-scheduling/interfaces/components/CreateDemandForm.tsx
+````typescript
+"use client";
+
+/**
+ * Module: workspace-scheduling
+ * Layer: interfaces/components
+ * Purpose: Quick-capture form for creating a new WorkDemand.
+ *
+ * Inspired by Postiz's "Schedule Post" dialog — focused, minimal,
+ * opens when the user clicks a calendar day or "New Demand" button.
+ */
+
+import { useState } from "react";
+
+import { format } from "@lib-date-fns";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { DEMAND_PRIORITY_LABELS } from "../../domain/types";
+import type { DemandPriority } from "../../domain/types";
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+export interface CreateDemandFormValues {
+  title: string;
+  description: string;
+  priority: DemandPriority;
+  scheduledAt: string; // "YYYY-MM-DD"
+}
+
+interface CreateDemandFormProps {
+  open: boolean;
+  /** Pre-fill the scheduled date (e.g. from a calendar day click). */
+  initialDate?: Date;
+  onClose: () => void;
+  onSubmit: (values: CreateDemandFormValues) => Promise<void>;
+}
+
+// ── Form ──────────────────────────────────────────────────────────────────────
+
+export function CreateDemandForm({
+  open,
+  initialDate,
+  onClose,
+  onSubmit,
+}: CreateDemandFormProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [priority, setPriority] = useState<DemandPriority>("medium");
+  const [scheduledAt, setScheduledAt] = useState(
+    initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Re-sync date when the prop changes (e.g. user clicks a different day)
+  const handleOpen = (isOpen: boolean) => {
+    if (isOpen && initialDate) {
+      setScheduledAt(format(initialDate, "yyyy-MM-dd"));
+    }
+    if (!isOpen) handleClose();
+  };
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setPriority("medium");
+    setScheduledAt(initialDate ? format(initialDate, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"));
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) {
+      setError("請輸入需求標題。");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ title: t, description: description.trim(), priority, scheduledAt });
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "提交失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpen}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立工作需求</DialogTitle>
+          <DialogDescription>
+            填寫需求詳情後送出，Account 管理員將收到通知並指派成員。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Title */}
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-title">標題 *</Label>
+            <Input
+              id="demand-title"
+              placeholder="需要完成什麼工作？"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <Label htmlFor="demand-description">描述（選填）</Label>
+            <Textarea
+              id="demand-description"
+              placeholder="詳細說明需求背景或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+
+          {/* Priority + Date row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-priority">優先級</Label>
+              <Select
+                value={priority}
+                onValueChange={(v) => setPriority(v as DemandPriority)}
+                disabled={submitting}
+              >
+                <SelectTrigger id="demand-priority">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(["low", "medium", "high"] as const).map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {DEMAND_PRIORITY_LABELS[p]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="demand-date">排程日期 *</Label>
+              <Input
+                id="demand-date"
+                type="date"
+                value={scheduledAt}
+                onChange={(e) => setScheduledAt(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          {/* Error message */}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>
+              取消
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "提交中…" : "建立需求"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 ````
 
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
@@ -61460,16 +60421,17 @@ export async function buildWikiContentTree(
 }
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
+## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
 ````typescript
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
+import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
+import { useEffect, useState } from "react";
 
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { getKnowledgePageTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -61478,434 +60440,829 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
 
-import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
+interface WorkspaceWikiViewProps {
+  readonly workspace: WorkspaceEntity;
 }
 
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-}: WorkspaceHubScreenProps) {
-  const router = useRouter();
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
+/** Base left-padding (rem) for depth-0 tree items. */
+const TREE_INDENT_BASE_REM = 0.5;
+/** Additional left-padding (rem) per nesting level. */
+const TREE_INDENT_STEP_REM = 1.25;
 
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
+function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
+  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
+  for (const node of nodes) {
+    out.push({ node, depth });
+    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
   }
+  return out;
+}
 
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
+  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
 
-    const result = await createWorkspaceForAccount(workspaceName);
+  useEffect(() => {
+    let cancelled = false;
 
-    if (!result.success) {
-      return;
+    async function loadPages() {
+      setLoadState("loading");
+      try {
+        const result = await getKnowledgePageTree(workspace.accountId);
+        if (!cancelled) {
+          setPages(result);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) setLoadState("error");
+      }
     }
 
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
-    }
-  }
+    void loadPages();
+
+    return () => { cancelled = true; };
+  }, [workspace.accountId]);
+
+  const flatPages = flattenTree(pages);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
+    <div className="space-y-4">
+      <Card className="border-border/60 bg-card/80">
+        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <BookOpenIcon className="size-4 shrink-0 text-primary" />
+              <span className="truncate">Wiki · {workspace.name}</span>
+            </CardTitle>
+            <CardDescription className="mt-0.5">
+              此工作區的 Wiki 頁面
+            </CardDescription>
+          </div>
+          <Button asChild size="sm" className="shrink-0 gap-1.5">
+            <Link
+              href={`/knowledge/pages?workspaceId=${workspace.id}`}
+            >
+              <PlusIcon className="size-3.5" />
+              <span className="hidden sm:inline">新增頁面</span>
+              <span className="sm:hidden">新增</span>
+            </Link>
+          </Button>
+        </CardHeader>
 
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        <CardContent className="pb-4">
+          {loadState === "loading" && (
+            <div className="flex items-center justify-center py-8 text-muted-foreground">
+              <Loader2 className="size-5 animate-spin" />
+            </div>
+          )}
+
+          {loadState === "error" && (
+            <p className="py-4 text-center text-sm text-destructive">
+              無法載入頁面，請稍後再試。
+            </p>
+          )}
+
+          {loadState === "loaded" && flatPages.length === 0 && (
+            <div className="flex flex-col items-center gap-3 py-8 text-center">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
+                <BookOpenIcon className="size-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  建立第一頁來開始記錄工作區知識。
+                </p>
+              </div>
+              <Button asChild variant="outline" size="sm" className="gap-1.5">
+                <Link href={`/knowledge/pages?workspaceId=${workspace.id}`}>
+                  <PlusIcon className="size-3.5" />
+                  建立第一頁
+                </Link>
+              </Button>
+            </div>
+          )}
+
+          {loadState === "loaded" && flatPages.length > 0 && (
+            <ul className="divide-y divide-border/50">
+              {flatPages.map(({ node, depth }) => (
+                <li key={node.id}>
+                  <Link
+                    href={`/knowledge/pages?pageId=${node.id}`}
+                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
+                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
+                  >
+                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
+                      {node.title}
+                    </span>
+                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      {node.slug}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="flex flex-wrap gap-2">
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
+        </Button>
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
         </Button>
       </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Wiki</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => (
-            <Link
-              key={workspace.id}
-              href={`/workspace/${workspace.id}`}
-              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                      {workspace.name}
-                    </p>
-                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Account scope: {workspace.accountType}
-                  </p>
-                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                  <span>Capabilities: {workspace.capabilities.length}</span>
-                  <span>Teams: {workspace.teamIds.length}</span>
-                  <span>Locations: {workspace.locations?.length ?? 0}</span>
-                  <span>Grants: {workspace.grants.length}</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </CardContent>
-      </Card>
-
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) {
-            resetCreateWorkspaceDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-            <DialogDescription id="create-workspace-description">
-              建立後會直接出現在目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="workspace-name"
-              >
-                工作區名稱
-              </label>
-              <Input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => {
-                  setWorkspaceName(event.target.value);
-                  if (createError) {
-                    clearCreateError();
-                  }
-                }}
-                placeholder="例如：北區營運中心"
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {createError && (
-                <p className="text-sm text-destructive">{createError}</p>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
 ````
 
-## File: modules/workspace/interfaces/workspace-tabs.ts
+## File: packages/lib-vis/graph3d.ts
 ````typescript
-export type WorkspaceTabDevStatus = "🚧" | "🏗️" | "✅";
+/**
+ * @module libs/vis/graph3d
+ * Thin wrapper for vis-graph3d.
+ *
+ * vis-graph3d provides interactive 3D graph visualization with surfaces,
+ * lines, dots, and blocks with extensive styling options.
+ *
+ * Usage:
+ *   import { Graph3d } from "@/libs/vis/graph3d";
+ *   const graph3d = new Graph3d(container, data, options);
+ */
 
-export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" | "modules";
+import * as VisGraph3dNamespace from "vis-graph3d";
 
-export const WORKSPACE_TAB_VALUES = [
-  "Overview",
-  "Favorites",
-  "Recent",
-  "Engineering",
-  "Product",
-  "Design",
-  "Docs",
-  "SOP",
-  "Meeting Notes",
-  "Members",
-  "Projects",
-  "Notes",
-  "Documents",
-  "Assets",
-  "CRM",
-  "Roadmap",
-  "Daily",
-  "Tags",
-  "Files",
-  "Templates",
-  "Wiki",
-  "Schedule",
-  "Audit",
-  "Tasks",
-  "Feed",
-  "Trash",
-] as const;
+export { Graph3d } from "vis-graph3d";
+export * from "vis-graph3d";
 
-export type WorkspaceTabValue = (typeof WORKSPACE_TAB_VALUES)[number];
-
-interface WorkspaceTabMeta {
-  readonly label: string;
-  readonly prefId: string;
-  readonly group: WorkspaceTabGroup;
-  readonly status: WorkspaceTabDevStatus;
-}
-
-export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
-  Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Favorites: { label: "Favorites", prefId: "favorites", group: "primary", status: "🚧" },
-  Recent: { label: "Recent", prefId: "recent", group: "primary", status: "🚧" },
-  Engineering: { label: "Engineering", prefId: "engineering", group: "spaces", status: "🚧" },
-  Product: { label: "Product", prefId: "product", group: "spaces", status: "🚧" },
-  Design: { label: "Design", prefId: "design", group: "spaces", status: "🚧" },
-  Docs: { label: "Docs", prefId: "docs", group: "spaces", status: "🚧" },
-  SOP: { label: "SOP", prefId: "sop", group: "spaces", status: "🚧" },
-  "Meeting Notes": {
-    label: "Meeting Notes",
-    prefId: "meeting-notes",
-    group: "spaces",
-    status: "🚧",
-  },
-  Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
-  Projects: { label: "Projects", prefId: "projects", group: "databases", status: "🏗️" },
-  Notes: { label: "Notes", prefId: "notes", group: "databases", status: "🚧" },
-  Documents: { label: "Documents", prefId: "documents", group: "databases", status: "🚧" },
-  Assets: { label: "Assets", prefId: "assets", group: "databases", status: "🚧" },
-  CRM: { label: "CRM", prefId: "crm", group: "databases", status: "🚧" },
-  Roadmap: { label: "Roadmap", prefId: "roadmap", group: "databases", status: "🚧" },
-  Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
-  Tags: { label: "Tags", prefId: "tags", group: "library", status: "🚧" },
-  Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
-  Templates: { label: "Templates", prefId: "templates", group: "library", status: "🚧" },
-  Wiki: {
-    label: "Wiki",
-    prefId: "wiki",
-    group: "spaces",
-    status: "🏗️",
-  },
-  Schedule: { label: "Schedule", prefId: "schedule", group: "modules", status: "✅" },
-  Audit: { label: "Audit", prefId: "audit", group: "modules", status: "✅" },
-  Tasks: { label: "Tasks", prefId: "tasks", group: "modules", status: "🏗️" },
-  Feed: { label: "Feed", prefId: "feed", group: "modules", status: "🏗️" },
-  Trash: { label: "Trash", prefId: "trash", group: "library", status: "🚧" },
+const visGraph3dRuntime = VisGraph3dNamespace as unknown as {
+	Graph3dCamera?: unknown;
+	Graph3dFilter?: unknown;
+	Graph3dPoint2d?: unknown;
+	Graph3dPoint3d?: unknown;
+	Graph3dSlider?: unknown;
+	Graph3dStepNumber?: unknown;
 };
 
-export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
-  primary: ["Overview", "Recent", "Favorites"],
-  spaces: ["Docs", "Wiki", "Meeting Notes", "SOP", "Engineering", "Product", "Design"],
-  databases: ["Projects", "Roadmap", "Notes", "Documents", "Assets", "CRM"],
-  library: ["Files", "Tags", "Templates", "Members", "Trash"],
-  modules: ["Daily", "Schedule", "Audit", "Tasks", "Feed"],
+export const Graph3dCamera = visGraph3dRuntime.Graph3dCamera;
+export const Graph3dFilter = visGraph3dRuntime.Graph3dFilter;
+export const Graph3dPoint2d = visGraph3dRuntime.Graph3dPoint2d;
+export const Graph3dPoint3d = visGraph3dRuntime.Graph3dPoint3d;
+export const Graph3dSlider = visGraph3dRuntime.Graph3dSlider;
+export const Graph3dStepNumber = visGraph3dRuntime.Graph3dStepNumber;
+
+import type { Graph3d as Graph3dType } from "vis-graph3d";
+
+type Graph3dClass = typeof Graph3dType;
+export type Graph3dOptions = InstanceType<Graph3dClass> extends { setOptions(opts: infer T): void } ? T : never;
+````
+
+## File: packages/lib-vis/network.ts
+````typescript
+/**
+ * @module libs/vis/network
+ * Thin wrapper for vis-network.
+ *
+ * vis-network provides interactive visualization of network graphs with nodes,
+ * edges, physics simulation, and extensive customization options.
+ *
+ * Usage:
+ *   import { Network } from "@/libs/vis/network";
+ *   const network = new Network(container, data, options);
+ */
+
+import * as VisNetworkNamespace from "vis-network";
+
+export { Network } from "vis-network";
+export * from "vis-network";
+
+const visNetworkRuntime = VisNetworkNamespace as unknown as {
+  NetworkImages?: unknown;
+  networkDOTParser?: unknown;
+  parseDOTNetwork?: unknown;
+  parseGephiNetwork?: unknown;
+  networkGephiParser?: unknown;
+  networkOptions?: unknown;
 };
 
-const WORKSPACE_TAB_VALUE_SET = new Set<string>(WORKSPACE_TAB_VALUES);
+export const NetworkImages = visNetworkRuntime.NetworkImages;
+export const networkDOTParser = visNetworkRuntime.networkDOTParser;
+export const parseDOTNetwork = visNetworkRuntime.parseDOTNetwork;
+export const parseGephiNetwork = visNetworkRuntime.parseGephiNetwork;
+export const networkGephiParser = visNetworkRuntime.networkGephiParser;
+export const networkOptions = visNetworkRuntime.networkOptions;
 
-export function isWorkspaceTabValue(value: string): value is WorkspaceTabValue {
-  return WORKSPACE_TAB_VALUE_SET.has(value);
+import type { Network as NetworkType } from "vis-network";
+
+type NetworkClass = typeof NetworkType;
+export type NetworkOptions = InstanceType<NetworkClass> extends { setOptions(opts: infer T): void } ? T : never;
+````
+
+## File: packages/lib-vis/timeline.ts
+````typescript
+/**
+ * @module libs/vis/timeline
+ * Thin wrapper for vis-timeline.
+ *
+ * vis-timeline provides interactive, fully customizable timelines and 2D graphs
+ * with items, ranges, and comprehensive event handling.
+ *
+ * Usage:
+ *   import { Timeline } from "@/libs/vis/timeline";
+ *   const timeline = new Timeline(container, items, options);
+ */
+
+export { Timeline, Graph2d } from "vis-timeline";
+export * from "vis-timeline";
+
+import type { Timeline as TimelineType, Graph2d as Graph2dType } from "vis-timeline";
+
+type TimelineClass = typeof TimelineType;
+type Graph2dClass = typeof Graph2dType;
+
+export type TimelineOptions = InstanceType<TimelineClass> extends { setOptions(opts: infer T): void } ? T : never;
+export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opts: infer T): void } ? T : never;
+````
+
+## File: packages/ui-shadcn/ui/input-group.tsx
+````typescript
+"use client"
+
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
+
+import { cn } from "../utils"
+import { Button } from "./button"
+import { Input } from "./input"
+import { Textarea } from "./textarea"
+
+function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      data-slot="input-group"
+      role="group"
+      className={cn(
+        "group/input-group relative flex h-8 w-full min-w-0 items-center rounded-lg border border-input transition-colors outline-none in-data-[slot=combobox-content]:focus-within:border-inherit in-data-[slot=combobox-content]:focus-within:ring-0 has-disabled:bg-input/50 has-disabled:opacity-50 has-[[data-slot=input-group-control]:focus-visible]:border-ring has-[[data-slot=input-group-control]:focus-visible]:ring-3 has-[[data-slot=input-group-control]:focus-visible]:ring-ring/50 has-[[data-slot][aria-invalid=true]]:border-destructive has-[[data-slot][aria-invalid=true]]:ring-3 has-[[data-slot][aria-invalid=true]]:ring-destructive/20 has-[>[data-align=block-end]]:h-auto has-[>[data-align=block-end]]:flex-col has-[>[data-align=block-start]]:h-auto has-[>[data-align=block-start]]:flex-col has-[>textarea]:h-auto dark:bg-input/30 dark:has-disabled:bg-input/80 dark:has-[[data-slot][aria-invalid=true]]:ring-destructive/40 has-[>[data-align=block-end]]:[&>input]:pt-3 has-[>[data-align=block-start]]:[&>input]:pb-3 has-[>[data-align=inline-end]]:[&>input]:pr-1.5 has-[>[data-align=inline-start]]:[&>input]:pl-1.5",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function getWorkspaceTabMeta(tab: WorkspaceTabValue) {
-  return WORKSPACE_TAB_META[tab];
+const inputGroupAddonVariants = cva(
+  "flex h-auto cursor-text items-center justify-center gap-2 py-1.5 text-sm font-medium text-muted-foreground select-none group-data-[disabled=true]/input-group:opacity-50 [&>kbd]:rounded-[calc(var(--radius)-5px)] [&>svg:not([class*='size-'])]:size-4",
+  {
+    variants: {
+      align: {
+        "inline-start":
+          "order-first pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
+        "inline-end":
+          "order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
+        "block-start":
+          "order-first w-full justify-start px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2",
+        "block-end":
+          "order-last w-full justify-start px-2.5 pb-2 group-has-[>input]/input-group:pb-2 [.border-t]:pt-2",
+      },
+    },
+    defaultVariants: {
+      align: "inline-start",
+    },
+  }
+)
+
+function InputGroupAddon({
+  className,
+  align = "inline-start",
+  ...props
+}: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
+  return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- intentional focus delegation to child input
+    <div
+      role="group"
+      data-slot="input-group-addon"
+      data-align={align}
+      className={cn(inputGroupAddonVariants({ align }), className)}
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest("button")) {
+          return
+        }
+        e.currentTarget.parentElement?.querySelector("input")?.focus()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.currentTarget.parentElement?.querySelector("input")?.focus()
+        }
+      }}
+      {...props}
+    />
+  )
 }
 
-export function getWorkspaceTabStatus(tab: WorkspaceTabValue): WorkspaceTabDevStatus {
-  return WORKSPACE_TAB_META[tab].status;
+const inputGroupButtonVariants = cva(
+  "flex items-center gap-2 text-sm shadow-none",
+  {
+    variants: {
+      size: {
+        xs: "h-6 gap-1 rounded-[calc(var(--radius)-3px)] px-1.5 [&>svg:not([class*='size-'])]:size-3.5",
+        sm: "",
+        "icon-xs":
+          "size-6 rounded-[calc(var(--radius)-3px)] p-0 has-[>svg]:p-0",
+        "icon-sm": "size-8 p-0 has-[>svg]:p-0",
+      },
+    },
+    defaultVariants: {
+      size: "xs",
+    },
+  }
+)
+
+function InputGroupButton({
+  className,
+  type = "button",
+  variant = "ghost",
+  size = "xs",
+  ...props
+}: Omit<React.ComponentProps<typeof Button>, "size"> &
+  VariantProps<typeof inputGroupButtonVariants>) {
+  return (
+    <Button
+      type={type}
+      data-size={size}
+      variant={variant}
+      className={cn(inputGroupButtonVariants({ size }), className)}
+      {...props}
+    />
+  )
 }
 
-export function getWorkspaceTabLabel(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].label;
+function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
+  return (
+    <span
+      className={cn(
+        "flex items-center gap-2 text-sm text-muted-foreground [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
-  return WORKSPACE_TAB_META[tab].prefId;
+function InputGroupInput({
+  className,
+  ...props
+}: React.ComponentProps<"input">) {
+  return (
+    <Input
+      data-slot="input-group-control"
+      className={cn(
+        "flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
+        className
+      )}
+      {...props}
+    />
+  )
 }
 
-export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
-  return WORKSPACE_TAB_GROUPS[group];
+function InputGroupTextarea({
+  className,
+  ...props
+}: React.ComponentProps<"textarea">) {
+  return (
+    <Textarea
+      data-slot="input-group-control"
+      className={cn(
+        "flex-1 resize-none rounded-none border-0 bg-transparent py-2 shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent",
+        className
+      )}
+      {...props}
+    />
+  )
 }
+
+export {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupText,
+  InputGroupInput,
+  InputGroupTextarea,
+}
+````
+
+## File: packages/ui-shadcn/ui/pagination.tsx
+````typescript
+import * as React from "react"
+
+import { cn } from "../utils"
+import { Button } from "./button"
+import { ChevronLeftIcon, ChevronRightIcon, MoreHorizontalIcon } from "lucide-react"
+
+function Pagination({ className, ...props }: React.ComponentProps<"nav">) {
+  return (
+    <nav
+      role="navigation"
+      aria-label="pagination"
+      data-slot="pagination"
+      className={cn("mx-auto flex w-full justify-center", className)}
+      {...props}
+    />
+  )
+}
+
+function PaginationContent({
+  className,
+  ...props
+}: React.ComponentProps<"ul">) {
+  return (
+    <ul
+      data-slot="pagination-content"
+      className={cn("flex items-center gap-0.5", className)}
+      {...props}
+    />
+  )
+}
+
+function PaginationItem({ ...props }: React.ComponentProps<"li">) {
+  return <li data-slot="pagination-item" {...props} />
+}
+
+type PaginationLinkProps = {
+  isActive?: boolean
+} & Pick<React.ComponentProps<typeof Button>, "size"> &
+  React.ComponentProps<"a">
+
+function PaginationLink({
+  className,
+  isActive,
+  size = "icon",
+  ...props
+}: PaginationLinkProps) {
+  return (
+    <Button
+      asChild
+      variant={isActive ? "outline" : "ghost"}
+      size={size}
+      className={cn(className)}
+    >
+      {/* eslint-disable-next-line jsx-a11y/anchor-has-content -- children provided via props spread */}
+      <a
+        aria-current={isActive ? "page" : undefined}
+        data-slot="pagination-link"
+        data-active={isActive}
+        {...props}
+      />
+    </Button>
+  )
+}
+
+function PaginationPrevious({
+  className,
+  text = "Previous",
+  ...props
+}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+  return (
+    <PaginationLink
+      aria-label="Go to previous page"
+      size="default"
+      className={cn("pl-1.5!", className)}
+      {...props}
+    >
+      <ChevronLeftIcon data-icon="inline-start" />
+      <span className="hidden sm:block">{text}</span>
+    </PaginationLink>
+  )
+}
+
+function PaginationNext({
+  className,
+  text = "Next",
+  ...props
+}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+  return (
+    <PaginationLink
+      aria-label="Go to next page"
+      size="default"
+      className={cn("pr-1.5!", className)}
+      {...props}
+    >
+      <span className="hidden sm:block">{text}</span>
+      <ChevronRightIcon data-icon="inline-end" />
+    </PaginationLink>
+  )
+}
+
+function PaginationEllipsis({
+  className,
+  ...props
+}: React.ComponentProps<"span">) {
+  return (
+    <span
+      aria-hidden
+      data-slot="pagination-ellipsis"
+      className={cn(
+        "flex size-8 items-center justify-center [&_svg:not([class*='size-'])]:size-4",
+        className
+      )}
+      {...props}
+    >
+      <MoreHorizontalIcon
+      />
+      <span className="sr-only">More pages</span>
+    </span>
+  )
+}
+
+export {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+}
+````
+
+## File: packages/ui-vis/network.tsx
+````typescript
+"use client";
+
+/**
+ * @module ui/vis/network
+ * React wrapper for vis-network.
+ *
+ * Provides a drop-in React component for interactive network visualization.
+ * Simplifies ref management and event handling for Next.js environments.
+ */
+
+import { useRef, useEffect, type FC } from "react";
+import Graph from "react-graph-vis";
+import type { Network, Options } from "vis-network";
+
+export interface VisNetworkProps {
+  /**
+   * Nodes data array
+   */
+  nodes?: Array<{ id: string | number; label?: string; [key: string]: unknown }>;
+
+  /**
+   * Edges data array
+   */
+  edges?: Array<{ from: string | number; to: string | number; [key: string]: unknown }>;
+
+  /**
+   * vis-network options
+   */
+  options?: Options;
+
+  /**
+   * Fired when a node is clicked
+   */
+  onSelectNode?: (nodeId: string | number) => void;
+
+  /**
+   * Fired when a node is double-clicked
+   */
+  onDoubleClickNode?: (nodeId: string | number) => void;
+
+  /**
+   * Fired when physics simulation finishes
+   */
+  onPhysicsStabilized?: () => void;
+
+  /**
+   * Container CSS class
+   */
+  className?: string;
+
+  /**
+   * Container CSS styles
+   */
+  style?: React.CSSProperties;
+}
+
+/**
+ * VisNetwork component - interactive network graph with React integration.
+ *
+ * @example
+ * ```tsx
+ * <VisNetwork
+ *   nodes={[{ id: 1, label: "Node 1" }]}
+ *   edges={[{ from: 1, to: 2 }]}
+ *   options={{ physics: { enabled: true } }}
+ *   onSelectNode={(id) => console.log("Selected:", id)}
+ * />
+ * ```
+ */
+export const VisNetwork: FC<VisNetworkProps> = ({
+  nodes = [],
+  edges = [],
+  options = {},
+  onSelectNode,
+  onDoubleClickNode,
+  onPhysicsStabilized,
+  className,
+  style = { width: "100%", height: "600px" },
+}) => {
+  const networkRef = useRef<Network | null>(null);
+
+  const defaultOptions: Options = {
+    physics: {
+      enabled: true,
+      barnesHut: {
+        gravitationalConstant: -26000,
+        centralGravity: 0.3,
+        springLength: 200,
+      },
+    },
+    interaction: {
+      navigationButtons: true,
+      keyboard: true,
+    },
+    ...options,
+  };
+
+  useEffect(() => {
+    if (!networkRef.current) return;
+
+    const handleSelectNode = (event: { nodes: (string | number)[] }) => {
+      if (event.nodes.length > 0 && onSelectNode) {
+        onSelectNode(event.nodes[0]);
+      }
+    };
+
+    const handleDoubleClickNode = (event: { nodes: (string | number)[] }) => {
+      if (event.nodes.length > 0 && onDoubleClickNode) {
+        onDoubleClickNode(event.nodes[0]);
+      }
+    };
+
+    const handlePhysicsStabilized = () => {
+      if (onPhysicsStabilized) {
+        onPhysicsStabilized();
+      }
+    };
+
+    networkRef.current.on("selectNode", handleSelectNode);
+    networkRef.current.on("doubleClick", handleDoubleClickNode);
+    networkRef.current.on("stabilizationIterationsDone", handlePhysicsStabilized);
+
+    return () => {
+      if (networkRef.current) {
+        networkRef.current.off("selectNode", handleSelectNode);
+        networkRef.current.off("doubleClick", handleDoubleClickNode);
+        networkRef.current.off("stabilizationIterationsDone", handlePhysicsStabilized);
+      }
+    };
+  }, [onSelectNode, onDoubleClickNode, onPhysicsStabilized]);
+
+  return (
+    <div className={className} style={style}>
+      <Graph
+        graph={{ nodes, edges }}
+        options={defaultOptions}
+        events={{}}
+        getNetwork={(network: Network) => {
+          networkRef.current = network;
+        }}
+      />
+    </div>
+  );
+};
+
+export default VisNetwork;
+````
+
+## File: packages/ui-vis/timeline.tsx
+````typescript
+"use client";
+
+/**
+ * @module ui/vis/timeline
+ * React wrapper for vis-timeline.
+ *
+ * Provides a drop-in React component for interactive timeline visualization.
+ */
+
+import { useRef, useEffect, type FC } from "react";
+import { Timeline, DataSet } from "@lib-vis";
+
+export interface VisTimelineProps {
+  /**
+   * Timeline items (events)
+   */
+  items?: Array<{
+    id: string | number;
+    content: string;
+    start: string | Date;
+    end?: string | Date;
+    [key: string]: unknown;
+  }>;
+
+  /**
+   * Timeline groups (categories)
+   */
+  groups?: Array<{
+    id: string | number;
+    content: string;
+    [key: string]: unknown;
+  }>;
+
+  /**
+   * Timeline options
+   */
+  options?: Record<string, unknown>;
+
+  /**
+   * Fired when selection changes
+   */
+  onSelect?: (selection: (string | number)[]) => void;
+
+  /**
+   * Container CSS class
+   */
+  className?: string;
+
+  /**
+   * Container CSS styles
+   */
+  style?: React.CSSProperties;
+}
+
+/**
+ * VisTimeline component - interactive timeline with React integration.
+ *
+ * @example
+ * ```tsx
+ * <VisTimeline
+ *   items={[{ id: 1, content: "Event 1", start: new Date() }]}
+ *   options={{ height: "100%" }}
+ *   onSelect={(ids) => console.log("Selected:", ids)}
+ * />
+ * ```
+ */
+export const VisTimeline: FC<VisTimelineProps> = ({
+  items = [],
+  groups,
+  options = { height: "400px" },
+  onSelect,
+  className,
+  style = { width: "100%", height: "400px" },
+}) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const timelineRef = useRef<Timeline | null>(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const timelineItems = new DataSet(items);
+    const timelineGroups = groups ? new DataSet(groups) : new DataSet([]);
+
+    const mergedOptions = {
+      ...options,
+    };
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const TimelineConstructor = Timeline as any;
+    timelineRef.current = new TimelineConstructor(containerRef.current, timelineItems, timelineGroups, mergedOptions);
+
+    if (onSelect) {
+      const handleSelect = (event: { selection: (string | number)[] }) => {
+        onSelect(event.selection);
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const timelineInstance = timelineRef.current as any;
+      timelineInstance.on("select", handleSelect);
+
+      return () => {
+        if (timelineInstance) {
+          timelineInstance.off("select", handleSelect);
+          timelineInstance.destroy();
+          timelineRef.current = null;
+        }
+      };
+    }
+
+    return () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const timelineInstance = timelineRef.current as any;
+      if (timelineInstance) {
+        timelineInstance.destroy();
+        timelineRef.current = null;
+      }
+    };
+  }, [items, groups, options, onSelect]);
+
+  return <div ref={containerRef} className={className} style={style} />;
+};
+
+export default VisTimeline;
 ````
 
 ## File: README.md
@@ -62167,59 +61524,6 @@ See [docs/customization.md](docs/customization.md) for details.
     "encoding": "o200k_base"
   }
 }
-````
-
-## File: scripts/demo-flow.ts
-````typescript
-/**
- * scripts/demo-flow.ts
- *
- * Architecture Phase 2 — The Proof (Occam's Razor Edition)
- *
- * Demonstrates the Content → EventBus loop using only in-memory adapters.
- * Note: modules/wiki has been removed; graph steps are no longer included.
- *
- * Run with:
- *   npx tsx scripts/demo-flow.ts
- */
-
-import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
-
-async function main() {
-  const ACCOUNT_ID = "demo-account";
-  const USER_ID = "demo-user";
-
-  console.log("[1] Initialising event bus...");
-  const eventBus = new SimpleEventBus();
-  console.log("    ✓ SimpleEventBus ready\n");
-
-  console.log("[2] Creating KnowledgeApi...");
-  const contentApi = new ContentKnowledgeApi(eventBus);
-  console.log("    ✓ KnowledgeApi ready\n");
-
-  console.log('[3] Creating page "Hello World"...');
-  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
-  console.log(`    ✓ page created  id=${page.id}\n`);
-
-  console.log("[4] Adding an empty block to the page...");
-  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
-  console.log(`    ✓ block created  id=${block.id}\n`);
-
-  console.log('[5] Updating block → "Hello [[World]]"...');
-  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
-  if (!updated) {
-    throw new Error("ASSERTION FAILED: updateBlock returned null");
-  }
-  console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
-
-  console.log("✅  Demo flow completed successfully.");
-}
-
-main().catch((err) => {
-  console.error("❌  Demo flow failed:", err);
-  process.exit(1);
-});
 ````
 
 ## File: scripts/init-framework.sh
@@ -63261,327 +62565,878 @@ export default function AiChatPage() {
 }
 ````
 
-## File: app/(shell)/layout.tsx
+## File: app/(shell)/dev-tools/page.tsx
 ````typescript
 "use client";
 
 /**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
+ * Module: dev-tools page — /dev-tools
+ * Purpose: 測試 py_fn Firebase Functions (Document AI parse_document callable)。
+ * Workflow: 選取 → 上傳到 GCS → 呼叫 parse_document → 監聽 Firestore 狀態
+ * Constraints: 僅限本地開發 / staging 驗證；勿在 production 導覽列顯示。
  */
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import {
+  FlaskConical,
+  FileUp,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  FileText,
+  Trash2,
+  Code2,
+  ExternalLink,
+} from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
+import { Button } from "@ui-shadcn/ui/button";
 
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "Knowledge Hub",
-  "/knowledge/pages": "Knowledge · 頁面",
-  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
-  "/knowledge-base/articles": "Knowledge Base · 文章",
-  "/knowledge-database/databases": "Knowledge Database · 資料庫",
-  "/source/documents": "Source · 文件來源",
-  "/source/libraries": "Source · Libraries",
-  "/notebook/rag-query": "Notebook · Ask / Cite",
-  "/ai-chat": "AI Chat",
-  "/dev-tools": "開發工具",
-};
+// ── 型別 ─────────────────────────────────────────────────────────────────────
 
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
+interface ParseResult {
+  doc_id: string;
+  status: "processing" | "completed" | "error";
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
 }
 
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+interface DocRecord {
+  id: string;
+  status: "processing" | "completed" | "error" | string;
+  filename: string;
+  gcs_uri: string;
+  uploaded_at: Date | null;
+  page_count?: number;
+  json_gcs_uri?: string;
+  error_message?: string;
+  rag_status?: string;
+  rag_chunk_count?: number;
+  rag_vector_count?: number;
+  rag_raw_chars?: number;
+  rag_normalized_chars?: number;
+  rag_normalization_version?: string;
+  rag_language_hint?: string;
+  rag_error?: string;
+}
 
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
+type Status = "idle" | "uploading" | "waiting" | "done" | "error";
+
+// ── 常數 ─────────────────────────────────────────────────────────────────────
+
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const WATCH_PATH = "uploads/";
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif / .tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg / .jpeg",
+};
+
+const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+
+function formatDateTime(value: Date | null): string {
+  if (!value) return "—";
+  return value.toLocaleString("zh-TW", { hour12: false });
+}
+
+function deriveJsonUri(gcsUri: string): string {
+  if (!gcsUri.startsWith("gs://")) return "";
+  const withoutPrefix = gcsUri.slice(5);
+  const firstSlash = withoutPrefix.indexOf("/");
+  if (firstSlash < 0) return "";
+
+  const bucket = withoutPrefix.slice(0, firstSlash);
+  const objectPath = withoutPrefix.slice(firstSlash + 1);
+  if (!objectPath.startsWith("uploads/")) return "";
+
+  const relativePath = objectPath.slice("uploads/".length);
+  const dotIndex = relativePath.lastIndexOf(".");
+  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
+  return `gs://${bucket}/files/${stem}.json`;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function asString(value: unknown, fallback = ""): string {
+  return typeof value === "string" ? value : fallback;
+}
+
+function asNumber(value: unknown): number | undefined {
+  return typeof value === "number" ? value : undefined;
+}
+
+function asDate(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return value;
   }
-
+  if (value && typeof value === "object" && "toDate" in value) {
+    if (typeof (value as { toDate?: unknown }).toDate === "function") {
+      const converted = (value as { toDate: () => unknown }).toDate();
+      return converted instanceof Date ? converted : null;
+    }
+  }
   return null;
 }
 
-export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
+function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
+  const data = asRecord(doc.data());
+  const source = asRecord(data.source);
+  const parsed = asRecord(data.parsed);
+  const rag = asRecord(data.rag);
+  const err = asRecord(data.error);
 
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+  return {
+    id: doc.id,
+    status: asString(data.status, "unknown"),
+    filename: asString(source.filename, doc.id),
+    gcs_uri: asString(source.gcs_uri),
+    uploaded_at: asDate(source.uploaded_at),
+    page_count: asNumber(parsed.page_count),
+    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
+    error_message: asString(err.message) || undefined,
+    rag_status: asString(rag.status) || undefined,
+    rag_chunk_count: asNumber(rag.chunk_count),
+    rag_vector_count: asNumber(rag.vector_count),
+    rag_raw_chars: asNumber(rag.raw_chars),
+    rag_normalized_chars: asNumber(rag.normalized_chars),
+    rag_normalization_version: asString(rag.normalization_version) || undefined,
+    rag_language_hint: asString(rag.language_hint) || undefined,
+    rag_error: asString(rag.error) || undefined,
+  };
+}
+
+function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
+  if (status === "completed") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> 完成
+      </span>
+    );
+  }
+  if (status === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> 處理中
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={errorMessage}
+      >
+        <XCircle className="size-3" /> 錯誤
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
+}
+
+function RagBadge({ status, error }: { status?: string; error?: string }) {
+  if (status === "ready") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
+        <CheckCircle2 className="size-3" /> RAG Ready
+      </span>
+    );
+  }
+  if (status === "error") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
+        title={error}
+      >
+        <XCircle className="size-3" /> RAG Error
+      </span>
+    );
+  }
+  if (status) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
+        <Loader2 className="size-3 animate-spin" /> {status}
+      </span>
+    );
+  }
+  return <span className="text-xs text-muted-foreground">—</span>;
+}
+
+// ── Page component ─────────────────────────────────────────────────────────
+
+export default function DevToolsPage() {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [result, setResult] = useState<ParseResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [logs, setLogs] = useState<string[]>([]);
+  const [allDocs, setAllDocs] = useState<DocRecord[]>([]);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [jsonContent, setJsonContent] = useState<string | null>(null);
+  const [jsonLoading, setJsonLoading] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reindexingId, setReindexingId] = useState<string | null>(null);
+
+  // Firestore 監聽器 unsubscribe 函數
+  const unsubscribeRef = useRef<(() => void) | null>(null);
+  const unsubscribeListRef = useRef<(() => void) | null>(null);
+
+  function closeJsonPreview() {
+    setSelectedDocId(null);
+    setJsonContent(null);
+  }
+
+  function appendLog(msg: string) {
+    setLogs((prev) => [...prev, `[${new Date().toISOString().split("T")[1]?.slice(0, 8)}] ${msg}`]);
+  }
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (file) appendLog(`已選取：${file.name}（${(file.size / 1024).toFixed(1)} KB）`);
+  }
+
+  function buildUuidUploadPath(accountId: string, file: File): { uploadPath: string; docId: string } {
+    const ext = file.name.includes(".") ? `.${file.name.split(".").pop()}` : "";
+    const docId = crypto.randomUUID();
+    return {
+      uploadPath: `${WATCH_PATH}${accountId}/${docId}${ext}`,
+      docId,
+    };
+  }
+
+  // 監聽 Firestore 文件狀態變化
+  function watchDocument(docId: string) {
+    if (!activeAccountId) {
+      appendLog("❌ 缺少 active account，無法監聽文件狀態");
+      return;
+    }
+    try {
+      const db = getFirebaseFirestore();
+      const docRef = firestoreApi.doc(db, "accounts", activeAccountId, "documents", docId);
+
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
       }
-      return next;
-    });
-  }
 
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+      unsubscribeRef.current = firestoreApi.onSnapshot(docRef, (snapshot) => {
+        if (!snapshot.exists()) {
+          appendLog("等待 Firestore 初始化…");
+          return;
+        }
 
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
+        const data = asRecord(snapshot.data());
+        const docStatus = asString(data.status, "unknown");
 
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
+        appendLog(`Firestore update: status=${docStatus}`);
+
+        if (docStatus === "completed") {
+          const parsed = asRecord(data.parsed);
+          const result: ParseResult = {
+            doc_id: docId,
+            status: "completed",
+            page_count: asNumber(parsed.page_count) ?? 0,
+            json_gcs_uri: asString(parsed.json_gcs_uri),
+          };
+          setResult(result);
+          setStatus("done");
+          appendLog(`✅ 解析完成：${asNumber(parsed.page_count) ?? 0} 頁`);
+
+          // 取消監聽
+          if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+          }
+        } else if (docStatus === "error") {
+          const error = asRecord(data.error);
+          const msg = asString(error.message, "未知錯誤");
+          setErrorMsg(msg);
+          setStatus("error");
+          appendLog(`❌ 錯誤：${msg}`);
+
+          // 取消監聽
+          if (unsubscribeRef.current) {
+            unsubscribeRef.current();
+            unsubscribeRef.current = null;
+          }
+        }
+      });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 監聽失敗：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
     }
   }
 
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
-  useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
+  async function handleUploadAndParse() {
+    if (!selectedFile) return;
+    if (!activeAccountId) {
+      setErrorMsg("缺少 active account，無法上傳與解析");
+      setStatus("error");
       return;
     }
 
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+    setStatus("uploading");
+    setResult(null);
+    setErrorMsg(null);
+    appendLog("📤 上傳檔案到 Cloud Storage…");
 
-  async function handleLogout() {
-    setLogoutError(null);
     try {
-      await logout();
-    } catch {
-      setLogoutError("登出失敗，請稍後再試。");
+      // ── Step 1: Upload to GCS ────────────────────────────────────────
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const { uploadPath, docId } = buildUuidUploadPath(activeAccountId, selectedFile);
+      const fileRef = storageApi.ref(storage, uploadPath);
+
+      appendLog(`GCS path: gs://${UPLOAD_BUCKET}/${uploadPath}`);
+      appendLog(`doc_id(uuid): ${docId}`);
+
+      await storageApi.uploadBytes(fileRef, selectedFile);
+      appendLog(`✅ 上傳完成`);
+
+      // ── Step 2: Watch Firestore for status updates ──────────────────
+      setStatus("waiting");
+      appendLog("🔍 已觸發 Storage pipeline，開始監聽 Firestore…");
+      watchDocument(docId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 錯誤：${msg}`);
+      setErrorMsg(msg);
+      setStatus("error");
     }
   }
 
+  function reset() {
+    // 取消 Firestore 監聽
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
+    setSelectedFile(null);
+    setResult(null);
+    setErrorMsg(null);
+    setStatus("idle");
+    setLogs([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // 監聽所有已上傳文件列表
+  useEffect(() => {
+    if (!activeAccountId) {
+      setAllDocs([]);
+      return;
+    }
+
+    try {
+      const db = getFirebaseFirestore();
+      const colRef = firestoreApi.collection(db, "accounts", activeAccountId, "documents");
+      unsubscribeListRef.current = firestoreApi.onSnapshot(colRef, (snapshot) => {
+        const docs: DocRecord[] = snapshot.docs.map(mapSnapshotDoc);
+        // 最新上傳在最上面
+        docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
+        setAllDocs(docs);
+      });
+    } catch (_err) {}
+    return () => {
+      unsubscribeListRef.current?.();
+    };
+  }, [activeAccountId]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+      }
+    };
+  }, []);
+
+  async function handleViewOriginal(doc: DocRecord) {
+    if (!doc.gcs_uri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const fileRef = storageApi.ref(storage, doc.gcs_uri);
+      const url = await storageApi.getDownloadURL(fileRef);
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      alert(`無法取得下載連結：${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  async function handleViewJson(doc: DocRecord) {
+    if (!doc.json_gcs_uri) return;
+    if (selectedDocId === doc.id && jsonContent !== null) {
+      closeJsonPreview();
+      return;
+    }
+    setSelectedDocId(doc.id);
+    setJsonContent(null);
+    setJsonLoading(true);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const jsonRef = storageApi.ref(storage, doc.json_gcs_uri);
+      const url = await storageApi.getDownloadURL(jsonRef);
+      const res = await fetch(url);
+      const text = await res.text();
+      setJsonContent(text);
+    } catch (err: unknown) {
+      setJsonContent(`// 載入失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setJsonLoading(false);
+    }
+  }
+
+  async function handleDeleteDoc(doc: DocRecord) {
+    if (!window.confirm(`確定刪除「${doc.filename}」？\n此操作將同時刪除 Firestore 記錄與 GCS 檔案，無法復原。`)) return;
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const db = getFirebaseFirestore();
+      // 刪除 GCS 原始檔案
+      if (doc.gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
+      }
+      // 刪除 GCS JSON
+      if (doc.json_gcs_uri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
+      }
+      // 刪除 Firestore 記錄
+      if (!activeAccountId) {
+        throw new Error("缺少 active account");
+      }
+      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
+      // 若正在預覽此文件，清除預覽
+      if (selectedDocId === doc.id) {
+        closeJsonPreview();
+      }
+    } catch (err: unknown) {
+      alert(`刪除失敗：${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleManualProcess(doc: DocRecord) {
+    if (!doc.json_gcs_uri) return;
+    if (!activeAccountId) {
+      alert("缺少 active account，無法手動整理");
+      return;
+    }
+    setReindexingId(doc.id);
+    appendLog(`🧹 手動整理開始：${doc.id}`);
+    try {
+      const functions = getFirebaseFunctions("asia-southeast1");
+      const callable = functionsApi.httpsCallable(functions, "rag_reindex_document");
+      await callable({
+        account_id: activeAccountId,
+        doc_id: doc.id,
+        json_gcs_uri: doc.json_gcs_uri,
+        source_gcs_uri: doc.gcs_uri,
+        filename: doc.filename,
+        page_count: doc.page_count ?? 0,
+      });
+      appendLog(`✅ 手動整理完成：${doc.id}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      appendLog(`❌ 手動整理失敗：${msg}`);
+      alert(`手動整理失敗：${msg}`);
+    } finally {
+      setReindexingId(null);
+    }
+  }
+
+  const isLoading = status === "uploading" || status === "waiting";
+  const parsedDocs = allDocs.filter((doc) => doc.status === "completed");
+  const ragReadyCount = allDocs.filter((doc) => doc.rag_status === "ready").length;
+  const ragErrorCount = allDocs.filter((doc) => doc.rag_status === "error").length;
+
+  const selectedDoc = selectedDocId ? allDocs.find((d) => d.id === selectedDocId) : null;
+
+  function formatNormalizationRatio(doc: DocRecord): string {
+    const raw = doc.rag_raw_chars ?? 0;
+    const normalized = doc.rag_normalized_chars ?? 0;
+    if (raw <= 0 || normalized <= 0) return "—";
+    const ratio = (normalized / raw) * 100;
+    return `${normalized.toLocaleString()} / ${raw.toLocaleString()} (${ratio.toFixed(1)}%)`;
+  }
+
   return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
-
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
-            )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
-
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
-          )}
-
-          <main className="flex-1 overflow-auto p-6">{children}</main>
+    <div className="mx-auto max-w-2xl space-y-8">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 items-center justify-center rounded-xl bg-amber-500/10">
+          <FlaskConical className="size-5 text-amber-500" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight">Dev Tools</h1>
+          <p className="text-xs text-muted-foreground">
+            py_fn · parse_document · Document AI · Firestore 實時監聽
+          </p>
         </div>
       </div>
-    </ShellGuard>
+
+      <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-xl border border-border/60 bg-card px-3 py-2">
+          <p className="text-[11px] text-muted-foreground">全部文件</p>
+          <p className="text-lg font-semibold tracking-tight">{allDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
+          <p className="text-[11px] text-emerald-700">解析完成</p>
+          <p className="text-lg font-semibold tracking-tight text-emerald-700">{parsedDocs.length}</p>
+        </div>
+        <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-3 py-2">
+          <p className="text-[11px] text-blue-700">RAG Ready</p>
+          <p className="text-lg font-semibold tracking-tight text-blue-700">{ragReadyCount}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/20 bg-destructive/5 px-3 py-2">
+          <p className="text-[11px] text-destructive">RAG Error</p>
+          <p className="text-lg font-semibold tracking-tight text-destructive">{ragErrorCount}</p>
+        </div>
+      </section>
+
+      {/* ── File picker ────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          1. 選擇檔案
+        </h2>
+        <label
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-8 transition
+            ${selectedFile ? "border-primary/40 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"}`}
+        >
+          <FileUp className="size-8 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">
+              {selectedFile ? selectedFile.name : "點擊或拖曳上傳"}
+            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={handleFileChange}
+          />
+        </label>
+      </section>
+
+      {/* ── Actions ────────────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+          2. 執行上傳 & 解析
+        </h2>
+        <div className="flex gap-3">
+          <Button
+            onClick={handleUploadAndParse}
+            disabled={!selectedFile || isLoading}
+            className="gap-2"
+          >
+            {isLoading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <FlaskConical className="size-4" />
+            )}
+            {status === "uploading" ? "上傳中…" : status === "waiting" ? "等待中…" : "開始"}
+          </Button>
+          <Button variant="outline" onClick={reset} disabled={isLoading}>
+            重置
+          </Button>
+        </div>
+      </section>
+
+      {/* ── Result ─────────────────────────────────────────────────── */}
+      {(status === "done" || status === "error") && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            3. 結果
+          </h2>
+          {status === "done" && result && (
+            <div className="rounded-xl border border-border/60 bg-card p-5 space-y-4">
+              <div className="flex items-center gap-2 text-emerald-600">
+                <CheckCircle2 className="size-4 shrink-0" />
+                <span className="text-sm font-medium">解析成功</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <dt className="text-muted-foreground">doc_id</dt>
+                <dd className="font-mono text-xs">{result.doc_id}</dd>
+                <dt className="text-muted-foreground">page_count</dt>
+                <dd className="font-bold">{result.page_count}</dd>
+                <dt className="text-muted-foreground">JSON 位置</dt>
+                <dd className="font-mono text-xs break-all">{result.json_gcs_uri || "—"}</dd>
+              </dl>
+            </div>
+          )}
+          {status === "error" && (
+            <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <XCircle className="mt-0.5 size-4 shrink-0" />
+              <span>{errorMsg}</span>
+            </div>
+          )}
+        </section>
+      )}
+
+      {status === "waiting" && (
+        <section className="space-y-3">
+          <div className="flex items-start gap-2 rounded-xl border border-blue-300/30 bg-blue-500/5 p-4 text-sm text-blue-600">
+            <AlertCircle className="mt-0.5 size-4 shrink-0 animate-pulse" />
+            <div>
+              <p className="font-medium">處理中…</p>
+              <p className="mt-1 text-xs opacity-75">Document AI 正在解析檔案，請稍候</p>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── 已上傳檔案列表 ──────────────────────────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="size-4 text-muted-foreground" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已上傳檔案（{allDocs.length}）
+          </h2>
+        </div>
+        {allDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無上傳記錄
+          </p>
+        ) : (
+          <div className="space-y-0 overflow-hidden rounded-xl border border-border/60">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[760px] text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                  <th className="px-4 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {allDocs.map((doc, i) => (
+                  <tr
+                    key={doc.id}
+                    className={`border-b border-border/40 last:border-0 transition-colors ${
+                      selectedDocId === doc.id
+                        ? "bg-primary/8 ring-1 ring-inset ring-primary/20"
+                        : i % 2 === 0 ? "bg-background" : "bg-muted/20"
+                    }`}
+                  >
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[180px] truncate" title={doc.filename}>
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <StatusBadge status={doc.status} errorMessage={doc.error_message} />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                    </td>
+                    <td className="px-4 py-2.5 text-xs">
+                      {doc.page_count != null ? doc.page_count : "—"}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(doc.uploaded_at)}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        {/* 查看原始檔案 */}
+                        <button
+                          onClick={() => handleViewOriginal(doc)}
+                          disabled={!doc.gcs_uri}
+                          title="查看原始檔案"
+                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-30"
+                        >
+                          <ExternalLink className="size-3.5" />
+                        </button>
+                        {/* 查看 JSON */}
+                        <button
+                          onClick={() => handleViewJson(doc)}
+                          disabled={doc.status !== "completed" || !doc.json_gcs_uri}
+                          title="查看 JSON 解析結果"
+                          className={`inline-flex size-7 items-center justify-center rounded-md transition hover:bg-muted disabled:opacity-30 ${
+                            selectedDocId === doc.id ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          <Code2 className="size-3.5" />
+                        </button>
+                        {/* 刪除 */}
+                        <button
+                          onClick={() => handleDeleteDoc(doc)}
+                          disabled={deletingId === doc.id}
+                          title="刪除"
+                          className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-destructive/10 hover:text-destructive disabled:opacity-30"
+                        >
+                          {deletingId === doc.id
+                            ? <Loader2 className="size-3.5 animate-spin" />
+                            : <Trash2 className="size-3.5" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
+
+            {/* ── JSON 預覽面板 ──────────────────────────────────── */}
+            {selectedDocId && (
+              <div className="border-t border-border/60 bg-[#0d1117]">
+                <div className="flex items-center justify-between px-4 py-2 border-b border-white/5">
+                  <div className="flex items-center gap-2 text-xs text-green-400">
+                    <Code2 className="size-3.5" />
+                    <span className="font-mono">
+                      {selectedDoc?.filename ?? selectedDocId} — JSON
+                    </span>
+                  </div>
+                  <button
+                    onClick={closeJsonPreview}
+                    className="text-white/30 hover:text-white/70 transition text-xs"
+                  >
+                    ✕ 關閉
+                  </button>
+                </div>
+                {selectedDoc?.rag_status === "error" && (
+                  <div className="border-b border-destructive/20 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+                    RAG 失敗：{selectedDoc.rag_error || "未知錯誤"}
+                  </div>
+                )}
+                <div className="max-h-80 overflow-y-auto p-4">
+                  {jsonLoading ? (
+                    <div className="flex items-center gap-2 text-green-400/60 text-xs">
+                      <Loader2 className="size-3.5 animate-spin" /> 載入中…
+                    </div>
+                  ) : (
+                    <pre className="font-mono text-xs leading-relaxed text-green-400 whitespace-pre-wrap break-words">
+                      {jsonContent}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── 已解析檔案列表（status=completed）──────────────────────── */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="size-4 text-emerald-600" />
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            已解析檔案（{parsedDocs.length}）
+          </h2>
+        </div>
+        {parsedDocs.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+            尚無解析完成檔案
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-emerald-500/20">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1100px] text-sm">
+              <thead>
+                <tr className="border-b border-emerald-500/10 bg-emerald-500/5">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">頁數</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Chunks / Vectors</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">Normalization</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">版本 / 語系</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">JSON</th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">完成時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsedDocs.map((doc, i) => (
+                  <tr key={`parsed-${doc.id}`} className={`border-b border-border/30 last:border-0 ${i % 2 === 0 ? "bg-background" : "bg-muted/20"}`}>
+                    <td className="px-4 py-2.5 font-mono text-xs max-w-[220px] truncate" title={doc.filename}>
+                      {doc.filename}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-medium">{doc.page_count ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-xs">
+                      <RagBadge status={doc.rag_status} error={doc.rag_error} />
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_chunk_count ?? 0).toLocaleString()} / {(doc.rag_vector_count ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {formatNormalizationRatio(doc)}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono">
+                      {(doc.rag_normalization_version || "—").toUpperCase()} / {(doc.rag_language_hint || "—").toUpperCase()}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs max-w-[320px]">
+                      {doc.json_gcs_uri ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleViewJson(doc)}
+                            className="font-mono text-left truncate text-primary hover:underline"
+                            title={doc.json_gcs_uri}
+                          >
+                            {doc.json_gcs_uri}
+                          </button>
+                          <button
+                            onClick={() => handleManualProcess(doc)}
+                            disabled={reindexingId === doc.id}
+                            title="手動整理（Normalization + RAG）"
+                            className="inline-flex h-6 items-center gap-1 rounded-md border border-border/60 px-2 text-[11px] text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"
+                          >
+                            {reindexingId === doc.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <FlaskConical className="size-3" />
+                            )}
+                            手動整理
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-muted-foreground whitespace-nowrap">
+                      {formatDateTime(doc.uploaded_at)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </section>
+
+      {/* ── Console log ────────────────────────────────────────────── */}
+      {logs.length > 0 && (
+        <section className="space-y-2">
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+            Console
+          </h2>
+          <div className="max-h-48 overflow-y-auto rounded-xl bg-[#0d1117] p-4">
+            {logs.map((line, i) => (
+              <p key={i} className="font-mono text-xs leading-relaxed text-green-400">
+                {line}
+              </p>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 ````
@@ -63791,359 +63646,6 @@ export default function OrganizationWorkspacesPage() {
     </div>
   );
 }
-````
-
-## File: eslint.config.mjs
-````javascript
-import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import boundaries from "eslint-plugin-boundaries";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
-import jsxA11y from "eslint-plugin-jsx-a11y";
- 
-const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const typescriptFileGlobs = ["**/*.{ts,tsx}"];
-const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
-const boundaryRuleSeverity = "warn";
-const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
-
-const moduleApiEntrypointMessage =
-  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
-
-const moduleApiEntrypointPattern = {
-  regex: "^@/modules/(?!system$)[^/]+$",
-  message: moduleApiEntrypointMessage,
-};
-
-const moduleNonApiSubpathPattern = {
-  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
-  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
-};
-
-const explicitIndexPathPattern = {
-  group: ["**/index", "**/index.ts", "**/index.tsx"],
-  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-};
-
-const moduleInternalLayerPattern = {
-  group: [
-    "@/modules/*/application/**",
-    "@/modules/*/domain/**",
-    "@/modules/*/infrastructure/**",
-    "@/modules/*/interfaces/**",
-  ],
-  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-};
-
-const moduleElements = [
-  {
-    type: "module-root",
-    pattern: "modules/*/index.ts",
-    capture: ["module"],
-  },
-  {
-    type: "module-api",
-    pattern: "modules/*/api/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-domain",
-    pattern: "modules/*/domain/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-application",
-    pattern: "modules/*/application/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-infrastructure",
-    pattern: "modules/*/infrastructure/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-interfaces",
-    pattern: "modules/*/interfaces/**/*",
-    capture: ["module"],
-  },
-];
-
-const sameModuleCapture = { module: "{{from.captured.module}}" };
-const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
-
-const crossModuleApiRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [{ to: { type: "module-api" } }],
-  message: "Cross-module imports must go through `modules/<target>/api`.",
-}));
-
-const sameModuleRootRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [sameModuleTarget("module-root")],
-  message: "Module root barrel is allowed only for the same module.",
-}));
-
-const apiLayerRule = {
-  from: { type: "module-api" },
-  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
-  message: "API layer may depend only on same-module layers.",
-};
-
-const sameModuleLayerAllowMap = {
-  "module-domain": ["module-domain"],
-  "module-application": ["module-application", "module-domain"],
-  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
-  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
-};
-
-const sameModuleLayerMessageMap = {
-  "module-domain": "Domain may only depend on domain of the same module.",
-  "module-application": "Application may depend only on application/domain in the same module.",
-  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
-  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
-};
-
-const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
-  message: sameModuleLayerMessageMap[type],
-}));
-
-const moduleDependencyRules = [
-  ...crossModuleApiRules,
-  ...sameModuleRootRules,
-  apiLayerRule,
-  ...sameModuleLayerRules,
-];
-
-const packageAliasMigrationPatterns = [
-  {
-    group: ["@/shared/*"],
-    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
-  },
-  {
-    group: ["@/infrastructure/*"],
-    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
-  },
-  {
-    group: ["@/libs/*"],
-    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
-  },
-  {
-    group: ["@/ui/shadcn/*"],
-    message: "Use @ui-shadcn/* instead.",
-  },
-  {
-    group: ["@/ui/vis", "@/ui/vis/*"],
-    message: "Use @ui-vis instead.",
-  },
-  {
-    group: ["@/interfaces/*"],
-    message: "Use @api-contracts instead.",
-  },
-];
-
-const createRestrictedImportsRule = (patterns) => [
-  boundaryRuleSeverity,
-  {
-    patterns,
-  },
-];
-
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  {
-    files: sourceFileGlobs,
-    plugins: {
-      jsdoc,
-    },
-    settings: {
-      jsdoc: {
-        mode: "typescript",
-      },
-    },
-    rules: {
-      "jsdoc/check-alignment": "warn",
-      "jsdoc/check-syntax": "warn",
-      "jsdoc/check-tag-names": "warn",
-      "jsdoc/no-blank-blocks": "warn",
-    },
-  },
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/naming-convention": [
-        "warn",
-        {
-          selector: "typeLike",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "variable",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow",
-        },
-        {
-          selector: "parameter",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "enumMember",
-          format: ["PascalCase", "UPPER_CASE"],
-        },
-      ],
-    },
-  },
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
-      ],
-    },
-  },
-  // ─── Consistent type-only imports ──────────────────────────────────────
-  // Enforces `import type` for type-only imports, improving tree-shaking and
-  // making module-boundary intent explicit (matches project MDDD conventions).
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/consistent-type-imports": [
-        "warn",
-        { prefer: "type-imports", fixStyle: "inline-type-imports" },
-      ],
-    },
-  },
-  // ─── React best-practices ───────────────────────────────────────────────
-  // eslint-config-next already pulls in react / react-hooks rules via its
-  // own config; these overrides make project-specific settings explicit and
-  // add missing checks not covered by the base config.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
-      "react/prop-types": "off",            // TypeScript types replace PropTypes
-      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
-      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-    },
-  },
-  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
-  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
-  // activated here.  Enabling recommended rules as warn catches common a11y
-  // mistakes without breaking the zero-error baseline.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
-          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
-          // Downgrade all errors to warnings to preserve the zero-error baseline.
-          if (Array.isArray(config)) {
-            const [severity, ...rest] = config;
-            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
-            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
-          }
-          const normalised = config === "error" || config === 2 ? "warn" : config;
-          return [rule, normalised];
-        }),
-      ),
-    },
-  },
-  {
-    files: moduleFileGlobs,
-    plugins: {
-      boundaries,
-    },
-    settings: {
-      "boundaries/include": moduleFileGlobs,
-      "boundaries/elements": moduleElements,
-    },
-    rules: {
-      "boundaries/dependencies": [
-        boundaryRuleSeverity,
-        {
-          default: "disallow",
-          rules: moduleDependencyRules,
-        },
-      ],
-    },
-  },
-  // ─── Package boundary enforcement ───────────────────────────────────────
-  // Forbid legacy import paths that were migrated to packages/*.
-  {
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
-    },
-  },
-  // ─── Strict module entrypoint enforcement ───────────────────────────────
-  {
-    files: [
-      "app/**/*.{ts,tsx,js,jsx}",
-      "providers/**/*.{ts,tsx,js,jsx}",
-      "debug/**/*.{ts,tsx,js,jsx}",
-    ],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-      ]),
-    },
-  },
-  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
-  {
-    files: moduleFileGlobs,
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        explicitIndexPathPattern,
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-        moduleInternalLayerPattern,
-      ]),
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    ".agents/**",
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
-
-export default eslintConfig;
 ````
 
 ## File: firestore.indexes.json
@@ -64575,6 +64077,74 @@ export default eslintConfig;
 - 若需調整界限上下文內容，請只編輯 canonical 檔案。
 ````
 
+## File: modules/knowledge-base/AGENT.md
+````markdown
+# knowledge-base — DDD Agent
+
+## 戰略分類
+
+| 屬性 | 值 |
+|---|---|
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
+
+## 為何是 Core Domain
+
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+
+## 關鍵設計決策
+
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
+
+## 詳細實作文件
+
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+````
+
+## File: modules/knowledge-base/application-services.md
+````markdown
+# knowledge-base — Application Services
+
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
+
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
+````
+
+## File: modules/knowledge-base/domain-events.md
+````markdown
+# knowledge-base — 領域事件
+
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+
+## 事件清單
+
+| 事件 | 觸發條件 |
+|---|---|
+| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
+
+## 訂閱事件（D3 Promote 協議）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
+````
+
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseArticleRepository.ts
 ````typescript
 /**
@@ -64629,11 +64199,10 @@ function toArticle(id: string, data: Record<string, unknown>): Article {
 export class FirebaseArticleRepository implements IArticleRepository {
   private db() { return getFirestore(firebaseClientApp); }
 
-  async getById(articleId: string): Promise<Article> {
-    // Note: articleId must be scoped with accountId in compound queries;
+  async getById(_articleId: string): Promise<Article> {
+    // Note: _articleId must be scoped with accountId in compound queries;
     // for direct lookup we search across all accounts via collectionGroup if needed.
     // At this layer we expect callers to use listByWorkspace for discovery.
-    const db = this.db();
     // We cannot getById without accountId — this is a limitation of the Firestore path.
     // The article id from use-cases already has accountId in context.
     // We'll need to resolve via a workspace-scoped query. For now, search by docId broadly.
@@ -64668,7 +64237,7 @@ export class FirebaseArticleRepository implements IArticleRepository {
     return snaps.docs.map(d => toArticle(d.id, d.data() as Record<string, unknown>));
   }
 
-  async search(params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]> {
+  async search(_params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]> {
     // Full-text search is not supported by Firestore; delegate to search module.
     return [];
   }
@@ -64676,16 +64245,16 @@ export class FirebaseArticleRepository implements IArticleRepository {
   async save(article: Article): Promise<void> {
     const db = this.db();
     const ref = articleDoc(db, article.accountId, article.id);
-    const { id, ...data } = article;
+    const { id: _id, ...data } = article;
     await setDoc(ref, { ...data, _createdAt: serverTimestamp() }, { merge: true });
   }
 
-  async getByIds(articleIds: string[]): Promise<Article[]> {
+  async getByIds(_articleIds: string[]): Promise<Article[]> {
     // Must be called with accountId; not feasible without extra context.
     return [];
   }
 
-  async findByLinkedArticleId(articleId: string): Promise<Article[]> {
+  async findByLinkedArticleId(_articleId: string): Promise<Article[]> {
     // Cross-account lookup not supported without accountId scope.
     return [];
   }
@@ -64700,7 +64269,7 @@ export class FirebaseArticleRepository implements IArticleRepository {
     return snaps.docs.map((d) => toArticle(d.id, d.data() as Record<string, unknown>));
   }
 
-  async delete(articleId: string): Promise<void> {
+  async delete(_articleId: string): Promise<void> {
     // articleId alone is insufficient — callers should use deleteArticle(accountId, articleId).
     throw new Error("Use deleteArticle(accountId, articleId) instead");
   }
@@ -64712,243 +64281,318 @@ export class FirebaseArticleRepository implements IArticleRepository {
 }
 ````
 
-## File: modules/knowledge-base/interfaces/queries/knowledge-base.queries.ts
+## File: modules/knowledge-base/interfaces/_actions/knowledge-base.actions.ts
 ````typescript
-/**
- * Module: knowledge-base
- * Layer: interfaces/queries
- * Direct-instantiation query functions (read-side).
- */
+"use server";
 
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
 import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
-import type { Article, ArticleStatus } from "../../domain/entities/article.entity";
-import type { Category } from "../../domain/entities/category.entity";
+import {
+  CreateArticleUseCase,
+  UpdateArticleUseCase,
+  PublishArticleUseCase,
+  ArchiveArticleUseCase,
+  VerifyArticleUseCase,
+  RequestArticleReviewUseCase,
+} from "../../application/use-cases/article.use-cases";
+import {
+  CreateCategoryUseCase,
+  RenameCategoryUseCase,
+  MoveCategoryUseCase,
+} from "../../application/use-cases/category.use-cases";
+import type { z } from "@lib-zod";
+import type {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+  CreateCategorySchema,
+  RenameCategorySchema,
+  MoveCategorySchema,
+} from "../../application/dto/knowledge-base.dto";
 
-export async function getArticles(params: {
-  accountId: string;
-  workspaceId: string;
-  categoryId?: string;
-  status?: ArticleStatus;
-}): Promise<Article[]> {
-  const repo = new FirebaseArticleRepository();
-  return repo.list(params);
+function makeArticleRepo() { return new FirebaseArticleRepository(); }
+function makeCategoryRepo(accountId: string) {
+  return new FirebaseCategoryRepository().withAccountId(accountId);
 }
 
-export async function getArticle(accountId: string, articleId: string): Promise<Article | null> {
-  const repo = new FirebaseArticleRepository();
-  return repo.getArticleById(accountId, articleId);
+export async function createArticle(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new CreateArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
 }
 
-export async function getCategories(accountId: string, workspaceId: string): Promise<Category[]> {
-  const repo = new FirebaseCategoryRepository().withAccountId(accountId);
-  return repo.listByWorkspace(workspaceId, accountId);
+export async function updateArticle(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new UpdateArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
 }
 
-export async function getBacklinks(accountId: string, articleId: string): Promise<Article[]> {
-  const repo = new FirebaseArticleRepository();
-  return repo.listByLinkedArticleId(accountId, articleId);
+export async function publishArticle(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new PublishArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function archiveArticle(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new ArchiveArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function verifyArticle(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
+  try {
+    return await new VerifyArticleUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function requestArticleReview(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
+  try {
+    return await new RequestArticleReviewUseCase(makeArticleRepo()).execute(input);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteArticle(accountId: string, articleId: string): Promise<CommandResult> {
+  try {
+    const repo = makeArticleRepo() as FirebaseArticleRepository;
+    await repo.deleteArticle(accountId, articleId);
+    return commandSuccess(articleId, 1);
+  } catch (e) {
+    return commandFailureFrom("ARTICLE_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new CreateCategoryUseCase(makeCategoryRepo(input.accountId)).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new RenameCategoryUseCase(makeCategoryRepo(input.accountId)).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_RENAME_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
+  try {
+    return await new MoveCategoryUseCase(makeCategoryRepo(input.accountId)).execute(input);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_MOVE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
+}
+
+export async function deleteCategory(accountId: string, categoryId: string): Promise<CommandResult> {
+  try {
+    await makeCategoryRepo(accountId).delete(categoryId);
+    return commandSuccess(categoryId, 1);
+  } catch (e) {
+    return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
+  }
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
+## File: modules/knowledge-base/interfaces/components/ArticleDialog.tsx
 ````typescript
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { X } from "lucide-react";
 
 import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
 import { Textarea } from "@ui-shadcn/ui/textarea";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
 import {
-  getComments,
-} from "../queries/knowledge-collaboration.queries";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@ui-shadcn/ui/dialog";
 import {
-  createComment,
-  resolveComment,
-  deleteComment,
-} from "../_actions/knowledge-collaboration.actions";
-import type { Comment } from "../../domain/entities/comment.entity";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
 
-interface CommentPanelProps {
+import { createArticle, updateArticle } from "../_actions/knowledge-base.actions";
+import type { Article } from "../../domain/entities/article.entity";
+import type { Category } from "../../domain/entities/category.entity";
+
+interface ArticleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   accountId: string;
   workspaceId: string;
-  contentId: string;
-  contentType: "page" | "article";
   currentUserId: string;
+  categories: Category[];
+  /** Article to edit — omit for create mode */
+  article?: Article;
+  onSuccess?: (articleId?: string) => void;
 }
 
-export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [body, setBody] = useState("");
+export function ArticleDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  categories,
+  article,
+  onSuccess,
+}: ArticleDialogProps) {
+  const isEdit = !!article;
+  const [title, setTitle] = useState(article?.title ?? "");
+  const [content, setContent] = useState(article?.content ?? "");
+  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
+  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
+  const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // Reset when article changes
   useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getComments(accountId, contentId);
-        if (!disposed) { setComments(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
+    void Promise.resolve().then(() => {
+      setTitle(article?.title ?? "");
+      setContent(article?.content ?? "");
+      setCategoryId(article?.categoryId ?? "__none__");
+      setTags(article?.tags.join(", ") ?? "");
+      setError(null);
+    });
+  }, [article, open]);
+
+  function handleSubmit() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { setError("標題不可空白"); return; }
+    const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
+
+    startTransition(async () => {
+      setError(null);
+      if (isEdit) {
+        const result = await updateArticle({
+          id: article!.id,
+          accountId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+        });
+        if (!result.success) { setError(result.error.message ?? "更新失敗"); return; }
+        onSuccess?.();
+      } else {
+        const result = await createArticle({
+          accountId,
+          workspaceId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+          createdByUserId: currentUserId,
+        });
+        if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+        onSuccess?.(result.success ? result.aggregateId : undefined);
       }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handlePost() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    startTransition(async () => {
-      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
-      setBody("");
-      textareaRef.current?.focus();
+      onOpenChange(false);
     });
   }
-
-  function handleResolve(commentId: string) {
-    startTransition(async () => {
-      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
-    });
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(async () => {
-      await deleteComment({ id: commentId, accountId });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    });
-  }
-
-  const active = comments.filter((c) => !c.resolvedAt);
-  const resolved = comments.filter((c) => c.resolvedAt);
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">留言</span>
-        {active.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
-        )}
-      </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
+        </DialogHeader>
 
-      {/* Comment input */}
-      <div className="flex flex-col gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="新增留言..."
-          rows={2}
-          className="resize-none text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
-          }}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            送出
-          </Button>
-        </div>
-      </div>
+        <div className="space-y-4 py-2">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <X className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
 
-      {/* Comment list */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
-        </div>
-      ) : active.length === 0 && resolved.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無留言。</p>
-      ) : (
-        <div className="space-y-2">
-          {active.map((c) => (
-            <CommentItem
-              key={c.id}
-              comment={c}
-              isOwner={c.authorId === currentUserId}
-              onResolve={() => handleResolve(c.id)}
-              onDelete={() => handleDelete(c.id)}
-              isPending={isPending}
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-title">標題</Label>
+            <Input
+              id="kb-article-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="文章標題"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
             />
-          ))}
-          {resolved.length > 0 && (
-            <details className="text-xs text-muted-foreground cursor-pointer">
-              <summary className="select-none">已解決 ({resolved.length})</summary>
-              <div className="mt-2 space-y-2">
-                {resolved.map((c) => (
-                  <CommentItem
-                    key={c.id}
-                    comment={c}
-                    isOwner={c.authorId === currentUserId}
-                    onDelete={() => handleDelete(c.id)}
-                    isPending={isPending}
-                  />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-category">分類</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="kb-article-category">
+                <SelectValue placeholder="選擇分類（選填）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— 不指定 —</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
                 ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
+              </SelectContent>
+            </Select>
+          </div>
 
-interface CommentItemProps {
-  comment: Comment;
-  isOwner: boolean;
-  onResolve?: () => void;
-  onDelete?: () => void;
-  isPending: boolean;
-}
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-tags">標籤 <span className="text-muted-foreground text-xs">（以逗號分隔）</span></Label>
+            <Input
+              id="kb-article-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="標籤1, 標籤2"
+            />
+          </div>
 
-function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
-  const resolved = !!comment.resolvedAt;
-  return (
-    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
-      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">
-          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </span>
-        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
-        <div className="ml-auto flex gap-1">
-          {!resolved && onResolve && (
-            <button
-              type="button"
-              onClick={onResolve}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="標記為已解決"
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {isOwner && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-              title="刪除"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-content">內容</Label>
+            <Textarea
+              id="kb-article-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="文章內容（支援 Markdown）"
+              rows={6}
+              className="resize-none font-mono text-sm"
+            />
+          </div>
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
+            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 ````
@@ -64961,7 +64605,7 @@ function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: Comme
  * Use cases for View (database view) lifecycle.
  */
 
-import { z } from "@lib-zod";
+import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { IViewRepository } from "../../domain/repositories/IViewRepository";
 import {
@@ -65019,6 +64663,16 @@ export class ListViewsUseCase {
     return this.viewRepo.listByDatabase(accountId, databaseId);
   }
 }
+````
+
+## File: modules/knowledge-database/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
+下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
+
+> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
+
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
@@ -65127,663 +64781,6 @@ export class FirebaseRecordRepository implements IDatabaseRecordRepository {
 }
 ````
 
-## File: modules/knowledge-database/interfaces/_actions/knowledge-database.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseDatabaseRepository } from "../../infrastructure/firebase/FirebaseDatabaseRepository";
-import { FirebaseRecordRepository } from "../../infrastructure/firebase/FirebaseRecordRepository";
-import { FirebaseViewRepository } from "../../infrastructure/firebase/FirebaseViewRepository";
-import { CreateDatabaseUseCase, UpdateDatabaseUseCase, AddFieldUseCase, ArchiveDatabaseUseCase } from "../../application/use-cases/database.use-cases";
-import { CreateRecordUseCase, UpdateRecordUseCase, DeleteRecordUseCase } from "../../application/use-cases/record.use-cases";
-import { CreateViewUseCase, UpdateViewUseCase, DeleteViewUseCase } from "../../application/use-cases/view.use-cases";
-import type {
-  CreateDatabaseInput,
-  UpdateDatabaseInput,
-  AddFieldInput,
-} from "../../domain/repositories/IDatabaseRepository";
-import type {
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-import type {
-  CreateViewInput,
-  UpdateViewInput,
-} from "../../domain/repositories/IViewRepository";
-
-function makeDatabaseRepo() { return new FirebaseDatabaseRepository(); }
-function makeRecordRepo() { return new FirebaseRecordRepository(); }
-function makeViewRepo() { return new FirebaseViewRepository(); }
-
-export async function createDatabase(input: CreateDatabaseInput): Promise<CommandResult> {
-  try {
-    return await new CreateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("DATABASE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateDatabase(input: UpdateDatabaseInput): Promise<CommandResult> {
-  try {
-    return await new UpdateDatabaseUseCase(makeDatabaseRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("DATABASE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function addDatabaseField(input: AddFieldInput): Promise<CommandResult> {
-  try {
-    return await new AddFieldUseCase(makeDatabaseRepo()).execute({
-      databaseId: input.databaseId,
-      accountId: input.accountId,
-      name: input.field.name,
-      type: input.field.type,
-      config: input.field.config,
-      required: input.field.required,
-    });
-  } catch (e) {
-    return commandFailureFrom("DATABASE_ADD_FIELD_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function archiveDatabase(accountId: string, databaseId: string): Promise<CommandResult> {
-  try {
-    return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
-  } catch (e) {
-    return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function createRecord(input: CreateRecordInput): Promise<CommandResult> {
-  try {
-    return await new CreateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("RECORD_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateRecord(input: UpdateRecordInput): Promise<CommandResult> {
-  try {
-    return await new UpdateRecordUseCase(makeRecordRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("RECORD_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteRecord(accountId: string, recordId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteRecordUseCase(makeRecordRepo()).execute({ accountId, id: recordId });
-  } catch (e) {
-    return commandFailureFrom("RECORD_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function createView(input: CreateViewInput): Promise<CommandResult> {
-  try {
-    return await new CreateViewUseCase(makeViewRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("VIEW_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function updateView(input: UpdateViewInput): Promise<CommandResult> {
-  try {
-    return await new UpdateViewUseCase(makeViewRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("VIEW_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-
-export async function deleteView(accountId: string, viewId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteViewUseCase(makeViewRepo()).execute({ accountId, id: viewId });
-  } catch (e) {
-    return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-````
-
-## File: modules/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
-
-## 模組定位
-
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { WikiPage } from "@/modules/wiki/domain/entities/...";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
- */
-
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
-
-export { KnowledgeApi } from "./knowledge-api";
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
-
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Collection types ──────────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
-
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-
-// ── Queries (read-side) ──────────────────────────────────────────────
-
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
-
-export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
-export type { KnowledgePage } from "../domain/entities/content-page.entity";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-````
-
-## File: modules/knowledge/application-services.md
-````markdown
-# knowledge — Application Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-
-## Use Cases 清單
-
-| Use Case 類別 | 操作 | UI 入口 |
-|---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
-
-## 設計對齊
-
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
-````
-
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
-```
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAtISO` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAtISO` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## Wiki/Knowledge Base 驗證事件
-
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAtISO: string;
-}
-
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAtISO: string;
-}
-
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAtISO: string;
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-````
-
 ## File: modules/knowledge/domain-services.md
 ````markdown
 # knowledge — Domain Services
@@ -65810,49 +64807,365 @@ interface KnowledgePageApprovedEvent {
 - `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
-## File: modules/knowledge/README.md
-````markdown
-# knowledge — 知識內容上下文
+## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
+````typescript
+"use client";
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
+import { useCallback, useEffect, useRef, useState } from "react";
+import { GripVertical, ChevronDown } from "lucide-react";
 
-## 在 Knowledge Platform / Second Brain 中的角色
+import {
+  draggable,
+  dropTargetForElements,
+  monitorForElements,
+} from "@lib-dragdrop";
 
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+import { useBlockEditorStore } from "../store/block-editor.store";
+import type { BlockType } from "../../domain/value-objects/block-content";
+import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
 
-## 主要職責
+/**
+ * BlockEditorView
+ *
+ * Block-based editor with typed content (BlockContent value object).
+ * Supports: text, heading-1/2/3, quote, divider, code, bullet-list, numbered-list.
+ *
+ * - Enter: add new block after current and focus it
+ * - Backspace (empty block): delete current and focus previous
+ * - Type selector: dropdown button left of drag handle
+ * - Drag handle: reorder blocks via pragmatic-drag-and-drop
+ */
 
-| 能力 | 說明 |
-|---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
+  "text": "T",
+  "heading-1": "H1",
+  "heading-2": "H2",
+  "heading-3": "H3",
+  "image": "🖼",
+  "code": "<>",
+  "bullet-list": "•",
+  "numbered-list": "1.",
+  "divider": "—",
+  "quote": "❝",
+};
 
-## 與其他 Bounded Context 協作
+const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
+  "text": "文字",
+  "heading-1": "標題 1",
+  "heading-2": "標題 2",
+  "heading-3": "標題 3",
+  "image": "圖片",
+  "code": "程式碼",
+  "bullet-list": "項目清單",
+  "numbered-list": "編號清單",
+  "divider": "分隔線",
+  "quote": "引言",
+};
 
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, changeBlockType, deleteBlock, moveBlock, init } =
+    useBlockEditorStore();
+  // focusNextRef encodes the intent:
+  //   "__after:{id}" → focus the block immediately after the one with the given id
+  //   "<id>"         → focus the block with the given id directly
+  const focusNextRef = useRef<string | null>(null);
+  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-## 核心聚合 / 核心概念
+  const setBlockRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    blockRefs.current[id] = el;
+  }, []);
 
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+  // Seed first block on mount (avoids SSR UUID mismatch)
+  useEffect(() => {
+    init();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-## 詳細文件
+  // Focus resolution after every render
+  useEffect(() => {
+    const intent = focusNextRef.current;
+    if (!intent) return;
 
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+    let targetId: string | undefined;
+    if (intent.startsWith("__after:")) {
+      const afterId = intent.slice("__after:".length);
+      const idx = blocks.findIndex((b) => b.id === afterId);
+      targetId = blocks[idx + 1]?.id;
+    } else {
+      targetId = intent;
+    }
+
+    if (targetId) {
+      const el = blockRefs.current[targetId];
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        focusNextRef.current = null;
+      }
+    }
+  });
+
+  // Set up DnD monitor once
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) return;
+        const fromId = source.data["blockId"] as string | undefined;
+        const toId = target.data["blockId"] as string | undefined;
+        if (!fromId || !toId || fromId === toId) return;
+        const fromIdx = blocks.findIndex((b) => b.id === fromId);
+        const toIdx = blocks.findIndex((b) => b.id === toId);
+        if (fromIdx !== -1 && toIdx !== -1) {
+          moveBlock(fromIdx, toIdx);
+        }
+      },
+    });
+  }, [blocks, moveBlock]);
+
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        addBlock(blockId);
+        focusNextRef.current = `__after:${blockId}`;
+      } else if (event.key === "Backspace") {
+        const el = blockRefs.current[blockId];
+        if (!el?.textContent) {
+          event.preventDefault();
+          const idx = blocks.findIndex((b) => b.id === blockId);
+          if (idx > 0) {
+            const prevId = blocks[idx - 1].id;
+            deleteBlock(blockId);
+            focusNextRef.current = prevId;
+          }
+        }
+      }
+    },
+    [addBlock, blocks, deleteBlock],
+  );
+
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Block Editor</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">區塊編輯器</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          支援 10 種區塊類型 · Enter 換行 · Backspace 刪除空白區塊 · 拖曳重排
+        </p>
+      </div>
+
+      <div className="space-y-0.5">
+        {blocks.map((block, idx) => (
+          <BlockRow
+            key={block.id}
+            block={block}
+            index={idx}
+            setBlockRef={setBlockRef}
+            onKeyDown={handleKeyDown}
+            onTextChange={(text) => updateBlock(block.id, text)}
+            onTypeChange={(type) => changeBlockType(block.id, type)}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/60">
+        {blocks.length} 個區塊 · Enter 新增 · Backspace 刪除空白區塊 · 拖曳重排
+      </p>
+    </section>
+  );
+}
+
+interface BlockRowProps {
+  readonly block: { id: string; content: { type: BlockType; text: string } };
+  readonly index: number;
+  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
+  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
+  readonly onTextChange: (text: string) => void;
+  readonly onTypeChange: (type: BlockType) => void;
+}
+
+function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const dropEl = dropRef.current;
+    if (!handleEl || !dropEl) return;
+
+    const cleanupDraggable = draggable({
+      element: handleEl,
+      getInitialData: () => ({ blockId: block.id }),
+    });
+    const cleanupDrop = dropTargetForElements({
+      element: dropEl,
+      getData: () => ({ blockId: block.id }),
+    });
+    return () => {
+      cleanupDraggable();
+      cleanupDrop();
+    };
+  }, [block.id]);
+
+  const { type, text } = block.content;
+
+  if (type === "divider") {
+    return (
+      <div ref={dropRef} className="group flex items-center gap-1 py-1">
+        <TypeSelectorButton
+          currentType={type}
+          open={typeMenuOpen}
+          onOpenChange={setTypeMenuOpen}
+          onSelect={onTypeChange}
+        />
+        <button
+          ref={dragHandleRef}
+          type="button"
+          aria-label="拖曳重排"
+          className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
+        >
+          <GripVertical className="size-4 text-muted-foreground" />
+        </button>
+        <hr className="flex-1 border-t border-border/60" />
+      </div>
+    );
+  }
+
+  const editableClassName = blockEditableClass(type);
+
+  return (
+    <div ref={dropRef} className="group flex items-start gap-1">
+      <TypeSelectorButton
+        currentType={type}
+        open={typeMenuOpen}
+        onOpenChange={setTypeMenuOpen}
+        onSelect={onTypeChange}
+      />
+      <button
+        ref={dragHandleRef}
+        type="button"
+        aria-label="拖曳重排"
+        className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing"
+      >
+        <GripVertical className="size-4 text-muted-foreground" />
+      </button>
+
+      {type === "bullet-list" && (
+        <span className="mt-1 select-none text-sm text-foreground">•</span>
+      )}
+
+      <div
+        ref={(el) => setBlockRef(block.id, el)}
+        role="textbox"
+        tabIndex={0}
+        contentEditable
+        suppressContentEditableWarning
+        onKeyDown={(e) => onKeyDown(e, block.id)}
+        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
+        data-placeholder={blockPlaceholder(type)}
+        className={editableClassName}
+      >
+        {text}
+      </div>
+    </div>
+  );
+}
+
+function blockEditableClass(type: BlockType): string {
+  const base =
+    "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
+  switch (type) {
+    case "heading-1":
+      return `${base} text-3xl font-bold`;
+    case "heading-2":
+      return `${base} text-2xl font-semibold`;
+    case "heading-3":
+      return `${base} text-xl font-medium`;
+    case "quote":
+      return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
+    case "code":
+      return `${base} font-mono text-sm bg-muted rounded`;
+    case "bullet-list":
+    case "numbered-list":
+      return `${base} text-sm text-foreground`;
+    default:
+      return `${base} min-h-[1.75rem] text-sm text-foreground`;
+  }
+}
+
+function blockPlaceholder(type: BlockType): string {
+  switch (type) {
+    case "heading-1": return "標題 1";
+    case "heading-2": return "標題 2";
+    case "heading-3": return "標題 3";
+    case "quote": return "引言…";
+    case "code": return "// 程式碼";
+    case "bullet-list": return "清單項目…";
+    case "numbered-list": return "清單項目…";
+    default: return "輸入文字…";
+  }
+}
+
+interface TypeSelectorButtonProps {
+  currentType: BlockType;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelect: (type: BlockType) => void;
+}
+
+function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeSelectorButtonProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onOpenChange(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open, onOpenChange]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px] font-medium text-muted-foreground opacity-0 transition group-hover:opacity-100 hover:bg-muted hover:text-foreground"
+        aria-label="切換區塊類型"
+        title="切換區塊類型"
+      >
+        {BLOCK_TYPE_LABELS[currentType]}
+        <ChevronDown className="size-3" />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 w-32 rounded-md border border-border bg-popover shadow-md">
+          {BLOCK_TYPES.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => { onSelect(t); onOpenChange(false); }}
+              className={`flex w-full items-center gap-2 px-2 py-1 text-left text-xs hover:bg-muted ${t === currentType ? "font-semibold text-primary" : "text-foreground"}`}
+            >
+              <span className="w-5 font-mono text-[10px] text-muted-foreground">{BLOCK_TYPE_LABELS[t]}</span>
+              {BLOCK_TYPE_NAMES[t]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 ````
 
 ## File: modules/knowledge/repositories.md
@@ -65910,122 +65223,6 @@ interface KnowledgePageApprovedEvent {
 - `../../../docs/ddd/knowledge/aggregates.md`
 ````
 
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-
-## 頁面生命周期操作（Page Lifecycle Actions）
-
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
-
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
-
-## 頁面操作選單（PageContextMenu）
-
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
-
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
-
-## 頁面樹狀視圖（PageTreeView）
-
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
-
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
-
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/subdomains.md
 ````markdown
 # Modules Subdomains（Canonical Link）
@@ -66036,17 +65233,16 @@ interface KnowledgePageApprovedEvent {
 - 若需調整子域分類內容，請只編輯 canonical 檔案。
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceWikiView.tsx
+## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
 ````typescript
 "use client";
 
 import Link from "next/link";
-import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
 
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { getKnowledgePageTree } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -66055,141 +65251,314 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
 
-interface WorkspaceWikiViewProps {
-  readonly workspace: WorkspaceEntity;
+import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
 }
 
-/** Base left-padding (rem) for depth-0 tree items. */
-const TREE_INDENT_BASE_REM = 0.5;
-/** Additional left-padding (rem) per nesting level. */
-const TREE_INDENT_STEP_REM = 1.25;
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+}: WorkspaceHubScreenProps) {
+  const router = useRouter();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
 
-function flattenTree(nodes: KnowledgePageTreeNode[], depth = 0): Array<{ node: KnowledgePageTreeNode; depth: number }> {
-  const out: Array<{ node: KnowledgePageTreeNode; depth: number }> = [];
-  for (const node of nodes) {
-    out.push({ node, depth });
-    out.push(...flattenTree(node.children as KnowledgePageTreeNode[], depth + 1));
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
   }
-  return out;
-}
 
-export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
-  const [pages, setPages] = useState<KnowledgePageTreeNode[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  useEffect(() => {
-    let cancelled = false;
+    const result = await createWorkspaceForAccount(workspaceName);
 
-    async function loadPages() {
-      setLoadState("loading");
-      try {
-        const result = await getKnowledgePageTree(workspace.accountId);
-        if (!cancelled) {
-          setPages(result);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) setLoadState("error");
-      }
+    if (!result.success) {
+      return;
     }
 
-    void loadPages();
-
-    return () => { cancelled = true; };
-  }, [workspace.accountId]);
-
-  const flatPages = flattenTree(pages);
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      router.push(`/workspace/${result.aggregateId}`);
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <Card className="border-border/60 bg-card/80">
-        <CardHeader className="flex-row items-center justify-between gap-4 space-y-0 pb-3">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <BookOpenIcon className="size-4 shrink-0 text-primary" />
-              <span className="truncate">Wiki · {workspace.name}</span>
-            </CardTitle>
-            <CardDescription className="mt-0.5">
-              此工作區的 Wiki 頁面
-            </CardDescription>
-          </div>
-          <Button asChild size="sm" className="shrink-0 gap-1.5">
-            <Link
-              href={`/knowledge/pages?workspaceId=${workspace.id}`}
-            >
-              <PlusIcon className="size-3.5" />
-              <span className="hidden sm:inline">新增頁面</span>
-              <span className="sm:hidden">新增</span>
-            </Link>
-          </Button>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
+
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、Wiki、Notebook / AI。
+          </CardDescription>
         </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、Wiki、Notebook / AI。
+              </li>
+            </ol>
+          </div>
 
-        <CardContent className="pb-4">
-          {loadState === "loading" && (
-            <div className="flex items-center justify-center py-8 text-muted-foreground">
-              <Loader2 className="size-5 animate-spin" />
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
             </div>
-          )}
-
-          {loadState === "error" && (
-            <p className="py-4 text-center text-sm text-destructive">
-              無法載入頁面，請稍後再試。
-            </p>
-          )}
-
-          {loadState === "loaded" && flatPages.length === 0 && (
-            <div className="flex flex-col items-center gap-3 py-8 text-center">
-              <div className="flex size-10 items-center justify-center rounded-xl bg-muted">
-                <BookOpenIcon className="size-5 text-muted-foreground" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">尚無 Wiki 頁面</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  建立第一頁來開始記錄工作區知識。
-                </p>
-              </div>
-              <Button asChild variant="outline" size="sm" className="gap-1.5">
-                <Link href={`/knowledge/pages?workspaceId=${workspace.id}`}>
-                  <PlusIcon className="size-3.5" />
-                  建立第一頁
-                </Link>
-              </Button>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Wiki</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構先從工作區內的 Wiki 視角進入。
+              </p>
             </div>
-          )}
-
-          {loadState === "loaded" && flatPages.length > 0 && (
-            <ul className="divide-y divide-border/50">
-              {flatPages.map(({ node, depth }) => (
-                <li key={node.id}>
-                  <Link
-                    href={`/knowledge/pages?pageId=${node.id}`}
-                    className="flex items-center gap-2 rounded-md px-2 py-2 text-sm transition hover:bg-muted"
-                    style={{ paddingLeft: `${TREE_INDENT_BASE_REM + depth * TREE_INDENT_STEP_REM}rem` }}
-                  >
-                    <FileTextIcon className="size-3.5 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate font-medium text-foreground">
-                      {node.title}
-                    </span>
-                    <span className="shrink-0 rounded-full border border-border/50 px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                      {node.slug}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <div className="flex flex-wrap gap-2">
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>前往工作區文件</Link>
-        </Button>
-        <Button asChild variant="outline" size="sm">
-          <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>RAG 知識查詢</Link>
-        </Button>
-      </div>
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / Wiki / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href="/organization"
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => (
+            <Link
+              key={workspace.id}
+              href={`/workspace/${workspace.id}`}
+              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">
+                      {workspace.name}
+                    </p>
+                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Account scope: {workspace.accountType}
+                  </p>
+                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                  <span>Capabilities: {workspace.capabilities.length}</span>
+                  <span>Teams: {workspace.teamIds.length}</span>
+                  <span>Locations: {workspace.locations?.length ?? 0}</span>
+                  <span>Grants: {workspace.grants.length}</span>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) {
+            resetCreateWorkspaceDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+            <DialogDescription id="create-workspace-description">
+              建立後會直接出現在目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label
+                className="text-sm font-medium text-foreground"
+                htmlFor="workspace-name"
+              >
+                工作區名稱
+              </label>
+              <Input
+                id="workspace-name"
+                value={workspaceName}
+                onChange={(event) => {
+                  setWorkspaceName(event.target.value);
+                  if (createError) {
+                    clearCreateError();
+                  }
+                }}
+                placeholder="例如：北區營運中心"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {createError && (
+                <p className="text-sm text-destructive">{createError}</p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -66814,397 +66183,1132 @@ export default function KnowledgeBaseArticlesPage() {
 }
 ````
 
-## File: app/(shell)/notebook/rag-query/page.tsx
+## File: eslint.config.mjs
+````javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+ 
+const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const typescriptFileGlobs = ["**/*.{ts,tsx}"];
+const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
+const boundaryRuleSeverity = "warn";
+const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
+
+const moduleApiEntrypointMessage =
+  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+
+const moduleApiEntrypointPattern = {
+  regex: "^@/modules/(?!system$)[^/]+$",
+  message: moduleApiEntrypointMessage,
+};
+
+const moduleNonApiSubpathPattern = {
+  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
+  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
+};
+
+const explicitIndexPathPattern = {
+  group: ["**/index", "**/index.ts", "**/index.tsx"],
+  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+};
+
+const moduleInternalLayerPattern = {
+  group: [
+    "@/modules/*/application/**",
+    "@/modules/*/domain/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+  ],
+  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+};
+
+const moduleElements = [
+  {
+    type: "module-root",
+    pattern: "modules/*/index.ts",
+    capture: ["module"],
+  },
+  {
+    type: "module-api",
+    pattern: "modules/*/api/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-domain",
+    pattern: "modules/*/domain/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-application",
+    pattern: "modules/*/application/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-infrastructure",
+    pattern: "modules/*/infrastructure/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-interfaces",
+    pattern: "modules/*/interfaces/**/*",
+    capture: ["module"],
+  },
+];
+
+const sameModuleCapture = { module: "{{from.captured.module}}" };
+const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
+
+const crossModuleApiRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [{ to: { type: "module-api" } }],
+  message: "Cross-module imports must go through `modules/<target>/api`.",
+}));
+
+const sameModuleRootRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [sameModuleTarget("module-root")],
+  message: "Module root barrel is allowed only for the same module.",
+}));
+
+const apiLayerRule = {
+  from: { type: "module-api" },
+  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
+  message: "API layer may depend only on same-module layers.",
+};
+
+const sameModuleLayerAllowMap = {
+  "module-domain": ["module-domain"],
+  "module-application": ["module-application", "module-domain"],
+  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
+  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
+};
+
+const sameModuleLayerMessageMap = {
+  "module-domain": "Domain may only depend on domain of the same module.",
+  "module-application": "Application may depend only on application/domain in the same module.",
+  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
+  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
+};
+
+const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
+  message: sameModuleLayerMessageMap[type],
+}));
+
+const moduleDependencyRules = [
+  ...crossModuleApiRules,
+  ...sameModuleRootRules,
+  apiLayerRule,
+  ...sameModuleLayerRules,
+];
+
+const packageAliasMigrationPatterns = [
+  {
+    group: ["@/shared/*"],
+    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
+  },
+  {
+    group: ["@/infrastructure/*"],
+    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
+  },
+  {
+    group: ["@/libs/*"],
+    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
+  },
+  {
+    group: ["@/ui/shadcn/*"],
+    message: "Use @ui-shadcn/* instead.",
+  },
+  {
+    group: ["@/ui/vis", "@/ui/vis/*"],
+    message: "Use @ui-vis instead.",
+  },
+  {
+    group: ["@/interfaces/*"],
+    message: "Use @api-contracts instead.",
+  },
+];
+
+const createRestrictedImportsRule = (patterns) => [
+  boundaryRuleSeverity,
+  {
+    patterns,
+  },
+];
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  {
+    files: sourceFileGlobs,
+    plugins: {
+      jsdoc,
+    },
+    settings: {
+      jsdoc: {
+        mode: "typescript",
+      },
+    },
+    rules: {
+      "jsdoc/check-alignment": "warn",
+      "jsdoc/check-syntax": "warn",
+      "jsdoc/check-tag-names": "warn",
+      "jsdoc/no-blank-blocks": "warn",
+    },
+  },
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/naming-convention": [
+        "warn",
+        {
+          selector: "typeLike",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "typeParameter",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "variable",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow",
+        },
+        {
+          selector: "parameter",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "enumMember",
+          format: ["PascalCase", "UPPER_CASE"],
+        },
+      ],
+    },
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  // ─── Consistent type-only imports ──────────────────────────────────────
+  // Enforces `import type` for type-only imports, improving tree-shaking and
+  // making module-boundary intent explicit (matches project MDDD conventions).
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
+    },
+  },
+  // ─── React best-practices ───────────────────────────────────────────────
+  // eslint-config-next already pulls in react / react-hooks rules via its
+  // own config; these overrides make project-specific settings explicit and
+  // add missing checks not covered by the base config.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
+      "react/prop-types": "off",            // TypeScript types replace PropTypes
+      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
+      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
+  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
+  // activated here.  Enabling recommended rules as warn catches common a11y
+  // mistakes without breaking the zero-error baseline.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
+          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
+          // Downgrade all errors to warnings to preserve the zero-error baseline.
+          if (Array.isArray(config)) {
+            const [severity, ...rest] = config;
+            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
+            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
+          }
+          const normalised = config === "error" || config === 2 ? "warn" : config;
+          return [rule, normalised];
+        }),
+      ),
+    },
+  },
+  {
+    files: moduleFileGlobs,
+    plugins: {
+      boundaries,
+    },
+    settings: {
+      "boundaries/include": moduleFileGlobs,
+      "boundaries/elements": moduleElements,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        boundaryRuleSeverity,
+        {
+          default: "disallow",
+          rules: moduleDependencyRules,
+        },
+      ],
+    },
+  },
+  // ─── Package boundary enforcement ───────────────────────────────────────
+  // Forbid legacy import paths that were migrated to packages/*.
+  {
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
+    },
+  },
+  // ─── Strict module entrypoint enforcement ───────────────────────────────
+  {
+    files: [
+      "app/**/*.{ts,tsx,js,jsx}",
+      "providers/**/*.{ts,tsx,js,jsx}",
+      "debug/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+      ]),
+    },
+  },
+  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
+  {
+    files: moduleFileGlobs,
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        explicitIndexPathPattern,
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+        moduleInternalLayerPattern,
+      ]),
+    },
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    ".agents/**",
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
+````
+
+## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: application/use-cases
+ * Category lifecycle use cases.
+ */
+
+import type { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { ICategoryRepository } from "../../domain/repositories/CategoryRepository";
+import type { Category } from "../../domain/entities/category.entity";
+import {
+  CreateCategorySchema,
+  RenameCategorySchema,
+  MoveCategorySchema,
+  DeleteCategorySchema,
+} from "../dto/knowledge-base.dto";
+import { v7 as generateId } from "@lib-uuid";
+
+export class CreateCategoryUseCase {
+  constructor(private readonly repo: ICategoryRepository) {}
+
+  async execute(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
+    const parsed = CreateCategorySchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const now = new Date().toISOString();
+    const depth = parsed.data.parentCategoryId ? 1 : 0;
+    const category: Category = {
+      id: generateId(),
+      accountId: parsed.data.accountId,
+      workspaceId: parsed.data.workspaceId,
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      parentCategoryId: parsed.data.parentCategoryId,
+      depth,
+      articleIds: [],
+      description: parsed.data.description,
+      createdByUserId: parsed.data.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await this.repo.save(category);
+    return commandSuccess(category.id, 1);
+  }
+}
+
+export class RenameCategoryUseCase {
+  constructor(private readonly repo: ICategoryRepository) {}
+
+  async execute(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
+    const parsed = RenameCategorySchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, name: parsed.data.name, updatedAtISO: now });
+    return commandSuccess(parsed.data.id, 1);
+  }
+}
+
+export class MoveCategoryUseCase {
+  constructor(private readonly repo: ICategoryRepository) {}
+
+  async execute(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
+    const parsed = MoveCategorySchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
+    const now = new Date().toISOString();
+    const depth = parsed.data.parentCategoryId ? 1 : 0;
+    await this.repo.save({
+      ...existing,
+      parentCategoryId: parsed.data.parentCategoryId,
+      depth,
+      updatedAtISO: now,
+    });
+    return commandSuccess(parsed.data.id, 1);
+  }
+}
+
+export class DeleteCategoryUseCase {
+  constructor(private readonly repo: ICategoryRepository) {}
+
+  async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult> {
+    const parsed = DeleteCategorySchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
+    await this.repo.delete(parsed.data.id);
+    return commandSuccess(parsed.data.id, 1);
+  }
+}
+
+export class ListCategoriesUseCase {
+  constructor(private readonly repo: ICategoryRepository) {}
+
+  async execute(workspaceId: string, accountId: string) {
+    return this.repo.listByWorkspace(workspaceId, accountId);
+  }
+}
+````
+
+## File: modules/knowledge-base/context-map.md
+````markdown
+# knowledge-base — Context Map
+
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
+
+## 上游
+
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
+- `knowledge-database` — Open Host Service（Article 可與 Record 連結；knowledge-base 呼叫 knowledge-database OHS API）
+
+## 下游
+
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
+
+## Promote 協議（D3）
+
+`knowledge-base` 是 Promote 協議的業務規則擁有者：
+
+1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
+2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
+3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
+4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
+````
+
+## File: modules/knowledge-base/README.md
+````markdown
+# knowledge-base — DDD Reference
+
+> **Domain Type:** Core Domain
+> **Module:** `modules/knowledge-base/`
+> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
+
+## 戰略定位
+
+`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
+
+## Bounded Context 邊界
+
+- **擁有：** Article（文章）、Category（分類）
+- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
+
+## 核心聚合
+
+詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
+
+- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
+- **Category** — 層級分類目錄（最多 5 層）
+
+## 主要領域事件
+
+詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
+
+- `knowledge-base.article_created`
+- `knowledge-base.article_published`
+- `knowledge-base.article_verified`
+- `knowledge-base.article_review_requested`
+- `knowledge-base.category_created`
+
+## 通用語言
+
+詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+
+- **Article** ≠ Page（個人筆記）≠ Document（泛型）
+- **VerificationState** ≠ ApprovalState（knowledge 的審核）
+- **Backlink** = `[[Article Title]]` wikilink 解析結果
+
+## 上下文關係
+
+詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier |
+| 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
+| 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
+| 下游 | `notification`, `workspace-feed` | Published Language |
+````
+
+## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useTransition } from "react";
+import { History, Trash2 } from "lucide-react";
 
-import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/search";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
 
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : appState.activeWorkspaceId || undefined;
+import { getVersions } from "../queries/knowledge-collaboration.queries";
+import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
+import type { Version } from "../../domain/entities/version.entity";
+
+interface VersionHistoryPanelProps {
+  accountId: string;
+  contentId: string;
+  currentUserId: string;
+}
+
+export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getVersions(accountId, contentId);
+        if (!disposed) { setVersions(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handleDelete(versionId: string) {
+    startTransition(async () => {
+      await deleteVersion({ id: versionId, accountId });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
+    });
+  }
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">版本歷史</span>
+        {versions.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
+        )}
+      </div>
 
-      <RagQueryView workspaceId={workspaceId} />
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
+        </div>
+      ) : versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
+      ) : (
+        <ol className="space-y-2">
+          {versions.map((v, idx) => (
+            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {versions.length - idx}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
+                {v.description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {v.createdByUserId === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(v.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
     </div>
   );
 }
 ````
 
-## File: modules/knowledge-base/api/index.ts
-````typescript
-/**
- * knowledge-base public API boundary
- *
- * Other modules MUST import knowledge-base resources from this file only.
- * Never import from domain/, application/, or infrastructure/ directly.
- */
+## File: modules/knowledge-database/README.md
+````markdown
+# knowledge-database — DDD Reference
 
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
-export type { Category } from "../domain/entities/category.entity";
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
 
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
+## 戰略定位
 
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/knowledge-base.actions";
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
 
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export {
-  getArticles,
-  getArticle,
-  getCategories,
-  getBacklinks,
-} from "../interfaces/queries/knowledge-base.queries";
+## 核心聚合
 
-// ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
+
+## 視圖類型
+
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
+| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
 ````
 
-## File: modules/knowledge-base/interfaces/_actions/knowledge-base.actions.ts
-````typescript
-"use server";
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
-import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
-import {
-  CreateArticleUseCase,
-  UpdateArticleUseCase,
-  PublishArticleUseCase,
-  ArchiveArticleUseCase,
-  VerifyArticleUseCase,
-  RequestArticleReviewUseCase,
-  DeleteArticleUseCase,
-} from "../../application/use-cases/article.use-cases";
-import {
-  CreateCategoryUseCase,
-  RenameCategoryUseCase,
-  MoveCategoryUseCase,
-  DeleteCategoryUseCase,
-} from "../../application/use-cases/category.use-cases";
-import type { z } from "@lib-zod";
-import type {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-  CreateCategorySchema,
-  RenameCategorySchema,
-  MoveCategorySchema,
-} from "../../application/dto/knowledge-base.dto";
+## 模組定位
 
-function makeArticleRepo() { return new FirebaseArticleRepository(); }
-function makeCategoryRepo(accountId: string) {
-  return new FirebaseCategoryRepository().withAccountId(accountId);
-}
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
 
-export async function createArticle(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new CreateArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
 
-export async function updateArticle(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new UpdateArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_UPDATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+## 通用語言（Ubiquitous Language）
 
-export async function publishArticle(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new PublishArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
 
-export async function archiveArticle(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new ArchiveArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 
-export async function verifyArticle(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
-  try {
-    return await new VerifyArticleUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+## 邊界規則
 
-export async function requestArticleReview(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
-  try {
-    return await new RequestArticleReviewUseCase(makeArticleRepo()).execute(input);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
 
-export async function deleteArticle(accountId: string, articleId: string): Promise<CommandResult> {
-  try {
-    const repo = makeArticleRepo() as FirebaseArticleRepository;
-    await repo.deleteArticle(accountId, articleId);
-    return commandSuccess(articleId, 1);
-  } catch (e) {
-    return commandFailureFrom("ARTICLE_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+### ❌ 禁止
+```typescript
+import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { WikiPage } from "@/modules/wiki/domain/entities/...";
+```
 
-export async function createCategory(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new CreateCategoryUseCase(makeCategoryRepo(input.accountId)).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_CREATE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+## page_approved 事件規則
 
-export async function renameCategory(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new RenameCategoryUseCase(makeCategoryRepo(input.accountId)).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_RENAME_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
 
-export async function moveCategory(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
-  try {
-    return await new MoveCategoryUseCase(makeCategoryRepo(input.accountId)).execute(input);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_MOVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+## 驗證命令
 
-export async function deleteCategory(accountId: string, categoryId: string): Promise<CommandResult> {
-  try {
-    await makeCategoryRepo(accountId).delete(categoryId);
-    return commandSuccess(categoryId, 1);
-  } catch (e) {
-    return commandFailureFrom("CATEGORY_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
+```bash
+npm run lint
+npm run build
+```
 ````
 
-## File: modules/knowledge-base/interfaces/components/ArticleDialog.tsx
-````typescript
-"use client";
+## File: modules/knowledge/application-services.md
+````markdown
+# knowledge — Application Services
 
-import { useEffect, useState, useTransition } from "react";
-import { X } from "lucide-react";
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
 
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@ui-shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
 
-import { createArticle, updateArticle } from "../_actions/knowledge-base.actions";
-import type { Article } from "../../domain/entities/article.entity";
-import type { Category } from "../../domain/entities/category.entity";
+## Application Layer 職責
 
-interface ArticleDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string;
-  workspaceId: string;
-  currentUserId: string;
-  categories: Category[];
-  /** Article to edit — omit for create mode */
-  article?: Article;
-  onSuccess?: (articleId?: string) => void;
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
+- `application/block-service.ts`
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
+
+## Use Cases 清單
+
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+
+## 設計對齊
+
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+````
+
+## File: modules/knowledge/context-map.md
+````markdown
+# Context Map — knowledge
+
+## 上游（依賴）
+
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
+
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+
+---
+
+## 下游（被依賴）
+
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
+
+**這是平台最重要的跨 BC 整合點。**
+
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (ContentToWorkflowMaterializer)
+```
+
+### knowledge → wiki（Customer/Supplier）
+
+- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
+- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+### knowledge → knowledge-database（Open Host Service / D1）
+
+- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
+- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
+- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
+
+```
+knowledge ──(KnowledgeCollection.id)──► knowledge-database
+                                        (Database / Record / View 管理)
+```
+
+### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
+
+- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
+- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
+- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
+
+```
+knowledge ─── knowledge.page_promoted ───► knowledge-base
+                                           (Article 建立，Promote 協議完成)
+```
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
+| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
+````
+
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## Wiki/Knowledge Base 驗證事件
+
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAt: string;    // ISO 8601
 }
 
-export function ArticleDialog({
-  open,
-  onOpenChange,
-  accountId,
-  workspaceId,
-  currentUserId,
-  categories,
-  article,
-  onSuccess,
-}: ArticleDialogProps) {
-  const isEdit = !!article;
-  const [title, setTitle] = useState(article?.title ?? "");
-  const [content, setContent] = useState(article?.content ?? "");
-  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
-  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
-  const [error, setError] = useState<string | null>(null);
-  const [isPending, startTransition] = useTransition();
-
-  // Reset when article changes
-  useEffect(() => {
-    void Promise.resolve().then(() => {
-      setTitle(article?.title ?? "");
-      setContent(article?.content ?? "");
-      setCategoryId(article?.categoryId ?? "__none__");
-      setTags(article?.tags.join(", ") ?? "");
-      setError(null);
-    });
-  }, [article, open]);
-
-  function handleSubmit() {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) { setError("標題不可空白"); return; }
-    const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
-    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
-
-    startTransition(async () => {
-      setError(null);
-      if (isEdit) {
-        const result = await updateArticle({
-          id: article!.id,
-          accountId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-        });
-        if (!result.success) { setError(result.error.message ?? "更新失敗"); return; }
-        onSuccess?.();
-      } else {
-        const result = await createArticle({
-          accountId,
-          workspaceId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-          createdByUserId: currentUserId,
-        });
-        if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-        onSuccess?.(result.success ? result.aggregateId : undefined);
-      }
-      onOpenChange(false);
-    });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4 py-2">
-          {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              <X className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-title">標題</Label>
-            <Input
-              id="kb-article-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="文章標題"
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-category">分類</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="kb-article-category">
-                <SelectValue placeholder="選擇分類（選填）" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— 不指定 —</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-tags">標籤 <span className="text-muted-foreground text-xs">（以逗號分隔）</span></Label>
-            <Input
-              id="kb-article-tags"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="標籤1, 標籤2"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-content">內容</Label>
-            <Textarea
-              id="kb-article-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="文章內容（支援 Markdown）"
-              rows={6}
-              className="resize-none font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
-            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAt: string;    // ISO 8601
 }
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+```
+
+## Promote 事件（D3：Page → Article 提升協議）
+
+`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
+
+```typescript
+interface KnowledgePagePromotedEvent {
+  readonly type: "knowledge.page_promoted";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
+  readonly promotedByUserId: string;
+  readonly occurredAt: string;       // ISO 8601
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
+````
+
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/content-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/content-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
@@ -68099,7 +68203,7 @@ export function WorkspaceDetailScreen({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">可見性</label>
+                  <span className="text-sm font-medium text-foreground">可見性</span>
                   <Select
                     value={settingsDraft.visibility}
                     onValueChange={(value: WorkspaceEntity["visibility"]) =>
@@ -68120,7 +68224,7 @@ export function WorkspaceDetailScreen({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">生命週期</label>
+                  <span className="text-sm font-medium text-foreground">生命週期</span>
                   <Select
                     value={settingsDraft.lifecycleState}
                     onValueChange={(value: WorkspaceEntity["lifecycleState"]) =>
@@ -68425,6 +68529,177 @@ export function WorkspaceDetailScreen({
 }
 ````
 
+## File: app/(shell)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { RagQueryView } from "@/modules/search/api";
+
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : appState.activeWorkspaceId || undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId} />
+    </div>
+  );
+}
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
 ## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 "use client";
@@ -68535,7 +68810,7 @@ export function AppRail({
   activeWorkspaceId,
   onSelectWorkspace,
   onOrganizationCreated,
-  onSignOut,
+  onSignOut: _onSignOut,
 }: AppRailProps) {
   const router = useRouter();
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
@@ -68912,6 +69187,7 @@ export function AppRail({
                   if (orgError) setOrgError(null);
                 }}
                 placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 disabled={isCreating}
                 maxLength={80}
@@ -68966,6 +69242,7 @@ export function AppRail({
                   if (workspaceCreateError) setWorkspaceCreateError(null);
                 }}
                 placeholder="例如：Project Alpha"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 disabled={isCreatingWorkspace}
                 maxLength={80}
@@ -68994,406 +69271,6 @@ export function AppRail({
     </TooltipProvider>
   );
 }
-````
-
-## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: application/use-cases
- * Category lifecycle use cases.
- */
-
-import { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { ICategoryRepository } from "../../domain/repositories/CategoryRepository";
-import type { Category } from "../../domain/entities/category.entity";
-import {
-  CreateCategorySchema,
-  RenameCategorySchema,
-  MoveCategorySchema,
-  DeleteCategorySchema,
-} from "../dto/knowledge-base.dto";
-import { v7 as generateId } from "@lib-uuid";
-
-export class CreateCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
-
-  async execute(input: z.infer<typeof CreateCategorySchema>): Promise<CommandResult> {
-    const parsed = CreateCategorySchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const now = new Date().toISOString();
-    const depth = parsed.data.parentCategoryId ? 1 : 0;
-    const category: Category = {
-      id: generateId(),
-      accountId: parsed.data.accountId,
-      workspaceId: parsed.data.workspaceId,
-      name: parsed.data.name,
-      slug: parsed.data.slug,
-      parentCategoryId: parsed.data.parentCategoryId,
-      depth,
-      articleIds: [],
-      description: parsed.data.description,
-      createdByUserId: parsed.data.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await this.repo.save(category);
-    return commandSuccess(category.id, 1);
-  }
-}
-
-export class RenameCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
-
-  async execute(input: z.infer<typeof RenameCategorySchema>): Promise<CommandResult> {
-    const parsed = RenameCategorySchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, name: parsed.data.name, updatedAtISO: now });
-    return commandSuccess(parsed.data.id, 1);
-  }
-}
-
-export class MoveCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
-
-  async execute(input: z.infer<typeof MoveCategorySchema>): Promise<CommandResult> {
-    const parsed = MoveCategorySchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
-    const now = new Date().toISOString();
-    const depth = parsed.data.parentCategoryId ? 1 : 0;
-    await this.repo.save({
-      ...existing,
-      parentCategoryId: parsed.data.parentCategoryId,
-      depth,
-      updatedAtISO: now,
-    });
-    return commandSuccess(parsed.data.id, 1);
-  }
-}
-
-export class DeleteCategoryUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
-
-  async execute(input: z.infer<typeof DeleteCategorySchema>): Promise<CommandResult> {
-    const parsed = DeleteCategorySchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("CATEGORY_NOT_FOUND", "Category not found");
-    await this.repo.delete(parsed.data.id);
-    return commandSuccess(parsed.data.id, 1);
-  }
-}
-
-export class ListCategoriesUseCase {
-  constructor(private readonly repo: ICategoryRepository) {}
-
-  async execute(workspaceId: string, accountId: string) {
-    return this.repo.listByWorkspace(workspaceId, accountId);
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { History, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getVersions } from "../queries/knowledge-collaboration.queries";
-import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
-import type { Version } from "../../domain/entities/version.entity";
-
-interface VersionHistoryPanelProps {
-  accountId: string;
-  contentId: string;
-  currentUserId: string;
-}
-
-export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getVersions(accountId, contentId);
-        if (!disposed) { setVersions(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handleDelete(versionId: string) {
-    startTransition(async () => {
-      await deleteVersion({ id: versionId, accountId });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">版本歷史</span>
-        {versions.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
-        </div>
-      ) : versions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
-      ) : (
-        <ol className="space-y-2">
-          {versions.map((v, idx) => (
-            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-                {versions.length - idx}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
-                {v.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
-                )}
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              {v.createdByUserId === currentUserId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(v.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: application/use-cases
- * Article lifecycle use cases.
- */
-
-import { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
-import type { Article } from "../../domain/entities/article.entity";
-import {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-  DeleteArticleSchema,
-} from "../dto/knowledge-base.dto";
-import { v7 as generateId } from "@lib-uuid";
-
-export class CreateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
-    const parsed = CreateArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const now = new Date().toISOString();
-    const article: Article = {
-      id: generateId(),
-      accountId: parsed.data.accountId,
-      workspaceId: parsed.data.workspaceId,
-      categoryId: parsed.data.categoryId,
-      title: parsed.data.title,
-      content: parsed.data.content,
-      tags: parsed.data.tags,
-      status: "draft",
-      version: 1,
-      verificationState: "unverified",
-      ownerId: parsed.data.createdByUserId,
-      verifiedByUserId: null,
-      verifiedAtISO: null,
-      verificationExpiresAtISO: null,
-      linkedArticleIds: [],
-      createdByUserId: parsed.data.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await this.repo.save(article);
-    return commandSuccess(article.id, article.version);
-  }
-}
-
-export class UpdateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
-    const parsed = UpdateArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    const updated: Article = {
-      ...existing,
-      title: parsed.data.title ?? existing.title,
-      content: parsed.data.content ?? existing.content,
-      categoryId: parsed.data.categoryId !== undefined ? parsed.data.categoryId : existing.categoryId,
-      tags: parsed.data.tags ?? existing.tags,
-      updatedAtISO: now,
-    };
-    await this.repo.save(updated);
-    return commandSuccess(updated.id, updated.version);
-  }
-}
-
-export class PublishArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
-    const parsed = PublishArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, status: "published", version: existing.version + 1, updatedAtISO: now });
-    return commandSuccess(parsed.data.id, existing.version + 1);
-  }
-}
-
-export class ArchiveArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
-    const parsed = ArchiveArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, status: "archived", updatedAtISO: now });
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class VerifyArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
-    const parsed = VerifyArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    const expiresAt = parsed.data.expiresInDays
-      ? new Date(Date.now() + parsed.data.expiresInDays * 86400000).toISOString()
-      : null;
-    await this.repo.save({
-      ...existing,
-      verificationState: "verified",
-      verifiedByUserId: parsed.data.verifiedByUserId,
-      verifiedAtISO: now,
-      verificationExpiresAtISO: expiresAt,
-      updatedAtISO: now,
-    });
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class RequestArticleReviewUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
-    const parsed = RequestArticleReviewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, verificationState: "needs_review", updatedAtISO: now });
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class DeleteArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
-    const parsed = DeleteArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    await this.repo.delete(parsed.data.id);
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class ListArticlesUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(params: { workspaceId: string; accountId: string; categoryId?: string }) {
-    return this.repo.list(params);
-  }
-}
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -70350,5 +70227,184 @@ export function DashboardSidebar({
     />
     </div>
   );
+}
+````
+
+## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: application/use-cases
+ * Article lifecycle use cases.
+ */
+
+import type { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
+import type { Article } from "../../domain/entities/article.entity";
+import {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+  DeleteArticleSchema,
+} from "../dto/knowledge-base.dto";
+import { v7 as generateId } from "@lib-uuid";
+
+export class CreateArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
+    const parsed = CreateArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const now = new Date().toISOString();
+    const article: Article = {
+      id: generateId(),
+      accountId: parsed.data.accountId,
+      workspaceId: parsed.data.workspaceId,
+      categoryId: parsed.data.categoryId,
+      title: parsed.data.title,
+      content: parsed.data.content,
+      tags: parsed.data.tags,
+      status: "draft",
+      version: 1,
+      verificationState: "unverified",
+      ownerId: parsed.data.createdByUserId,
+      verifiedByUserId: null,
+      verifiedAtISO: null,
+      verificationExpiresAtISO: null,
+      linkedArticleIds: [],
+      createdByUserId: parsed.data.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await this.repo.save(article);
+    return commandSuccess(article.id, article.version);
+  }
+}
+
+export class UpdateArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
+    const parsed = UpdateArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    const updated: Article = {
+      ...existing,
+      title: parsed.data.title ?? existing.title,
+      content: parsed.data.content ?? existing.content,
+      categoryId: parsed.data.categoryId !== undefined ? parsed.data.categoryId : existing.categoryId,
+      tags: parsed.data.tags ?? existing.tags,
+      updatedAtISO: now,
+    };
+    await this.repo.save(updated);
+    return commandSuccess(updated.id, updated.version);
+  }
+}
+
+export class PublishArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
+    const parsed = PublishArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, status: "published", version: existing.version + 1, updatedAtISO: now });
+    return commandSuccess(parsed.data.id, existing.version + 1);
+  }
+}
+
+export class ArchiveArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
+    const parsed = ArchiveArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, status: "archived", updatedAtISO: now });
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class VerifyArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
+    const parsed = VerifyArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    const expiresAt = parsed.data.expiresInDays
+      ? new Date(Date.now() + parsed.data.expiresInDays * 86400000).toISOString()
+      : null;
+    await this.repo.save({
+      ...existing,
+      verificationState: "verified",
+      verifiedByUserId: parsed.data.verifiedByUserId,
+      verifiedAtISO: now,
+      verificationExpiresAtISO: expiresAt,
+      updatedAtISO: now,
+    });
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class RequestArticleReviewUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
+    const parsed = RequestArticleReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, verificationState: "needs_review", updatedAtISO: now });
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class DeleteArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
+    const parsed = DeleteArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    await this.repo.delete(parsed.data.id);
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class ListArticlesUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(params: { workspaceId: string; accountId: string; categoryId?: string }) {
+    return this.repo.list(params);
+  }
 }
 ````

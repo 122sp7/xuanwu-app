@@ -3,7 +3,7 @@
  * @file create-invoice.use-case.ts
  * @description Use case: Create a new invoice for a workspace.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceCreatedEvent to event bus
  */
 

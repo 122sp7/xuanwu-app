@@ -19,6 +19,7 @@
 2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
 3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
 4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
 
 ## 詳細實作文件
 

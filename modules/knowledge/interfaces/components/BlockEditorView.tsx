@@ -252,6 +252,8 @@ function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }:
 
       <div
         ref={(el) => setBlockRef(block.id, el)}
+        role="textbox"
+        tabIndex={0}
         contentEditable
         suppressContentEditableWarning
         onKeyDown={(e) => onKeyDown(e, block.id)}

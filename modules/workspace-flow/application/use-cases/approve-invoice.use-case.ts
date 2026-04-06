@@ -3,7 +3,7 @@
  * @file approve-invoice.use-case.ts
  * @description Use case: Approve an invoice in finance review (finance_review → approved).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceApprovedEvent to event bus
  */
 

@@ -3,7 +3,7 @@
  * @file IssueStage.ts
  * @description Cross-domain stage reference indicating at which task-flow stage an issue was raised.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Extend stage list if workflow introduces additional stages
  */
 

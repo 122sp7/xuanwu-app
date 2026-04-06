@@ -169,6 +169,7 @@ export function AccountSwitcher({
                   }
                 }}
                 placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 disabled={isCreatingOrganization}
                 maxLength={80}

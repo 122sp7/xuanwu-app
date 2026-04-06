@@ -14,6 +14,13 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
 - Prefer references to canonical docs over repeated policy text.
 
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
+
 ## Authoritative Sources
 
 Read these in order before making non-trivial decisions:
@@ -71,6 +78,8 @@ DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the 
 
 Serena MCP is **mandatory for every session**. There are no exceptions.
 
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
+
 ### Session-Start Protocol (Required)
 
 1. Bootstrap Serena MCP server if tools are not available:
@@ -93,12 +102,13 @@ See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKI
 
 - **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
 - **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
 - If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
 - Index and memory changes are only valid when made through Serena tools.
 
 ## Context7 Documentation Query
 
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
 
 ### Trigger Conditions
 
@@ -121,6 +131,15 @@ Any of the following require a context7 lookup before proceeding:
 - Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
 - Keep queries focused: one `topic` per call rather than fetching the entire doc set.
 - See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Claude Compatibility Layer
+
+`.claude/` is a supported Claude Code compatibility surface.
+
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
 
 ## Skill And Agent Routing
 

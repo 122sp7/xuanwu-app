@@ -79,6 +79,7 @@ export function PageDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={isPending}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>

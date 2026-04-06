@@ -3,7 +3,7 @@
  * @file invoice-guards.ts
  * @description Pure domain guards for invoice lifecycle invariants.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add guards for additional billing invariants as rules evolve
  */
 

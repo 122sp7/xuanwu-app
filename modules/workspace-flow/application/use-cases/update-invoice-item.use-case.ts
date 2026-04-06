@@ -3,7 +3,7 @@
  * @file update-invoice-item.use-case.ts
  * @description Use case: Update the amount of an existing invoice item on a draft invoice.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";

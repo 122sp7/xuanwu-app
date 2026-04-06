@@ -3,7 +3,7 @@
  * @file fix-issue.use-case.ts
  * @description Use case: Mark an issue as being fixed (investigating → fixing).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit IssueFixedEvent to event bus
  */
 

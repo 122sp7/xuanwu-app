@@ -32,6 +32,7 @@ Application layer 只負責：
 | `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
 | `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
 | `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
 | `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
 | `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
 | `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |

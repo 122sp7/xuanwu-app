@@ -10,13 +10,11 @@ import {
   ArchiveArticleUseCase,
   VerifyArticleUseCase,
   RequestArticleReviewUseCase,
-  DeleteArticleUseCase,
 } from "../../application/use-cases/article.use-cases";
 import {
   CreateCategoryUseCase,
   RenameCategoryUseCase,
   MoveCategoryUseCase,
-  DeleteCategoryUseCase,
 } from "../../application/use-cases/category.use-cases";
 import type { z } from "@lib-zod";
 import type {

@@ -3,7 +3,7 @@
  * @file TaskRepository.ts
  * @description Repository port interface for Task persistence.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Implement in infrastructure/repositories/FirebaseTaskRepository
  */
 

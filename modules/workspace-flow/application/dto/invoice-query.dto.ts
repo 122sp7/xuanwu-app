@@ -3,7 +3,7 @@
  * @file invoice-query.dto.ts
  * @description Query parameters DTO for listing invoices.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add pagination support when invoice lists grow large
  */
 

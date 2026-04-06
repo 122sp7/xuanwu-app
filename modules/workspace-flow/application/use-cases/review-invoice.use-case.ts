@@ -3,7 +3,7 @@
  * @file review-invoice.use-case.ts
  * @description Use case: Move an invoice into finance review (submitted → finance_review).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceReviewedEvent to event bus
  */
 

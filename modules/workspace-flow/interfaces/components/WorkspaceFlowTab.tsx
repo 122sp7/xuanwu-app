@@ -13,7 +13,7 @@
  * - Create Invoice button + Invoice lifecycle transitions
  *
  * @author workspace-flow
- * @created 2026-03-27
+ * @since 2026-03-27
  */
 
 import { useCallback, useEffect, useState } from "react";
@@ -250,6 +250,7 @@ function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskD
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>
@@ -351,6 +352,7 @@ function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogPro
               value={assigneeId}
               onChange={(e) => setAssigneeId(e.target.value)}
               disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>
@@ -430,6 +432,7 @@ function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: Op
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>

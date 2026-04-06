@@ -82,7 +82,7 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
   async save(category: Category): Promise<void> {
     const db = this.db();
     const ref = categoryDoc(db, category.accountId, category.id);
-    const { id, ...data } = category;
+    const { id: _id, ...data } = category;
     await setDoc(ref, { ...data, _createdAt: serverTimestamp() }, { merge: true });
   }
 

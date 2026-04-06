@@ -125,6 +125,7 @@ export function ArticleDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="文章標題"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>

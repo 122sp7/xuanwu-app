@@ -3,7 +3,7 @@
  * @file update-task.use-case.ts
  * @description Use case: Update mutable fields on an existing task.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";

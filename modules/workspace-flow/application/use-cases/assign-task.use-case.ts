@@ -3,7 +3,7 @@
  * @file assign-task.use-case.ts
  * @description Use case: Assign a task to a user and transition status to in_progress.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add permission check for assignee
  */
 

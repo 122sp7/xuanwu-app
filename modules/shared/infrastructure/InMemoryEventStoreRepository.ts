@@ -4,7 +4,7 @@
  *
  * In-memory adapter for the event store — used in local development and tests.
  */
-import { EventRecord, IEventStoreRepository } from '../domain/event-record';
+import type { EventRecord, IEventStoreRepository } from '../domain/event-record';
 
 export class InMemoryEventStoreRepository implements IEventStoreRepository {
   private readonly events = new Map<string, EventRecord>();

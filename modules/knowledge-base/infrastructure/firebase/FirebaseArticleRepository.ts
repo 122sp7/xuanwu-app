@@ -50,11 +50,10 @@ function toArticle(id: string, data: Record<string, unknown>): Article {
 export class FirebaseArticleRepository implements IArticleRepository {
   private db() { return getFirestore(firebaseClientApp); }
 
-  async getById(articleId: string): Promise<Article> {
-    // Note: articleId must be scoped with accountId in compound queries;
+  async getById(_articleId: string): Promise<Article> {
+    // Note: _articleId must be scoped with accountId in compound queries;
     // for direct lookup we search across all accounts via collectionGroup if needed.
     // At this layer we expect callers to use listByWorkspace for discovery.
-    const db = this.db();
     // We cannot getById without accountId — this is a limitation of the Firestore path.
     // The article id from use-cases already has accountId in context.
     // We'll need to resolve via a workspace-scoped query. For now, search by docId broadly.
@@ -89,7 +88,7 @@ export class FirebaseArticleRepository implements IArticleRepository {
     return snaps.docs.map(d => toArticle(d.id, d.data() as Record<string, unknown>));
   }
 
-  async search(params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]> {
+  async search(_params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]> {
     // Full-text search is not supported by Firestore; delegate to search module.
     return [];
   }
@@ -97,16 +96,16 @@ export class FirebaseArticleRepository implements IArticleRepository {
   async save(article: Article): Promise<void> {
     const db = this.db();
     const ref = articleDoc(db, article.accountId, article.id);
-    const { id, ...data } = article;
+    const { id: _id, ...data } = article;
     await setDoc(ref, { ...data, _createdAt: serverTimestamp() }, { merge: true });
   }
 
-  async getByIds(articleIds: string[]): Promise<Article[]> {
+  async getByIds(_articleIds: string[]): Promise<Article[]> {
     // Must be called with accountId; not feasible without extra context.
     return [];
   }
 
-  async findByLinkedArticleId(articleId: string): Promise<Article[]> {
+  async findByLinkedArticleId(_articleId: string): Promise<Article[]> {
     // Cross-account lookup not supported without accountId scope.
     return [];
   }
@@ -121,7 +120,7 @@ export class FirebaseArticleRepository implements IArticleRepository {
     return snaps.docs.map((d) => toArticle(d.id, d.data() as Record<string, unknown>));
   }
 
-  async delete(articleId: string): Promise<void> {
+  async delete(_articleId: string): Promise<void> {
     // articleId alone is insufficient — callers should use deleteArticle(accountId, articleId).
     throw new Error("Use deleteArticle(accountId, articleId) instead");
   }

@@ -3,7 +3,7 @@
  * @file remove-invoice-item.use-case.ts
  * @description Use case: Remove an item from a draft invoice.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceItemRemovedEvent to event bus
  */
 

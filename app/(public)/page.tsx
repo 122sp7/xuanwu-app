@@ -209,8 +209,9 @@ export default function PublicPage() {
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                 {tab === "register" && (
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
                     <input
+                      id="register-name"
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -222,8 +223,9 @@ export default function PublicPage() {
                 )}
 
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
                   <input
+                    id="auth-email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -236,7 +238,7 @@ export default function PublicPage() {
 
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-muted-foreground">Password</label>
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
                     {tab === "login" && (
                       <button
                         type="button"
@@ -248,6 +250,7 @@ export default function PublicPage() {
                     )}
                   </div>
                   <input
+                    id="auth-password"
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}

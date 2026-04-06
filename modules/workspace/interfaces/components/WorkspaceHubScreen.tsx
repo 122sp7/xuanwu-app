@@ -293,6 +293,7 @@ export function WorkspaceHubScreen({
                   }
                 }}
                 placeholder="例如：北區營運中心"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 disabled={isCreatingWorkspace}
                 maxLength={80}

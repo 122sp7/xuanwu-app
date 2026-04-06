@@ -3,7 +3,7 @@
  * @file close-invoice.use-case.ts
  * @description Use case: Close a paid invoice (paid → closed).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceClosedEvent to event bus
  */
 

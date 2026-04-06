@@ -3,7 +3,7 @@
  * @file issue-query.dto.ts
  * @description Query parameters DTO for listing issues.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add pagination support when issue lists grow large
  */
 

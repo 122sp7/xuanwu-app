@@ -7,7 +7,7 @@
  * Cross-module consumers MUST import from @/modules/workspace-flow/api instead.
  *
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 // ── Domain: entities ──────────────────────────────────────────────────────────

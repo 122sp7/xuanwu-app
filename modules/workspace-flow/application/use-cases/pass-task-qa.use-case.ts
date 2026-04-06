@@ -3,7 +3,7 @@
  * @file pass-task-qa.use-case.ts
  * @description Use case: Pass a task's QA review (qa → acceptance). Requires no open issues.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit TaskQaPassedEvent to event bus
  */
 

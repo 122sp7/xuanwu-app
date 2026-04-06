@@ -20,6 +20,7 @@
 | 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/content-page.entity.ts` |
 | 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
 | 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
 
 ## 頁面生命周期操作（Page Lifecycle Actions）
 
@@ -31,6 +32,7 @@
 | 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
 | 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
 | 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
 
 > **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
 

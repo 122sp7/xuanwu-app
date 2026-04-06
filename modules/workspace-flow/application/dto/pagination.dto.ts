@@ -3,7 +3,7 @@
  * @file pagination.dto.ts
  * @description Shared pagination request / response DTOs for workspace-flow list queries.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 export interface PaginationDto {

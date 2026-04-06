@@ -3,7 +3,7 @@
  * @file workspace-flow.queries.ts
  * @description Server-side read queries for workspace-flow entities.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add pagination support and caching layer
  */
 
