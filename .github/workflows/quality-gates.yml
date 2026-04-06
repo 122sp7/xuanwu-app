@@ -1,0 +1,83 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "modules/**"
+      - "packages/**"
+      - "py_fn/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "next.config.ts"
+      - "eslint.config.mjs"
+      - ".github/workflows/quality-gates.yml"
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - ".github/agents/commands.md"
+  pull_request:
+    paths:
+      - "app/**"
+      - "modules/**"
+      - "packages/**"
+      - "py_fn/**"
+      - "package.json"
+      - "package-lock.json"
+      - "tsconfig.json"
+      - "next.config.ts"
+      - "eslint.config.mjs"
+      - ".github/workflows/quality-gates.yml"
+      - "AGENTS.md"
+      - "CONTRIBUTING.md"
+      - ".github/agents/commands.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quality-gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm run test
+
+      - name: Run production build
+        run: npm run build
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r py_fn/requirements.txt
+
+      - name: Compile Python worker
+        working-directory: py_fn
+        run: python -m compileall -q .
+
+      - name: Run Python tests
+        working-directory: py_fn
+        run: python -m pytest tests/ -v

@@ -9,6 +9,7 @@
 ## Lint & Type Check
 
 - `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
 - TypeScript type-checking is included in `npm run build`
 
 ## Firebase Deployment

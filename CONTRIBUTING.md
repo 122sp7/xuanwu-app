@@ -50,6 +50,7 @@ Before pushing, ensure these all pass:
 
 ```bash
 npm run lint     # ESLint — must have 0 errors
+npm run test     # Vitest unit tests
 npm run build    # Next.js production build + TypeScript type-check
 ```
 
