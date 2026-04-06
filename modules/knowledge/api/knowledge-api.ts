@@ -37,8 +37,8 @@ export class KnowledgeApi {
 
   /**
    * Create a new page in the in-memory store and publish a
-    * `KnowledgePageCreatedEvent` so downstream modules can register
-    * page-related projections or structure-aware read models.
+   * `KnowledgePageCreatedEvent` so downstream modules can register
+   * page-related projections or structure-aware read models.
    */
   async createPage(
     accountId: string,
@@ -77,7 +77,7 @@ export class KnowledgeApi {
   /**
    * Update a block's text content.
    * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
-    * (e.g. search or notebook-adjacent ingestion flows) can react.
+   * (e.g. search or notebook-adjacent ingestion flows) can react.
    */
   async updateBlock(
     accountId: string,

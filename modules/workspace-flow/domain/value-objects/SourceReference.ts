@@ -18,7 +18,7 @@ export interface SourceReference {
   /** The ID of the source aggregate (e.g. KnowledgePage.id). */
   readonly id: string;
   /**
-    * causationId from the `knowledge.page_approved` event that triggered
+   * causationId from the `knowledge.page_approved` event that triggered
    * materialization.  Stored for idempotency checks and audit trails.
    */
   readonly causationId: string;
