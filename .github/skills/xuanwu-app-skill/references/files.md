@@ -3994,6 +3994,428 @@ export function TranslationSwitcher() {
 }
 ````
 
+## File: app/(shell)/ai-chat/_actions.ts
+````typescript
+"use server";
+
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+  Thread,
+} from "@/modules/notebook/api";
+import {
+  GenerateNotebookResponseUseCase,
+  GenkitNotebookRepository,
+} from "@/modules/notebook/api/server";
+import { saveThread, loadThread } from "@/modules/notebook/api";
+
+export async function sendChatMessage(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
+  return useCase.execute(input);
+}
+
+export { saveThread, loadThread };
+export type { Thread };
+````
+
+## File: app/(shell)/ai-chat/page.tsx
+````typescript
+"use client";
+
+/**
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
+ */
+
+import Link from "next/link";
+import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import type { Thread } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+const STORAGE_KEY = (accountId: string, workspaceId: string) =>
+  `nb_thread_${accountId}_${workspaceId || "default"}`;
+
+function buildContextPrompt(history: ChatMessage[]): string {
+  if (history.length === 0) return "";
+  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
+  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
+}
+
+function generateMsgId() {
+  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
+  return {
+    id,
+    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
+    createdAt,
+    updatedAt: new Date().toISOString(),
+  };
+}
+
+export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const { state: { workspaces } } = useApp();
+  const { state: authState } = useAuth();
+  const accountId = authState.user?.id ?? "";
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const currentWorkspace =
+    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? workspaces[requestedWorkspaceId] ?? null
+      : null;
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+
+  // Load persisted thread on mount
+  useEffect(() => {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
+    }
+
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    // Build multi-turn context from history (exclude the new user message)
+    const contextPrompt = buildContextPrompt(messages);
+
+    try {
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        // Persist thread to Firestore
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
+      } else {
+        setError(result.error.message);
+      }
+    } catch {
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      // Defer scroll to allow React to flush the new message into the DOM first.
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
+    }
+  }
+
+  return (
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <FolderKanban className="size-4 text-primary" />
+                Workspace context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm text-muted-foreground">
+              {currentWorkspace ? (
+                <>
+                  <div>
+                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
+                    <p className="mt-1 text-xs">
+                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
+                    </Button>
+                    <Button asChild size="sm" variant="outline">
+                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs">
+                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                知識頁面 / Pages
+              </Link>
+              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
+            )}
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
+          </div>
+        </div>
+
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
+          )}
+
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
+        </div>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/dashboard/page.tsx
 ````typescript
 /**
@@ -15249,6 +15671,27 @@ interface NotebookResponse {
 ```
 ````
 
+## File: modules/notebook/api/index.ts
+````typescript
+/**
+ * modules/notebook — public API barrel.
+ */
+
+export type { Message, MessageRole } from "../domain/entities/message";
+export type { Thread } from "../domain/entities/thread";
+
+export type {
+  NotebookResponse,
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../domain/entities/AgentGeneration";
+
+export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
+export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
+
+export { answerRagQuery, generateNotebookResponse, saveThread, loadThread } from "../interfaces/_actions/notebook.actions";
+````
+
 ## File: modules/notebook/api/server.ts
 ````typescript
 /**
@@ -15441,6 +15884,20 @@ export type {
 } from "./repositories/RagRetrievalRepository";
 ````
 
+## File: modules/notebook/domain/repositories/IThreadRepository.ts
+````typescript
+/**
+ * modules/notebook — domain repository interface: IThreadRepository
+ */
+
+import type { Thread } from "../entities/thread";
+
+export interface IThreadRepository {
+  save(accountId: string, thread: Thread): Promise<void>;
+  getById(accountId: string, threadId: string): Promise<Thread | null>;
+}
+````
+
 ## File: modules/notebook/domain/repositories/NotebookRepository.ts
 ````typescript
 import type {
@@ -15491,6 +15948,77 @@ export * from "./interfaces";
  * @deprecated Retrieval adapter ownership moved to modules/search.
  */
 export { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
+````
+
+## File: modules/notebook/infrastructure/firebase/FirebaseThreadRepository.ts
+````typescript
+/**
+ * Module: notebook
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/threads/{threadId}
+ *
+ * Persists Thread (messages array) to Firestore so conversations survive page reload.
+ */
+
+import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Thread } from "../../domain/entities/thread";
+import type { Message } from "../../domain/entities/message";
+import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
+
+function threadDoc(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  threadId: string,
+) {
+  return doc(db, "accounts", accountId, "threads", threadId);
+}
+
+function toMessage(m: Record<string, unknown>): Message {
+  return {
+    id: typeof m.id === "string" ? m.id : "",
+    role: (m.role as Message["role"]) ?? "user",
+    content: typeof m.content === "string" ? m.content : "",
+    createdAt: typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString(),
+  };
+}
+
+function toThread(id: string, data: Record<string, unknown>): Thread {
+  const messages = Array.isArray(data.messages)
+    ? (data.messages as Record<string, unknown>[]).map(toMessage)
+    : [];
+  return {
+    id,
+    messages,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+  };
+}
+
+export class FirebaseThreadRepository implements IThreadRepository {
+  private db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async save(accountId: string, thread: Thread): Promise<void> {
+    const db = this.db();
+    const ref = threadDoc(db, accountId, thread.id);
+    await setDoc(ref, {
+      id: thread.id,
+      messages: thread.messages,
+      createdAt: thread.createdAt,
+      updatedAt: new Date().toISOString(),
+      _savedAt: serverTimestamp(),
+    });
+  }
+
+  async getById(accountId: string, threadId: string): Promise<Thread | null> {
+    const db = this.db();
+    const snap = await getDoc(threadDoc(db, accountId, threadId));
+    if (!snap.exists()) return null;
+    return toThread(snap.id, snap.data() as Record<string, unknown>);
+  }
+}
 ````
 
 ## File: modules/notebook/infrastructure/firebase/index.ts
@@ -15587,6 +16115,51 @@ export { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 ````typescript
 export * from "./firebase";
 export * from "./genkit";
+````
+
+## File: modules/notebook/interfaces/_actions/notebook.actions.ts
+````typescript
+"use server";
+
+import type {
+  GenerateNotebookResponseInput,
+  GenerateNotebookResponseResult,
+} from "../../domain/entities/AgentGeneration";
+import type { Thread } from "../../domain/entities/thread";
+import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
+import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
+import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
+import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
+import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
+import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
+import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";
+
+function makeThreadRepo() {
+  return new FirebaseThreadRepository();
+}
+
+export async function generateNotebookResponse(
+  input: GenerateNotebookResponseInput,
+): Promise<GenerateNotebookResponseResult> {
+  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
+  return useCase.execute(input);
+}
+
+export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
+  const useCase = new AnswerRagQueryUseCase(
+    new FirebaseRagRetrievalRepository(),
+    new GenkitRagGenerationRepository(),
+  );
+  return useCase.execute(input);
+}
+
+export async function saveThread(accountId: string, thread: Thread): Promise<void> {
+  await makeThreadRepo().save(accountId, thread);
+}
+
+export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
+  return makeThreadRepo().getById(accountId, threadId);
+}
 ````
 
 ## File: modules/notebook/interfaces/index.ts
@@ -45213,426 +45786,91 @@ export function KnowledgeSidebarSection({
 }
 ````
 
-## File: app/(shell)/ai-chat/_actions.ts
+## File: app/(shell)/_components/use-recent-workspaces.ts
 ````typescript
-"use server";
+import { useEffect, useMemo, useState } from "react";
 
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-  Thread,
-} from "@/modules/notebook/api";
-import {
-  GenerateNotebookResponseUseCase,
-  GenkitNotebookRepository,
-} from "@/modules/notebook/api/server";
-import { saveThread, loadThread } from "@/modules/notebook/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
 
-export async function sendChatMessage(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
-  return useCase.execute(input);
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
 }
 
-export { saveThread, loadThread };
-export type { Thread };
-````
-
-## File: app/(shell)/ai-chat/page.tsx
-````typescript
-"use client";
-
-/**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
- * Multi-turn context: previous messages injected as system prompt.
- */
-
-import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, FolderKanban, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import type { Thread } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
 }
 
-const STORAGE_KEY = (accountId: string, workspaceId: string) =>
-  `nb_thread_${accountId}_${workspaceId || "default"}`;
-
-function buildContextPrompt(history: ChatMessage[]): string {
-  if (history.length === 0) return "";
-  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
-  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
 }
 
-function generateMsgId() {
-  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
 }
 
-function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
-  return {
-    id,
-    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
-    createdAt,
-    updatedAt: new Date().toISOString(),
-  };
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
 }
 
-export default function AiChatPage() {
-  const searchParams = useSearchParams();
-  const { state: { workspaces } } = useApp();
-  const { state: authState } = useAuth();
-  const accountId = authState.user?.id ?? "";
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const currentWorkspace =
-    requestedWorkspaceId && workspaces && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? workspaces[requestedWorkspaceId] ?? null
-      : null;
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
 
-  // Load persisted thread on mount
   useEffect(() => {
     if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
 
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    // Build multi-turn context from history (exclude the new user message)
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        // Persist thread to Firestore
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      // Defer scroll to allow React to flush the new message into the DOM first.
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <FolderKanban className="size-4 text-primary" />
-                Workspace context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm text-muted-foreground">
-              {currentWorkspace ? (
-                <>
-                  <div>
-                    <p className="font-medium text-foreground">{currentWorkspace.name}</p>
-                    <p className="mt-1 text-xs">
-                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
-                    </Button>
-                    <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs">
-                  尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                知識頁面 / Pages
-              </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {threadId && (
-              <span className="text-[10px] text-muted-foreground/60">
-                Thread · {messages.length} 則
-              </span>
-            )}
-            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
-              <Plus className="mr-1 size-3.5" />
-              新對話
-            </Button>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
   );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo(() => {
+    return recentWorkspaceIds
+      .map((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+      })
+      .filter((item): item is { id: string; name: string; href: string } => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
 }
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: app/(shell)/dev-tools/page.tsx
@@ -54077,6 +54315,136 @@ export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseKnowledgePag
 export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
 ````
 
+## File: modules/knowledge/interfaces/components/extensions/callout-block.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * CalloutBlock — a highlighted info/warning callout block.
+ * Renders as: <div data-type="callout"><p>...</p></div>
+ */
+export const CalloutBlock = Node.create({
+  name: "callout",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  addAttributes() {
+    return {
+      emoji: { default: "💡" },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='callout']" }];
+  },
+
+  renderHTML({ HTMLAttributes, node }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, { "data-type": "callout", class: "callout-block" }),
+      ["span", { class: "callout-emoji", contenteditable: "false" }, node.attrs.emoji as string],
+      ["div", { class: "callout-content" }, 0],
+    ];
+  },
+});
+````
+
+## File: modules/knowledge/interfaces/components/extensions/synced-block.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * SyncedBlock — a reference block whose content mirrors a source block by ID.
+ * In the editor it renders as a styled read-only placeholder.
+ * Full real-time sync would be implemented via a Firestore listener in a
+ * dedicated React component; here the node marks the block as synced so the
+ * editor can render a visual indicator.
+ */
+export const SyncedBlock = Node.create({
+  name: "syncedBlock",
+  group: "block",
+  content: "block*",
+  defining: true,
+
+  addAttributes() {
+    return {
+      sourceBlockId: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='synced-block']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "synced-block",
+        class: "synced-block",
+      }),
+      0,
+    ];
+  },
+});
+````
+
+## File: modules/knowledge/interfaces/components/extensions/table-of-contents-node.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * TableOfContentsBlock — a read-only auto-generated TOC node.
+ * Renders as: <div data-type="toc" contenteditable="false">...</div>
+ * Actual heading links are injected via the editor's DOM at render time.
+ */
+export const TableOfContentsNode = Node.create({
+  name: "tableOfContents",
+  group: "block",
+  atom: true,
+
+  parseHTML() {
+    return [{ tag: "div[data-type='toc']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "toc",
+        contenteditable: "false",
+        class: "toc-block",
+      }),
+    ];
+  },
+});
+````
+
+## File: modules/knowledge/interfaces/components/extensions/toggle-block.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * ToggleBlock — a collapsible details/summary block.
+ * Renders as: <details><summary>...</summary></details>
+ */
+export const ToggleBlock = Node.create({
+  name: "toggle",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: "details" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
+  },
+});
+````
+
 ## File: modules/knowledge/interfaces/components/PageDialog.tsx
 ````typescript
 "use client";
@@ -54438,27 +54806,6 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 }));
 ````
 
-## File: modules/notebook/api/index.ts
-````typescript
-/**
- * modules/notebook — public API barrel.
- */
-
-export type { Message, MessageRole } from "../domain/entities/message";
-export type { Thread } from "../domain/entities/thread";
-
-export type {
-  NotebookResponse,
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../domain/entities/AgentGeneration";
-
-export type { NotebookRepository } from "../domain/repositories/NotebookRepository";
-export type { IThreadRepository } from "../domain/repositories/IThreadRepository";
-
-export { answerRagQuery, generateNotebookResponse, saveThread, loadThread } from "../interfaces/_actions/notebook.actions";
-````
-
 ## File: modules/notebook/context-map.md
 ````markdown
 # Context Map — notebook
@@ -54541,136 +54888,6 @@ export { answerRagQuery, generateNotebookResponse, saveThread, loadThread } from
 
 - `../../../modules/notebook/domain-services.md`
 - `../../../modules/notebook/aggregates.md`
-````
-
-## File: modules/notebook/domain/repositories/IThreadRepository.ts
-````typescript
-/**
- * modules/notebook — domain repository interface: IThreadRepository
- */
-
-import type { Thread } from "../entities/thread";
-
-export interface IThreadRepository {
-  save(accountId: string, thread: Thread): Promise<void>;
-  getById(accountId: string, threadId: string): Promise<Thread | null>;
-}
-````
-
-## File: modules/notebook/infrastructure/firebase/FirebaseThreadRepository.ts
-````typescript
-/**
- * Module: notebook
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/threads/{threadId}
- *
- * Persists Thread (messages array) to Firestore so conversations survive page reload.
- */
-
-import { doc, getDoc, getFirestore, serverTimestamp, setDoc } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Thread } from "../../domain/entities/thread";
-import type { Message } from "../../domain/entities/message";
-import type { IThreadRepository } from "../../domain/repositories/IThreadRepository";
-
-function threadDoc(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  threadId: string,
-) {
-  return doc(db, "accounts", accountId, "threads", threadId);
-}
-
-function toMessage(m: Record<string, unknown>): Message {
-  return {
-    id: typeof m.id === "string" ? m.id : "",
-    role: (m.role as Message["role"]) ?? "user",
-    content: typeof m.content === "string" ? m.content : "",
-    createdAt: typeof m.createdAt === "string" ? m.createdAt : new Date().toISOString(),
-  };
-}
-
-function toThread(id: string, data: Record<string, unknown>): Thread {
-  const messages = Array.isArray(data.messages)
-    ? (data.messages as Record<string, unknown>[]).map(toMessage)
-    : [];
-  return {
-    id,
-    messages,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-  };
-}
-
-export class FirebaseThreadRepository implements IThreadRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async save(accountId: string, thread: Thread): Promise<void> {
-    const db = this.db();
-    const ref = threadDoc(db, accountId, thread.id);
-    await setDoc(ref, {
-      id: thread.id,
-      messages: thread.messages,
-      createdAt: thread.createdAt,
-      updatedAt: new Date().toISOString(),
-      _savedAt: serverTimestamp(),
-    });
-  }
-
-  async getById(accountId: string, threadId: string): Promise<Thread | null> {
-    const db = this.db();
-    const snap = await getDoc(threadDoc(db, accountId, threadId));
-    if (!snap.exists()) return null;
-    return toThread(snap.id, snap.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/notebook/interfaces/_actions/notebook.actions.ts
-````typescript
-"use server";
-
-import type {
-  GenerateNotebookResponseInput,
-  GenerateNotebookResponseResult,
-} from "../../domain/entities/AgentGeneration";
-import type { Thread } from "../../domain/entities/thread";
-import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
-import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
-import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
-import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
-import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
-import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";
-
-function makeThreadRepo() {
-  return new FirebaseThreadRepository();
-}
-
-export async function generateNotebookResponse(
-  input: GenerateNotebookResponseInput,
-): Promise<GenerateNotebookResponseResult> {
-  const useCase = new GenerateNotebookResponseUseCase(new GenkitNotebookRepository());
-  return useCase.execute(input);
-}
-
-export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-  const useCase = new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalRepository(),
-    new GenkitRagGenerationRepository(),
-  );
-  return useCase.execute(input);
-}
-
-export async function saveThread(accountId: string, thread: Thread): Promise<void> {
-  await makeThreadRepo().save(accountId, thread);
-}
-
-export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
-  return makeThreadRepo().getById(accountId, threadId);
-}
 ````
 
 ## File: modules/notebook/README.md
@@ -60547,40 +60764,13 @@ export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> 
 }
 ````
 
-## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
 ````typescript
 "use client";
 
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @since 2026-03-27
- */
+import { useState } from "react";
 
-import { useCallback, useEffect, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -60591,160 +60781,106 @@ import {
 } from "@ui-shadcn/ui/dialog";
 import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
+
+import { wfAssignTask } from "../_actions/workspace-flow.actions";
+
+export interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import {
-  wfApproveInvoice,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfAssignTask,
-  wfCloseInvoice,
-  wfCloseIssue,
-  wfCreateInvoice,
-  wfCreateTask,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfOpenIssue,
-  wfPassIssueRetest,
-  wfPassTaskQa,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfStartIssue,
-  wfSubmitInvoice,
-  wfSubmitIssueRetest,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
+import { wfCreateTask } from "../_actions/workspace-flow.actions";
 
-// ── Status display maps ────────────────────────────────────────────────────────
-
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
-
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatCurrency(amount: number): string {
-  try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
-  }
-}
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-}
-
-// ── Create Task Dialog ─────────────────────────────────────────────────────────
-
-interface CreateTaskDialogProps {
+export interface CreateTaskDialogProps {
   open: boolean;
   onClose: () => void;
   onCreated: () => void;
   workspaceId: string;
 }
 
-function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
@@ -60848,79 +60984,286 @@ function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskD
     </Dialog>
   );
 }
+````
 
-// ── Assign Task Dialog ─────────────────────────────────────────────────────────
+## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
+````typescript
+"use client";
 
-interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import {
+  wfApproveInvoice,
+  wfCloseInvoice,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfSubmitInvoice,
+} from "../_actions/workspace-flow.actions";
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
 }
 
-function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
   }
+}
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
+export interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
     setError(null);
     try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+      setError(err instanceof Error ? err.message : "操作失敗");
     } finally {
-      setSubmitting(false);
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
   );
 }
+````
 
-// ── Open Issue Dialog ──────────────────────────────────────────────────────────
+## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
+````typescript
+"use client";
 
-interface OpenIssueDialogProps {
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import {
+  wfCloseIssue,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfPassIssueRetest,
+  wfStartIssue,
+  wfSubmitIssueRetest,
+} from "../_actions/workspace-flow.actions";
+
+export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+export interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import { wfOpenIssue } from "../_actions/workspace-flow.actions";
+import { ISSUE_STAGE_LABEL } from "./IssueRow";
+
+export interface OpenIssueDialogProps {
   open: boolean;
   taskId: string;
   currentUserId: string;
@@ -60928,7 +61271,7 @@ interface OpenIssueDialogProps {
   onCreated: () => void;
 }
 
-function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [stage, setStage] = useState<IssueStage>("task");
@@ -61025,85 +61368,75 @@ function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: Op
     </Dialog>
   );
 }
+````
 
-// ── Issue Row ──────────────────────────────────────────────────────────────────
+## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
+````typescript
+"use client";
 
-interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
+import { useCallback, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { Task } from "../../domain/entities/Task";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import {
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfPassTaskQa,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
+import { AssignTaskDialog } from "./AssignTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { OpenIssueDialog } from "./OpenIssueDialog";
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
 }
 
-function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-
-// ── Task Row ───────────────────────────────────────────────────────────────────
-
-interface TaskRowProps {
+export interface TaskRowProps {
   task: Task;
   currentUserId: string;
   onTransitioned: () => void;
 }
 
-function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [issuesExpanded, setIssuesExpanded] = useState(false);
@@ -61246,241 +61579,6 @@ function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
           await loadIssues();
           if (!issuesExpanded) setIssuesExpanded(true);
         }}
-      />
-    </div>
-  );
-}
-
-// ── Invoice Row ────────────────────────────────────────────────────────────────
-
-interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
       />
     </div>
   );
@@ -61982,6 +62080,55 @@ export function CreateDemandForm({
 
 - `../../../modules/workspace-scheduling/repositories.md`
 - `../../../modules/workspace-scheduling/aggregates.md`
+````
+
+## File: modules/workspace/application/workspace-settings.ts
+````typescript
+import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
+
+export interface WorkspaceSettingsDraft {
+  readonly name: string;
+  readonly visibility: WorkspaceEntity["visibility"];
+  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
+  readonly street: string;
+  readonly city: string;
+  readonly state: string;
+  readonly postalCode: string;
+  readonly country: string;
+  readonly details: string;
+  readonly managerId: string;
+  readonly supervisorId: string;
+  readonly safetyOfficerId: string;
+}
+
+export function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft {
+  return {
+    name: workspace.name,
+    visibility: workspace.visibility,
+    lifecycleState: workspace.lifecycleState,
+    street: workspace.address?.street ?? "",
+    city: workspace.address?.city ?? "",
+    state: workspace.address?.state ?? "",
+    postalCode: workspace.address?.postalCode ?? "",
+    country: workspace.address?.country ?? "",
+    details: workspace.address?.details ?? "",
+    managerId: workspace.personnel?.managerId ?? "",
+    supervisorId: workspace.personnel?.supervisorId ?? "",
+    safetyOfficerId: workspace.personnel?.safetyOfficerId ?? "",
+  };
+}
+
+export function describeGrant(grant: WorkspaceGrant): string {
+  if (grant.teamId) {
+    return "Team grant";
+  }
+
+  if (grant.userId) {
+    return "User grant";
+  }
+
+  return "Unscoped grant";
+}
 ````
 
 ## File: modules/workspace/domain-services.md
@@ -66146,22 +66293,30 @@ export interface SourceReference {
 }
 ````
 
-## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
+## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
 ````typescript
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
 
-import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
-import { formatDate } from "@shared-utils";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@ui-shadcn/ui/avatar";
-import { Badge } from "@ui-shadcn/ui/badge";
+import { useCallback, useEffect, useState } from "react";
+
+import { Plus } from "lucide-react";
+
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -66170,1093 +66325,187 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
 import { Separator } from "@ui-shadcn/ui/separator";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { useApp } from "@/app/providers/app-provider";
 
-import { updateWorkspaceSettings } from "../_actions/workspace.actions";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
-import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { Task } from "../../domain/entities/Task";
+import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
-} from "../workspace-tabs";
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { InvoiceRow } from "./InvoiceRow";
+import { TaskRow } from "./TaskRow";
 
-const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "library",
-  "spaces",
-  "databases",
-];
+// ── Types ──────────────────────────────────────────────────────────────────────
 
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
+type FlowSection = "tasks" | "invoices";
 
-function getWorkspaceInitials(name: string) {
-  const tokens = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
-  if (tokens.length === 0) {
-    return "WS";
-  }
-
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
-}
-
-function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined) {
-  if (!timestamp) {
-    return "—";
-  }
-
-  try {
-    return formatDate(timestamp.toDate());
-  } catch {
-    return "—";
-  }
-}
-
-function describeGrant(grant: WorkspaceGrant) {
-  if (grant.teamId) {
-    return "Team grant";
-  }
-
-  if (grant.userId) {
-    return "User grant";
-  }
-
-  return "Unscoped grant";
-}
-
-interface WorkspaceSettingsDraft {
-  readonly name: string;
-  readonly visibility: WorkspaceEntity["visibility"];
-  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
-  readonly street: string;
-  readonly city: string;
-  readonly state: string;
-  readonly postalCode: string;
-  readonly country: string;
-  readonly details: string;
-  readonly managerId: string;
-  readonly supervisorId: string;
-  readonly safetyOfficerId: string;
-}
-
-function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft {
-  return {
-    name: workspace.name,
-    visibility: workspace.visibility,
-    lifecycleState: workspace.lifecycleState,
-    street: workspace.address?.street ?? "",
-    city: workspace.address?.city ?? "",
-    state: workspace.address?.state ?? "",
-    postalCode: workspace.address?.postalCode ?? "",
-    country: workspace.address?.country ?? "",
-    details: workspace.address?.details ?? "",
-    managerId: workspace.personnel?.managerId ?? "",
-    supervisorId: workspace.personnel?.supervisorId ?? "",
-    safetyOfficerId: workspace.personnel?.safetyOfficerId ?? "",
-  };
-}
-
-function trimOrUndefined(value: string) {
-  const trimmed = value.trim();
-  return trimmed || undefined;
-}
-
-interface WorkspaceDetailScreenProps {
+interface WorkspaceFlowTabProps {
   readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
+  readonly currentUserId?: string;
 }
 
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
-  const status = getWorkspaceTabStatus(tab);
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>{status} {getWorkspaceTabLabel(tab)}</CardTitle>
-        <CardDescription>
-          此分頁尚在開發中，功能將逐步開放。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="text-sm text-muted-foreground">
-        目前僅提供基礎導覽，敬請期待後續版本。
-      </CardContent>
-    </Card>
-  );
-}
+// ── Main Component ─────────────────────────────────────────────────────────────
 
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-}: WorkspaceDetailScreenProps) {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>("tasks");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
 
   useEffect(() => {
-    let cancelled = false;
+    void loadData();
+  }, [loadData]);
 
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceDetailScreen] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-  const personnelEntries = useMemo(() => {
-    if (!workspace?.personnel) {
-      return [];
-    }
-
-    return [
-      { label: "Manager", value: workspace.personnel.managerId },
-      { label: "Supervisor", value: workspace.personnel.supervisorId },
-      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
-    ].filter((entry) => Boolean(entry.value));
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    if (!workspace?.address) {
-      return [];
-    }
-
-    const { street, city, state, postalCode, country, details } = workspace.address;
-
-    return [
-      street,
-      [city, state, postalCode].filter(Boolean).join(", "),
-      country,
-      details,
-    ].filter(Boolean);
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) {
-      return null;
-    }
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <>
-            <Card className="border border-border/50">
-              <CardContent className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
-                <div className="flex items-start gap-4">
-                  <Avatar size="lg">
-                    <AvatarImage src={workspace.photoURL} alt={workspace.name} />
-                    <AvatarFallback>{getWorkspaceInitials(workspace.name)}</AvatarFallback>
-                  </Avatar>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <p className="text-2xl font-semibold tracking-tight">{workspace.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {workspace.accountType === "organization" ? "Organization" : "Personal"} workspace ·
-                        account {workspace.accountId}
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                        {workspace.lifecycleState}
-                      </Badge>
-                      <Badge variant="outline">{workspace.visibility}</Badge>
-                      <Badge variant="outline">Created {formatTimestamp(workspace.createdAt)}</Badge>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setSettingsDraft(createSettingsDraft(workspace));
-                        setSaveError(null);
-                        setIsEditWorkspaceOpen(true);
-                      }}
-                    >
-                      編輯工作區
-                    </Button>
-                    {appState.activeWorkspaceId !== workspace.id && (
-                      <Button
-                        type="button"
-                        variant="default"
-                        size="sm"
-                        onClick={() =>
-                          dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-                        }
-                      >
-                        設為目前工作區
-                      </Button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[20rem]">
-                  <div className="rounded-xl border border-border/40 px-4 py-3">
-                    <p className="text-xs text-muted-foreground">Capabilities</p>
-                    <p className="mt-1 text-xl font-semibold">{workspace.capabilities.length}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/40 px-4 py-3">
-                    <p className="text-xs text-muted-foreground">Teams</p>
-                    <p className="mt-1 text-xl font-semibold">{workspace.teamIds.length}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/40 px-4 py-3">
-                    <p className="text-xs text-muted-foreground">Locations</p>
-                    <p className="mt-1 text-xl font-semibold">{workspace.locations?.length ?? 0}</p>
-                  </div>
-                  <div className="rounded-xl border border-border/40 px-4 py-3">
-                    <p className="text-xs text-muted-foreground">Grants</p>
-                    <p className="mt-1 text-xl font-semibold">{workspace.grants.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-              <Card className="border border-border/50 xl:col-span-2">
-                <CardHeader>
-                  <CardTitle>Workspace Product Spine</CardTitle>
-                  <CardDescription>
-                    從這個工作區穩定分流到 Knowledge、Wiki、Notebook / AI；Search、Source、Sync
-                    則作為底層支撐能力。
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_0.9fr]">
-                  <div className="rounded-xl border border-border/40 px-4 py-4">
-                    <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      先用文件、來源與資料庫建立工作區知識基底，再讓後續 Wiki / AI 消費。
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                          文件
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border/40 px-4 py-4">
-                    <p className="text-sm font-semibold text-foreground">Wiki</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      以工作區內容樹、頁面與結構化導覽承接知識脈絡，避免回到平行產品入口。
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.id}?tab=Wiki`}>工作區 Wiki</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                          頁面
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-border/40 px-4 py-4">
-                    <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      用 AI 對話與 RAG 查詢消費這個工作區的知識，不再把 AI 當成獨立產品島。
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                          RAG Query
-                        </Link>
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl border border-dashed border-border/50 px-4 py-4">
-                    <p className="text-sm font-semibold text-foreground">Supporting layers</p>
-                    <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground">
-                      <li>
-                        <span className="font-medium text-foreground">Search</span>：用 RAG Query 承接查詢、引用與回答。
-                      </li>
-                      <li>
-                        <span className="font-medium text-foreground">Source</span>：Files / Documents
-                        是來源接入與 metadata 宿主。
-                      </li>
-                      <li>
-                        <span className="font-medium text-foreground">Sync</span>：upload → ingest → index 流程持續把來源同步成可查詢知識。
-                      </li>
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border border-border/50">
-                <CardHeader>
-                  <CardTitle>Capabilities</CardTitle>
-                  <CardDescription>
-                    Runtime features currently mounted on this workspace.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {workspace.capabilities.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No capability bindings have been added yet.
-                    </p>
-                  ) : (
-                    workspace.capabilities.map((capability) => (
-                      <div
-                        key={capability.id}
-                        className="rounded-xl border border-border/40 px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground">
-                            {capability.name}
-                          </p>
-                          <Badge variant="outline">{capability.type}</Badge>
-                          <Badge
-                            variant={capability.status === "stable" ? "secondary" : "outline"}
-                          >
-                            {capability.status}
-                          </Badge>
-                        </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {capability.description}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border border-border/50">
-                <CardHeader>
-                  <CardTitle>Access Model</CardTitle>
-                  <CardDescription>
-                    Team scopes and direct grants applied to this workspace.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Team access</p>
-                    {workspace.teamIds.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No team access assigned.</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {workspace.teamIds.map((teamId) => (
-                          <Badge key={teamId} variant="secondary">
-                            {teamId}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Direct grants</p>
-                    {workspace.grants.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
-                    ) : (
-                      workspace.grants.map((grant, index) => (
-                        <div
-                          key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
-                          className="rounded-xl border border-border/40 px-4 py-3"
-                        >
-                          <p className="text-sm font-medium text-foreground">
-                            {describeGrant(grant)}
-                          </p>
-                          <p className="mt-1 text-xs text-muted-foreground">
-                            Role: {grant.role}
-                            {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
-                            {grant.userId ? ` · User: ${grant.userId}` : ""}
-                            {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
-                          </p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <div className="grid gap-4 xl:grid-cols-2">
-              <Card className="border border-border/50">
-                <CardHeader>
-                  <CardTitle>Locations</CardTitle>
-                  <CardDescription>
-                    Physical or logical locations linked to the workspace.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {workspace.locations == null || workspace.locations.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">
-                      No locations have been configured yet.
-                    </p>
-                  ) : (
-                    workspace.locations.map((location) => (
-                      <div
-                        key={location.locationId}
-                        className="rounded-xl border border-border/40 px-4 py-4"
-                      >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-foreground">
-                            {location.label}
-                          </p>
-                          <Badge variant="outline">{location.locationId}</Badge>
-                        </div>
-                        {location.description && (
-                          <p className="mt-2 text-sm text-muted-foreground">
-                            {location.description}
-                          </p>
-                        )}
-                        <p className="mt-2 text-xs text-muted-foreground">
-                          Capacity: {location.capacity ?? "—"}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="border border-border/50">
-                <CardHeader>
-                  <CardTitle>Workspace Profile</CardTitle>
-                  <CardDescription>
-                    Operational contacts and registered workspace address.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Personnel</p>
-                    {personnelEntries.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No personnel roles assigned.
-                      </p>
-                    ) : (
-                      personnelEntries.map((entry) => (
-                        <div
-                          key={entry.label}
-                          className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
-                        >
-                          <span className="text-muted-foreground">{entry.label}</span>
-                          <span className="font-medium text-foreground">{entry.value}</span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-foreground">Address</p>
-                    {addressLines.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">
-                        No address information has been provided.
-                      </p>
-                    ) : (
-                      <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-                        {addressLines.map((line, index) => (
-                          <p key={`${line}-${index}`}>{line}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
-              <Card className="border border-primary/20 bg-primary/5">
-                <CardHeader>
-                  <CardTitle>🚀 開始使用這個工作區</CardTitle>
-                  <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4 sm:grid-cols-3">
-                  <div className="rounded-xl border border-border/40 px-4 py-4">
-                    <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      先把原始文件上傳到 Files 分頁，作為知識基底。
-                    </p>
-                    <Button asChild size="sm" variant="outline" className="mt-3">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>前往 Files</Link>
-                    </Button>
-                  </div>
-                  <div className="rounded-xl border border-border/40 px-4 py-4">
-                    <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      在 Wiki 分頁建立第一個知識頁面，整理結構。
-                    </p>
-                    <Button asChild size="sm" variant="outline" className="mt-3">
-                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>前往 Wiki</Link>
-                    </Button>
-                  </div>
-                  <div className="rounded-xl border border-border/40 px-4 py-4">
-                    <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      用 RAG Query 對工作區知識提問，驗證內容可被檢索。
-                    </p>
-                    <Button asChild size="sm" variant="outline" className="mt-3">
-                      <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                        前往 RAG Query
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Wiki":
-        return <WorkspaceWikiView workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return renderWorkspacePlaceholderTab(tab);
-    }
-  }
-
-  async function handleSaveWorkspaceSettings(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!workspace || !settingsDraft) {
-      return;
-    }
-
-    if (!accountId) {
-      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
-      return;
-    }
-
-    const nextWorkspaceName = settingsDraft.name.trim();
-    if (!nextWorkspaceName) {
-      setSaveError("請輸入工作區名稱。");
-      return;
-    }
-
-    setIsSavingWorkspace(true);
-    setSaveError(null);
-
-    const hasAddressContent = Boolean(
-      settingsDraft.street.trim() ||
-        settingsDraft.city.trim() ||
-        settingsDraft.state.trim() ||
-        settingsDraft.postalCode.trim() ||
-        settingsDraft.country.trim() ||
-        settingsDraft.details.trim(),
-    );
-    const hasPersonnelContent = Boolean(
-      settingsDraft.managerId.trim() ||
-        settingsDraft.supervisorId.trim() ||
-        settingsDraft.safetyOfficerId.trim(),
-    );
-
-    const result = await updateWorkspaceSettings({
-      workspaceId: workspace.id,
-      accountId,
-      name: nextWorkspaceName,
-      visibility: settingsDraft.visibility,
-      lifecycleState: settingsDraft.lifecycleState,
-      address:
-        workspace.address != null || hasAddressContent
-          ? {
-              street: settingsDraft.street.trim(),
-              city: settingsDraft.city.trim(),
-              state: settingsDraft.state.trim(),
-              postalCode: settingsDraft.postalCode.trim(),
-              country: settingsDraft.country.trim(),
-              details: trimOrUndefined(settingsDraft.details),
-            }
-          : undefined,
-      personnel:
-        workspace.personnel != null || hasPersonnelContent
-          ? {
-              managerId: trimOrUndefined(settingsDraft.managerId),
-              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
-              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
-            }
-          : undefined,
-    });
-
-    if (!result.success) {
-      setSaveError(result.error.message);
-      setIsSavingWorkspace(false);
-      return;
-    }
-
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
     try {
-      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
-      if (!detail) {
-        router.replace("/workspace?context=unavailable");
-        return;
-      }
-      setWorkspace(detail);
-      setLoadState("loaded");
-      setSettingsDraft(detail ? createSettingsDraft(detail) : null);
-      setIsEditWorkspaceOpen(false);
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceDetailScreen] Failed to refresh workspace after save:", error);
-      }
-      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
     } finally {
-      setIsSavingWorkspace(false);
+      setCreatingInvoice(false);
     }
   }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
 
   return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
 
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
+      {/* ── Loading state ─────────────────────────────────────────────── */}
       {loadState === "loading" && (
         <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
         </Card>
       )}
 
+      {/* ── Error state ───────────────────────────────────────────────── */}
       {loadState === "error" && (
         <Card className="border border-destructive/30">
           <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
+            無法載入資料，請重新整理頁面後再試。
           </CardContent>
         </Card>
       )}
 
-      {loadState === "loaded" && !workspace && (
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
         <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
           </CardContent>
         </Card>
       )}
 
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>發票</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
             </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
 
-      <Dialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            setSaveError(null);
-            if (workspace) {
-              setSettingsDraft(createSettingsDraft(workspace));
-            }
-          }
-        }}
-      >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>編輯工作區設定</DialogTitle>
-            <DialogDescription>
-              更新工作區基本資料、地址與聯絡角色，讓個人與組織工作區都能直接在內頁維護。
-            </DialogDescription>
-          </DialogHeader>
-
-          {settingsDraft && (
-            <form className="space-y-6" onSubmit={handleSaveWorkspaceSettings}>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-detail-name">
-                    工作區名稱
-                  </label>
-                  <Input
-                    id="workspace-detail-name"
-                    value={settingsDraft.name}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, name: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSavingWorkspace}
-                    maxLength={80}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-foreground">可見性</span>
-                  <Select
-                    value={settingsDraft.visibility}
-                    onValueChange={(value: WorkspaceEntity["visibility"]) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, visibility: value } : current,
-                      )
-                    }
-                    disabled={isSavingWorkspace}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="visible">visible</SelectItem>
-                      <SelectItem value="hidden">hidden</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <span className="text-sm font-medium text-foreground">生命週期</span>
-                  <Select
-                    value={settingsDraft.lifecycleState}
-                    onValueChange={(value: WorkspaceEntity["lifecycleState"]) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, lifecycleState: value } : current,
-                      )
-                    }
-                    disabled={isSavingWorkspace}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="preparatory">preparatory</SelectItem>
-                      <SelectItem value="active">active</SelectItem>
-                      <SelectItem value="stopped">stopped</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">聯絡角色</p>
-                  <p className="text-xs text-muted-foreground">
-                    個人與組織工作區都共用同一組工作區聯絡人欄位。
-                  </p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-manager-id">
-                      Manager
-                    </label>
-                    <Input
-                      id="workspace-manager-id"
-                      value={settingsDraft.managerId}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, managerId: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-supervisor-id">
-                      Supervisor
-                    </label>
-                    <Input
-                      id="workspace-supervisor-id"
-                      value={settingsDraft.supervisorId}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, supervisorId: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-safety-officer-id">
-                      Safety officer
-                    </label>
-                    <Input
-                      id="workspace-safety-officer-id"
-                      value={settingsDraft.safetyOfficerId}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, safetyOfficerId: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium text-foreground">地址資訊</p>
-                  <p className="text-xs text-muted-foreground">
-                    用於個人據點與組織營運工作區的基礎地址資料。
-                  </p>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-street">
-                      Street
-                    </label>
-                    <Input
-                      id="workspace-address-street"
-                      value={settingsDraft.street}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, street: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-city">
-                      City
-                    </label>
-                    <Input
-                      id="workspace-address-city"
-                      value={settingsDraft.city}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, city: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-state">
-                      State
-                    </label>
-                    <Input
-                      id="workspace-address-state"
-                      value={settingsDraft.state}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, state: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-postal-code">
-                      Postal code
-                    </label>
-                    <Input
-                      id="workspace-address-postal-code"
-                      value={settingsDraft.postalCode}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, postalCode: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-country">
-                      Country
-                    </label>
-                    <Input
-                      id="workspace-address-country"
-                      value={settingsDraft.country}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, country: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-details">
-                      Details
-                    </label>
-                    <Input
-                      id="workspace-address-details"
-                      value={settingsDraft.details}
-                      onChange={(event) =>
-                        setSettingsDraft((current) =>
-                          current ? { ...current, details: event.target.value } : current,
-                        )
-                      }
-                      disabled={isSavingWorkspace}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsEditWorkspaceOpen(false)}
-                  disabled={isSavingWorkspace}
-                >
-                  取消
-                </Button>
-                <Button type="submit" disabled={isSavingWorkspace}>
-                  {isSavingWorkspace ? "儲存中…" : "儲存設定"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
     </div>
   );
 }
@@ -67920,959 +67169,582 @@ Any of the following require a context7 lookup before proceeding:
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
-## File: app/(shell)/_components/dashboard-sidebar.tsx
+## File: app/(shell)/_components/app-rail.tsx
 ````typescript
 "use client";
 
 /**
- * Module: dashboard-sidebar.tsx
- * Purpose: render the secondary navigation panel of the authenticated shell.
- * Responsibilities: account switcher, search hint, org management sub-nav, and
- *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
- * Constraints: UI-only; workspace data sourced from module interfaces.
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
  */
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import {
   BookOpen,
-  Bot,
-  Brain,
   Building2,
-  ChevronDown,
-  ChevronRight,
-  Database,
+  CalendarDays,
+  ClipboardList,
   FileText,
-  Home,
-  Library,
-  PanelLeftClose,
-  Search,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  Rss,
   SlidersHorizontal,
+  Table2,
   UserRound,
   Users,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
+import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
+  createWorkspace,
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { Button } from "@ui-shadcn/ui/button";
 import {
-  CustomizeNavigationDialog,
-  readNavPreferences,
-  type NavPreferences,
-} from "./customize-navigation-dialog";
-import { KnowledgeSidebarSection } from "./knowledge-sidebar-section";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
 
-interface DashboardSidebarProps {
+interface AppRailProps {
   readonly pathname: string;
+  readonly user: AuthUser | null;
   readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
   readonly workspaces: WorkspaceEntity[];
   readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
   readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
   readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
 }
 
-const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-const QUICK_ACCESS_ITEMS: readonly {
+interface RailItem {
   href: string;
   label: string;
   icon: React.ReactNode;
-}[] = [
-  { href: "/workspace", label: "首頁", icon: <Home className="size-3.5" /> },
-  { href: "/knowledge/pages", label: "頁面", icon: <FileText className="size-3.5" /> },
-  { href: "/knowledge-base/articles", label: "文章", icon: <BookOpen className="size-3.5" /> },
-  { href: "/source/documents", label: "來源", icon: <Library className="size-3.5" /> },
-];
-
-interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
 }
 
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 }
 
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
 }
 
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-// ── Section helpers ──────────────────────────────────────────────────────────
-
-type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
-
-function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-// ── Section icon labels for the title bar ────────────────────────────────────
-
-const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-export function DashboardSidebar({
+export function AppRail({
   pathname,
+  user,
   activeAccount,
+  organizationAccounts,
   workspaces,
   workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
   activeWorkspaceId,
-  collapsed,
-  onToggleCollapsed,
   onSelectWorkspace,
-}: DashboardSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
-  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
-  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
-  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [customizeOpen, setCustomizeOpen] = useState(false);
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-  const searchParams = useSearchParams();
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
 
-  function toggleCollapsed() {
-    onToggleCollapsed();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
   }
 
-  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
 
-  const visibleOrganizationManagementItems = useMemo(() => {
-    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
 
-  const visibleAccountItems = useMemo(() => {
-    return ACCOUNT_NAV_ITEMS.filter((item) =>
-      navPrefs.pinnedWorkspace.includes(item.id),
-    );
-  }, [navPrefs.pinnedWorkspace]);
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
 
-  // Whether to show recent workspaces section (controlled by personal prefs)
-  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
-
-  // Max workspaces to show (apply user preference)
-  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
-    ? navPrefs.maxWorkspaces
-    : MAX_VISIBLE_RECENT_WORKSPACES;
-
-  function isActiveRoute(href: string) {
+  function isActive(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  // Track recently visited workspaces in localStorage
-  useEffect(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [activeAccount?.id, pathname]);
+  const railItems: RailItem[] = [
+    // ── Hub ──────────────────────────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── Content ──────────────────────────────────────────────────────
+    {
+      href: "/knowledge/pages",
+      label: "知識頁面",
+      icon: <FileText className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
+    },
+    {
+      href: "/knowledge-base/articles",
+      label: "文章庫",
+      icon: <BookOpen className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
+    },
+    {
+      href: "/knowledge-database/databases",
+      label: "資料庫",
+      icon: <Table2 className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
+    },
+    {
+      href: "/workspace-feed",
+      label: "動態消息",
+      icon: <Rss className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/workspace-feed", currentPathname),
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
 
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
     [workspaces],
   );
 
-  const recentWorkspaceIds = useMemo(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [activeAccount?.id, pathname]);
-
-  useEffect(() => {
-    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
-    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(pathWorkspaceId);
-      return;
-    }
-
-    if (typeof window === "undefined" || !pathname.startsWith("/knowledge")) {
-      return;
-    }
-
-    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
-    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(searchWorkspaceId);
-    }
-  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
-
-  const recentWorkspaceLinks = useMemo(() => {
-    return recentWorkspaceIds
-      .map((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
-  const visibleRecentWorkspaceLinks = isExpanded
-    ? recentWorkspaceLinks
-    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
-
-  const buildWorkspaceContextHref = useCallback(
-    (workspaceId: string): string => {
-      if (pathname.startsWith("/knowledge")) {
-        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
-        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
-      }
-      return `/workspace/${workspaceId}`;
-    },
-    [pathname],
-  );
-
-  const allWorkspaceLinks = useMemo(() => {
-    return Object.values(workspacesById)
-      .map((workspace) => ({
-        id: workspace.id,
-        name: workspace.name,
-        href: buildWorkspaceContextHref(workspace.id),
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, buildWorkspaceContextHref]);
-
-  const section = resolveNavSection(pathname);
-  const sectionMeta = SECTION_TITLES[section];
-  const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
-    ? rawWorkspaceTab
-    : "Overview";
-
-  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
-    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-  }
-
-  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
-    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-  }
-
-  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
-    if (tab === "Wiki") {
-      const status = getWorkspaceTabStatus(tab);
-      return `${status} WorkSpace Wiki`;
-    }
-    const status = getWorkspaceTabStatus(tab);
-    return `${status} ${tWorkspaceTab(tab, fallback)}`;
-  }
-
-  function tWorkspaceGroup(groupKey: string, fallback: string) {
-    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
-  }
-
-  function getWorkspacePrefId(tabValue: string) {
-    if (isWorkspaceTabValue(tabValue)) {
-      return getWorkspaceTabPrefId(tabValue);
-    }
-    return tabValue.toLowerCase().replace(/\s+/g, "-");
-  }
-
-  function isWorkspaceItemEnabled(prefId: string) {
-    return navPrefs.pinnedWorkspace.includes(prefId);
-  }
-
-  function getWorkspaceItemOrder(prefId: string) {
-    const index = navPrefs.workspaceOrder.indexOf(prefId);
-    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
-  }
-
-  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
-    return [...items].sort(
-      (left, right) =>
-        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
-        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
-    );
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadSidebarLocale() {
-      const isZhHant =
-        typeof navigator !== "undefined" &&
-        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
-      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
-
-      try {
-        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
-        if (!response.ok) return;
-        const data = (await response.json()) as SidebarLocaleBundle;
-        if (!cancelled) {
-          setLocaleBundle(data);
-        }
-      } catch {
-        // Keep fallback labels when localization files are unavailable.
-      }
-    }
-
-    void loadSidebarLocale();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  async function handleQuickCreatePage() {
-    const accountId = activeAccount?.id ?? "";
-    if (!accountId) {
-      toast.error("目前沒有 active account，無法建立");
-      return;
-    }
-    setCreatingKind("page");
-    try {
-      const db = getFirebaseFirestore();
-      const payload: Record<string, unknown> = {
-        title: "未命名頁面",
-        kind: "page",
-        accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, "pages"),
-        payload,
-      );
-      toast.success("已建立頁面");
-    } catch (error) {
-      console.error(error);
-      toast.error("建立頁面失敗");
-    } finally {
-      setCreatingKind(null);
-    }
-  }
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
 
   return (
-    <div className="contents">
-    <aside
-      aria-label="Secondary navigation"
-      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
-        collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
-      }`}
-    >
-          {/* ── Sidebar title bar ──────────────────────────────────── */}
-          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
-            {/* Section label */}
-            <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
-              {sectionMeta.icon}
-              {sectionMeta.label}
-            </span>
-            {/* Customize + collapse buttons grouped on the right */}
-            <div className="flex items-center gap-0.5">
-              <button
-                type="button"
-                title="設定"
-                aria-label="設定"
-                onClick={() => {
-                  setCustomizeOpen(true);
-                }}
-                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-              >
-                <SlidersHorizontal className="size-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="收起側欄"
-                title="收起側欄"
-                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-              >
-                <PanelLeftClose className="size-3.5" />
-              </button>
-            </div>
-          </div>
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
 
-          <div className="shrink-0 border-b border-border/30 px-2 py-2">
-            <div className="flex items-center gap-1">
-              {QUICK_ACCESS_ITEMS.map((item) => {
-                const active = isActiveRoute(item.href);
-                return (
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
                   <Link
-                    key={item.href}
                     href={item.href}
-                    title={item.label}
                     aria-current={active ? "page" : undefined}
-                    className={`flex size-7 items-center justify-center rounded-md transition ${
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
                       active
                         ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
                   >
                     {item.icon}
-                    <span className="sr-only">{item.label}</span>
                   </Link>
-                );
-              })}
-              <button
-                type="button"
-                aria-label="搜尋"
-                title="搜尋"
-                className="ml-auto flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-              >
-                <Search className="size-3.5" />
-              </button>
-            </div>
-          </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
 
-          {/* ── Scrollable nav body ── section-specific ───────────── */}
-          <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
-            {section === "account" && (
-              <div className="space-y-2">
-                {showAccountManagement && visibleAccountItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Account navigation">
-                    <p className={sidebarSectionTitleClass}>
-                      Account
-                    </p>
-                    {visibleAccountItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={sidebarItemClass(active)}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看 Account 選項。
-                  </p>
-                )}
-              </div>
-            )}
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
 
-            {section === "organization" && (
-              <div className="space-y-2">
-                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
-                  <nav className="space-y-0.5" aria-label="Organization management">
-                    <p className={sidebarSectionTitleClass}>
-                      組織管理
-                    </p>
-                    {visibleOrganizationManagementItems.map((item) => {
-                      const active = isActiveRoute(item.href);
-                      return (
-                        <Link
-                          key={item.href}
-                          href={item.href}
-                          aria-current={active ? "page" : undefined}
-                          className={sidebarItemClass(active)}
-                        >
-                          {item.label}
-                        </Link>
-                      );
-                    })}
-                  </nav>
-                )}
-                {!showAccountManagement && (
-                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
-                    請切換到組織帳號以查看管理選項。
-                  </p>
-                )}
-              </div>
-            )}
+        <div className="h-1" />
+      </aside>
 
-            {section === "workspace" && (
-              <div className="space-y-2">
-                {workspacePathId ? (
-                  <nav className="space-y-3" aria-label="Workspace navigation">
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={sidebarItemClass(isActive)}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                    {isWorkspaceItemEnabled("workspace-modules") && (
-                      <div className="my-1.5 border-t border-border/40" />
-                    )}
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("workspace-modules") && (
-                        <div className="space-y-0.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceModulesExpanded((prev) => !prev);
-                            }}
-                            className={sidebarGroupButtonClass}
-                            aria-expanded={isWorkspaceModulesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
-                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceModulesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={sidebarItemClass(isActive)}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("spaces") && (
-                        <div className="space-y-0.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceSpacesExpanded((prev) => !prev);
-                            }}
-                            className={sidebarGroupButtonClass}
-                            aria-expanded={isWorkspaceSpacesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
-                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceSpacesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
-                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                    .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={sidebarItemClass(isActive)}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {isWorkspaceItemEnabled("databases") && (
-                        <div className="space-y-0.5">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
-                            }}
-                            className={sidebarGroupButtonClass}
-                            aria-expanded={isWorkspaceDatabasesExpanded}
-                          >
-                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
-                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
-                          </button>
-
-                          {isWorkspaceDatabasesExpanded && (
-                            <div className="space-y-0.5 pl-2">
-                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
-                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                                .map((item) => {
-                                const isActive = activeWorkspaceTab === item.value;
-                                return (
-                                  <Link
-                                    key={item.value}
-                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                                    aria-current={isActive ? "page" : undefined}
-                                    className={sidebarItemClass(isActive)}
-                                  >
-                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                                  </Link>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
-                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
-                        .map((item) => {
-                        const isActive = activeWorkspaceTab === item.value;
-                        return (
-                          <Link
-                            key={item.value}
-                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                            aria-current={isActive ? "page" : undefined}
-                            className={sidebarItemClass(isActive)}
-                          >
-                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
-                          </Link>
-                        );
-                      })}
-                    </div>
-
-                  </nav>
-                ) : (
-                  // ── Workspace hub: show recent workspaces ──────────────
-                  <div>
-                    {showRecentWorkspaces && (
-                      <div className="space-y-0.5">
-                        <p className={sidebarSectionTitleClass}>
-                          最近工作區
-                        </p>
-                        {visibleRecentWorkspaceLinks.length === 0 ? (
-                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
-                            尚無最近開啟的工作區。
-                          </p>
-                        ) : (
-                          visibleRecentWorkspaceLinks.map((ws) => (
-                            <Link
-                              key={ws.id}
-                              href={ws.href}
-                              onClick={() => {
-                                onSelectWorkspace(ws.id);
-                              }}
-                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
-                                  ? "border border-primary/30 bg-primary/10 text-primary"
-                                  : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-                              }`}
-                              title={ws.name}
-                            >
-                              <span className="truncate">{ws.name}</span>
-                            </Link>
-                          ))
-                        )}
-                        {hasOverflow && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setIsExpanded((prev) => !prev);
-                            }}
-                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
-                          >
-                            {isExpanded ? "收起" : "顯示更多"}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {section === "knowledge" && (
-              <KnowledgeSidebarSection
-                pathname={pathname}
-                workspacesHydrated={workspacesHydrated}
-                allWorkspaceLinks={allWorkspaceLinks}
-                activeWorkspaceId={activeWorkspaceId}
-                creatingKind={creatingKind}
-                onSelectWorkspace={onSelectWorkspace}
-                onQuickCreatePage={() => {
-                  void handleQuickCreatePage();
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
                 }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
               />
-            )}
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-            {section === "knowledge-base" && (
-              <nav className="space-y-0.5" aria-label="Knowledge Base navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  知識庫
-                </p>
-                {(
-                  [
-                    { href: "/knowledge-base/articles", label: "文章" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "knowledge-database" && (
-              <nav className="space-y-0.5" aria-label="Knowledge Database navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  資料庫
-                </p>
-                {(
-                  [
-                    { href: "/knowledge-database/databases", label: "資料庫" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "source" && (
-              <nav className="space-y-0.5" aria-label="Source navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  來源文件
-                </p>
-                {(
-                  [
-                    { href: "/source/documents", label: "Documents" },
-                    { href: "/source/libraries", label: "Libraries" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "notebook" && (
-              <nav className="space-y-0.5" aria-label="Notebook navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Notebook
-                </p>
-                {(
-                  [
-                    { href: "/notebook/rag-query", label: "Ask / Cite" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-            {section === "ai-chat" && (
-              <nav className="space-y-0.5" aria-label="Notebook navigation">
-                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                  Notebook / AI
-                </p>
-                {(
-                  [
-                    { href: "/ai-chat", label: "Notebook shell" },
-                  ] as const
-                ).map((item) => {
-                  const active = isActiveRoute(item.href);
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={active ? "page" : undefined}
-                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-                        active
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {item.label}
-                    </Link>
-                  );
-                })}
-              </nav>
-            )}
-
-          </div>
-    </aside>
-
-    <CustomizeNavigationDialog
-      open={customizeOpen}
-      onOpenChange={setCustomizeOpen}
-      onPreferencesChange={setNavPrefs}
-    />
-    </div>
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }
 ````
@@ -71070,47 +69942,30 @@ export interface UpdateTaskInput {
 }
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
+## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
 
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
 import Link from "next/link";
-import {
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  Rss,
-  SlidersHorizontal,
-  Table2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { formatDate } from "@shared-utils";
 import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -71119,533 +69974,1048 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
 import { Input } from "@ui-shadcn/ui/input";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { useApp } from "@/app/providers/app-provider";
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
+import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import {
+  createSettingsDraft,
+  describeGrant,
+  type WorkspaceSettingsDraft,
+} from "../../application/workspace-settings";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
+import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
+
+const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
+  "primary",
+  "modules",
+  "library",
+  "spaces",
+  "databases",
+];
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+function getWorkspaceInitials(name: string) {
+  const tokens = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (tokens.length === 0) {
+    return "WS";
+  }
+
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
 }
 
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
+function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined) {
+  if (!timestamp) {
+    return "—";
+  }
+
+  try {
+    return formatDate(timestamp.toDate());
+  } catch {
+    return "—";
+  }
 }
 
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+
+function trimOrUndefined(value: string) {
+  const trimmed = value.trim();
+  return trimmed || undefined;
 }
 
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
 }
 
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Hub ──────────────────────────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── Content ──────────────────────────────────────────────────────
-    {
-      href: "/knowledge/pages",
-      label: "知識頁面",
-      icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
-    },
-    {
-      href: "/knowledge-base/articles",
-      label: "文章庫",
-      icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
-    },
-    {
-      href: "/knowledge-database/databases",
-      label: "資料庫",
-      icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
-    },
-    {
-      href: "/workspace-feed",
-      label: "動態消息",
-      icon: <Rss className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/workspace-feed", currentPathname),
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
+function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
+  const status = getWorkspaceTabStatus(tab);
   return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>{status} {getWorkspaceTabLabel(tab)}</CardTitle>
+        <CardDescription>
+          此分頁尚在開發中，功能將逐步開放。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="text-sm text-muted-foreground">
+        目前僅提供基礎導覽，敬請期待後續版本。
+      </CardContent>
+    </Card>
+  );
+}
 
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+}: WorkspaceDetailScreenProps) {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [isSavingWorkspace, setIsSavingWorkspace] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
 
-        <div className="my-2 h-px w-7 bg-border/50" />
+  useEffect(() => {
+    let cancelled = false;
 
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
 
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
 
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          router.replace("/workspace?context=unavailable");
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceDetailScreen] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId]);
+  const personnelEntries = useMemo(() => {
+    if (!workspace?.personnel) {
+      return [];
+    }
+
+    return [
+      { label: "Manager", value: workspace.personnel.managerId },
+      { label: "Supervisor", value: workspace.personnel.supervisorId },
+      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
+    ].filter((entry) => Boolean(entry.value));
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    if (!workspace?.address) {
+      return [];
+    }
+
+    const { street, city, state, postalCode, country, details } = workspace.address;
+
+    return [
+      street,
+      [city, state, postalCode].filter(Boolean).join(", "),
+      country,
+      details,
+    ].filter(Boolean);
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) {
+      return null;
+    }
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <>
+            <Card className="border border-border/50">
+              <CardContent className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+                <div className="flex items-start gap-4">
+                  <Avatar size="lg">
+                    <AvatarImage src={workspace.photoURL} alt={workspace.name} />
+                    <AvatarFallback>{getWorkspaceInitials(workspace.name)}</AvatarFallback>
+                  </Avatar>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <p className="text-2xl font-semibold tracking-tight">{workspace.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {workspace.accountType === "organization" ? "Organization" : "Personal"} workspace ·
+                        account {workspace.accountId}
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                        {workspace.lifecycleState}
+                      </Badge>
+                      <Badge variant="outline">{workspace.visibility}</Badge>
+                      <Badge variant="outline">Created {formatTimestamp(workspace.createdAt)}</Badge>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
                       onClick={() => {
-                        router.push("/workspace");
+                        setSettingsDraft(createSettingsDraft(workspace));
+                        setSaveError(null);
+                        setIsEditWorkspaceOpen(true);
                       }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
                     >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                      編輯工作區
+                    </Button>
+                    {appState.activeWorkspaceId !== workspace.id && (
+                      <Button
+                        type="button"
+                        variant="default"
+                        size="sm"
+                        onClick={() =>
+                          dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+                        }
+                      >
+                        設為目前工作區
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[20rem]">
+                  <div className="rounded-xl border border-border/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Capabilities</p>
+                    <p className="mt-1 text-xl font-semibold">{workspace.capabilities.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Teams</p>
+                    <p className="mt-1 text-xl font-semibold">{workspace.teamIds.length}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Locations</p>
+                    <p className="mt-1 text-xl font-semibold">{workspace.locations?.length ?? 0}</p>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-3">
+                    <p className="text-xs text-muted-foreground">Grants</p>
+                    <p className="mt-1 text-xl font-semibold">{workspace.grants.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+              <Card className="border border-border/50 xl:col-span-2">
+                <CardHeader>
+                  <CardTitle>Workspace Product Spine</CardTitle>
+                  <CardDescription>
+                    從這個工作區穩定分流到 Knowledge、Wiki、Notebook / AI；Search、Source、Sync
+                    則作為底層支撐能力。
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_0.9fr]">
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      先用文件、來源與資料庫建立工作區知識基底，再讓後續 Wiki / AI 消費。
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                          文件
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold text-foreground">Wiki</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      以工作區內容樹、頁面與結構化導覽承接知識脈絡，避免回到平行產品入口。
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.id}?tab=Wiki`}>工作區 Wiki</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                          頁面
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      用 AI 對話與 RAG 查詢消費這個工作區的知識，不再把 AI 當成獨立產品島。
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                          RAG Query
+                        </Link>
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-dashed border-border/50 px-4 py-4">
+                    <p className="text-sm font-semibold text-foreground">Supporting layers</p>
+                    <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground">
+                      <li>
+                        <span className="font-medium text-foreground">Search</span>：用 RAG Query 承接查詢、引用與回答。
+                      </li>
+                      <li>
+                        <span className="font-medium text-foreground">Source</span>：Files / Documents
+                        是來源接入與 metadata 宿主。
+                      </li>
+                      <li>
+                        <span className="font-medium text-foreground">Sync</span>：upload → ingest → index 流程持續把來源同步成可查詢知識。
+                      </li>
+                    </ul>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/50">
+                <CardHeader>
+                  <CardTitle>Capabilities</CardTitle>
+                  <CardDescription>
+                    Runtime features currently mounted on this workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {workspace.capabilities.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No capability bindings have been added yet.
+                    </p>
+                  ) : (
+                    workspace.capabilities.map((capability) => (
+                      <div
+                        key={capability.id}
+                        className="rounded-xl border border-border/40 px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {capability.name}
+                          </p>
+                          <Badge variant="outline">{capability.type}</Badge>
+                          <Badge
+                            variant={capability.status === "stable" ? "secondary" : "outline"}
+                          >
+                            {capability.status}
+                          </Badge>
+                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {capability.description}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/50">
+                <CardHeader>
+                  <CardTitle>Access Model</CardTitle>
+                  <CardDescription>
+                    Team scopes and direct grants applied to this workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Team access</p>
+                    {workspace.teamIds.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No team access assigned.</p>
                     ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                      <div className="flex flex-wrap gap-2">
+                        {workspace.teamIds.map((teamId) => (
+                          <Badge key={teamId} variant="secondary">
+                            {teamId}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Direct grants</p>
+                    {workspace.grants.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
+                    ) : (
+                      workspace.grants.map((grant, index) => (
+                        <div
+                          key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
+                          className="rounded-xl border border-border/40 px-4 py-3"
                         >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
+                          <p className="text-sm font-medium text-foreground">
+                            {describeGrant(grant)}
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Role: {grant.role}
+                            {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
+                            {grant.userId ? ` · User: ${grant.userId}` : ""}
+                            {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
+                          </p>
+                        </div>
                       ))
                     )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+              <Card className="border border-border/50">
+                <CardHeader>
+                  <CardTitle>Locations</CardTitle>
+                  <CardDescription>
+                    Physical or logical locations linked to the workspace.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {workspace.locations == null || workspace.locations.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No locations have been configured yet.
+                    </p>
+                  ) : (
+                    workspace.locations.map((location) => (
+                      <div
+                        key={location.locationId}
+                        className="rounded-xl border border-border/40 px-4 py-4"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-semibold text-foreground">
+                            {location.label}
+                          </p>
+                          <Badge variant="outline">{location.locationId}</Badge>
+                        </div>
+                        {location.description && (
+                          <p className="mt-2 text-sm text-muted-foreground">
+                            {location.description}
+                          </p>
+                        )}
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          Capacity: {location.capacity ?? "—"}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card className="border border-border/50">
+                <CardHeader>
+                  <CardTitle>Workspace Profile</CardTitle>
+                  <CardDescription>
+                    Operational contacts and registered workspace address.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Personnel</p>
+                    {personnelEntries.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No personnel roles assigned.
+                      </p>
+                    ) : (
+                      personnelEntries.map((entry) => (
+                        <div
+                          key={entry.label}
+                          className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
+                        >
+                          <span className="text-muted-foreground">{entry.label}</span>
+                          <span className="font-medium text-foreground">{entry.value}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <Separator />
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-foreground">Address</p>
+                    {addressLines.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No address information has been provided.
+                      </p>
+                    ) : (
+                      <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+                        {addressLines.map((line, index) => (
+                          <p key={`${line}-${index}`}>{line}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
+              <Card className="border border-primary/20 bg-primary/5">
+                <CardHeader>
+                  <CardTitle>🚀 開始使用這個工作區</CardTitle>
+                  <CardDescription>完成以下步驟，讓工作區進入運作狀態。</CardDescription>
+                </CardHeader>
+                <CardContent className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold">Step 1 · 上傳文件</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      先把原始文件上傳到 Files 分頁，作為知識基底。
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>前往 Files</Link>
+                    </Button>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      在 Wiki 分頁建立第一個知識頁面，整理結構。
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>前往 Wiki</Link>
+                    </Button>
+                  </div>
+                  <div className="rounded-xl border border-border/40 px-4 py-4">
+                    <p className="text-sm font-semibold">Step 3 · AI 查詢</p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      用 RAG Query 對工作區知識提問，驗證內容可被檢索。
+                    </p>
+                    <Button asChild size="sm" variant="outline" className="mt-3">
+                      <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        前往 RAG Query
+                      </Link>
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Wiki":
+        return <WorkspaceWikiView workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return renderWorkspacePlaceholderTab(tab);
+    }
+  }
+
+  async function handleSaveWorkspaceSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!workspace || !settingsDraft) {
+      return;
+    }
+
+    if (!accountId) {
+      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
+      return;
+    }
+
+    const nextWorkspaceName = settingsDraft.name.trim();
+    if (!nextWorkspaceName) {
+      setSaveError("請輸入工作區名稱。");
+      return;
+    }
+
+    setIsSavingWorkspace(true);
+    setSaveError(null);
+
+    const hasAddressContent = Boolean(
+      settingsDraft.street.trim() ||
+        settingsDraft.city.trim() ||
+        settingsDraft.state.trim() ||
+        settingsDraft.postalCode.trim() ||
+        settingsDraft.country.trim() ||
+        settingsDraft.details.trim(),
+    );
+    const hasPersonnelContent = Boolean(
+      settingsDraft.managerId.trim() ||
+        settingsDraft.supervisorId.trim() ||
+        settingsDraft.safetyOfficerId.trim(),
+    );
+
+    const result = await updateWorkspaceSettings({
+      workspaceId: workspace.id,
+      accountId,
+      name: nextWorkspaceName,
+      visibility: settingsDraft.visibility,
+      lifecycleState: settingsDraft.lifecycleState,
+      address:
+        workspace.address != null || hasAddressContent
+          ? {
+              street: settingsDraft.street.trim(),
+              city: settingsDraft.city.trim(),
+              state: settingsDraft.state.trim(),
+              postalCode: settingsDraft.postalCode.trim(),
+              country: settingsDraft.country.trim(),
+              details: trimOrUndefined(settingsDraft.details),
             }
+          : undefined,
+      personnel:
+        workspace.personnel != null || hasPersonnelContent
+          ? {
+              managerId: trimOrUndefined(settingsDraft.managerId),
+              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
+              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
+            }
+          : undefined,
+    });
 
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
+    if (!result.success) {
+      setSaveError(result.error.message);
+      setIsSavingWorkspace(false);
+      return;
+    }
+
+    try {
+      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
+      if (!detail) {
+        router.replace("/workspace?context=unavailable");
+        return;
+      }
+      setWorkspace(detail);
+      setLoadState("loaded");
+      setSettingsDraft(detail ? createSettingsDraft(detail) : null);
+      setIsEditWorkspaceOpen(false);
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceDetailScreen] Failed to refresh workspace after save:", error);
+      }
+      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
+    } finally {
+      setIsSavingWorkspace(false);
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <Dialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            setSaveError(null);
+            if (workspace) {
+              setSettingsDraft(createSettingsDraft(workspace));
+            }
+          }
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>編輯工作區設定</DialogTitle>
+            <DialogDescription>
+              更新工作區基本資料、地址與聯絡角色，讓個人與組織工作區都能直接在內頁維護。
+            </DialogDescription>
+          </DialogHeader>
+
+          {settingsDraft && (
+            <form className="space-y-6" onSubmit={handleSaveWorkspaceSettings}>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-detail-name">
+                    工作區名稱
+                  </label>
+                  <Input
+                    id="workspace-detail-name"
+                    value={settingsDraft.name}
+                    onChange={(event) =>
+                      setSettingsDraft((current) =>
+                        current ? { ...current, name: event.target.value } : current,
+                      )
+                    }
+                    disabled={isSavingWorkspace}
+                    maxLength={80}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-foreground">可見性</span>
+                  <Select
+                    value={settingsDraft.visibility}
+                    onValueChange={(value: WorkspaceEntity["visibility"]) =>
+                      setSettingsDraft((current) =>
+                        current ? { ...current, visibility: value } : current,
+                      )
+                    }
+                    disabled={isSavingWorkspace}
                   >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="visible">visible</SelectItem>
+                      <SelectItem value="hidden">hidden</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
+                <div className="space-y-2">
+                  <span className="text-sm font-medium text-foreground">生命週期</span>
+                  <Select
+                    value={settingsDraft.lifecycleState}
+                    onValueChange={(value: WorkspaceEntity["lifecycleState"]) =>
+                      setSettingsDraft((current) =>
+                        current ? { ...current, lifecycleState: value } : current,
+                      )
+                    }
+                    disabled={isSavingWorkspace}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="preparatory">preparatory</SelectItem>
+                      <SelectItem value="active">active</SelectItem>
+                      <SelectItem value="stopped">stopped</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
 
-        <div className="h-1" />
-      </aside>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground">聯絡角色</p>
+                  <p className="text-xs text-muted-foreground">
+                    個人與組織工作區都共用同一組工作區聯絡人欄位。
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-manager-id">
+                      Manager
+                    </label>
+                    <Input
+                      id="workspace-manager-id"
+                      value={settingsDraft.managerId}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, managerId: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-supervisor-id">
+                      Supervisor
+                    </label>
+                    <Input
+                      id="workspace-supervisor-id"
+                      value={settingsDraft.supervisorId}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, supervisorId: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-safety-officer-id">
+                      Safety officer
+                    </label>
+                    <Input
+                      id="workspace-safety-officer-id"
+                      value={settingsDraft.safetyOfficerId}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, safetyOfficerId: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                </div>
+              </div>
 
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-foreground">地址資訊</p>
+                  <p className="text-xs text-muted-foreground">
+                    用於個人據點與組織營運工作區的基礎地址資料。
+                  </p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2 sm:col-span-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-street">
+                      Street
+                    </label>
+                    <Input
+                      id="workspace-address-street"
+                      value={settingsDraft.street}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, street: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-city">
+                      City
+                    </label>
+                    <Input
+                      id="workspace-address-city"
+                      value={settingsDraft.city}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, city: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-state">
+                      State
+                    </label>
+                    <Input
+                      id="workspace-address-state"
+                      value={settingsDraft.state}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, state: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-postal-code">
+                      Postal code
+                    </label>
+                    <Input
+                      id="workspace-address-postal-code"
+                      value={settingsDraft.postalCode}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, postalCode: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-country">
+                      Country
+                    </label>
+                    <Input
+                      id="workspace-address-country"
+                      value={settingsDraft.country}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, country: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                  <div className="space-y-2 sm:col-span-2">
+                    <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-details">
+                      Details
+                    </label>
+                    <Input
+                      id="workspace-address-details"
+                      value={settingsDraft.details}
+                      onChange={(event) =>
+                        setSettingsDraft((current) =>
+                          current ? { ...current, details: event.target.value } : current,
+                        )
+                      }
+                      disabled={isSavingWorkspace}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsEditWorkspaceOpen(false)}
+                  disabled={isSavingWorkspace}
+                >
+                  取消
+                </Button>
+                <Button type="submit" disabled={isSavingWorkspace}>
+                  {isSavingWorkspace ? "儲存中…" : "儲存設定"}
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
+    </div>
   );
 }
 ````
@@ -73020,6 +72390,904 @@ function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeS
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
+## File: app/(shell)/_components/dashboard-sidebar.tsx
+````typescript
+"use client";
+
+/**
+ * Module: dashboard-sidebar.tsx
+ * Purpose: render the secondary navigation panel of the authenticated shell.
+ * Responsibilities: account switcher, search hint, org management sub-nav, and
+ *   recent workspace quick-access list.  Top-level section navigation is in AppRail.
+ * Constraints: UI-only; workspace data sourced from module interfaces.
+ */
+
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  ChevronDown,
+  ChevronRight,
+  Database,
+  FileText,
+  Home,
+  Library,
+  PanelLeftClose,
+  Search,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { CustomizeNavigationDialog,
+  readNavPreferences,
+  type NavPreferences,
+} from "./customize-navigation-dialog";
+import { KnowledgeSidebarSection } from "./knowledge-sidebar-section";
+import {
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  useRecentWorkspaces,
+} from "./use-recent-workspaces";
+
+interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+}
+
+const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+const QUICK_ACCESS_ITEMS: readonly {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}[] = [
+  { href: "/workspace", label: "首頁", icon: <Home className="size-3.5" /> },
+  { href: "/knowledge/pages", label: "頁面", icon: <FileText className="size-3.5" /> },
+  { href: "/knowledge-base/articles", label: "文章", icon: <BookOpen className="size-3.5" /> },
+  { href: "/source/documents", label: "來源", icon: <Library className="size-3.5" /> },
+];
+
+interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+// ── Section helpers ──────────────────────────────────────────────────────────
+
+type NavSection = "workspace" | "knowledge" | "knowledge-base" | "knowledge-database" | "source" | "notebook" | "ai-chat" | "account" | "organization" | "other";
+
+function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))) return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
+
+// ── Section icon labels for the title bar ────────────────────────────────────
+
+const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
+}
+
+const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
+
+const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
+
+export function DashboardSidebar({
+  pathname,
+  activeAccount,
+  workspaces,
+  workspacesHydrated,
+  activeWorkspaceId,
+  collapsed,
+  onToggleCollapsed,
+  onSelectWorkspace,
+}: DashboardSidebarProps) {
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
+  const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
+  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
+  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
+  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
+  const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+  const searchParams = useSearchParams();
+
+  function toggleCollapsed() {
+    onToggleCollapsed();
+  }
+
+  const showAccountManagement = isActiveOrganizationAccount(activeAccount);
+
+  const visibleOrganizationManagementItems = useMemo(() => {
+    return ORGANIZATION_MANAGEMENT_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  const visibleAccountItems = useMemo(() => {
+    return ACCOUNT_NAV_ITEMS.filter((item) =>
+      navPrefs.pinnedWorkspace.includes(item.id),
+    );
+  }, [navPrefs.pinnedWorkspace]);
+
+  // Whether to show recent workspaces section (controlled by personal prefs)
+  const showRecentWorkspaces = navPrefs.pinnedPersonal.includes("recent-workspaces");
+
+  // Max workspaces to show (apply user preference)
+  const effectiveMaxWorkspaces = navPrefs.showLimitedWorkspaces
+    ? navPrefs.maxWorkspaces
+    : MAX_VISIBLE_RECENT_WORKSPACES;
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+
+  useEffect(() => {
+    const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
+    if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(pathWorkspaceId);
+      return;
+    }
+
+    if (typeof window === "undefined" || !pathname.startsWith("/knowledge")) {
+      return;
+    }
+
+    const searchWorkspaceId = new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
+    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(searchWorkspaceId);
+    }
+  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+
+
+  const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
+  const visibleRecentWorkspaceLinks = isExpanded
+    ? recentWorkspaceLinks
+    : recentWorkspaceLinks.slice(0, effectiveMaxWorkspaces);
+
+  const buildWorkspaceContextHref = useCallback(
+    (workspaceId: string): string => {
+      if (pathname.startsWith("/knowledge")) {
+        const targetPath = pathname === "/knowledge" ? "/knowledge/pages" : pathname;
+        return `${targetPath}?workspaceId=${encodeURIComponent(workspaceId)}`;
+      }
+      return `/workspace/${workspaceId}`;
+    },
+    [pathname],
+  );
+
+  const allWorkspaceLinks = useMemo(() => {
+    return workspaces
+      .map((workspace) => ({
+        id: workspace.id,
+        name: workspace.name,
+        href: buildWorkspaceContextHref(workspace.id),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  }, [workspaces, buildWorkspaceContextHref]);
+
+  const section = resolveNavSection(pathname);
+  const sectionMeta = SECTION_TITLES[section];
+  const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
+    ? rawWorkspaceTab
+    : "Overview";
+
+  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
+    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+  }
+
+  function tWorkspaceTab(tab: WorkspaceTabValue, fallback: string) {
+    return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+  }
+
+  function tWorkspaceTabWithDevStatus(tab: WorkspaceTabValue, fallback: string) {
+    if (tab === "Wiki") {
+      const status = getWorkspaceTabStatus(tab);
+      return `${status} WorkSpace Wiki`;
+    }
+    const status = getWorkspaceTabStatus(tab);
+    return `${status} ${tWorkspaceTab(tab, fallback)}`;
+  }
+
+  function tWorkspaceGroup(groupKey: string, fallback: string) {
+    return localeBundle?.workspace?.groups?.[groupKey] ?? fallback;
+  }
+
+  function getWorkspacePrefId(tabValue: string) {
+    if (isWorkspaceTabValue(tabValue)) {
+      return getWorkspaceTabPrefId(tabValue);
+    }
+    return tabValue.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  function isWorkspaceItemEnabled(prefId: string) {
+    return navPrefs.pinnedWorkspace.includes(prefId);
+  }
+
+  function getWorkspaceItemOrder(prefId: string) {
+    const index = navPrefs.workspaceOrder.indexOf(prefId);
+    return index === -1 ? Number.MAX_SAFE_INTEGER : index;
+  }
+
+  function sortWorkspaceItemsByPreferenceOrder<T extends { value: string }>(items: readonly T[]) {
+    return [...items].sort(
+      (left, right) =>
+        getWorkspaceItemOrder(getWorkspacePrefId(left.value)) -
+        getWorkspaceItemOrder(getWorkspacePrefId(right.value)),
+    );
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadSidebarLocale() {
+      const isZhHant =
+        typeof navigator !== "undefined" &&
+        /^(zh-TW|zh-HK|zh-MO|zh-Hant)/i.test(navigator.language);
+      const localeFile = isZhHant ? "zh-TW.json" : "en.json";
+
+      try {
+        const response = await fetch(`/localized-files/${localeFile}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = (await response.json()) as SidebarLocaleBundle;
+        if (!cancelled) {
+          setLocaleBundle(data);
+        }
+      } catch {
+        // Keep fallback labels when localization files are unavailable.
+      }
+    }
+
+    void loadSidebarLocale();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function handleQuickCreatePage() {
+    const accountId = activeAccount?.id ?? "";
+    if (!accountId) {
+      toast.error("目前沒有 active account，無法建立");
+      return;
+    }
+    setCreatingKind("page");
+    try {
+      const db = getFirebaseFirestore();
+      const payload: Record<string, unknown> = {
+        title: "未命名頁面",
+        kind: "page",
+        accountId,
+        createdAt: firestoreApi.serverTimestamp(),
+        updatedAt: firestoreApi.serverTimestamp(),
+      };
+      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
+      await firestoreApi.addDoc(
+        firestoreApi.collection(db, "accounts", accountId, "pages"),
+        payload,
+      );
+      toast.success("已建立頁面");
+    } catch (error) {
+      console.error(error);
+      toast.error("建立頁面失敗");
+    } finally {
+      setCreatingKind(null);
+    }
+  }
+
+  return (
+    <div className="contents">
+    <aside
+      aria-label="Secondary navigation"
+      className={`hidden h-full shrink-0 flex-col overflow-hidden transition-[width] duration-200 md:flex ${
+        collapsed ? "w-0" : "w-56 border-r border-border/50 bg-card/20"
+      }`}
+    >
+          {/* ── Sidebar title bar ──────────────────────────────────── */}
+          <div className="flex shrink-0 items-center border-b border-border/40 px-2 py-1.5">
+            {/* Section label */}
+            <span className="flex flex-1 items-center gap-1.5 px-1 text-[11px] font-semibold tracking-tight text-foreground/80">
+              {sectionMeta.icon}
+              {sectionMeta.label}
+            </span>
+            {/* Customize + collapse buttons grouped on the right */}
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                title="設定"
+                aria-label="設定"
+                onClick={() => {
+                  setCustomizeOpen(true);
+                }}
+                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <SlidersHorizontal className="size-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleCollapsed}
+                aria-label="收起側欄"
+                title="收起側欄"
+                className="flex size-6 items-center justify-center rounded text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <PanelLeftClose className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          <div className="shrink-0 border-b border-border/30 px-2 py-2">
+            <div className="flex items-center gap-1">
+              {QUICK_ACCESS_ITEMS.map((item) => {
+                const active = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex size-7 items-center justify-center rounded-md transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="sr-only">{item.label}</span>
+                  </Link>
+                );
+              })}
+              <button
+                type="button"
+                aria-label="搜尋"
+                title="搜尋"
+                className="ml-auto flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
+              >
+                <Search className="size-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* ── Scrollable nav body ── section-specific ───────────── */}
+          <div className="flex-1 overflow-y-auto px-2.5 py-2.5">
+            {section === "account" && (
+              <div className="space-y-2">
+                {showAccountManagement && visibleAccountItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Account navigation">
+                    <p className={sidebarSectionTitleClass}>
+                      Account
+                    </p>
+                    {visibleAccountItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={sidebarItemClass(active)}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看 Account 選項。
+                  </p>
+                )}
+              </div>
+            )}
+
+            {section === "organization" && (
+              <div className="space-y-2">
+                {showAccountManagement && visibleOrganizationManagementItems.length > 0 && (
+                  <nav className="space-y-0.5" aria-label="Organization management">
+                    <p className={sidebarSectionTitleClass}>
+                      組織管理
+                    </p>
+                    {visibleOrganizationManagementItems.map((item) => {
+                      const active = isActiveRoute(item.href);
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          aria-current={active ? "page" : undefined}
+                          className={sidebarItemClass(active)}
+                        >
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </nav>
+                )}
+                {!showAccountManagement && (
+                  <p className="px-2 py-4 text-[11px] text-muted-foreground">
+                    請切換到組織帳號以查看管理選項。
+                  </p>
+                )}
+              </div>
+            )}
+
+            {section === "workspace" && (
+              <div className="space-y-2">
+                {workspacePathId ? (
+                  <nav className="space-y-3" aria-label="Workspace navigation">
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_PRIMARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={sidebarItemClass(isActive)}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                    {isWorkspaceItemEnabled("workspace-modules") && (
+                      <div className="my-1.5 border-t border-border/40" />
+                    )}
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("workspace-modules") && (
+                        <div className="space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceModulesExpanded((prev) => !prev);
+                            }}
+                            className={sidebarGroupButtonClass}
+                            aria-expanded={isWorkspaceModulesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("workspaceModules", "Workspace Modules")}</span>
+                            {isWorkspaceModulesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceModulesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_MODULE_LINK_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={sidebarItemClass(isActive)}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("spaces") && (
+                        <div className="space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceSpacesExpanded((prev) => !prev);
+                            }}
+                            className={sidebarGroupButtonClass}
+                            aria-expanded={isWorkspaceSpacesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("spaces", "Spaces")}</span>
+                            {isWorkspaceSpacesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceSpacesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                                  {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_SPACE_ITEMS)
+                                    .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                    .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={sidebarItemClass(isActive)}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {isWorkspaceItemEnabled("databases") && (
+                        <div className="space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsWorkspaceDatabasesExpanded((prev) => !prev);
+                            }}
+                            className={sidebarGroupButtonClass}
+                            aria-expanded={isWorkspaceDatabasesExpanded}
+                          >
+                            <span>{tWorkspaceGroup("databases", "Databases")}</span>
+                            {isWorkspaceDatabasesExpanded ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
+                          </button>
+
+                          {isWorkspaceDatabasesExpanded && (
+                            <div className="space-y-0.5 pl-2">
+                              {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_DATABASE_ITEMS)
+                                .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                                .map((item) => {
+                                const isActive = activeWorkspaceTab === item.value;
+                                return (
+                                  <Link
+                                    key={item.value}
+                                    href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                                    aria-current={isActive ? "page" : undefined}
+                                    className={sidebarItemClass(isActive)}
+                                  >
+                                    {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-0.5">
+                      {sortWorkspaceItemsByPreferenceOrder(WORKSPACE_LIBRARY_LINK_ITEMS)
+                        .filter((item) => isWorkspaceItemEnabled(getWorkspacePrefId(item.value)))
+                        .map((item) => {
+                        const isActive = activeWorkspaceTab === item.value;
+                        return (
+                          <Link
+                            key={item.value}
+                            href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                            aria-current={isActive ? "page" : undefined}
+                            className={sidebarItemClass(isActive)}
+                          >
+                            {tWorkspaceTabWithDevStatus(item.value, item.label)}
+                          </Link>
+                        );
+                      })}
+                    </div>
+
+                  </nav>
+                ) : (
+                  // ── Workspace hub: show recent workspaces ──────────────
+                  <div>
+                    {showRecentWorkspaces && (
+                      <div className="space-y-0.5">
+                        <p className={sidebarSectionTitleClass}>
+                          最近工作區
+                        </p>
+                        {visibleRecentWorkspaceLinks.length === 0 ? (
+                          <p className="px-2 py-2 text-[11px] text-muted-foreground">
+                            尚無最近開啟的工作區。
+                          </p>
+                        ) : (
+                          visibleRecentWorkspaceLinks.map((ws) => (
+                            <Link
+                              key={ws.id}
+                              href={ws.href}
+                              onClick={() => {
+                                onSelectWorkspace(ws.id);
+                              }}
+                              className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                                activeWorkspaceId === ws.id || isActiveRoute(ws.href)
+                                  ? "border border-primary/30 bg-primary/10 text-primary"
+                                  : "border border-transparent text-foreground/80 hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+                              }`}
+                              title={ws.name}
+                            >
+                              <span className="truncate">{ws.name}</span>
+                            </Link>
+                          ))
+                        )}
+                        {hasOverflow && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsExpanded((prev) => !prev);
+                            }}
+                            className="px-2 py-1 text-[11px] font-medium text-primary hover:underline"
+                          >
+                            {isExpanded ? "收起" : "顯示更多"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {section === "knowledge" && (
+              <KnowledgeSidebarSection
+                pathname={pathname}
+                workspacesHydrated={workspacesHydrated}
+                allWorkspaceLinks={allWorkspaceLinks}
+                activeWorkspaceId={activeWorkspaceId}
+                creatingKind={creatingKind}
+                onSelectWorkspace={onSelectWorkspace}
+                onQuickCreatePage={() => {
+                  void handleQuickCreatePage();
+                }}
+              />
+            )}
+
+            {section === "knowledge-base" && (
+              <nav className="space-y-0.5" aria-label="Knowledge Base navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  知識庫
+                </p>
+                {(
+                  [
+                    { href: "/knowledge-base/articles", label: "文章" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "knowledge-database" && (
+              <nav className="space-y-0.5" aria-label="Knowledge Database navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  資料庫
+                </p>
+                {(
+                  [
+                    { href: "/knowledge-database/databases", label: "資料庫" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "source" && (
+              <nav className="space-y-0.5" aria-label="Source navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  來源文件
+                </p>
+                {(
+                  [
+                    { href: "/source/documents", label: "Documents" },
+                    { href: "/source/libraries", label: "Libraries" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "notebook" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook
+                </p>
+                {(
+                  [
+                    { href: "/notebook/rag-query", label: "Ask / Cite" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+            {section === "ai-chat" && (
+              <nav className="space-y-0.5" aria-label="Notebook navigation">
+                <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                  Notebook / AI
+                </p>
+                {(
+                  [
+                    { href: "/ai-chat", label: "Notebook shell" },
+                  ] as const
+                ).map((item) => {
+                  const active = isActiveRoute(item.href);
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      aria-current={active ? "page" : undefined}
+                      className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+                        active
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            )}
+
+          </div>
+    </aside>
+
+    <CustomizeNavigationDialog
+      open={customizeOpen}
+      onOpenChange={setCustomizeOpen}
+      onPreferencesChange={setNavPrefs}
+    />
+    </div>
+  );
+}
+````
+
 ## File: modules/knowledge-database/api/index.ts
 ````typescript
 /**
@@ -73641,7 +73909,6 @@ import "./.next/types/routes.d.ts";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { Underline } from "@tiptap/extension-underline";
@@ -73679,118 +73946,10 @@ import {
 } from "../_actions/knowledge.actions";
 import type { BlockContent } from "../../domain/value-objects/block-content";
 import { richTextToPlainText } from "../../domain/value-objects/block-content";
-
-// ── Custom Tiptap Extensions ──────────────────────────────────────────────────
-
-/**
- * CalloutBlock — a highlighted info/warning callout block.
- * Renders as: <div data-type="callout"><p>...</p></div>
- */
-const CalloutBlock = Node.create({
-  name: "callout",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  addAttributes() {
-    return {
-      emoji: { default: "💡" },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "div[data-type='callout']" }];
-  },
-
-  renderHTML({ HTMLAttributes, node }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "callout", class: "callout-block" }),
-      ["span", { class: "callout-emoji", contenteditable: "false" }, node.attrs.emoji as string],
-      ["div", { class: "callout-content" }, 0],
-    ];
-  },
-});
-
-/**
- * ToggleBlock — a collapsible details/summary block.
- * Renders as: <details><summary>...</summary></details>
- */
-const ToggleBlock = Node.create({
-  name: "toggle",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  parseHTML() {
-    return [{ tag: "details" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
-  },
-});
-
-/**
- * TableOfContentsBlock — a read-only auto-generated TOC node.
- * Renders as: <div data-type="toc" contenteditable="false">...</div>
- * Actual heading links are injected via the editor's DOM at render time.
- */
-const TableOfContentsNode = Node.create({
-  name: "tableOfContents",
-  group: "block",
-  atom: true,
-
-  parseHTML() {
-    return [{ tag: "div[data-type='toc']" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "toc",
-        contenteditable: "false",
-        class: "toc-block",
-      }),
-    ];
-  },
-});
-
-/**
- * SyncedBlock — a reference block whose content mirrors a source block by ID.
- * In the editor it renders as a styled read-only placeholder.
- * Full real-time sync would be implemented via a Firestore listener in a
- * dedicated React component; here the node marks the block as synced so the
- * editor can render a visual indicator.
- */
-const SyncedBlock = Node.create({
-  name: "syncedBlock",
-  group: "block",
-  content: "block*",
-  defining: true,
-
-  addAttributes() {
-    return {
-      sourceBlockId: { default: null },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "div[data-type='synced-block']" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "synced-block",
-        class: "synced-block",
-      }),
-      0,
-    ];
-  },
-});
+import { CalloutBlock } from "./extensions/callout-block.extension";
+import { ToggleBlock } from "./extensions/toggle-block.extension";
+import { TableOfContentsNode } from "./extensions/table-of-contents-node.extension";
+import { SyncedBlock } from "./extensions/synced-block.extension";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 

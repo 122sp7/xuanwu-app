@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-990 files | 70,276 lines
+1002 files | 70,387 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 423 | 25,841 |
+| TypeScript | 429 | 26,083 |
 | Markdown | 297 | 13,089 |
-| TypeScript (TSX) | 142 | 24,979 |
+| TypeScript (TSX) | 148 | 24,848 |
 | No Extension | 52 | 136 |
 | Python | 49 | 3,532 |
 | MERMAID | 10 | 583 |
@@ -55,13 +55,13 @@ This skill contains the following reference files:
 | Other | 3 | 753 |
 
 **Largest files:**
-- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,112 lines)
-- `app/(shell)/_components/dashboard-sidebar.tsx` (953 lines)
+- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,074 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
-- `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (936 lines)
+- `app/(shell)/_components/dashboard-sidebar.tsx` (894 lines)
 - `app/(shell)/dev-tools/page.tsx` (872 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `modules/search/interfaces/components/RagView.tsx` (659 lines)
-- `modules/knowledge/interfaces/components/RichTextEditor.tsx` (619 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (611 lines)
 - `app/(shell)/_components/app-rail.tsx` (576 lines)
+- `py_fn/src/infrastructure/external/upstash/clients.py` (538 lines)
+- `py_fn/src/interface/handlers/https.py` (515 lines)
