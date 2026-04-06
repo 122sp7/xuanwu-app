@@ -5,13 +5,13 @@ import { FileUp, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useApp } from "@/app/providers/app-provider";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
 import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
 import { SourceDocumentRow } from "./source-document-row";
+import { deleteSourceDocument, renameSourceDocument } from "../_actions/file.actions";
 
 const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
 const WATCH_PATH = "uploads/";
@@ -98,8 +98,8 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
       for (const uri of [doc.sourceGcsUri, doc.jsonGcsUri].filter(Boolean)) {
         try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
       }
-      const db = getFirebaseFirestore();
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
+      const result = await deleteSourceDocument(activeAccountId, doc.id);
+      if (!result.success) throw new Error(result.error.message);
       toast.success("文件已刪除");
     } catch (error) {
       console.error(error);
@@ -115,8 +115,8 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
     if (!nextName || nextName === doc.filename) return;
     setRenamingId(doc.id);
     try {
-      const db = getFirebaseFirestore();
-      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), { title: nextName, "source.filename": nextName, "metadata.filename": nextName, updatedAt: firestoreApi.serverTimestamp() });
+      const result = await renameSourceDocument(activeAccountId, doc.id, nextName);
+      if (!result.success) throw new Error(result.error.message);
       toast.success("文件名稱已更新");
     } catch (error) {
       console.error(error);

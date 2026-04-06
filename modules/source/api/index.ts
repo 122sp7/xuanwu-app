@@ -87,6 +87,16 @@ export {
 
 export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
 
+// --- Server actions ----------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../interfaces/_actions/file.actions";
+
 // --- UI components (cross-module public) -------------------------------------
 
 export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";

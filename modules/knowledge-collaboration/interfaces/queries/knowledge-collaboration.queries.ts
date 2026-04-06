@@ -3,16 +3,6 @@
  * Layer: interfaces/queries
  */
 
-import {
-  collection,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-
 import type { Comment } from "../../domain/entities/comment.entity";
 import type { Version } from "../../domain/entities/version.entity";
 import type { Permission } from "../../domain/entities/permission.entity";
@@ -44,38 +34,6 @@ export function subscribeComments(
   contentId: string,
   onUpdate: (comments: Comment[]) => void,
 ): () => void {
-  const db = getFirestore(firebaseClientApp);
-  const col = collection(db, "accounts", accountId, "collaborationComments");
-  const q = query(
-    col,
-    where("contentId", "==", contentId),
-    orderBy("createdAtISO", "asc"),
-  );
-  return onSnapshot(q, (snap) => {
-    const comments: Comment[] = snap.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        accountId: typeof data.accountId === "string" ? data.accountId : accountId,
-        workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-        contentId: typeof data.contentId === "string" ? data.contentId : contentId,
-        contentType: (data.contentType as Comment["contentType"]) ?? "page",
-        authorId: typeof data.authorId === "string" ? data.authorId : "",
-        body: typeof data.body === "string" ? data.body : "",
-        parentCommentId:
-          typeof data.parentCommentId === "string" ? data.parentCommentId : null,
-        blockId:
-          typeof data.blockId === "string" ? data.blockId : null,
-        selectionRange: null,
-        resolvedAt:
-          typeof data.resolvedAt === "string" ? data.resolvedAt : null,
-        resolvedByUserId:
-          typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
-        createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
-        updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
-      };
-    });
-    onUpdate(comments);
-  });
+  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
 }
 

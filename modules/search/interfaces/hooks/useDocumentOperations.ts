@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
 import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { deleteSourceDocument, renameSourceDocument } from "@/modules/source/api";
 import type { SourceLiveDocument as WikiLiveDocument } from "@/modules/source/api";
 
 const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
@@ -41,8 +41,8 @@ export function useDocumentOperations({
       if (doc.jsonGcsUri) {
         try { await storageApi.deleteObject(storageApi.ref(storage, doc.jsonGcsUri)); } catch { /* not-found */ }
       }
-      const db = getFirebaseFirestore();
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
+      const result = await deleteSourceDocument(activeAccountId, doc.id);
+      if (!result.success) throw new Error(result.error.message);
       toast.success("文件已刪除");
       appendLog(`刪除文件：${doc.filename}`);
     } catch (error) {
@@ -61,13 +61,8 @@ export function useDocumentOperations({
 
     setRenamingId(doc.id);
     try {
-      const db = getFirebaseFirestore();
-      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
-        title: nextName,
-        "source.filename": nextName,
-        "metadata.filename": nextName,
-        updatedAt: firestoreApi.serverTimestamp(),
-      });
+      const result = await renameSourceDocument(activeAccountId, doc.id, nextName);
+      if (!result.success) throw new Error(result.error.message);
       toast.success("文件名稱已更新");
       appendLog(`更名文件：${doc.filename} -> ${nextName}`);
     } catch (error) {

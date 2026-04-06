@@ -6,13 +6,14 @@
 
 import {
   collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+  onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
 import type { Comment } from "../../domain/entities/comment.entity";
 import type {
   ICommentRepository,
+  CommentUnsubscribe,
   CreateCommentInput,
   UpdateCommentInput,
   ResolveCommentInput,
@@ -120,5 +121,21 @@ export class FirebaseCommentRepository implements ICommentRepository {
     const q = query(commentsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "asc"));
     const snaps = await getDocs(q);
     return snaps.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribe(
+    accountId: string,
+    contentId: string,
+    onUpdate: (comments: Comment[]) => void,
+  ): CommentUnsubscribe {
+    const db = this.db();
+    const q = query(
+      commentsCol(db, accountId),
+      where("contentId", "==", contentId),
+      orderBy("createdAtISO", "asc"),
+    );
+    return onSnapshot(q, (snap) => {
+      onUpdate(snap.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>)));
+    });
   }
 }
