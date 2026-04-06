@@ -12,6 +12,8 @@
 - `architecture` had stale guidance that described cross-module collaboration through a module `index.ts` barrel rather than the public `api/` surface.
 - Current repo authorities consistently describe API-only cross-module collaboration and treat `wiki-beta` as migration history only.
 - `.mcp.json` already registers Serena for this workspace, and the active Serena project is `xuanwu-app`.
+- Serena CLI `project index` succeeded and refreshed the symbol cache for 603 TypeScript files.
+- Serena CLI `project health-check` failed with `Invalid tool name 'serena/*' provided for inclusion`, which points to a `.serena/project.yml` configuration blocker for direct SerenaAgent initialization.
 
 ### Validation / Evidence
 - Used Serena `activate_project` and `get_current_config` to confirm the active project and available tools.
