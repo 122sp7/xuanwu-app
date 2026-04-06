@@ -11,14 +11,14 @@ import { useRef, useState, useEffect } from "react";
 import {
   FlaskConical,
   FileUp,
-  Loader2,
-  CheckCircle2,
-  XCircle,
   AlertCircle,
   FileText,
   Trash2,
   Code2,
   ExternalLink,
+  Loader2,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
@@ -26,179 +26,21 @@ import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
 import { Button } from "@ui-shadcn/ui/button";
-
-// ── 型別 ─────────────────────────────────────────────────────────────────────
-
-interface ParseResult {
-  doc_id: string;
-  status: "processing" | "completed" | "error";
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-}
-
-interface DocRecord {
-  id: string;
-  status: "processing" | "completed" | "error" | string;
-  filename: string;
-  gcs_uri: string;
-  uploaded_at: Date | null;
-  page_count?: number;
-  json_gcs_uri?: string;
-  error_message?: string;
-  rag_status?: string;
-  rag_chunk_count?: number;
-  rag_vector_count?: number;
-  rag_raw_chars?: number;
-  rag_normalized_chars?: number;
-  rag_normalization_version?: string;
-  rag_language_hint?: string;
-  rag_error?: string;
-}
-
-type Status = "idle" | "uploading" | "waiting" | "done" | "error";
-
-// ── 常數 ─────────────────────────────────────────────────────────────────────
-
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const WATCH_PATH = "uploads/";
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif / .tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg / .jpeg",
-};
-
-const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-function formatDateTime(value: Date | null): string {
-  if (!value) return "—";
-  return value.toLocaleString("zh-TW", { hour12: false });
-}
-
-function deriveJsonUri(gcsUri: string): string {
-  if (!gcsUri.startsWith("gs://")) return "";
-  const withoutPrefix = gcsUri.slice(5);
-  const firstSlash = withoutPrefix.indexOf("/");
-  if (firstSlash < 0) return "";
-
-  const bucket = withoutPrefix.slice(0, firstSlash);
-  const objectPath = withoutPrefix.slice(firstSlash + 1);
-  if (!objectPath.startsWith("uploads/")) return "";
-
-  const relativePath = objectPath.slice("uploads/".length);
-  const dotIndex = relativePath.lastIndexOf(".");
-  const stem = dotIndex > -1 ? relativePath.slice(0, dotIndex) : relativePath;
-  return `gs://${bucket}/files/${stem}.json`;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
-}
-
-function asString(value: unknown, fallback = ""): string {
-  return typeof value === "string" ? value : fallback;
-}
-
-function asNumber(value: unknown): number | undefined {
-  return typeof value === "number" ? value : undefined;
-}
-
-function asDate(value: unknown): Date | null {
-  if (value instanceof Date) {
-    return value;
-  }
-  if (value && typeof value === "object" && "toDate" in value) {
-    if (typeof (value as { toDate?: unknown }).toDate === "function") {
-      const converted = (value as { toDate: () => unknown }).toDate();
-      return converted instanceof Date ? converted : null;
-    }
-  }
-  return null;
-}
-
-function mapSnapshotDoc(doc: { id: string; data: () => unknown }): DocRecord {
-  const data = asRecord(doc.data());
-  const source = asRecord(data.source);
-  const parsed = asRecord(data.parsed);
-  const rag = asRecord(data.rag);
-  const err = asRecord(data.error);
-
-  return {
-    id: doc.id,
-    status: asString(data.status, "unknown"),
-    filename: asString(source.filename, doc.id),
-    gcs_uri: asString(source.gcs_uri),
-    uploaded_at: asDate(source.uploaded_at),
-    page_count: asNumber(parsed.page_count),
-    json_gcs_uri: asString(parsed.json_gcs_uri, deriveJsonUri(asString(source.gcs_uri))),
-    error_message: asString(err.message) || undefined,
-    rag_status: asString(rag.status) || undefined,
-    rag_chunk_count: asNumber(rag.chunk_count),
-    rag_vector_count: asNumber(rag.vector_count),
-    rag_raw_chars: asNumber(rag.raw_chars),
-    rag_normalized_chars: asNumber(rag.normalized_chars),
-    rag_normalization_version: asString(rag.normalization_version) || undefined,
-    rag_language_hint: asString(rag.language_hint) || undefined,
-    rag_error: asString(rag.error) || undefined,
-  };
-}
-
-function StatusBadge({ status, errorMessage }: { status: string; errorMessage?: string }) {
-  if (status === "completed") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> 完成
-      </span>
-    );
-  }
-  if (status === "processing") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> 處理中
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={errorMessage}
-      >
-        <XCircle className="size-3" /> 錯誤
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">{status || "—"}</span>;
-}
-
-function RagBadge({ status, error }: { status?: string; error?: string }) {
-  if (status === "ready") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600">
-        <CheckCircle2 className="size-3" /> RAG Ready
-      </span>
-    );
-  }
-  if (status === "error") {
-    return (
-      <span
-        className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive"
-        title={error}
-      >
-        <XCircle className="size-3" /> RAG Error
-      </span>
-    );
-  }
-  if (status) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs font-medium text-blue-600">
-        <Loader2 className="size-3 animate-spin" /> {status}
-      </span>
-    );
-  }
-  return <span className="text-xs text-muted-foreground">—</span>;
-}
+import {
+  UPLOAD_BUCKET,
+  WATCH_PATH,
+  ACCEPTED_MIME,
+  ACCEPTED_EXTS,
+  formatDateTime,
+  mapSnapshotDoc,
+  asRecord,
+  asString,
+  asNumber,
+  type DocRecord,
+  type ParseResult,
+  type UploadStatus,
+} from "./dev-tools-helpers";
+import { StatusBadge, RagBadge } from "./dev-tools-badges";
 
 // ── Page component ─────────────────────────────────────────────────────────
 
@@ -208,7 +50,7 @@ export default function DevToolsPage() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState<UploadStatus>("idle");
   const [result, setResult] = useState<ParseResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
