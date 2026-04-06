@@ -3358,157 +3358,6 @@ Use this file as the stable glossary entry point referenced by `.github/*` custo
 When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
 ````
 
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
-````
-
 ## File: agents/agents
 ````
 ../.github/agents
@@ -4223,6 +4072,106 @@ export function CustomizeNavigationDialog({
 }
 ````
 
+## File: app/(shell)/_components/global-search-dialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FileText, Layout } from "lucide-react";
+
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandShortcut,
+} from "@ui-shadcn/ui/command";
+
+const NAV_ITEMS = [
+  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
+  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
+  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
+  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
+  { href: "/source/documents", label: "Source Documents", group: "導覽" },
+  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
+  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
+  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
+  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
+  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
+] as const;
+
+const GROUP_ICONS: Record<string, React.ReactNode> = {
+  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
+  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
+  "Source": <FileText className="size-4 mr-2 opacity-60" />,
+};
+
+interface GlobalSearchDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+}
+
+export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
+  const router = useRouter();
+
+  function handleSelect(href: string) {
+    onOpenChange(false);
+    router.push(href);
+  }
+
+  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
+
+  return (
+    <CommandDialog
+      title="全域搜尋"
+      description="搜尋頁面或功能"
+      open={open}
+      onOpenChange={onOpenChange}
+    >
+      <CommandInput placeholder="搜尋頁面或功能…" />
+      <CommandList>
+        <CommandEmpty>找不到結果。</CommandEmpty>
+        {groups.map((group) => (
+          <CommandGroup key={group} heading={group}>
+            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
+              <CommandItem
+                key={item.href}
+                onSelect={() => handleSelect(item.href)}
+              >
+                {GROUP_ICONS[group]}
+                {item.label}
+                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+    </CommandDialog>
+  );
+}
+
+/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
+export function useGlobalSearch() {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
+        event.preventDefault();
+        setOpen((prev) => !prev);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  return { open, setOpen };
+}
+````
+
 ## File: app/(shell)/_components/header-controls.tsx
 ````typescript
 "use client";
@@ -4553,6 +4502,1130 @@ export default function DashboardPage() {
 }
 ````
 
+## File: app/(shell)/knowledge-base/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+export default function KnowledgeBasePage() {
+  redirect("/knowledge-base/articles");
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, PlusCircle } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  DatabaseTableView,
+} from "@/modules/knowledge-database/api";
+import type { Database, FieldType } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "文字" },
+  { value: "number", label: "數字" },
+  { value: "checkbox", label: "核取方塊" },
+  { value: "date", label: "日期" },
+  { value: "select", label: "單選" },
+  { value: "multi_select", label: "多選" },
+  { value: "url", label: "URL" },
+  { value: "email", label: "電子郵件" },
+];
+
+function AddFieldDialog({
+  open,
+  onOpenChange,
+  onAdd,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onAdd: (name: string, type: FieldType, required: boolean) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<FieldType>("text");
+  const [required, setRequired] = useState(false);
+
+  function reset() {
+    setName(""); setType("text"); setRequired(false);
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) reset();
+    onOpenChange(v);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd(name.trim(), type, required);
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
+        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="field-name">名稱 *</Label>
+            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>類型</Label>
+            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((ft) => (
+                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="field-required"
+              type="checkbox"
+              checked={required}
+              onChange={(e) => setRequired(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function DatabaseDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        field: { name, type, config: {}, required },
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase(accountId, databaseId);
+      router.push("/knowledge-database/databases");
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
+        </Button>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
+        </div>
+      </div>
+
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* Table View */}
+      <DatabaseTableView
+        database={database}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+      />
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/databases/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Plus, Table2 } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getDatabases, DatabaseDialog } from "@/modules/knowledge-database/api";
+import type { Database } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+export default function KnowledgeDatabaseDatabasesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [databases, setDatabases] = useState<Database[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const data = await getDatabases(accountId, workspaceId);
+      setDatabases(data);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleSuccess(databaseId?: string) {
+    if (databaseId) {
+      router.push(`/knowledge-database/databases/${databaseId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增資料庫
+        </Button>
+      </div>
+
+      <DatabaseDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : databases.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+          <Table2 className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {databases.map((db) => (
+            <Card
+              key={db.id}
+              className="cursor-pointer hover:bg-muted/10 transition-colors"
+              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start gap-2">
+                  {db.icon ? (
+                    <span className="text-lg leading-none">{db.icon}</span>
+                  ) : (
+                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  )}
+                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {db.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
+                )}
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
+                  <span>{db.fields.length} 個欄位</span>
+                  <span>·</span>
+                  <span>{db.viewIds.length} 個視圖</span>
+                </div>
+                <p className="text-[10px] text-muted-foreground/50">
+                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
+                </p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge-database/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+export default function KnowledgeDatabasePage() {
+  redirect("/knowledge-database/databases");
+}
+````
+
+## File: app/(shell)/knowledge/block-editor/page.tsx
+````typescript
+"use client";
+
+import { BlockEditorView } from "@/modules/knowledge/api";
+
+export default function KnowledgeBlockEditorPage() {
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
+        <p className="text-sm text-muted-foreground">
+          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
+        </p>
+      </header>
+
+      <BlockEditorView />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { buildWikiContentTree } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/knowledge/pages",
+    title: "Pages",
+    description: "維持 account-level 的頁面樹與內容維運工具。",
+    icon: FileText,
+  },
+  {
+    href: "/source/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/source/documents",
+    title: "Documents",
+    description: "來源文件、upload 與 ingest 狀態檢視。",
+    icon: BookOpen,
+  },
+  {
+    href: "/knowledge-base/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/knowledge-database/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
+    href: "/notebook/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function KnowledgeHubPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
+        <p className="text-sm text-muted-foreground">
+          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、Wiki、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開 Wiki 與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Wiki</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、Wiki 與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}?tab=Wiki`}>Wiki</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          Knowledge
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getKnowledgePageTree, PageTreeView } from "@/modules/knowledge/api";
+import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+export default function KnowledgePagesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!accountId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const tree = await getKnowledgePageTree(accountId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <p className="text-sm text-muted-foreground">
+          知識頁面階層樹。建立頁面後可於區塊編輯器中編輯內容。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge/block-editor")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground ml-auto"
+        >
+          區塊編輯器
+        </button>
+      </div>
+
+      {!accountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          onPageClick={(pageId) => router.push(`/knowledge/block-editor?pageId=${pageId}`)}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/layout.tsx
+````typescript
+"use client";
+
+/**
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
+ */
+
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
+
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "Knowledge Hub",
+  "/knowledge/pages": "Knowledge · 頁面",
+  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
+  "/knowledge-base/articles": "Knowledge Base · 文章",
+  "/knowledge-database/databases": "Knowledge Database · 資料庫",
+  "/source/documents": "Source · 文件來源",
+  "/source/libraries": "Source · Libraries",
+  "/notebook/rag-query": "Notebook · Ask / Cite",
+  "/ai-chat": "AI Chat",
+  "/dev-tools": "開發工具",
+};
+
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
+
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
+] as const;
+
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export default function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
+    }
+  }
+
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
+
+  useEffect(() => {
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
+    }
+
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
+
+  return (
+    <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <DashboardSidebar
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
+
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
+              </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+          )}
+
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
+  );
+}
+````
+
+## File: app/(shell)/notebook/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+export default function NotebookPage() {
+  redirect("/notebook/rag-query");
+}
+````
+
 ## File: app/(shell)/organization/_utils.ts
 ````typescript
 import type { AccountEntity } from "@/modules/account/api";
@@ -4865,6 +5938,89 @@ import { redirect } from "next/navigation";
 
 export default function SettingsProfilePage() {
   redirect("/workspace");
+}
+````
+
+## File: app/(shell)/source/documents/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { SourceDocumentsView } from "@/modules/source/api";
+
+export default function SourceDocumentsPage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { workspaces, activeWorkspaceId },
+  } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : activeWorkspaceId || undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
+        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
+      </header>
+
+      <SourceDocumentsView workspaceId={workspaceId} />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/source/libraries/page.tsx
+````typescript
+"use client";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { LibrariesView, LibraryTableView } from "@/modules/source/api";
+
+export default function SourceLibrariesPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
+        <p className="text-sm text-muted-foreground">
+          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
+        </p>
+      </header>
+
+      {accountId ? (
+        <>
+          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
+          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
+        </>
+      ) : (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入或切換帳號。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/source/page.tsx
+````typescript
+import { redirect } from "next/navigation";
+
+export default function SourcePage() {
+  redirect("/source/documents");
 }
 ````
 
@@ -5646,55 +6802,6 @@ env:
 
   - variable: DOCAI_HTTP_TIMEOUT_MS
     value: "45000"
-````
-
-## File: CLAUDE.md
-````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: components.json
@@ -13624,6 +14731,208 @@ export async function revokePermission(input: RevokePermissionDto): Promise<Comm
   } catch (err) {
     return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import {
+  getComments,
+} from "../queries/knowledge-collaboration.queries";
+import {
+  createComment,
+  resolveComment,
+  deleteComment,
+} from "../_actions/knowledge-collaboration.actions";
+import type { Comment } from "../../domain/entities/comment.entity";
+
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
+}
+
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [body, setBody] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getComments(accountId, contentId);
+        if (!disposed) { setComments(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
+      }
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    startTransition(async () => {
+      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
+      const fresh = await getComments(accountId, contentId);
+      setComments(fresh);
+      setBody("");
+      textareaRef.current?.focus();
+    });
+  }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+      const fresh = await getComments(accountId, contentId);
+      setComments(fresh);
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  const active = comments.filter((c) => !c.resolvedAt);
+  const resolved = comments.filter((c) => c.resolvedAt);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {active.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
+        )}
+      </div>
+
+      {/* Comment input */}
+      <div className="flex flex-col gap-2">
+        <Textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="新增留言..."
+          rows={2}
+          className="resize-none text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
+          }}
+        />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            送出
+          </Button>
+        </div>
+      </div>
+
+      {/* Comment list */}
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
+        </div>
+      ) : active.length === 0 && resolved.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無留言。</p>
+      ) : (
+        <div className="space-y-2">
+          {active.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              isOwner={c.authorId === currentUserId}
+              onResolve={() => handleResolve(c.id)}
+              onDelete={() => handleDelete(c.id)}
+              isPending={isPending}
+            />
+          ))}
+          {resolved.length > 0 && (
+            <details className="text-xs text-muted-foreground cursor-pointer">
+              <summary className="select-none">已解決 ({resolved.length})</summary>
+              <div className="mt-2 space-y-2">
+                {resolved.map((c) => (
+                  <CommentItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={c.authorId === currentUserId}
+                    onDelete={() => handleDelete(c.id)}
+                    isPending={isPending}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface CommentItemProps {
+  comment: Comment;
+  isOwner: boolean;
+  onResolve?: () => void;
+  onDelete?: () => void;
+  isPending: boolean;
+}
+
+function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
+  const resolved = !!comment.resolvedAt;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
+      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
+        <div className="ml-auto flex gap-1">
+          {!resolved && onResolve && (
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="標記為已解決"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isOwner && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+              title="刪除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 ````
 
@@ -48304,106 +49613,6 @@ export function AccountSwitcher({
 }
 ````
 
-## File: app/(shell)/_components/global-search-dialog.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { FileText, Layout } from "lucide-react";
-
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandShortcut,
-} from "@ui-shadcn/ui/command";
-
-const NAV_ITEMS = [
-  { href: "/workspace", label: "Workspace Hub", group: "導覽" },
-  { href: "/knowledge", label: "Knowledge Hub", group: "導覽" },
-  { href: "/knowledge-base/articles", label: "Knowledge Base", group: "導覽" },
-  { href: "/knowledge-database/databases", label: "Knowledge Database", group: "導覽" },
-  { href: "/source/documents", label: "Source Documents", group: "導覽" },
-  { href: "/notebook/rag-query", label: "Notebook / AI", group: "導覽" },
-  { href: "/ai-chat", label: "AI Chat", group: "導覽" },
-  { href: "/knowledge/pages", label: "頁面管理", group: "Knowledge" },
-  { href: "/knowledge/block-editor", label: "區塊編輯器", group: "Knowledge" },
-  { href: "/source/libraries", label: "Libraries 表格", group: "Source" },
-] as const;
-
-const GROUP_ICONS: Record<string, React.ReactNode> = {
-  "導覽": <Layout className="size-4 mr-2 opacity-60" />,
-  "Knowledge": <FileText className="size-4 mr-2 opacity-60" />,
-  "Source": <FileText className="size-4 mr-2 opacity-60" />,
-};
-
-interface GlobalSearchDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-}
-
-export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
-  const router = useRouter();
-
-  function handleSelect(href: string) {
-    onOpenChange(false);
-    router.push(href);
-  }
-
-  const groups = Array.from(new Set(NAV_ITEMS.map((i) => i.group)));
-
-  return (
-    <CommandDialog
-      title="全域搜尋"
-      description="搜尋頁面或功能"
-      open={open}
-      onOpenChange={onOpenChange}
-    >
-      <CommandInput placeholder="搜尋頁面或功能…" />
-      <CommandList>
-        <CommandEmpty>找不到結果。</CommandEmpty>
-        {groups.map((group) => (
-          <CommandGroup key={group} heading={group}>
-            {NAV_ITEMS.filter((i) => i.group === group).map((item) => (
-              <CommandItem
-                key={item.href}
-                onSelect={() => handleSelect(item.href)}
-              >
-                {GROUP_ICONS[group]}
-                {item.label}
-                <CommandShortcut className="text-[10px] opacity-50">{item.href}</CommandShortcut>
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        ))}
-      </CommandList>
-    </CommandDialog>
-  );
-}
-
-/** Hook to manage Cmd/Ctrl+K keyboard shortcut. */
-export function useGlobalSearch() {
-  const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if ((event.metaKey || event.ctrlKey) && event.key === "k") {
-        event.preventDefault();
-        setOpen((prev) => !prev);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, []);
-
-  return { open, setOpen };
-}
-````
-
 ## File: app/(shell)/_components/knowledge-sidebar-section.tsx
 ````typescript
 "use client";
@@ -48573,1127 +49782,35 @@ export { saveThread, loadThread };
 export type { Thread };
 ````
 
-## File: app/(shell)/knowledge-base/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function KnowledgeBasePage() {
-  redirect("/knowledge-base/articles");
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+## File: app/(shell)/notebook/rag-query/page.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, PlusCircle } from "lucide-react";
+import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  DatabaseTableView,
-} from "@/modules/knowledge-database/api";
-import type { Database, FieldType } from "@/modules/knowledge-database/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { RagQueryView } from "@/modules/search/api";
 
-const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: "text", label: "文字" },
-  { value: "number", label: "數字" },
-  { value: "checkbox", label: "核取方塊" },
-  { value: "date", label: "日期" },
-  { value: "select", label: "單選" },
-  { value: "multi_select", label: "多選" },
-  { value: "url", label: "URL" },
-  { value: "email", label: "電子郵件" },
-];
-
-function AddFieldDialog({
-  open,
-  onOpenChange,
-  onAdd,
-  isPending,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onAdd: (name: string, type: FieldType, required: boolean) => void;
-  isPending: boolean;
-}) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<FieldType>("text");
-  const [required, setRequired] = useState(false);
-
-  function reset() {
-    setName(""); setType("text"); setRequired(false);
-  }
-
-  function handleOpenChange(v: boolean) {
-    if (!v) reset();
-    onOpenChange(v);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    onAdd(name.trim(), type, required);
-    reset();
-    onOpenChange(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
-        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="field-name">名稱 *</Label>
-            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>類型</Label>
-            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {FIELD_TYPES.map((ft) => (
-                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="field-required"
-              type="checkbox"
-              checked={required}
-              onChange={(e) => setRequired(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
-          </div>
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
-          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export default function DatabaseDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
   const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        field: { name, type, config: {}, required },
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase(accountId, databaseId);
-      router.push("/knowledge-database/databases");
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
-      </div>
-
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
-        </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* Table View */}
-      <DatabaseTableView
-        database={database}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-      />
-
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-database/databases/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Table2 } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getDatabases, DatabaseDialog } from "@/modules/knowledge-database/api";
-import type { Database } from "@/modules/knowledge-database/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-export default function KnowledgeDatabaseDatabasesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [databases, setDatabases] = useState<Database[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const data = await getDatabases(accountId, workspaceId);
-      setDatabases(data);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleSuccess(databaseId?: string) {
-    if (databaseId) {
-      router.push(`/knowledge-database/databases/${databaseId}`);
-    } else {
-      load();
-    }
-  }
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const workspaceId =
+    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
+      ? requestedWorkspaceId
+      : appState.activeWorkspaceId || undefined;
 
   return (
     <div className="space-y-4">
       <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Database</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          結構化資料表、看板、日曆與多視圖管理，對應 Notion Database 能力。
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
       </header>
 
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增資料庫
-        </Button>
-      </div>
-
-      <DatabaseDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-28 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : databases.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-          <Table2 className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無資料庫。點擊「新增資料庫」開始建立。</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {databases.map((db) => (
-            <Card
-              key={db.id}
-              className="cursor-pointer hover:bg-muted/10 transition-colors"
-              onClick={() => router.push(`/knowledge-database/databases/${db.id}`)}
-            >
-              <CardHeader className="pb-2">
-                <div className="flex items-start gap-2">
-                  {db.icon ? (
-                    <span className="text-lg leading-none">{db.icon}</span>
-                  ) : (
-                    <Table2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  )}
-                  <CardTitle className="line-clamp-1 text-sm font-medium">{db.name}</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {db.description && (
-                  <p className="line-clamp-2 text-xs text-muted-foreground">{db.description}</p>
-                )}
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70">
-                  <span>{db.fields.length} 個欄位</span>
-                  <span>·</span>
-                  <span>{db.viewIds.length} 個視圖</span>
-                </div>
-                <p className="text-[10px] text-muted-foreground/50">
-                  {new Date(db.updatedAtISO).toLocaleDateString("zh-TW")}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+      <RagQueryView workspaceId={workspaceId} />
     </div>
   );
-}
-````
-
-## File: app/(shell)/knowledge-database/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function KnowledgeDatabasePage() {
-  redirect("/knowledge-database/databases");
-}
-````
-
-## File: app/(shell)/knowledge/block-editor/page.tsx
-````typescript
-"use client";
-
-import { BlockEditorView } from "@/modules/knowledge/api";
-
-export default function KnowledgeBlockEditorPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
-        <p className="text-sm text-muted-foreground">
-          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
-        </p>
-      </header>
-
-      <BlockEditorView />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/knowledge/pages",
-    title: "Pages",
-    description: "維持 account-level 的頁面樹與內容維運工具。",
-    icon: FileText,
-  },
-  {
-    href: "/source/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/source/documents",
-    title: "Documents",
-    description: "來源文件、upload 與 ingest 狀態檢視。",
-    icon: BookOpen,
-  },
-  {
-    href: "/knowledge-base/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/knowledge-database/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/notebook/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
-] as const;
-
-export default function KnowledgeHubPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
-
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
-    }
-
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
-    }
-
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
-
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
-        </p>
-      </header>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、Wiki、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
-          )}
-
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開 Wiki 與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Wiki</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、Wiki 與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Wiki`}>Wiki</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          Knowledge
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getKnowledgePageTree, PageTreeView } from "@/modules/knowledge/api";
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-export default function KnowledgePagesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const tree = await getKnowledgePageTree(accountId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <p className="text-sm text-muted-foreground">
-          知識頁面階層樹。建立頁面後可於區塊編輯器中編輯內容。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge/block-editor")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground ml-auto"
-        >
-          區塊編輯器
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-          onPageClick={(pageId) => router.push(`/knowledge/block-editor?pageId=${pageId}`)}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/layout.tsx
-````typescript
-"use client";
-
-/**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
- */
-
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
-
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "Knowledge Hub",
-  "/knowledge/pages": "Knowledge · 頁面",
-  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
-  "/knowledge-base/articles": "Knowledge Base · 文章",
-  "/knowledge-database/databases": "Knowledge Database · 資料庫",
-  "/source/documents": "Source · 文件來源",
-  "/source/libraries": "Source · Libraries",
-  "/notebook/rag-query": "Notebook · Ask / Cite",
-  "/ai-chat": "AI Chat",
-  "/dev-tools": "開發工具",
-};
-
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
-
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
-export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
-  }
-
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
-  useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
-      return;
-    }
-
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
-
-  async function handleLogout() {
-    setLogoutError(null);
-    try {
-      await logout();
-    } catch {
-      setLogoutError("登出失敗，請稍後再試。");
-    }
-  }
-
-  return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
-
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
-
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
-
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
-            )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
-
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
-          )}
-
-          <main className="flex-1 overflow-auto p-6">{children}</main>
-        </div>
-      </div>
-    </ShellGuard>
-  );
-}
-````
-
-## File: app/(shell)/notebook/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function NotebookPage() {
-  redirect("/notebook/rag-query");
 }
 ````
 
@@ -50578,89 +50695,6 @@ export default function OrganizationTeamsPage() {
       </Dialog>
     </div>
   );
-}
-````
-
-## File: app/(shell)/source/documents/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { SourceDocumentsView } from "@/modules/source/api";
-
-export default function SourceDocumentsPage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { workspaces, activeWorkspaceId },
-  } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : activeWorkspaceId || undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
-      </header>
-
-      <SourceDocumentsView workspaceId={workspaceId} />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/source/libraries/page.tsx
-````typescript
-"use client";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { LibrariesView, LibraryTableView } from "@/modules/source/api";
-
-export default function SourceLibrariesPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">資料庫</h1>
-        <p className="text-sm text-muted-foreground">
-          對齊資料庫／資料來源能力的 MVP，產品命名統一為 Libraries。
-        </p>
-      </header>
-
-      {accountId ? (
-        <>
-          <LibraryTableView accountId={accountId} workspaceId={workspaceId} />
-          <LibrariesView accountId={accountId} workspaceId={workspaceId} />
-        </>
-      ) : (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入或切換帳號。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/source/page.tsx
-````typescript
-import { redirect } from "next/navigation";
-
-export default function SourcePage() {
-  redirect("/source/documents");
 }
 ````
 
@@ -52408,6 +52442,192 @@ export class FirebaseCategoryRepository implements ICategoryRepository {
 }
 ````
 
+## File: modules/knowledge-base/interfaces/components/ArticleDialog.tsx
+````typescript
+"use client";
+
+import { useEffect, useState, useTransition } from "react";
+import { X } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@ui-shadcn/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import { createArticle, updateArticle } from "../_actions/knowledge-base.actions";
+import type { Article } from "../../domain/entities/article.entity";
+import type { Category } from "../../domain/entities/category.entity";
+
+interface ArticleDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  categories: Category[];
+  /** Article to edit — omit for create mode */
+  article?: Article;
+  onSuccess?: (articleId?: string) => void;
+}
+
+export function ArticleDialog({
+  open,
+  onOpenChange,
+  accountId,
+  workspaceId,
+  currentUserId,
+  categories,
+  article,
+  onSuccess,
+}: ArticleDialogProps) {
+  const isEdit = !!article;
+  const [title, setTitle] = useState(article?.title ?? "");
+  const [content, setContent] = useState(article?.content ?? "");
+  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
+  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  // Reset when article changes
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setTitle(article?.title ?? "");
+      setContent(article?.content ?? "");
+      setCategoryId(article?.categoryId ?? "__none__");
+      setTags(article?.tags.join(", ") ?? "");
+      setError(null);
+    });
+  }, [article, open]);
+
+  function handleSubmit() {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { setError("標題不可空白"); return; }
+    const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
+
+    startTransition(async () => {
+      setError(null);
+      if (isEdit) {
+        const result = await updateArticle({
+          id: article!.id,
+          accountId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+        });
+        if (!result.success) { setError(result.error.message ?? "更新失敗"); return; }
+        onSuccess?.();
+      } else {
+        const result = await createArticle({
+          accountId,
+          workspaceId,
+          title: trimmedTitle,
+          content,
+          categoryId: resolvedCategoryId,
+          tags: parsedTags,
+          createdByUserId: currentUserId,
+        });
+        if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+        onSuccess?.(result.success ? result.aggregateId : undefined);
+      }
+      onOpenChange(false);
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {error && (
+            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
+              <X className="h-4 w-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-title">標題</Label>
+            <Input
+              id="kb-article-title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="文章標題"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-category">分類</Label>
+            <Select value={categoryId} onValueChange={setCategoryId}>
+              <SelectTrigger id="kb-article-category">
+                <SelectValue placeholder="選擇分類（選填）" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">— 不指定 —</SelectItem>
+                {categories.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-tags">標籤 <span className="text-muted-foreground text-xs">（以逗號分隔）</span></Label>
+            <Input
+              id="kb-article-tags"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="標籤1, 標籤2"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="kb-article-content">內容</Label>
+            <Textarea
+              id="kb-article-content"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="文章內容（支援 Markdown）"
+              rows={6}
+              className="resize-none font-mono text-sm"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
+            取消
+          </Button>
+          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
+            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/knowledge-base/interfaces/queries/knowledge-base.queries.ts
 ````typescript
 /**
@@ -52530,208 +52750,6 @@ Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
 - `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
 
 → [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
-````
-
-## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef, useState, useTransition } from "react";
-import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import {
-  getComments,
-} from "../queries/knowledge-collaboration.queries";
-import {
-  createComment,
-  resolveComment,
-  deleteComment,
-} from "../_actions/knowledge-collaboration.actions";
-import type { Comment } from "../../domain/entities/comment.entity";
-
-interface CommentPanelProps {
-  accountId: string;
-  workspaceId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  currentUserId: string;
-}
-
-export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [body, setBody] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getComments(accountId, contentId);
-        if (!disposed) { setComments(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handlePost() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    startTransition(async () => {
-      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
-      setBody("");
-      textareaRef.current?.focus();
-    });
-  }
-
-  function handleResolve(commentId: string) {
-    startTransition(async () => {
-      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
-    });
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(async () => {
-      await deleteComment({ id: commentId, accountId });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    });
-  }
-
-  const active = comments.filter((c) => !c.resolvedAt);
-  const resolved = comments.filter((c) => c.resolvedAt);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">留言</span>
-        {active.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
-        )}
-      </div>
-
-      {/* Comment input */}
-      <div className="flex flex-col gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="新增留言..."
-          rows={2}
-          className="resize-none text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
-          }}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            送出
-          </Button>
-        </div>
-      </div>
-
-      {/* Comment list */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
-        </div>
-      ) : active.length === 0 && resolved.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無留言。</p>
-      ) : (
-        <div className="space-y-2">
-          {active.map((c) => (
-            <CommentItem
-              key={c.id}
-              comment={c}
-              isOwner={c.authorId === currentUserId}
-              onResolve={() => handleResolve(c.id)}
-              onDelete={() => handleDelete(c.id)}
-              isPending={isPending}
-            />
-          ))}
-          {resolved.length > 0 && (
-            <details className="text-xs text-muted-foreground cursor-pointer">
-              <summary className="select-none">已解決 ({resolved.length})</summary>
-              <div className="mt-2 space-y-2">
-                {resolved.map((c) => (
-                  <CommentItem
-                    key={c.id}
-                    comment={c}
-                    isOwner={c.authorId === currentUserId}
-                    onDelete={() => handleDelete(c.id)}
-                    isPending={isPending}
-                  />
-                ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface CommentItemProps {
-  comment: Comment;
-  isOwner: boolean;
-  onResolve?: () => void;
-  onDelete?: () => void;
-  isPending: boolean;
-}
-
-function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
-  const resolved = !!comment.resolvedAt;
-  return (
-    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
-      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">
-          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </span>
-        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
-        <div className="ml-auto flex gap-1">
-          {!resolved && onResolve && (
-            <button
-              type="button"
-              onClick={onResolve}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="標記為已解決"
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {isOwner && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-              title="刪除"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 ````
 
 ## File: modules/knowledge-collaboration/README.md
@@ -62022,151 +62040,170 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 ````
 
-## File: .github/copilot-instructions.md
+## File: AGENTS.md
 ````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
+# Agent Guide — Xuanwu App
 
-# Xuanwu Copilot Workspace Instructions
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
 
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
+## Development Status Workflow
 
-## Purpose
+Use the following status flow for issues, tasks, and features:
 
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
 
-## Authoritative Sources
+## Quick Start
 
-Read these in order before making non-trivial decisions:
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
-2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
-6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+## Non-Negotiable Session Contract
 
-## DDD Reference Authority
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
+- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
 
-DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the matching bounded-context reference set.
+## Orchestration Protocol
 
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
-| Context terminology | `docs/ddd/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `docs/ddd/<context>/aggregates.md` |
-| Context domain events | `docs/ddd/<context>/domain-events.md` |
-| Context map | `docs/ddd/<context>/context-map.md` |
-| Context repositories | `docs/ddd/<context>/repositories.md` |
-| Context application services | `docs/ddd/<context>/application-services.md` |
-| Context domain services | `docs/ddd/<context>/domain-services.md` |
+- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
+- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
+- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
 
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains the repository's DDD knowledge set. Link instead of copying.
+## Key Rules
 
-## Workspace-Wide Operating Rules
+### Architecture
 
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
 
-## Architecture Guardrails
+### Import Aliases
 
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
 
-## Copilot Customization Design Rules
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
 
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+### Runtime Boundary
 
-## Serena MCP
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
 
-Serena MCP is **mandatory for every session**. There are no exceptions.
+## Validation Commands
 
-### Session-Start Protocol (Required)
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run build        # Next.js production build + TypeScript type-check
 
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
+# Python worker
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
 
-### Session-End Protocol (Required)
+## Common Patterns
 
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
+### Server Action (write-side)
 
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
 
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+### Use Case
 
-### Hard Prohibitions
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
 
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
+### Repository
 
-## Context7 Documentation Query
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
 
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
 
-### Trigger Conditions
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
 
-Any of the following require a context7 lookup before proceeding:
+### DDD 審查 Agent
 
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
 
-### Required Steps
+### DDD 指令文件 (Instructions)
 
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
 
-### Guardrails
+### DDD Prompt 模板
 
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
 
-## Skill And Agent Routing
+### DDD 術語表
 
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
 
-## Validation
+## Spec-Driven Development
 
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
 
-## Terminology
+## Copilot Delivery Workflow
 
-- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -63441,6 +63478,625 @@ export default function DevToolsPage() {
 }
 ````
 
+## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getArticle,
+  getCategories,
+  getBacklinks,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  ArticleDialog,
+} from "@/modules/knowledge-base/api";
+import type { Article, Category } from "@/modules/knowledge-base/api";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+
+export default function ArticleDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const articleId = params.articleId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [article, setArticle] = useState<Article | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [backlinks, setBacklinks] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !articleId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [art, cats, bls] = await Promise.all([
+        getArticle(accountId, articleId),
+        getCategories(accountId, workspaceId),
+        getBacklinks(accountId, articleId),
+      ]);
+      setArticle(art);
+      setCategories(cats);
+      setBacklinks(bls);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId, articleId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handlePublish() {
+    startTransition(async () => {
+      await publishArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleVerify() {
+    startTransition(async () => {
+      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
+      await load();
+    });
+  }
+
+  function handleRequestReview() {
+    startTransition(async () => {
+      await requestArticleReview({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到文章。</p>
+      </div>
+    );
+  }
+
+  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+    draft: "outline",
+    published: "default",
+    archived: "secondary",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "草稿",
+    published: "已發佈",
+    archived: "已封存",
+  };
+  const veriLabel: Record<string, string> = {
+    verified: "已驗證",
+    needs_review: "待審查",
+    unverified: "未驗證",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Back + actions bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-base/articles")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {article.status === "draft" && (
+            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
+              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
+            </Button>
+          )}
+          {article.status !== "archived" && (
+            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+            </Button>
+          )}
+          {article.verificationState !== "verified" && (
+            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
+              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
+            </Button>
+          )}
+          {article.verificationState === "verified" && (
+            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
+              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
+          </Button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant[article.status] ?? "outline"}>
+            {statusLabel[article.status] ?? article.status}
+          </Badge>
+          {article.verificationState && (
+            <Badge variant="outline" className="text-xs">
+              {veriLabel[article.verificationState] ?? article.verificationState}
+            </Badge>
+          )}
+          {article.tags.map((tag) => (
+            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
+        <p className="text-xs text-muted-foreground">
+          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* Body tabs */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="backlinks">
+            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
+            {backlinks.length > 0 && (
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {backlinks.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="comments">
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
+          </TabsTrigger>
+          <TabsTrigger value="versions">
+            <History className="mr-1 h-3.5 w-3.5" /> 版本
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
+            {article.content ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {article.content}
+              </ReactMarkdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backlinks">
+          {backlinks.length === 0 ? (
+            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+              尚無其他文章引用此文章。
+            </p>
+          ) : (
+            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
+              {backlinks.map((bl) => (
+                <li key={bl.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
+                    className="text-sm text-primary hover:underline text-left"
+                  >
+                    {bl.title}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+        <TabsContent value="comments">
+          {currentUserId ? (
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={workspaceId}
+              contentId={articleId}
+              contentType="article"
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="versions">
+          {currentUserId ? (
+            <VersionHistoryPanel
+              accountId={accountId}
+              contentId={articleId}
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <ArticleDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        article={article}
+        onSuccess={() => load()}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge-base/articles/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, ChevronDown, ChevronRight, CircleDot, FileClock, FolderOpen, Layers, Plus } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
+import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+// ── Category tree helpers ────────────────────────────────────────────────────
+
+interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
+function buildCategoryTree(categories: Category[]): CategoryNode[] {
+  const map = new Map<string, CategoryNode>();
+  for (const cat of categories) {
+    map.set(cat.id, { ...cat, children: [] });
+  }
+  const roots: CategoryNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentCategoryId) {
+      map.get(node.parentCategoryId)?.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+// ── Category tree panel ──────────────────────────────────────────────────────
+
+interface CategoryTreePanelProps {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
+  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
+
+  return (
+    <aside className="w-52 shrink-0 space-y-1">
+      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        分類
+      </p>
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+          selectedId === null
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-foreground hover:bg-muted"
+        }`}
+      >
+        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+        全部文章
+      </button>
+      {roots.map((node) => (
+        <CategoryNodeRow
+          key={node.id}
+          node={node}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ))}
+      {categories.length === 0 && (
+        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
+      )}
+    </aside>
+  );
+}
+
+interface CategoryNodeRowProps {
+  node: CategoryNode;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children.length > 0;
+  const isSelected = selectedId === node.id;
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
+          style={{ visibility: hasChildren ? "visible" : "hidden" }}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3" />
+          ) : (
+            <ChevronRight className="size-3" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{node.name}</span>
+          {node.articleIds.length > 0 && (
+            <span className="ml-auto text-[10px] text-muted-foreground/60">
+              {node.articleIds.length}
+            </span>
+          )}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
+          {node.children.map((child) => (
+            <CategoryNodeRow
+              key={child.id}
+              node={child}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
+export default function KnowledgeBaseArticlesPage() {
+  const router = useRouter();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!accountId || !workspaceId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
+        getCategories(accountId, workspaceId),
+      ]);
+      setArticles(arts);
+      setCategories(cats);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
+
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      router.push(`/knowledge-base/articles/${articleId}`);
+    } else {
+      load();
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
+
+      <ArticleDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        onSuccess={handleSuccess}
+      />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/workspaces/page.tsx
 ````typescript
 "use client";
@@ -63646,6 +64302,70 @@ export default function OrganizationWorkspacesPage() {
     </div>
   );
 }
+````
+
+## File: CLAUDE.md
+````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first.
+- Serena remains the orchestration lead and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+- Repository orchestration memory and index updates must use Serena tools; do not replace them with direct `.serena/` edits.
+
+## Coordination
+
+- Serena MCP is mandatory for every conversation and remains the orchestration lead.
+- Start with Serena to understand the request, gather the needed context, and decide whether subagents are required.
+- This file is a Claude compatibility quick reference, not a separate repository governance source. Repo-wide rules live in `AGENTS.md` and `.github/*`.
+- When a task touches Claude Code workflow, consult `.claude/settings.json` for hooks and permissions, `.claude/rules/tech-strategy.md` for technology policy, and `.claude/hooks/*` for automation and guards.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
 ## File: firestore.indexes.json
@@ -64411,188 +65131,102 @@ export async function deleteCategory(accountId: string, categoryId: string): Pro
 }
 ````
 
-## File: modules/knowledge-base/interfaces/components/ArticleDialog.tsx
+## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { X } from "lucide-react";
+import { History, Trash2 } from "lucide-react";
 
 import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@ui-shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
 
-import { createArticle, updateArticle } from "../_actions/knowledge-base.actions";
-import type { Article } from "../../domain/entities/article.entity";
-import type { Category } from "../../domain/entities/category.entity";
+import { getVersions } from "../queries/knowledge-collaboration.queries";
+import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
+import type { Version } from "../../domain/entities/version.entity";
 
-interface ArticleDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface VersionHistoryPanelProps {
   accountId: string;
-  workspaceId: string;
+  contentId: string;
   currentUserId: string;
-  categories: Category[];
-  /** Article to edit — omit for create mode */
-  article?: Article;
-  onSuccess?: (articleId?: string) => void;
 }
 
-export function ArticleDialog({
-  open,
-  onOpenChange,
-  accountId,
-  workspaceId,
-  currentUserId,
-  categories,
-  article,
-  onSuccess,
-}: ArticleDialogProps) {
-  const isEdit = !!article;
-  const [title, setTitle] = useState(article?.title ?? "");
-  const [content, setContent] = useState(article?.content ?? "");
-  const [categoryId, setCategoryId] = useState<string>(article?.categoryId ?? "__none__");
-  const [tags, setTags] = useState(article?.tags.join(", ") ?? "");
-  const [error, setError] = useState<string | null>(null);
+export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [loading, setLoading] = useState(false);
   const [isPending, startTransition] = useTransition();
 
-  // Reset when article changes
   useEffect(() => {
-    void Promise.resolve().then(() => {
-      setTitle(article?.title ?? "");
-      setContent(article?.content ?? "");
-      setCategoryId(article?.categoryId ?? "__none__");
-      setTags(article?.tags.join(", ") ?? "");
-      setError(null);
-    });
-  }, [article, open]);
-
-  function handleSubmit() {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) { setError("標題不可空白"); return; }
-    const parsedTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
-    const resolvedCategoryId = categoryId === "__none__" ? null : categoryId;
-
-    startTransition(async () => {
-      setError(null);
-      if (isEdit) {
-        const result = await updateArticle({
-          id: article!.id,
-          accountId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-        });
-        if (!result.success) { setError(result.error.message ?? "更新失敗"); return; }
-        onSuccess?.();
-      } else {
-        const result = await createArticle({
-          accountId,
-          workspaceId,
-          title: trimmedTitle,
-          content,
-          categoryId: resolvedCategoryId,
-          tags: parsedTags,
-          createdByUserId: currentUserId,
-        });
-        if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-        onSuccess?.(result.success ? result.aggregateId : undefined);
+    let disposed = false;
+    void Promise.resolve().then(async () => {
+      if (disposed) return;
+      setLoading(true);
+      try {
+        const data = await getVersions(accountId, contentId);
+        if (!disposed) { setVersions(data); setLoading(false); }
+      } catch {
+        if (!disposed) setLoading(false);
       }
-      onOpenChange(false);
+    });
+    return () => { disposed = true; };
+  }, [accountId, contentId]);
+
+  function handleDelete(versionId: string) {
+    startTransition(async () => {
+      await deleteVersion({ id: versionId, accountId });
+      setVersions((prev) => prev.filter((v) => v.id !== versionId));
     });
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? "編輯文章" : "新增文章"}</DialogTitle>
-        </DialogHeader>
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">版本歷史</span>
+        {versions.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
+        )}
+      </div>
 
-        <div className="space-y-4 py-2">
-          {error && (
-            <div className="flex items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive">
-              <X className="h-4 w-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-title">標題</Label>
-            <Input
-              id="kb-article-title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="文章標題"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-category">分類</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="kb-article-category">
-                <SelectValue placeholder="選擇分類（選填）" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">— 不指定 —</SelectItem>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-tags">標籤 <span className="text-muted-foreground text-xs">（以逗號分隔）</span></Label>
-            <Input
-              id="kb-article-tags"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              placeholder="標籤1, 標籤2"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="kb-article-content">內容</Label>
-            <Textarea
-              id="kb-article-content"
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-              placeholder="文章內容（支援 Markdown）"
-              rows={6}
-              className="resize-none font-mono text-sm"
-            />
-          </div>
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
-            取消
-          </Button>
-          <Button onClick={handleSubmit} disabled={isPending || !title.trim()}>
-            {isPending ? "儲存中…" : isEdit ? "更新文章" : "建立文章"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      ) : versions.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
+      ) : (
+        <ol className="space-y-2">
+          {versions.map((v, idx) => (
+            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
+                {versions.length - idx}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
+                {v.description && (
+                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
+                )}
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+              {v.createdByUserId === currentUserId && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  disabled={isPending}
+                  onClick={() => handleDelete(v.id)}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ol>
+      )}
+    </div>
   );
 }
 ````
@@ -65564,625 +66198,6 @@ export function WorkspaceHubScreen({
 }
 ````
 
-## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getArticle,
-  getCategories,
-  getBacklinks,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  ArticleDialog,
-} from "@/modules/knowledge-base/api";
-import type { Article, Category } from "@/modules/knowledge-base/api";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-
-export default function ArticleDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const articleId = params.articleId as string;
-
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [article, setArticle] = useState<Article | null>(null);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [backlinks, setBacklinks] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!accountId || !articleId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [art, cats, bls] = await Promise.all([
-        getArticle(accountId, articleId),
-        getCategories(accountId, workspaceId),
-        getBacklinks(accountId, articleId),
-      ]);
-      setArticle(art);
-      setCategories(cats);
-      setBacklinks(bls);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId, articleId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handlePublish() {
-    startTransition(async () => {
-      await publishArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  function handleVerify() {
-    startTransition(async () => {
-      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
-      await load();
-    });
-  }
-
-  function handleRequestReview() {
-    startTransition(async () => {
-      await requestArticleReview({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!article) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到文章。</p>
-      </div>
-    );
-  }
-
-  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-    draft: "outline",
-    published: "default",
-    archived: "secondary",
-  };
-  const statusLabel: Record<string, string> = {
-    draft: "草稿",
-    published: "已發佈",
-    archived: "已封存",
-  };
-  const veriLabel: Record<string, string> = {
-    verified: "已驗證",
-    needs_review: "待審查",
-    unverified: "未驗證",
-  };
-
-  return (
-    <div className="space-y-4">
-      {/* Back + actions bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-base/articles")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
-        </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {article.status === "draft" && (
-            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
-              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
-            </Button>
-          )}
-          {article.status !== "archived" && (
-            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-            </Button>
-          )}
-          {article.verificationState !== "verified" && (
-            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
-              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
-            </Button>
-          )}
-          {article.verificationState === "verified" && (
-            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
-              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setEditOpen(true)}>
-            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
-          </Button>
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant[article.status] ?? "outline"}>
-            {statusLabel[article.status] ?? article.status}
-          </Badge>
-          {article.verificationState && (
-            <Badge variant="outline" className="text-xs">
-              {veriLabel[article.verificationState] ?? article.verificationState}
-            </Badge>
-          )}
-          {article.tags.map((tag) => (
-            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
-        <p className="text-xs text-muted-foreground">
-          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* Body tabs */}
-      <Tabs defaultValue="content" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="content">內容</TabsTrigger>
-          <TabsTrigger value="backlinks">
-            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
-            {backlinks.length > 0 && (
-              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                {backlinks.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="comments">
-            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
-          </TabsTrigger>
-          <TabsTrigger value="versions">
-            <History className="mr-1 h-3.5 w-3.5" /> 版本
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="content">
-          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
-            {article.content ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {article.content}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="backlinks">
-          {backlinks.length === 0 ? (
-            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
-              尚無其他文章引用此文章。
-            </p>
-          ) : (
-            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
-              {backlinks.map((bl) => (
-                <li key={bl.id}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
-                    className="text-sm text-primary hover:underline text-left"
-                  >
-                    {bl.title}
-                  </button>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="comments">
-          {currentUserId ? (
-            <CommentPanel
-              accountId={accountId}
-              workspaceId={workspaceId}
-              contentId={articleId}
-              contentType="article"
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="versions">
-          {currentUserId ? (
-            <VersionHistoryPanel
-              accountId={accountId}
-              contentId={articleId}
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
-          )}
-        </TabsContent>
-      </Tabs>
-
-      <ArticleDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        article={article}
-        onSuccess={() => load()}
-      />
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge-base/articles/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, ChevronDown, ChevronRight, CircleDot, FileClock, FolderOpen, Layers, Plus } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
-import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-// ── Category tree helpers ────────────────────────────────────────────────────
-
-interface CategoryNode extends Category {
-  children: CategoryNode[];
-}
-
-function buildCategoryTree(categories: Category[]): CategoryNode[] {
-  const map = new Map<string, CategoryNode>();
-  for (const cat of categories) {
-    map.set(cat.id, { ...cat, children: [] });
-  }
-  const roots: CategoryNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentCategoryId) {
-      map.get(node.parentCategoryId)?.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-  return roots;
-}
-
-// ── Category tree panel ──────────────────────────────────────────────────────
-
-interface CategoryTreePanelProps {
-  categories: Category[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
-  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
-
-  return (
-    <aside className="w-52 shrink-0 space-y-1">
-      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        分類
-      </p>
-      <button
-        type="button"
-        onClick={() => onSelect(null)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-          selectedId === null
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-foreground hover:bg-muted"
-        }`}
-      >
-        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-        全部文章
-      </button>
-      {roots.map((node) => (
-        <CategoryNodeRow
-          key={node.id}
-          node={node}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
-      ))}
-      {categories.length === 0 && (
-        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
-      )}
-    </aside>
-  );
-}
-
-interface CategoryNodeRowProps {
-  node: CategoryNode;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const isSelected = selectedId === node.id;
-
-  return (
-    <div>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
-          style={{ visibility: hasChildren ? "visible" : "hidden" }}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {expanded ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronRight className="size-3" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(node.id)}
-          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
-            isSelected
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-foreground hover:bg-muted"
-          }`}
-        >
-          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">{node.name}</span>
-          {node.articleIds.length > 0 && (
-            <span className="ml-auto text-[10px] text-muted-foreground/60">
-              {node.articleIds.length}
-            </span>
-          )}
-        </button>
-      </div>
-      {hasChildren && expanded && (
-        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
-          {node.children.map((child) => (
-            <CategoryNodeRow
-              key={child.id}
-              node={child}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main page ────────────────────────────────────────────────────────────────
-
-export default function KnowledgeBaseArticlesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: eslint.config.mjs
 ````javascript
 import { defineConfig, globalIgnores } from "eslint/config";
@@ -66729,106 +66744,6 @@ export class ListCategoriesUseCase {
 | 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
 | 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
 | 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
-## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useState, useTransition } from "react";
-import { History, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { getVersions } from "../queries/knowledge-collaboration.queries";
-import { deleteVersion } from "../_actions/knowledge-collaboration.actions";
-import type { Version } from "../../domain/entities/version.entity";
-
-interface VersionHistoryPanelProps {
-  accountId: string;
-  contentId: string;
-  currentUserId: string;
-}
-
-export function VersionHistoryPanel({ accountId, contentId, currentUserId }: VersionHistoryPanelProps) {
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getVersions(accountId, contentId);
-        if (!disposed) { setVersions(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handleDelete(versionId: string) {
-    startTransition(async () => {
-      await deleteVersion({ id: versionId, accountId });
-      setVersions((prev) => prev.filter((v) => v.id !== versionId));
-    });
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <History className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">版本歷史</span>
-        {versions.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{versions.length}</Badge>
-        )}
-      </div>
-
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-12 w-full rounded-md" />)}
-        </div>
-      ) : versions.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無已儲存的版本快照。</p>
-      ) : (
-        <ol className="space-y-2">
-          {versions.map((v, idx) => (
-            <li key={v.id} className="flex items-start gap-3 rounded-md border border-border/60 bg-background px-3 py-2">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-semibold text-muted-foreground">
-                {versions.length - idx}
-              </span>
-              <div className="flex-1 min-w-0">
-                <p className="truncate text-sm font-medium">{v.label || `版本 ${versions.length - idx}`}</p>
-                {v.description && (
-                  <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">{v.description}</p>
-                )}
-                <p className="mt-0.5 text-[10px] text-muted-foreground">
-                  {new Date(v.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-                </p>
-              </div>
-              {v.createdByUserId === currentUserId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                  disabled={isPending}
-                  onClick={() => handleDelete(v.id)}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ol>
-      )}
-    </div>
-  );
-}
 ````
 
 ## File: modules/knowledge-database/README.md
@@ -68529,748 +68444,170 @@ export function WorkspaceDetailScreen({
 }
 ````
 
-## File: app/(shell)/notebook/rag-query/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/search/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : appState.activeWorkspaceId || undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
-
-      <RagQueryView workspaceId={workspaceId} />
-    </div>
-  );
-}
-````
-
-## File: modules/knowledge/aggregates.md
+## File: .github/copilot-instructions.md
 ````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
-
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
 ---
 
-## 實體：ContentBlock（KnowledgeBlock）
+# Xuanwu Copilot Workspace Instructions
 
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
+## Purpose
 
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
 
----
+## Non-Negotiable Session Contract
 
-## 實體：ContentVersion（KnowledgeVersion）
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
 
-### 職責
-頁面的歷史版本快照，append-only。
+## Authoritative Sources
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
+Read these in order before making non-trivial decisions:
 
----
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
+2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
 
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
+## DDD Reference Authority
 
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the matching bounded-context reference set.
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
+| Query | Canonical Document |
+|-------|-------------------|
+| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Context terminology | `docs/ddd/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `docs/ddd/<context>/aggregates.md` |
+| Context domain events | `docs/ddd/<context>/domain-events.md` |
+| Context map | `docs/ddd/<context>/context-map.md` |
+| Context repositories | `docs/ddd/<context>/repositories.md` |
+| Context application services | `docs/ddd/<context>/application-services.md` |
+| Context domain services | `docs/ddd/<context>/domain-services.md` |
 
----
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains the repository's DDD knowledge set. Link instead of copying.
 
-## Repository Interfaces
+## Workspace-Wide Operating Rules
 
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
 
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
+## Architecture Guardrails
 
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-````
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
 
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-"use client";
+## Copilot Customization Design Rules
 
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
 
-import Link from "next/link";
-import {
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  Table2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+## Serena MCP
 
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+Serena MCP is **mandatory for every session**. There are no exceptions.
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
 
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
+### Session-Start Protocol (Required)
 
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
 
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
+### Session-End Protocol (Required)
 
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
 
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
 
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
 
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
+### Hard Prohibitions
 
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
 
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
+## Context7 Documentation Query
 
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
 
-  const railItems: RailItem[] = [
-    // ── Hub ──────────────────────────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── Content ──────────────────────────────────────────────────────
-    {
-      href: "/knowledge/pages",
-      label: "知識頁面",
-      icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
-    },
-    {
-      href: "/knowledge-base/articles",
-      label: "文章庫",
-      icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
-    },
-    {
-      href: "/knowledge-database/databases",
-      label: "資料庫",
-      icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
+### Trigger Conditions
 
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
+Any of the following require a context7 lookup before proceeding:
 
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
 
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
+### Required Steps
 
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
 
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+### Guardrails
 
-        <div className="my-2 h-px w-7 bg-border/50" />
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
 
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
+## Claude Compatibility Layer
 
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
+`.claude/` is a supported Claude Code compatibility surface.
 
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
 
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
+## Skill And Agent Routing
 
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
 
-        <div className="h-1" />
-      </aside>
+## Validation
 
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
 
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
-  );
-}
+## Terminology
+
+- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -70226,6 +69563,718 @@ export function DashboardSidebar({
       onPreferencesChange={setNavPrefs}
     />
     </div>
+  );
+}
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/dev/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
+## File: app/(shell)/_components/app-rail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  Table2,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    // ── Hub ──────────────────────────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── Content ──────────────────────────────────────────────────────
+    {
+      href: "/knowledge/pages",
+      label: "知識頁面",
+      icon: <FileText className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
+    },
+    {
+      href: "/knowledge-base/articles",
+      label: "文章庫",
+      icon: <BookOpen className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
+    },
+    {
+      href: "/knowledge-database/databases",
+      label: "資料庫",
+      icon: <Table2 className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
   );
 }
 ````
