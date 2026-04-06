@@ -198,14 +198,14 @@
 ### `knowledge` 模組
 
 ```
-聚合根: KnowledgePage（內部仍由 content-page entity 表示）
+聚合根: KnowledgePage（由 knowledge-page entity 表示）
 ├── id: string
 ├── workspaceId?: string
 ├── title: string
 ├── slug: string
 ├── parentPageId: string | null
 ├── blockIds: string[]
-├── status: ContentPageStatus         // "active" | "archived"
+├── status: KnowledgePageStatus       // "active" | "archived"
 └── approvalState?: string
 
 實體: ContentBlock
