@@ -47,5 +47,6 @@
 |---|---|---|
 | 上游 | `workspace`, `identity`, `organization` | Conformist |
 | 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
+| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
 | 下游 | `workspace-feed`, `notification` | Published Language |
-| 協作 | `knowledge`, `knowledge-base` | Open Host Service |

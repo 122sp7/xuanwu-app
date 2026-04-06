@@ -439,7 +439,7 @@ modules/
         ArticleDialog.tsx (181 lines)
       queries/
         knowledge-base.queries.ts (35 lines)
-    AGENT.md (25 lines)
+    AGENT.md (26 lines)
     aggregates.md (26 lines)
     application-services.md (7 lines)
     context-map.md (24 lines)
@@ -530,7 +530,7 @@ modules/
     domain-events.md (7 lines)
     domain-services.md (4 lines)
     index.ts (4 lines)
-    README.md (51 lines)
+    README.md (52 lines)
     repositories.md (5 lines)
     ubiquitous-language.md (9 lines)
   notebook/

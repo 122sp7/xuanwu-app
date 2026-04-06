@@ -9464,7 +9464,7 @@ identityApi.listenToTokenRefresh()
 
 `knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
 
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Databases（KnowledgeCollection with spaceType="database"）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
 
 ## 通用語言（Ubiquitous Language）
 
@@ -9510,134 +9510,6 @@ import type { WikiPage } from "@/modules/wiki/domain/entities/...";
 npm run lint
 npm run build
 ```
-````
-
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
 ## File: modules/knowledge/application-services.md
@@ -9701,190 +9573,6 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
 ````
 
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
-```
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
-### knowledge → knowledge-database（Open Host Service / D1）
-
-- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
-- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
-- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
-
-```
-knowledge ──(KnowledgeCollection.id)──► knowledge-database
-                                        (Database / Record / View 管理)
-```
-
-### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
-
-- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
-- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
-- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
-
-```
-knowledge ─── knowledge.page_promoted ───► knowledge-base
-                                           (Article 建立，Promote 協議完成)
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
-| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## Wiki/Knowledge Base 驗證事件
-
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-```
-
-## Promote 事件（D3：Page → Article 提升協議）
-
-`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
-
-```typescript
-interface KnowledgePagePromotedEvent {
-  readonly type: "knowledge.page_promoted";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
-  readonly promotedByUserId: string;
-  readonly occurredAt: string;       // ISO 8601
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
-````
-
 ## File: modules/knowledge/domain-services.md
 ````markdown
 # knowledge — Domain Services
@@ -9929,7 +9617,7 @@ interface KnowledgePagePromotedEvent {
 |---|---|
 | Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
 | 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"，提供資料庫欄機與頁面屬性管理（對時 Notion Database） |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
 | Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
 | 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
 
@@ -10109,6 +9797,7 @@ interface KnowledgePagePromotedEvent {
 2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
 3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
 4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
 
 ## 詳細實作文件
 
@@ -10143,72 +9832,6 @@ interface KnowledgePagePromotedEvent {
 | `parentCategoryId` | 父分類（null = 根節點） |
 | `depth` | 層級深度（最大 5）|
 | `articleIds` | 直屬文章 ID 列表 |
-````
-
-## File: modules/knowledge-base/application-services.md
-````markdown
-# knowledge-base — Application Services
-
-> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
-
-**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
-
-**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
-````
-
-## File: modules/knowledge-base/context-map.md
-````markdown
-# knowledge-base — Context Map
-
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
-
-## 上游
-
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
-- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
-
-## 下游
-
-- `knowledge-database` — Article 可與 Record 連結（ACL）
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
-
-## Promote 協議（D3）
-
-`knowledge-base` 是 Promote 協議的業務規則擁有者：
-
-1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
-2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
-3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
-4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
-````
-
-## File: modules/knowledge-base/domain-events.md
-````markdown
-# knowledge-base — 領域事件
-
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
-
-## 事件清單
-
-| 事件 | 觸發條件 |
-|---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
-
-## 訂閱事件（D3 Promote 協議）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
 ````
 
 ## File: modules/knowledge-base/domain-services.md
@@ -10272,7 +9895,7 @@ interface KnowledgePagePromotedEvent {
 |---|---|---|
 | 上游 | `workspace`, `identity`, `organization` | Conformist |
 | 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 下游 | `knowledge` (promote) | Customer/Supplier |
+| 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
 | 下游 | `notification`, `workspace-feed` | Published Language |
 ````
 
@@ -10457,16 +10080,6 @@ Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, Query
 → [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
 ````
 
-## File: modules/knowledge-database/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
-下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
-
-> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
-
-→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
-````
-
 ## File: modules/knowledge-database/domain-events.md
 ````markdown
 - `knowledge-database.database_created` / `database_renamed`
@@ -10484,61 +10097,6 @@ Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, Query
 - `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
 
 → [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
-````
-
-## File: modules/knowledge-database/README.md
-````markdown
-# knowledge-database — DDD Reference
-
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
-
-## 戰略定位
-
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
-
-## 核心聚合
-
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
-
-## 視圖類型
-
-`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
-
-## 欄位類型
-
-`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
-
-## 主要領域事件
-
-- `knowledge-database.database_created`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
-| 協作 | `knowledge`, `knowledge-base` | Open Host Service |
 ````
 
 ## File: modules/knowledge-database/repositories.md
@@ -15078,4 +14636,448 @@ This repository does not currently keep a standalone long-form spec workflow gui
 - [`docs/reference/specification/system-overview.md`](docs/reference/specification/system-overview.md) — baseline product and system specification context
 
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage（ContentPage）
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: modules/knowledge/context-map.md
+````markdown
+# Context Map — knowledge
+
+## 上游（依賴）
+
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
+
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+
+---
+
+## 下游（被依賴）
+
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
+
+**這是平台最重要的跨 BC 整合點。**
+
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (ContentToWorkflowMaterializer)
+```
+
+### knowledge → wiki（Customer/Supplier）
+
+- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
+- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+### knowledge → knowledge-database（Open Host Service / D1）
+
+- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
+- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
+- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
+
+```
+knowledge ──(KnowledgeCollection.id)──► knowledge-database
+                                        (Database / Record / View 管理)
+```
+
+### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
+
+- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
+- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
+- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
+
+```
+knowledge ─── knowledge.page_promoted ───► knowledge-base
+                                           (Article 建立，Promote 協議完成)
+```
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
+| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
+````
+
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## Wiki/Knowledge Base 驗證事件
+
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+```
+
+## Promote 事件（D3：Page → Article 提升協議）
+
+`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
+
+```typescript
+interface KnowledgePagePromotedEvent {
+  readonly type: "knowledge.page_promoted";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
+  readonly promotedByUserId: string;
+  readonly occurredAt: string;       // ISO 8601
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
+````
+
+## File: modules/knowledge-base/application-services.md
+````markdown
+# knowledge-base — Application Services
+
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
+
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
+````
+
+## File: modules/knowledge-base/context-map.md
+````markdown
+# knowledge-base — Context Map
+
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
+
+## 上游
+
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
+
+## 下游
+
+- `knowledge-database` — Article 可與 Record 連結（ACL）
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
+
+## Promote 協議（D3）
+
+`knowledge-base` 是 Promote 協議的業務規則擁有者：
+
+1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
+2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
+3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
+4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
+````
+
+## File: modules/knowledge-base/domain-events.md
+````markdown
+# knowledge-base — 領域事件
+
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+
+## 事件清單
+
+| 事件 | 觸發條件 |
+|---|---|
+| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
+
+## 訂閱事件（D3 Promote 協議）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
+````
+
+## File: modules/knowledge-database/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
+下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
+
+> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
+
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
+````
+
+## File: modules/knowledge-database/README.md
+````markdown
+# knowledge-database — DDD Reference
+
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+
+## 戰略定位
+
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+
+## 核心聚合
+
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
+
+## 視圖類型
+
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
+| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
 ````
