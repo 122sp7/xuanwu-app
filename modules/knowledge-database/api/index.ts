@@ -62,6 +62,16 @@ export type {
 // UI Components (automation)
 export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
 
+// Automation server actions
+export {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/knowledge-database-automation.actions";
+
+// Automation queries
+export { getAutomations } from "../interfaces/queries/knowledge-database-automation.queries";
+
 // ── FieldComputationService ────────────────────────────────────────────────────
 export type {
   RelationFieldConfig,

@@ -19,6 +19,7 @@ export const CreateCommentSchema = ContentScopeSchema.extend({
   body: z.string().min(1).max(10000),
   parentCommentId: z.string().min(1).nullable().optional(),
   blockId: z.string().min(1).nullable().optional(),
+  mentionedUserIds: z.array(z.string().min(1)).optional(),
   selectionRange: z
     .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
     .nullable()

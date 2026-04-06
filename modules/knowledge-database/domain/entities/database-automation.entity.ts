@@ -67,6 +67,7 @@ export interface CreateAutomationInput {
 export interface UpdateAutomationInput {
   id: string;
   accountId: string;
+  databaseId: string;
   name?: string;
   enabled?: boolean;
   trigger?: AutomationTrigger;

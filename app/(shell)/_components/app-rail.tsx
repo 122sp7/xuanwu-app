@@ -19,6 +19,7 @@ import {
   FlaskConical,
   NotebookText,
   Plus,
+  Rss,
   SlidersHorizontal,
   Table2,
   UserRound,
@@ -224,6 +225,12 @@ export function AppRail({
       label: "資料庫",
       icon: <Table2 className="size-[18px]" />,
       isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
+    },
+    {
+      href: "/workspace-feed",
+      label: "動態消息",
+      icon: <Rss className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/workspace-feed", currentPathname),
     },
     // ── People (org-only) ─────────────────────────────────────────
     {

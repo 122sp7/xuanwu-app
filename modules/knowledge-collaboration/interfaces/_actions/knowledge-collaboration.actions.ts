@@ -6,6 +6,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { dispatchNotification } from "@/modules/notification/api";
 import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
 import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
 import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
@@ -20,7 +21,22 @@ function makePermissionRepo() { return new FirebasePermissionRepository(); }
 
 export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
   try {
-    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
+      await Promise.allSettled(
+        input.mentionedUserIds.map((recipientId) =>
+          dispatchNotification({
+            recipientId,
+            title: "有人提及了你",
+            message: input.body.slice(0, 100),
+            type: "info",
+            sourceEventType: "comment.mention",
+            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
+          }),
+        ),
+      );
+    }
+    return result;
   } catch (err) {
     return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }

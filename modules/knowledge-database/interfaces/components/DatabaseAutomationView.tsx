@@ -11,7 +11,7 @@
  */
 
 import { Plus, Zap, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@ui-shadcn/ui/button";
 import { Input } from "@ui-shadcn/ui/input";
@@ -29,6 +29,12 @@ import type {
   AutomationTrigger,
   AutomationActionType,
 } from "../../domain/entities/database-automation.entity";
+import {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../_actions/knowledge-database-automation.actions";
+import { getAutomations } from "../queries/knowledge-database-automation.queries";
 
 // ── Trigger labels ─────────────────────────────────────────────────────────────
 const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
@@ -44,9 +50,6 @@ const ACTION_LABELS: Record<AutomationActionType, string> = {
   create_record: "建立記錄",
   webhook: "呼叫 Webhook",
 };
-
-// ── In-memory store (replace with Firebase persistence in the real impl) ───────
-const DEMO_AUTOMATIONS: DatabaseAutomation[] = [];
 
 interface DatabaseAutomationViewProps {
   databaseId: string;
@@ -73,39 +76,57 @@ export function DatabaseAutomationView({
   accountId,
   currentUserId,
 }: DatabaseAutomationViewProps) {
-  const [automations, setAutomations] = useState<DatabaseAutomation[]>(DEMO_AUTOMATIONS);
+  const [automations, setAutomations] = useState<DatabaseAutomation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState<DraftAutomation>(DEFAULT_DRAFT);
 
-  function handleSave() {
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await getAutomations(accountId, databaseId);
+      setAutomations(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function handleSave() {
     if (!draft.name.trim()) return;
-    const now = new Date().toISOString();
-    const newAutomation: DatabaseAutomation = {
-      id: crypto.randomUUID(),
+    await createAutomation({
       databaseId,
       accountId,
       name: draft.name.trim(),
-      enabled: true,
       trigger: draft.trigger,
       conditions: [],
       actions: [{ type: draft.actionType, config: { value: draft.actionValue } }],
       createdByUserId: currentUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    setAutomations((prev) => [...prev, newAutomation]);
+    });
     setDraft(DEFAULT_DRAFT);
     setCreating(false);
+    await refresh();
   }
 
-  function handleToggle(id: string) {
+  async function handleToggle(automation: DatabaseAutomation) {
     setAutomations((prev) =>
-      prev.map((a) => a.id === id ? { ...a, enabled: !a.enabled } : a),
+      prev.map((a) => a.id === automation.id ? { ...a, enabled: !a.enabled } : a),
     );
+    await updateAutomation({
+      id: automation.id,
+      accountId,
+      databaseId,
+      enabled: !automation.enabled,
+    });
+    await refresh();
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     setAutomations((prev) => prev.filter((a) => a.id !== id));
+    await deleteAutomation(id, accountId, databaseId);
   }
 
   return (
@@ -192,7 +213,7 @@ export function DatabaseAutomationView({
             <Button variant="ghost" size="sm" onClick={() => { setCreating(false); setDraft(DEFAULT_DRAFT); }}>
               取消
             </Button>
-            <Button size="sm" disabled={!draft.name.trim()} onClick={handleSave}>
+            <Button size="sm" disabled={!draft.name.trim()} onClick={() => void handleSave()}>
               儲存
             </Button>
           </div>
@@ -200,7 +221,13 @@ export function DatabaseAutomationView({
       )}
 
       {/* List */}
-      {automations.length === 0 && !creating ? (
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
+          ))}
+        </div>
+      ) : automations.length === 0 && !creating ? (
         <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
           <Zap className="mx-auto mb-2 h-8 w-8 opacity-30" />
           <p>尚無自動化規則</p>
@@ -212,7 +239,7 @@ export function DatabaseAutomationView({
             <li key={a.id} className="flex items-center gap-3 px-4 py-3">
               <button
                 type="button"
-                onClick={() => handleToggle(a.id)}
+                onClick={() => void handleToggle(a)}
                 title={a.enabled ? "停用" : "啟用"}
                 className="shrink-0 text-muted-foreground hover:text-foreground"
               >
@@ -233,7 +260,7 @@ export function DatabaseAutomationView({
                 variant="ghost"
                 size="icon-sm"
                 className="shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() => handleDelete(a.id)}
+                onClick={() => void handleDelete(a.id)}
                 title="刪除"
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -245,3 +272,4 @@ export function DatabaseAutomationView({
     </div>
   );
 }
+

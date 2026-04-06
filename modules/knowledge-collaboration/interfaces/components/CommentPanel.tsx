@@ -8,9 +8,7 @@ import { Textarea } from "@ui-shadcn/ui/textarea";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
 import { Badge } from "@ui-shadcn/ui/badge";
 
-import {
-  getComments,
-} from "../queries/knowledge-collaboration.queries";
+import { subscribeComments } from "../queries/knowledge-collaboration.queries";
 import {
   createComment,
   resolveComment,
@@ -28,24 +26,17 @@ interface CommentPanelProps {
 
 export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
   const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [body, setBody] = useState("");
   const [isPending, startTransition] = useTransition();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getComments(accountId, contentId);
-        if (!disposed) { setComments(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
+    const unsubscribe = subscribeComments(accountId, contentId, (data) => {
+      setComments(data);
+      setLoading(false);
     });
-    return () => { disposed = true; };
+    return unsubscribe;
   }, [accountId, contentId]);
 
   function handlePost() {
@@ -53,8 +44,6 @@ export function CommentPanel({ accountId, workspaceId, contentId, contentType, c
     if (!trimmed) return;
     startTransition(async () => {
       await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
       setBody("");
       textareaRef.current?.focus();
     });
@@ -63,8 +52,6 @@ export function CommentPanel({ accountId, workspaceId, contentId, contentType, c
   function handleResolve(commentId: string) {
     startTransition(async () => {
       await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
     });
   }
 
