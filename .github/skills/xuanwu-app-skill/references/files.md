@@ -5108,18 +5108,6 @@ export default function SettingsGeneralPage() {
 }
 ````
 
-## File: app/(shell)/settings/notifications/page.tsx
-````typescript
-/**
- * /settings/notifications — redirect to workspace (removed from MVP nav, Occam's Razor)
- */
-import { redirect } from "next/navigation";
-
-export default function SettingsNotificationsPage() {
-  redirect("/workspace");
-}
-````
-
 ## File: app/(shell)/settings/page.tsx
 ````typescript
 /**
@@ -15651,34 +15639,6 @@ npm run build
 | 介面 | 主要方法 |
 |------|---------|
 | `NotificationRepository` | `save()`, `findByRecipient()`, `markAsRead()` |
-````
-
-## File: modules/notification/api/index.ts
-````typescript
-/**
- * Module: notification
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Notification domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// ─── Facade ───────────────────────────────────────────────────────────────────
-
-export { NotificationFacade, notificationFacade } from "./notification.facade";
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
-
-// ─── UI components ────────────────────────────────────────────────────────────
-
-export { NotificationBell } from "../interfaces/components/NotificationBell";
 ````
 
 ## File: modules/notification/api/notification.facade.ts
@@ -48098,6 +48058,220 @@ export default function OrganizationTeamsPage() {
 }
 ````
 
+## File: app/(shell)/settings/notifications/page.tsx
+````typescript
+/**
+ * Route: /settings/notifications
+ * Purpose: Full-page notification center showing all notifications for the
+ *          authenticated user with read/unread filtering and bulk actions.
+ */
+"use client";
+
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  getNotificationsForRecipient,
+  type NotificationEntity,
+} from "@/modules/notification/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+type Filter = "all" | "unread";
+
+const TYPE_BADGE: Record<string, string> = {
+  info: "bg-blue-100 text-blue-800",
+  alert: "bg-red-100 text-red-800",
+  success: "bg-green-100 text-green-800",
+  warning: "bg-yellow-100 text-yellow-800",
+};
+
+function formatTime(ts: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
+export default function NotificationCenterPage() {
+  const { state: authState } = useAuth();
+  const recipientId = authState.user?.id ?? "";
+
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!recipientId) { setIsLoading(false); return; }
+    setIsLoading(true);
+    try {
+      const data = await getNotificationsForRecipient(recipientId, 100);
+      setNotifications(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const displayed = useMemo(
+    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
+    [notifications, filter],
+  );
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
+  function handleMarkOne(id: string) {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      await markNotificationRead(id, recipientId);
+    });
+  }
+
+  function handleMarkAll() {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      await markAllNotificationsRead(recipientId);
+    });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">通知中心</h1>
+          {unreadCount > 0 && (
+            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
+            className="text-xs"
+          >
+            {filter === "all" ? "只看未讀" : "顯示全部"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPending || unreadCount === 0}
+            onClick={handleMarkAll}
+            className="text-xs gap-1"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            全部標為已讀
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayed.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+          <Bell className="h-10 w-10 opacity-30" />
+          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {displayed.map((n) => (
+            <li
+              key={n.id}
+              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
+            >
+              {!n.read && (
+                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
+              )}
+              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium">{n.title}</p>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
+                    {n.type}
+                  </span>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
+              </div>
+              {!n.read && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={isPending}
+                  onClick={() => handleMarkOne(n.id)}
+                  title="標為已讀"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/workspace-feed/page.tsx
+````typescript
+"use client";
+
+/**
+ * Route: /workspace-feed
+ * Purpose: Workspace activity feed — shows posts, reactions, and replies for the
+ *          currently active workspace.
+ */
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+
+export default function WorkspaceFeedPage() {
+  const { state } = useApp();
+  const accountId = state.activeAccount?.id ?? "";
+  const workspaceId = state.activeWorkspaceId ?? "";
+  const workspaceName = "工作區";
+
+  if (!accountId || !workspaceId) {
+    return (
+      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+        請先選擇工作區
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      <h1 className="mb-4 text-xl font-semibold">動態牆</h1>
+      <WorkspaceFeedWorkspaceView
+        accountId={accountId}
+        workspaceId={workspaceId}
+        workspaceName={workspaceName}
+      />
+    </div>
+  );
+}
+````
+
 ## File: docs/development/modules-implementation-guide.md
 ````markdown
 # Modules Implementation Guide
@@ -50962,6 +51136,86 @@ export class ListViewsUseCase {
 → [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
 ````
 
+## File: modules/knowledge-database/domain/entities/database-automation.entity.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/entities
+ * Purpose: DatabaseAutomation — rules that trigger actions when database records change.
+ *
+ * Notion-equivalent: "Automations" tab on a database.
+ * Trigger + Action pairs. Execution is handled by a background worker (QStash).
+ */
+
+export type AutomationTrigger =
+  | "record_created"
+  | "record_updated"
+  | "record_deleted"
+  | "property_changed";
+
+export type AutomationActionType =
+  | "send_notification"
+  | "update_property"
+  | "create_record"
+  | "webhook";
+
+export interface AutomationCondition {
+  /** Field name to evaluate */
+  fieldId: string;
+  operator: "equals" | "not_equals" | "is_empty" | "is_not_empty" | "contains";
+  value?: string;
+}
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  /** Payload depends on type:
+   *  send_notification → { recipientId, message }
+   *  update_property   → { fieldId, value }
+   *  create_record     → { databaseId }
+   *  webhook           → { url, method }
+   */
+  config: Record<string, string>;
+}
+
+export interface DatabaseAutomation {
+  id: string;
+  databaseId: string;
+  accountId: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  /** Field that must change — only relevant for "property_changed" trigger */
+  triggerFieldId?: string;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+export interface CreateAutomationInput {
+  databaseId: string;
+  accountId: string;
+  name: string;
+  trigger: AutomationTrigger;
+  triggerFieldId?: string;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+  createdByUserId: string;
+}
+
+export interface UpdateAutomationInput {
+  id: string;
+  accountId: string;
+  name?: string;
+  enabled?: boolean;
+  trigger?: AutomationTrigger;
+  triggerFieldId?: string;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+}
+````
+
 ## File: modules/knowledge-database/domain/entities/database-form.entity.ts
 ````typescript
 /**
@@ -51055,6 +51309,257 @@ export interface IDatabaseRecordRepository {
   delete(accountId: string, recordId: string): Promise<void>;
   findById(accountId: string, recordId: string): Promise<DatabaseRecord | null>;
   listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]>;
+}
+````
+
+## File: modules/knowledge-database/interfaces/components/DatabaseAutomationView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/components
+ * Purpose: DatabaseAutomationView — manage automation rules for a Database.
+ *
+ * Notion-equivalent: Database > "Automations" panel.
+ * Renders a list of existing automations and a creator for new ones.
+ * Actual execution is handled server-side; this component is management UI only.
+ */
+
+import { Plus, Zap, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+} from "../../domain/entities/database-automation.entity";
+
+// ── Trigger labels ─────────────────────────────────────────────────────────────
+const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
+  record_created: "建立記錄時",
+  record_updated: "更新記錄時",
+  record_deleted: "刪除記錄時",
+  property_changed: "屬性變更時",
+};
+
+const ACTION_LABELS: Record<AutomationActionType, string> = {
+  send_notification: "發送通知",
+  update_property: "更新屬性",
+  create_record: "建立記錄",
+  webhook: "呼叫 Webhook",
+};
+
+// ── In-memory store (replace with Firebase persistence in the real impl) ───────
+const DEMO_AUTOMATIONS: DatabaseAutomation[] = [];
+
+interface DatabaseAutomationViewProps {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
+}
+
+interface DraftAutomation {
+  name: string;
+  trigger: AutomationTrigger;
+  actionType: AutomationActionType;
+  actionValue: string;
+}
+
+const DEFAULT_DRAFT: DraftAutomation = {
+  name: "",
+  trigger: "record_created",
+  actionType: "send_notification",
+  actionValue: "",
+};
+
+export function DatabaseAutomationView({
+  databaseId,
+  accountId,
+  currentUserId,
+}: DatabaseAutomationViewProps) {
+  const [automations, setAutomations] = useState<DatabaseAutomation[]>(DEMO_AUTOMATIONS);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState<DraftAutomation>(DEFAULT_DRAFT);
+
+  function handleSave() {
+    if (!draft.name.trim()) return;
+    const now = new Date().toISOString();
+    const newAutomation: DatabaseAutomation = {
+      id: crypto.randomUUID(),
+      databaseId,
+      accountId,
+      name: draft.name.trim(),
+      enabled: true,
+      trigger: draft.trigger,
+      conditions: [],
+      actions: [{ type: draft.actionType, config: { value: draft.actionValue } }],
+      createdByUserId: currentUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    setAutomations((prev) => [...prev, newAutomation]);
+    setDraft(DEFAULT_DRAFT);
+    setCreating(false);
+  }
+
+  function handleToggle(id: string) {
+    setAutomations((prev) =>
+      prev.map((a) => a.id === id ? { ...a, enabled: !a.enabled } : a),
+    );
+  }
+
+  function handleDelete(id: string) {
+    setAutomations((prev) => prev.filter((a) => a.id !== id));
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">自動化規則</span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {automations.length}
+          </span>
+        </div>
+        {!creating && (
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreating(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            新增規則
+          </Button>
+        )}
+      </div>
+
+      {/* Create form */}
+      {creating && (
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+          <p className="text-sm font-medium">新規則</p>
+
+          <div className="space-y-1">
+            <Label className="text-xs">規則名稱</Label>
+            <Input
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder="例如：建立後發送通知"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">觸發條件</Label>
+              <Select
+                value={draft.trigger}
+                onValueChange={(v) => setDraft((d) => ({ ...d, trigger: v as AutomationTrigger }))}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TRIGGER_LABELS) as AutomationTrigger[]).map((t) => (
+                    <SelectItem key={t} value={t}>{TRIGGER_LABELS[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">執行動作</Label>
+              <Select
+                value={draft.actionType}
+                onValueChange={(v) => setDraft((d) => ({ ...d, actionType: v as AutomationActionType }))}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ACTION_LABELS) as AutomationActionType[]).map((a) => (
+                    <SelectItem key={a} value={a}>{ACTION_LABELS[a]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">動作參數（選填）</Label>
+            <Input
+              value={draft.actionValue}
+              onChange={(e) => setDraft((d) => ({ ...d, actionValue: e.target.value }))}
+              placeholder={draft.actionType === "webhook" ? "https://..." : "訊息內容或欄位值"}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => { setCreating(false); setDraft(DEFAULT_DRAFT); }}>
+              取消
+            </Button>
+            <Button size="sm" disabled={!draft.name.trim()} onClick={handleSave}>
+              儲存
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* List */}
+      {automations.length === 0 && !creating ? (
+        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <Zap className="mx-auto mb-2 h-8 w-8 opacity-30" />
+          <p>尚無自動化規則</p>
+          <p className="text-xs mt-1">點擊「新增規則」來建立第一條規則</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {automations.map((a) => (
+            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => handleToggle(a.id)}
+                title={a.enabled ? "停用" : "啟用"}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                {a.enabled
+                  ? <ToggleRight className="h-5 w-5 text-primary" />
+                  : <ToggleLeft className="h-5 w-5" />
+                }
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium truncate ${!a.enabled ? "line-through text-muted-foreground" : ""}`}>
+                  {a.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {TRIGGER_LABELS[a.trigger]} → {ACTION_LABELS[a.actions[0]?.type ?? "send_notification"]}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => handleDelete(a.id)}
+                title="刪除"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 ````
 
@@ -53953,6 +54458,46 @@ export async function loadThread(accountId: string, threadId: string): Promise<T
 
 - `../../../modules/notebook/repositories.md`
 - `../../../modules/notebook/aggregates.md`
+````
+
+## File: modules/notification/api/index.ts
+````typescript
+/**
+ * Module: notification
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the Notification domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// ─── Facade ───────────────────────────────────────────────────────────────────
+
+export { NotificationFacade, notificationFacade } from "./notification.facade";
+
+// ─── Core entity types ────────────────────────────────────────────────────────
+
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "../domain/entities/Notification";
+
+// ─── UI components ────────────────────────────────────────────────────────────
+
+export { NotificationBell } from "../interfaces/components/NotificationBell";
+
+// ─── Server Actions (cross-module public) ─────────────────────────────────────
+
+export {
+  dispatchNotification,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../interfaces/_actions/notification.actions";
+
+// ─── Queries ─────────────────────────────────────────────────────────────────
+
+export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
 ````
 
 ## File: modules/notification/domain-services.md
@@ -62677,319 +63222,6 @@ export default function KnowledgeBaseArticlesPage() {
 }
 ````
 
-## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, FileText, PlusCircle, Table2, Kanban, List, Calendar, LayoutGrid } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  DatabaseTableView,
-  DatabaseBoardView,
-  DatabaseListView,
-  DatabaseCalendarView,
-  DatabaseGalleryView,
-} from "@/modules/knowledge-database/api";
-import type { Database, FieldType } from "@/modules/knowledge-database/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const FIELD_TYPES: { value: FieldType; label: string }[] = [
-  { value: "text", label: "文字" },
-  { value: "number", label: "數字" },
-  { value: "checkbox", label: "核取方塊" },
-  { value: "date", label: "日期" },
-  { value: "select", label: "單選" },
-  { value: "multi_select", label: "多選" },
-  { value: "url", label: "URL" },
-  { value: "email", label: "電子郵件" },
-];
-
-function AddFieldDialog({
-  open,
-  onOpenChange,
-  onAdd,
-  isPending,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  onAdd: (name: string, type: FieldType, required: boolean) => void;
-  isPending: boolean;
-}) {
-  const [name, setName] = useState("");
-  const [type, setType] = useState<FieldType>("text");
-  const [required, setRequired] = useState(false);
-
-  function reset() {
-    setName(""); setType("text"); setRequired(false);
-  }
-
-  function handleOpenChange(v: boolean) {
-    if (!v) reset();
-    onOpenChange(v);
-  }
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) return;
-    onAdd(name.trim(), type, required);
-    reset();
-    onOpenChange(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
-        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-1.5">
-            <Label htmlFor="field-name">名稱 *</Label>
-            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
-          </div>
-          <div className="space-y-1.5">
-            <Label>類型</Label>
-            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {FIELD_TYPES.map((ft) => (
-                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <input
-              id="field-required"
-              type="checkbox"
-              checked={required}
-              onChange={(e) => setRequired(e.target.checked)}
-              className="h-4 w-4"
-            />
-            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
-          </div>
-        </form>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
-          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-export default function DatabaseDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const databaseId = params.databaseId as string;
-
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [database, setDatabase] = useState<Database | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery">("table");
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!accountId || !databaseId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const db = await getDatabase(accountId, databaseId);
-      setDatabase(db);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  function handleAddField(name: string, type: FieldType, required: boolean) {
-    startTransition(async () => {
-      await addDatabaseField({
-        databaseId,
-        accountId,
-        field: { name, type, config: {}, required },
-      });
-      await load();
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveDatabase(accountId, databaseId);
-      router.push("/knowledge-database/databases");
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!database) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Top bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
-        </Button>
-      </div>
-
-      {/* Page header */}
-      <header className="space-y-1 border-b border-border/60 pb-4">
-        <div className="flex items-center gap-2">
-          {database.icon && <span className="text-xl">{database.icon}</span>}
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
-        </div>
-        {database.description && (
-          <p className="text-sm text-muted-foreground">{database.description}</p>
-        )}
-        <p className="text-xs text-muted-foreground/70">
-          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
-        </p>
-      </header>
-
-      {/* View switcher + actions */}
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center rounded-md border border-border/60 p-0.5">
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            title="表格視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Table2 className="h-3 w-3" /> 表格
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("board")}
-            title="看板視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Kanban className="h-3 w-3" /> 看板
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("list")}
-            title="清單視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <List className="h-3 w-3" /> 清單
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("calendar")}
-            title="日曆視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <Calendar className="h-3 w-3" /> 日曆
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("gallery")}
-            title="圖庫視圖"
-            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            <LayoutGrid className="h-3 w-3" /> 圖庫
-          </button>
-        </div>
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)} disabled={isPending}>
-            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
-      </div>
-
-      {/* View */}
-      {viewMode === "table" && (
-        <DatabaseTableView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "board" && (
-        <DatabaseBoardView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "list" && (
-        <DatabaseListView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "calendar" && (
-        <DatabaseCalendarView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-      {viewMode === "gallery" && (
-        <DatabaseGalleryView
-          database={database}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-        />
-      )}
-
-      <AddFieldDialog
-        open={addFieldOpen}
-        onOpenChange={setAddFieldOpen}
-        onAdd={handleAddField}
-        isPending={isPending}
-      />
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/workspaces/page.tsx
 ````typescript
 "use client";
@@ -65240,169 +65472,6 @@ export interface UpdatePageCoverInput {
   readonly pageId: string;
   /** Image URL for the cover. Pass empty string to clear. */
   readonly coverUrl: string;
-}
-````
-
-## File: modules/knowledge/domain/value-objects/block-content.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/value-object
- * Purpose: BlockContent — immutable typed content snapshot for a Block.
- *
- * BlockContent is a VALUE OBJECT: equality is determined by value, not identity.
- *
- * RichTextSpan models inline annotations (Notion-style rich text):
- *   - "text"         — plain text run
- *   - "mention_page" — inline @mention of another KnowledgePage
- *   - "mention_user" — inline @mention of a user (triggers notification)
- *   - "link"         — clickable hyperlink
- *
- * The domain layer keeps this type-only (no Zod) to remain framework-free.
- * Zod schemas live in the application/dto layer.
- */
-
-// ── RichText Annotation Model ─────────────────────────────────────────────────
-
-export type RichTextSpanType = "text" | "mention_page" | "mention_user" | "link";
-
-export interface TextAnnotations {
-  readonly bold?: boolean;
-  readonly italic?: boolean;
-  readonly underline?: boolean;
-  readonly strikethrough?: boolean;
-  readonly code?: boolean;
-  readonly color?: string;
-}
-
-/** Base span — all spans carry optional formatting annotations. */
-interface BaseRichTextSpan {
-  readonly annotations?: TextAnnotations;
-}
-
-export interface TextSpan extends BaseRichTextSpan {
-  readonly type: "text";
-  /** The plain-text content of this run. */
-  readonly plainText: string;
-}
-
-export interface MentionPageSpan extends BaseRichTextSpan {
-  readonly type: "mention_page";
-  /** ID of the referenced KnowledgePage. */
-  readonly pageId: string;
-  /** Display label (usually the page title at time of mention). */
-  readonly label: string;
-}
-
-export interface MentionUserSpan extends BaseRichTextSpan {
-  readonly type: "mention_user";
-  /** User ID being mentioned. */
-  readonly userId: string;
-  /** Display name at time of mention. */
-  readonly displayName: string;
-}
-
-export interface LinkSpan extends BaseRichTextSpan {
-  readonly type: "link";
-  readonly url: string;
-  /** Visible link text. */
-  readonly label: string;
-}
-
-export type RichTextSpan =
-  | TextSpan
-  | MentionPageSpan
-  | MentionUserSpan
-  | LinkSpan;
-
-/** Extract all plain text from a rich-text array (for full-text search, previews). */
-export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string {
-  return spans
-    .map((s) => {
-      switch (s.type) {
-        case "text": return s.plainText;
-        case "mention_page": return s.label;
-        case "mention_user": return `@${s.displayName}`;
-        case "link": return s.label;
-      }
-    })
-    .join("");
-}
-
-/** Collect all page IDs mentioned in a rich-text array (used for backlink indexing). */
-export function extractMentionedPageIds(spans: ReadonlyArray<RichTextSpan>): ReadonlyArray<string> {
-  return spans
-    .filter((s): s is MentionPageSpan => s.type === "mention_page")
-    .map((s) => s.pageId);
-}
-
-/** Collect all user IDs mentioned in a rich-text array (used for notification dispatch). */
-export function extractMentionedUserIds(spans: ReadonlyArray<RichTextSpan>): ReadonlyArray<string> {
-  return spans
-    .filter((s): s is MentionUserSpan => s.type === "mention_user")
-    .map((s) => s.userId);
-}
-
-// ── Block types ───────────────────────────────────────────────────────────────
-
-export type BlockType =
-  | "text"
-  | "heading-1"
-  | "heading-2"
-  | "heading-3"
-  | "image"
-  | "code"
-  | "bullet-list"
-  | "numbered-list"
-  | "divider"
-  | "quote"
-  | "callout"
-  | "toggle"
-  | "toc";
-
-export const BLOCK_TYPES = [
-  "text",
-  "heading-1",
-  "heading-2",
-  "heading-3",
-  "image",
-  "code",
-  "bullet-list",
-  "numbered-list",
-  "divider",
-  "quote",
-  "callout",
-  "toggle",
-  "toc",
-] as const satisfies readonly BlockType[];
-
-export interface BlockContent {
-  readonly type: BlockType;
-  /**
-   * Structured inline content — ordered array of rich-text spans.
-   * For non-textual blocks (image, divider) this array is empty.
-   */
-  readonly richText: ReadonlyArray<RichTextSpan>;
-  readonly properties?: Readonly<Record<string, unknown>>;
-}
-
-export function blockContentEquals(a: BlockContent, b: BlockContent): boolean {
-  if (a.type !== b.type) return false;
-  if (JSON.stringify(a.richText) !== JSON.stringify(b.richText)) return false;
-  if (a.properties === undefined && b.properties === undefined) return true;
-  if (a.properties === undefined || b.properties === undefined) return false;
-  const sortedKeys = (obj: Record<string, unknown>): string =>
-    JSON.stringify(obj, Object.keys(obj).sort());
-  return sortedKeys(a.properties) === sortedKeys(b.properties);
-}
-
-export function emptyTextBlockContent(): BlockContent {
-  return { type: "text", richText: [] };
-}
-
-/** Convenience factory for a plain-text block (single TextSpan). */
-export function plainTextBlockContent(text: string, type: BlockType = "text"): BlockContent {
-  return { type, richText: [{ type: "text", plainText: text }] };
 }
 ````
 
@@ -69085,6 +69154,335 @@ export function DashboardSidebar({
 }
 ````
 
+## File: app/(shell)/knowledge-database/databases/[databaseId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, FileText, PlusCircle, Table2, Kanban, List, Calendar, LayoutGrid, Zap } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  DatabaseTableView,
+  DatabaseBoardView,
+  DatabaseListView,
+  DatabaseCalendarView,
+  DatabaseGalleryView,
+  DatabaseAutomationView,
+} from "@/modules/knowledge-database/api";
+import type { Database, FieldType } from "@/modules/knowledge-database/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@ui-shadcn/ui/select";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const FIELD_TYPES: { value: FieldType; label: string }[] = [
+  { value: "text", label: "文字" },
+  { value: "number", label: "數字" },
+  { value: "checkbox", label: "核取方塊" },
+  { value: "date", label: "日期" },
+  { value: "select", label: "單選" },
+  { value: "multi_select", label: "多選" },
+  { value: "url", label: "URL" },
+  { value: "email", label: "電子郵件" },
+];
+
+function AddFieldDialog({
+  open,
+  onOpenChange,
+  onAdd,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  onAdd: (name: string, type: FieldType, required: boolean) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<FieldType>("text");
+  const [required, setRequired] = useState(false);
+
+  function reset() {
+    setName(""); setType("text"); setRequired(false);
+  }
+
+  function handleOpenChange(v: boolean) {
+    if (!v) reset();
+    onOpenChange(v);
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    onAdd(name.trim(), type, required);
+    reset();
+    onOpenChange(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>新增欄位</DialogTitle></DialogHeader>
+        <form id="field-form" className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="field-name">名稱 *</Label>
+            <Input id="field-name" value={name} onChange={(e) => setName(e.target.value)} disabled={isPending} placeholder="欄位名稱" />
+          </div>
+          <div className="space-y-1.5">
+            <Label>類型</Label>
+            <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {FIELD_TYPES.map((ft) => (
+                  <SelectItem key={ft.value} value={ft.value}>{ft.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="field-required"
+              type="checkbox"
+              checked={required}
+              onChange={(e) => setRequired(e.target.checked)}
+              className="h-4 w-4"
+            />
+            <Label htmlFor="field-required" className="cursor-pointer">必填欄位</Label>
+          </div>
+        </form>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="field-form" disabled={isPending || !name.trim()}>新增</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export default function DatabaseDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const databaseId = params.databaseId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [database, setDatabase] = useState<Database | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery" | "automations">("table");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !databaseId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const db = await getDatabase(accountId, databaseId);
+      setDatabase(db);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handleAddField(name: string, type: FieldType, required: boolean) {
+    startTransition(async () => {
+      await addDatabaseField({
+        databaseId,
+        accountId,
+        field: { name, type, config: {}, required },
+      });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveDatabase(accountId, databaseId);
+      router.push("/knowledge-database/databases");
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!database) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到資料庫。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Top bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
+        </Button>
+      </div>
+
+      {/* Page header */}
+      <header className="space-y-1 border-b border-border/60 pb-4">
+        <div className="flex items-center gap-2">
+          {database.icon && <span className="text-xl">{database.icon}</span>}
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">{database.name}</h1>
+        </div>
+        {database.description && (
+          <p className="text-sm text-muted-foreground">{database.description}</p>
+        )}
+        <p className="text-xs text-muted-foreground/70">
+          {database.fields.length} 個欄位 · 更新於 {new Date(database.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="表格視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Table2 className="h-3 w-3" /> 表格
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="看板視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> 看板
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="清單視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 清單
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="日曆視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> 日曆
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="圖庫視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> 圖庫
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("automations")}
+            title="自動化規則"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "automations" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Zap className="h-3 w-3" /> 自動化
+          </button>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)} disabled={isPending}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
+        </div>
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTableView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "board" && (
+        <DatabaseBoardView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "automations" && (
+        <DatabaseAutomationView
+          databaseId={databaseId}
+          accountId={accountId}
+          currentUserId={currentUserId}
+        />
+      )}
+
+      <AddFieldDialog
+        open={addFieldOpen}
+        onOpenChange={setAddFieldOpen}
+        onAdd={handleAddField}
+        isPending={isPending}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/bounded-contexts.md
 ````markdown
 # Modules Bounded Contexts（Canonical Link）
@@ -69177,77 +69575,6 @@ export function DashboardSidebar({
 | 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
 | 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
 | 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
-
-// UI Components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-
-// Form entity types
-export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
-
-// ── FieldComputationService ────────────────────────────────────────────────────
-export type {
-  RelationFieldConfig,
-  RelationValue,
-  FormulaFieldConfig,
-  FormulaResult,
-  RollupFieldConfig,
-  RollupAggregation,
-  RollupResult,
-  ComputedFieldValue,
-} from "../application/services/field-computation.service";
-export {
-  resolveRelationValue,
-  evaluateFormula,
-  computeRollup,
-  resolveComputedFields,
-} from "../application/services/field-computation.service";
 ````
 
 ## File: modules/knowledge-database/README.md
@@ -69584,6 +69911,171 @@ export interface KnowledgeCollectionRepository {
   findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
   listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
   listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
+}
+````
+
+## File: modules/knowledge/domain/value-objects/block-content.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/value-object
+ * Purpose: BlockContent — immutable typed content snapshot for a Block.
+ *
+ * BlockContent is a VALUE OBJECT: equality is determined by value, not identity.
+ *
+ * RichTextSpan models inline annotations (Notion-style rich text):
+ *   - "text"         — plain text run
+ *   - "mention_page" — inline @mention of another KnowledgePage
+ *   - "mention_user" — inline @mention of a user (triggers notification)
+ *   - "link"         — clickable hyperlink
+ *
+ * The domain layer keeps this type-only (no Zod) to remain framework-free.
+ * Zod schemas live in the application/dto layer.
+ */
+
+// ── RichText Annotation Model ─────────────────────────────────────────────────
+
+export type RichTextSpanType = "text" | "mention_page" | "mention_user" | "link";
+
+export interface TextAnnotations {
+  readonly bold?: boolean;
+  readonly italic?: boolean;
+  readonly underline?: boolean;
+  readonly strikethrough?: boolean;
+  readonly code?: boolean;
+  readonly color?: string;
+}
+
+/** Base span — all spans carry optional formatting annotations. */
+interface BaseRichTextSpan {
+  readonly annotations?: TextAnnotations;
+}
+
+export interface TextSpan extends BaseRichTextSpan {
+  readonly type: "text";
+  /** The plain-text content of this run. */
+  readonly plainText: string;
+}
+
+export interface MentionPageSpan extends BaseRichTextSpan {
+  readonly type: "mention_page";
+  /** ID of the referenced KnowledgePage. */
+  readonly pageId: string;
+  /** Display label (usually the page title at time of mention). */
+  readonly label: string;
+}
+
+export interface MentionUserSpan extends BaseRichTextSpan {
+  readonly type: "mention_user";
+  /** User ID being mentioned. */
+  readonly userId: string;
+  /** Display name at time of mention. */
+  readonly displayName: string;
+}
+
+export interface LinkSpan extends BaseRichTextSpan {
+  readonly type: "link";
+  readonly url: string;
+  /** Visible link text. */
+  readonly label: string;
+}
+
+export type RichTextSpan =
+  | TextSpan
+  | MentionPageSpan
+  | MentionUserSpan
+  | LinkSpan;
+
+/** Extract all plain text from a rich-text array (for full-text search, previews). */
+export function richTextToPlainText(spans: ReadonlyArray<RichTextSpan>): string {
+  return spans
+    .map((s) => {
+      switch (s.type) {
+        case "text": return s.plainText;
+        case "mention_page": return s.label;
+        case "mention_user": return `@${s.displayName}`;
+        case "link": return s.label;
+      }
+    })
+    .join("");
+}
+
+/** Collect all page IDs mentioned in a rich-text array (used for backlink indexing). */
+export function extractMentionedPageIds(spans: ReadonlyArray<RichTextSpan>): ReadonlyArray<string> {
+  return spans
+    .filter((s): s is MentionPageSpan => s.type === "mention_page")
+    .map((s) => s.pageId);
+}
+
+/** Collect all user IDs mentioned in a rich-text array (used for notification dispatch). */
+export function extractMentionedUserIds(spans: ReadonlyArray<RichTextSpan>): ReadonlyArray<string> {
+  return spans
+    .filter((s): s is MentionUserSpan => s.type === "mention_user")
+    .map((s) => s.userId);
+}
+
+// ── Block types ───────────────────────────────────────────────────────────────
+
+export type BlockType =
+  | "text"
+  | "heading-1"
+  | "heading-2"
+  | "heading-3"
+  | "image"
+  | "code"
+  | "bullet-list"
+  | "numbered-list"
+  | "divider"
+  | "quote"
+  | "callout"
+  | "toggle"
+  | "toc"
+  | "synced";
+
+export const BLOCK_TYPES = [
+  "text",
+  "heading-1",
+  "heading-2",
+  "heading-3",
+  "image",
+  "code",
+  "bullet-list",
+  "numbered-list",
+  "divider",
+  "quote",
+  "callout",
+  "toggle",
+  "toc",
+  "synced",
+] as const satisfies readonly BlockType[];
+
+export interface BlockContent {
+  readonly type: BlockType;
+  /**
+   * Structured inline content — ordered array of rich-text spans.
+   * For non-textual blocks (image, divider) this array is empty.
+   */
+  readonly richText: ReadonlyArray<RichTextSpan>;
+  readonly properties?: Readonly<Record<string, unknown>>;
+}
+
+export function blockContentEquals(a: BlockContent, b: BlockContent): boolean {
+  if (a.type !== b.type) return false;
+  if (JSON.stringify(a.richText) !== JSON.stringify(b.richText)) return false;
+  if (a.properties === undefined && b.properties === undefined) return true;
+  if (a.properties === undefined || b.properties === undefined) return false;
+  const sortedKeys = (obj: Record<string, unknown>): string =>
+    JSON.stringify(obj, Object.keys(obj).sort());
+  return sortedKeys(a.properties) === sortedKeys(b.properties);
+}
+
+export function emptyTextBlockContent(): BlockContent {
+  return { type: "text", richText: [] };
+}
+
+/** Convenience factory for a plain-text block (single TextSpan). */
+export function plainTextBlockContent(text: string, type: BlockType = "text"): BlockContent {
+  return { type, richText: [{ type: "text", plainText: text }] };
 }
 ````
 
@@ -71214,6 +71706,91 @@ export default function KnowledgePageDetailPage() {
 }
 ````
 
+## File: modules/knowledge-database/api/index.ts
+````typescript
+/**
+ * knowledge-database public API boundary
+ */
+
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
+
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
+
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/knowledge-database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
+
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+
+// Form entity types
+export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
+
+// Automation entity types
+export type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/entities/database-automation.entity";
+
+// UI Components (automation)
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+
+// ── FieldComputationService ────────────────────────────────────────────────────
+export type {
+  RelationFieldConfig,
+  RelationValue,
+  FormulaFieldConfig,
+  FormulaResult,
+  RollupFieldConfig,
+  RollupAggregation,
+  RollupResult,
+  ComputedFieldValue,
+} from "../application/services/field-computation.service";
+export {
+  resolveRelationValue,
+  evaluateFormula,
+  computeRollup,
+  resolveComputedFields,
+} from "../application/services/field-computation.service";
+````
+
 ## File: modules/knowledge/api/knowledge-api.ts
 ````typescript
 /**
@@ -71632,6 +72209,7 @@ const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   "callout": "💡",
   "toggle": "▶",
   "toc": "📋",
+  "synced": "🔗",
 };
 
 const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
@@ -71648,6 +72226,7 @@ const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
   "callout": "標注",
   "toggle": "折疊",
   "toc": "目錄",
+  "synced": "同步區塊",
 };
 
 export function BlockEditorView() {
@@ -72621,6 +73200,16 @@ interface KnowledgePagePromotedEvent {
 | `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
 ````
 
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
+````
+
 ## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
 ````typescript
 "use client";
@@ -72677,6 +73266,7 @@ import {
   AlertCircle,
   ChevronRight,
   TableOfContents,
+  Link2,
 } from "lucide-react";
 
 import { getKnowledgeBlocks } from "../queries/knowledge.queries";
@@ -72764,6 +73354,41 @@ const TableOfContentsNode = Node.create({
   },
 });
 
+/**
+ * SyncedBlock — a reference block whose content mirrors a source block by ID.
+ * In the editor it renders as a styled read-only placeholder.
+ * Full real-time sync would be implemented via a Firestore listener in a
+ * dedicated React component; here the node marks the block as synced so the
+ * editor can render a visual indicator.
+ */
+const SyncedBlock = Node.create({
+  name: "syncedBlock",
+  group: "block",
+  content: "block*",
+  defining: true,
+
+  addAttributes() {
+    return {
+      sourceBlockId: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='synced-block']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "synced-block",
+        class: "synced-block",
+      }),
+      0,
+    ];
+  },
+});
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DEBOUNCE_MS = 800;
@@ -72814,6 +73439,7 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
       CalloutBlock,
       ToggleBlock,
       TableOfContentsNode,
+      SyncedBlock,
     ],
     editable: true,
     immediatelyRender: false,
@@ -73138,6 +73764,13 @@ function EditorToolbar({ editor }: { editor: Editor }) {
         >
           <TableOfContents className="size-3.5" />
         </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().insertContent({ type: "syncedBlock" }).run()}
+          active={editor.isActive("syncedBlock")}
+          title="同步區塊 (Synced Block)"
+        >
+          <Link2 className="size-3.5" />
+        </ToolbarButton>
       </ToolbarGroup>
     </div>
   );
@@ -73198,14 +73831,4 @@ function escapeHtml(str: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````

@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-982 files | 69,282 lines
+985 files | 69,893 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 417 | 25,385 |
+| TypeScript | 418 | 25,489 |
 | Markdown | 297 | 13,089 |
-| TypeScript (TSX) | 140 | 24,441 |
+| TypeScript (TSX) | 142 | 24,948 |
 | No Extension | 52 | 136 |
 | Python | 49 | 3,532 |
 | MERMAID | 10 | 583 |
@@ -62,6 +62,6 @@ This skill contains the following reference files:
 - `app/(shell)/dev-tools/page.tsx` (872 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `modules/search/interfaces/components/RagView.tsx` (659 lines)
+- `modules/knowledge/interfaces/components/RichTextEditor.tsx` (619 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (611 lines)
-- `modules/knowledge/interfaces/components/RichTextEditor.tsx` (575 lines)
 - `app/(shell)/_components/app-rail.tsx` (569 lines)
