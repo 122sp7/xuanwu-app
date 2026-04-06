@@ -43,7 +43,7 @@ interface KnowledgePageApprovedEvent {
 }
 ```
 
-## Wiki/Knowledge Base 驗證事件
+## Knowledge Collection 驗證事件
 
 ```typescript
 interface KnowledgePageVerifiedEvent {
@@ -99,6 +99,5 @@ interface KnowledgePagePromotedEvent {
 | 消費 BC | 事件 | 行動 |
 |---------|------|------|
 | `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
 | `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
 | `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |

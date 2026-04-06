@@ -15,7 +15,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx}'
 
 ## 術語定義（權威來源）
 
-完整術語入口請查閱：**[`.github/terminology-glossary.md`](../terminology-glossary.md)**，並依實際 bounded context 查閱對應的 `docs/ddd/<context>/ubiquitous-language.md`。
+完整術語入口請查閱：**[`.github/terminology-glossary.md`](../terminology-glossary.md)**，並依實際 bounded context 查閱對應的 `modules/<context>/ubiquitous-language.md`。
 
 > 此處不複製術語表。遇到不確定的術語，必須查閱上述文件。
 

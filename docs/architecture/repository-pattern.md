@@ -102,7 +102,7 @@ interface ContentVersionRepository {
 
 ---
 
-### `asset`
+### `source`
 
 | 介面 | 方法 | 說明 |
 |------|------|------|
@@ -112,21 +112,9 @@ interface ContentVersionRepository {
 
 ---
 
-### `knowledge-graph`
+### `search`（結構關聯能力備註）
 
-```typescript
-// modules/wiki/domain/repositories/GraphRepository.ts
-
-interface GraphRepository {
-  upsertNode(node: GraphNode): Promise<void>;
-  addLink(link: Link): Promise<void>;
-  findLinksBySourceId(sourceId: string): Promise<Link[]>;
-  findLinksByTargetId(targetId: string): Promise<Link[]>;   // Backlinks
-  findLinksByType(type: LinkType): Promise<Link[]>;
-  listNodes(): Promise<GraphNode[]>;
-  listLinks(): Promise<Link[]>;
-}
-```
+目前沒有獨立的 `knowledge-graph` repository layer。若未來需要圖遍歷、backlink 或結構關聯 repository，應先決定其 owner 是 `search`、`knowledge` 或新的 supporting subdomain，而不是直接恢復 `modules/wiki` 路徑。
 
 ---
 
@@ -138,7 +126,7 @@ interface GraphRepository {
 
 ---
 
-### `retrieval`
+### `search`
 
 ```typescript
 // modules/search/domain/repositories/RagRetrievalRepository.ts
@@ -197,7 +185,7 @@ interface IEventBusRepository {
 
 Port 是比 Repository 更廣義的 domain 抽象埠，用於跨切關注點（non-domain 依賴）：
 
-### `asset` 模組 Ports
+### `source` 模組 Ports
 
 ```typescript
 // modules/source/domain/ports/ActorContextPort.ts
@@ -219,7 +207,7 @@ interface OrganizationPolicyPort {
 }
 ```
 
-### `retrieval` 模組 Ports
+### `search` 模組 Ports
 
 ```typescript
 // modules/search/domain/ports/vector-store.ts
@@ -267,33 +255,33 @@ interface IVectorStore {
 
 ## Repository 與 Event Store 的關係
 
-在 `content.page_approved` 事件驅動整合中，Repository 與 Event Store 的協作遵循以下規則：
+在 `knowledge.page_approved` 事件驅動整合中，Repository 與 Event Store 的協作遵循以下規則：
 
 ### 寫入順序規則
 
 ```text
-content 側（ApproveContentPageUseCase）:
+knowledge 側（ApproveKnowledgePageUseCase）:
   1. ContentPageRepository.update(pageId, { status: "approved" })   ← 先寫聚合狀態
   2. IEventStoreRepository.save(ContentPageApprovedEvent)            ← 再持久化事件
   3. IEventBusRepository.publish(event)                              ← 最後非同步派發
 
 workspace-flow 側（contentToWorkflowMaterializer）:
-  1. 消費 content.page_approved 事件
+  1. 消費 knowledge.page_approved 事件
   2. TaskRepository.save(task with sourceReference)                  ← 由事件派生建立 Task
   3. InvoiceRepository.save(invoice with sourceReference)            ← 由事件派生建立 Invoice
 ```
 
-**重要：** content repository 先寫入 ContentPage 聚合狀態，workspace-flow repository 由事件驅動建立 Task/Invoice；兩側均不允許直接讀取對方的 repository。
+**重要：** knowledge repository 先寫入 KnowledgePage 聚合狀態，workspace-flow repository 由事件驅動建立 Task/Invoice；兩側均不允許直接讀取對方的 repository。
 
 ### Event Store Metadata 規範
 
-`IEventStoreRepository.save()` 的 `EventRecord` 在 content ↔ workspace-flow 整合中必須包含完整的因果與關聯元資料：
+`IEventStoreRepository.save()` 的 `EventRecord` 在 knowledge ↔ workspace-flow 整合中必須包含完整的因果與關聯元資料：
 
 ```typescript
 // 呼叫 PublishDomainEventUseCase 時的 metadata 範例
 await publishEvent.execute({
-  eventName: "content.page_approved",
-  aggregateType: "ContentPage",
+  eventName: "knowledge.page_approved",
+  aggregateType: "KnowledgePage",
   aggregateId: pageId,
   payload: {
     pageId,

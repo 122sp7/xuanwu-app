@@ -25,11 +25,6 @@ knowledge ─── knowledge.page_approved ───► workspace-flow
                                           (ContentToWorkflowMaterializer)
 ```
 
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
-
 ### knowledge → ai（Customer/Supplier）
 
 - `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
@@ -66,7 +61,6 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 | identity → knowledge | identity | knowledge | Customer/Supplier |
 | workspace → knowledge | workspace | knowledge | Customer/Supplier |
 | knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
 | knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
 | knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
 | knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |

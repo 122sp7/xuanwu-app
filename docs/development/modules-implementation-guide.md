@@ -9,19 +9,15 @@
 
 ## 1. 與概念架構文件的對位關係
 
-上位概念架構文件定義三層融合：
+上位概念架構文件描述的是產品能力如何融合，而不是舊模組拓樸的直接投影。
 
-1. Content / UI Layer
-2. Knowledge Graph Layer
-3. AI / RAG Layer
-
-在本專案中的實作對位：
+在目前 repository 中，較穩定的對位方式如下：
 
 | 概念層（Architecture） | 主要承載位置（Implementation） | 說明 |
 | --- | --- | --- |
-| Content / UI Layer | `app/` + `modules/*/interfaces` | App Router、頁面組裝、互動入口 |
-| Knowledge Graph Layer | `modules/knowledge`, `modules/wiki`, `modules/search` | 知識節點、連結、索引、檢索 |
-| AI Layer | `modules/notebook` + `modules/search` + `py_fn/` | Orchestration、RAG query、向量處理與背景作業 |
+| Knowledge Experience Layer | `app/` + `modules/knowledge` + `modules/knowledge-base` + `modules/knowledge-database` + `modules/source` | 頁面、文章、資料庫、來源與工作區中的知識入口 |
+| Governance / Collaboration Layer | `modules/workspace`, `modules/organization`, `modules/account`, `modules/workspace-*`, `modules/notification` | 租戶、工作區、流程、排程、稽核與協作治理 |
+| Retrieval / Notebook Layer | `modules/ai` + `modules/search` + `modules/notebook` + `py_fn/` | ingestion、retrieval、ask/cite、摘要與知識生成工作流 |
 
 > 原則：概念融合不代表模組耦合。融合在「體驗層」，隔離在「模組邊界」。
 
@@ -150,7 +146,7 @@ modules/*
 因此本文件只保留與概念模型一致的落地限制：
 
 1. Notion 對應的是內容編輯與資料庫體驗，不等於整個知識域或單一模組。
-2. Wiki 對應的是 Page 與 Link 所形成的知識關聯視角，不等於所有內容都應集中在同一模組。
+2. Wiki-like 體驗在目前系統中分散於 `knowledge`、`knowledge-base`、`workspace` 與 `search` 等 bounded context，不應再回推成單一 `modules/wiki` owner。
 3. NotebookLM 對應的是文件理解、檢索、問答與推理能力，不等於所有 AI 邏輯都可以脫離既有 runtime boundary。
 4. 三層融合描述的是產品體驗，不直接推導出固定的模組數量、模組命名或跨模組 ownership。
 
@@ -158,7 +154,7 @@ modules/*
 
 若要把三層模型落到實際模組，至少先確認：
 
-1. 需求是在補強 Content / UI、Knowledge Graph、還是 AI / RAG 哪一層。
+1. 需求是在補強 Knowledge Experience、Governance / Collaboration、還是 Retrieval / Notebook 哪一層。
 2. 新能力的 owner 是否已存在於目前 module inventory；若不存在，再依 MDDD 原則判斷是否需要新 bounded context。
 3. 跨模組互動是否只經過目標模組的 `api/` 邊界。
 4. UI 組裝、知識關聯、AI orchestration 是否仍維持 `interfaces -> application -> domain <- infrastructure`。

@@ -12,7 +12,7 @@
 | RAG 答案輸出 | AnswerRagQueryOutput | 包含生成答案文字與引用列表的輸出 |
 | 查詢反饋 | RagQueryFeedback | 使用者對 RAG 答案品質的評分記錄 |
 | 向量存儲 | VectorStore | 向量資料庫的 Hexagonal Port（IVectorStore 介面） |
-| Wiki 引用 | WikiCitation | Wiki 整合 RAG 的引用格式（含 pageId、pageTitle） |
+| Wiki 引用 | WikiCitation | 歷史命名的知識引用格式；目前承載知識頁面或文章的引用資訊（含 pageId、pageTitle） |
 | 向量文件 | VectorDocument | 要索引至向量資料庫的文件記錄 |
 
 ## 禁止替換術語

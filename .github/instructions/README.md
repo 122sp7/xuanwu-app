@@ -58,4 +58,4 @@ Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral
 
 - [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
 - [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
-- `../../docs/ddd/<context>/*.md` for bounded-context details
+- `../../modules/<context>/*.md` for bounded-context details

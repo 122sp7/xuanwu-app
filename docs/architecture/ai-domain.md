@@ -1,6 +1,6 @@
 # AI Domain（Genkit Flow）
 
-本文件說明 Xuanwu App 的 AI 領域設計，包含 Genkit 整合架構、RAG（Retrieval-Augmented Generation）管線，以及 `retrieval` 與 `agent` 兩個有界上下文的職責分工。
+本文件說明 Xuanwu App 的 AI 領域設計，包含 Genkit 整合架構、RAG（Retrieval-Augmented Generation）管線，以及 `search`、`notebook`、`ai` 三個相關 bounded context 的職責分工。
 
 > **相關文件：** [`domain-model.md`](./domain-model.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`use-cases.md`](./use-cases.md)
 
@@ -13,11 +13,11 @@
       │
       ▼
 [Next.js Server Action]
-  agent.actions.ts / retrieval.actions.ts
+  notebook.actions.ts / search.actions.ts
       │
       ▼
 ┌─────────────────────────────────────────────┐
-│  retrieval 模組 (RAG 核心)                   │
+│  search 模組 (RAG 核心)                      │
 │                                               │
 │  AnswerRagQueryUseCase.execute()              │
 │  ┌─────────────────────────────────────────┐ │
@@ -32,8 +32,8 @@
 └─────────────────────────────────────────────┘
       │
       ▼
-[agent 模組]（可選：對話增強層）
-  GenerateAgentResponseUseCase.execute()
+[notebook 模組]（可選：對話與研究增強層）
+  Ask/Cite / Summary / Generation orchestration
       │ agentClient.generate()
       ▼
   Genkit + Gemini 2.5 Flash
@@ -43,7 +43,7 @@
 
 ## 有界上下文職責分工
 
-### `retrieval` — RAG 核心上下文
+### `search` — RAG 核心上下文
 
 **職責：** Vector Search → Chunk Ranking → Answer Generation + Citations
 
@@ -90,14 +90,14 @@ citations = chunks.map(chunk => ({
 
 ---
 
-### `agent` — AI 代理上下文
+### `notebook` — AI 研究與對話上下文
 
 **職責：** 對話式 AI 代理的 Thread、Message 管理，以及自由形式的 Genkit 流程編排
 
 | 元素 | 說明 |
 |------|------|
 | `GenerateAgentResponseUseCase` | 對話生成（無 RAG 上下文） |
-| `AnswerRagQueryUseCase` | RAG 增強的代理查詢（委派至 retrieval/api） |
+| `AnswerRagQueryUseCase` | RAG 增強的筆記本查詢（委派至 `search/api`） |
 | `AgentRepository` | 代理生成介面 |
 | `GenkitNotebookRepository` | Genkit 實作：自由對話生成 |
 | `Thread` / `Message` | 對話歷程實體 |

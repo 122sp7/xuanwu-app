@@ -1,68 +1,55 @@
 # Getting Started
 
+This guide gets a contributor from clone to a working local Xuanwu environment.
+
 ## Prerequisites
 
-Install [Beads](https://github.com/steveyegge/beads) — the issue tracker that coordinates swarm workers:
+- Node.js 24
+- npm
+- Python environment compatible with `py_fn/requirements.txt` if you need to run worker validation
+
+## Install Dependencies
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash
+npm install
 ```
 
-## Install
+## Start the App
 
 ```bash
-cd your-project
-curl -sSL https://raw.githubusercontent.com/dralgorhythm/claude-agentic-framework/main/scripts/init-framework.sh | bash -s .
+npm run dev
 ```
 
-The script copies the framework files, installs hook dependencies, initializes Beads, and prompts before overwriting anything.
+The default development surface is the Next.js app. The authenticated shell is workspace-first and routes users into knowledge, source, knowledge-base, knowledge-database, and notebook workflows.
 
-## Manual Install
+## Validate the Repository
+
+Run the web validation commands:
 
 ```bash
-git clone https://github.com/dralgorhythm/claude-agentic-framework.git
-cp -r claude-agentic-framework/.claude your-project/
-mkdir -p your-project/.vscode
-cp claude-agentic-framework/.vscode/mcp.json your-project/.vscode/
-cp claude-agentic-framework/CLAUDE.md your-project/
-cp claude-agentic-framework/AGENTS.md your-project/
-mkdir -p your-project/artifacts
-cd your-project/.claude/hooks && npm install
-cd your-project && bd init
+npm run lint
+npm run build
 ```
 
-## What Gets Installed
-
-```
-.claude/         Commands, skills, rules, hooks, agents, templates
-.vscode/mcp.json MCP server configuration
-.beads/          Issue tracking database (coordinates swarm workers)
-artifacts/       Where generated docs go (empty at first)
-CLAUDE.md        Project context — customize this
-AGENTS.md        Agent instructions for session completion
-```
-
-## Verify It Works
+Run the Python worker checks when your change touches `py_fn/` or ingestion-related contracts:
 
 ```bash
-claude
+cd py_fn
+python -m compileall -q .
+python -m pytest tests/ -v
 ```
 
-Then try:
-```
-/architect hello
-```
+## Read the Right Docs First
 
-You should see Claude adopt the Architect command.
+1. [../README.md](../README.md) for product and architecture summary
+2. [ddd/subdomains.md](./ddd/subdomains.md) for strategic domain classification
+3. [ddd/bounded-contexts.md](./ddd/bounded-contexts.md) for the current bounded-context inventory
+4. [architecture/README.md](./architecture/README.md) for cross-context architecture reading paths
+5. [development/README.md](./development/README.md) for repository-local implementation guidance
 
-## Next Steps
+## Internal AI Delivery Docs
 
-1. **Edit CLAUDE.md** — Add your build commands (`npm test`, etc.)
-2. **Edit `.claude/rules/tech-strategy.md`** — Configure your tech stack
-3. **Try the workflow** — `/architect my-feature` then `/builder` then `/swarm-review`
-4. **Check artifacts/** — Your ADRs and design docs appear here
-
-See [beads.md](beads.md) for Beads usage and team setup.
+Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization.md](./customization.md) document the repository's internal AI delivery workflow. They are useful for maintainers, but they are not the product entrypoint for understanding Xuanwu itself.
 
 ---
 

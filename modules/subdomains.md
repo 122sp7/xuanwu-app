@@ -4,3 +4,4 @@
 
 - ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
 - 若需調整子域分類內容，請只編輯 canonical 檔案。
+- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。

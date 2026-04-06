@@ -21,7 +21,7 @@
 ## 與其他 Bounded Context 協作
 
 - `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `wiki` 把知識內容轉成結構化圖譜；`workspace-flow` 以審批事件物化任務與發票。
+- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
 - `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
 
 ## 核心聚合 / 核心概念

@@ -19,7 +19,7 @@
 ## 與其他 Bounded Context 協作
 
 - `organization` 是主要上游，提供多租戶歸屬。
-- `knowledge`、`wiki`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
+- `knowledge`、`knowledge-base`、`source` 與所有 `workspace-*` 模組都依賴工作區作為協作邊界。
 
 ## 核心聚合 / 核心概念
 

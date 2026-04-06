@@ -6,19 +6,19 @@
 
 ## 文件索引
 
-### 核心 DDD 參考（Canonical 在 `docs/ddd/`）
+### 核心 DDD 參考
 
 | 文件 | 說明 |
 |------|------|
-| [`bounded-contexts.md`](./bounded-contexts.md) | Canonical Link（主內容在 `docs/ddd/bounded-contexts.md`） |
 | [`../ddd/subdomains.md`](../ddd/subdomains.md) | 子域分類（Canonical） |
 | [`../ddd/bounded-contexts.md`](../ddd/bounded-contexts.md) | 有界上下文地圖（Canonical） |
+| `../../modules/<context>/*.md` | bounded-context 詳細文件（通用語言、聚合、事件、儲存庫、使用案例） |
 
 ### 架構設計
 
 | 文件 | 說明 |
 |------|------|
-| [`context-map.md`](./context-map.md) | 上下文關係圖：16 個上下文的互動關係與 DDD 關係模式 |
+| [`context-map.md`](./context-map.md) | 上下文關係圖：跨 bounded context 的互動關係與 DDD 關係模式 |
 | [`infrastructure-strategy.md`](./infrastructure-strategy.md) | 基礎設施策略：技術棧、Runtime 邊界、Firestore Schema、攝入管線 |
 | [`read-model.md`](./read-model.md) | 讀模型 / CQRS：Query 函式目錄、即時訂閱模式、讀寫分離設計 |
 | [`ai-domain.md`](./ai-domain.md) | AI Domain（Genkit Flow）：RAG 管線、Genkit 整合、串流事件設計 |
@@ -37,7 +37,7 @@
 
 ```
 新成員入門:
-  bounded-contexts.md → ubiquitous-language.md → context-map.md
+  ../ddd/bounded-contexts.md → ../../modules/<context>/ubiquitous-language.md → context-map.md
 
 實作指引:
   domain-model.md → use-cases.md → repository-pattern.md

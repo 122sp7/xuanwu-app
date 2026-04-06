@@ -10,6 +10,7 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 
 ## Purpose
 
+- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
 - Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
 - Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
 - Prefer references to canonical docs over repeated policy text.
@@ -27,21 +28,21 @@ Read these in order before making non-trivial decisions:
 
 ## DDD Reference Authority
 
-DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the matching bounded-context reference set.
+DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
 
 | Query | Canonical Document |
 |-------|-------------------|
 | Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
 | Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
-| Context terminology | `docs/ddd/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `docs/ddd/<context>/aggregates.md` |
-| Context domain events | `docs/ddd/<context>/domain-events.md` |
-| Context map | `docs/ddd/<context>/context-map.md` |
-| Context repositories | `docs/ddd/<context>/repositories.md` |
-| Context application services | `docs/ddd/<context>/application-services.md` |
-| Context domain services | `docs/ddd/<context>/domain-services.md` |
+| Context terminology | `modules/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
+| Context domain events | `modules/<context>/domain-events.md` |
+| Context map | `modules/<context>/context-map.md` |
+| Context repositories | `modules/<context>/repositories.md` |
+| Context application services | `modules/<context>/application-services.md` |
+| Context domain services | `modules/<context>/domain-services.md` |
 
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains the repository's DDD knowledge set. Link instead of copying.
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
 
 ## Workspace-Wide Operating Rules
 

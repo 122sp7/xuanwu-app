@@ -11,13 +11,13 @@
 - `domain/repositories/RagGenerationRepository.ts`
 - `domain/repositories/RagQueryFeedbackRepository.ts`
 - `domain/repositories/RagRetrievalRepository.ts`
-- `domain/repositories/WikiContentRepository.ts`
+- `domain/repositories/WikiContentRepository.ts`（歷史命名；目前承載知識內容查詢 port）
 
 ## Infrastructure Implementations
 
 - `infrastructure/firebase/FirebaseRagQueryFeedbackRepository.ts`
 - `infrastructure/firebase/FirebaseRagRetrievalRepository.ts`
-- `infrastructure/firebase/FirebaseWikiContentRepository.ts`
+- `infrastructure/firebase/FirebaseWikiContentRepository.ts`（歷史命名；目前對應知識內容讀取實作）
 - `infrastructure/genkit/GenkitRagGenerationRepository.ts`
 - `infrastructure/genkit/client.ts`
 
@@ -30,4 +30,4 @@
 ## 模組內對應文件
 
 - `../../../modules/search/repositories.md`
-- `../../../docs/ddd/search/aggregates.md`
+- `../../../modules/search/aggregates.md`

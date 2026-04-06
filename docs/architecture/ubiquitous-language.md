@@ -67,12 +67,12 @@
 
 ### 發佈語言合約（Published Language Contracts）
 
-> **設計說明：** 下列事件雖然邏輯上屬於 `content` 模組，但因為它們是**多個下游模組共同訂閱的整合契約**（Published Language），故依 DDD 實踐定義在 `shared` 模組中，作為穩定的跨模組通訊介面。事件的**發佈者**是 `content`，**消費者**是 `knowledge-graph`（auto-link）和 `knowledge`（向量重新索引）。
+> **設計說明：** 下列事件代表跨 bounded context 的穩定整合契約。當前應以 `knowledge`、`ai`、`search`、`workspace-flow` 等 current owners 理解，不再把已移除的 `content` / `knowledge-graph` 拓樸視為現況。
 
 | 術語 | 英文 | 定義 | 發佈者 | 消費者 | 代碼位置 |
 |------|------|------|--------|--------|---------|
-| **頁面建立事件（整合契約）** | ContentPageCreatedEvent | 新頁面建立時由 content 發佈，下游模組用於 auto-link 觸發和圖節點注冊 | `content` | `knowledge-graph` | `modules/shared/domain/events/content-page-created.event.ts` |
-| **內容更新事件（整合契約）** | ContentUpdatedEvent | 區塊內容變更時由 content 發佈（type: `content.block-updated`），下游用於向量重新索引和連結提取 | `content` | `knowledge`, `knowledge-graph` | `modules/shared/domain/events/content-updated.event.ts` |
+| **頁面建立事件（整合契約）** | KnowledgePageCreatedEvent | 新頁面建立時由 `knowledge` 發佈，供後續知識流轉與 article promote 協議使用 | `knowledge` | `knowledge-base` / local read models | `modules/knowledge/domain-events.md` |
+| **內容更新事件（整合契約）** | KnowledgeBlockUpdatedEvent | 區塊內容變更時由 `knowledge` 發佈，供 ingestion / retrieval 重整使用 | `knowledge` | `ai`, `search` | `modules/knowledge/domain-events.md` |
 
 ---
 
@@ -107,18 +107,16 @@
 
 ---
 
-## 三、知識圖譜層（Knowledge Graph Layer）
+## 三、知識結構與歷史圖譜術語
 
 | 術語 | 英文 | 定義 | 所在模組 | 代碼位置 |
 |------|------|------|---------|---------|
-| **知識圖節點** | GraphNode | 知識圖中的頂點，id 通常等於 PageId | `knowledge-graph` | `modules/wiki/domain/entities/graph-node.ts` |
-| **節點類型** | GraphNodeType | `"page" \| "tag" \| "attachment"` | `knowledge-graph` | `graph-node.ts` |
-| **知識圖邊** | Link | 兩個節點之間的有向關係（sourceId → targetId） | `knowledge-graph` | `modules/wiki/domain/entities/link.ts` |
-| **連結類型** | LinkType | `"explicit"（手動）\| "implicit"（AI 推斷）\| "hierarchy"（父子層級）` | `knowledge-graph` | `link.ts` |
-| **反向連結** | Backlink | 所有指向特定 targetId 的 Link 集合（入度查詢） | `knowledge-graph` | `GraphRepository` |
-| **自動連結** | Auto-link | 由 LinkExtractor 分析頁面內容自動建立的隱式 Link（計畫中） | `knowledge-graph` | `link-extractor.service.ts`（service 存在，觸發管道待建） |
-| **圖譜遍歷** | Graph Traversal | BFS / DFS 走訪知識圖的節點集合（聯通性分析） | `knowledge-graph` | `InMemoryGraphRepository` |
-| **視圖配置** | ViewConfig | 知識圖視覺化的佈局與過濾器設定 | `knowledge-graph` | `modules/wiki/domain/entities/view-config.ts` |
+| **知識結構節點** | GraphNode | 歷史圖譜命名；如需恢復圖遍歷/節點語意，必須先重新定義 owner | historical | historical migration context |
+| **知識結構邊** | Link | 歷史圖譜命名；目前不應再指向 `modules/wiki` 作為現行實作 | historical | historical migration context |
+| **反向連結** | Backlink | 指向某節點的引用集合；目前應由 `search` / `knowledge` 能力重新定義 | historical | concept only |
+| **自動連結** | Auto-link | 從內容推得結構關聯的能力；目前屬未重新落位的未來能力 | future | concept only |
+| **圖譜遍歷** | Graph Traversal | BFS / DFS 類知識結構遍歷；目前非獨立 bounded context | future | concept only |
+| **視圖配置** | ViewConfig | 結構視覺化配置；目前非 canonical owner 術語 | future | concept only |
 
 ---
 
@@ -169,18 +167,18 @@
 | **發票** | Invoice | 工作計費文件，含 InvoiceItems；有審批狀態機 | `workspace-flow` | `modules/workspace-flow/domain/entities/Invoice.ts` |
 | **發票項目** | InvoiceItem | 發票中的單項費用（description、amount） | `workspace-flow` | `modules/workspace-flow/domain/entities/InvoiceItem.ts` |
 | **發票狀態** | InvoiceStatus | Invoice 的審批流程狀態機 | `workspace-flow` | `InvoiceStatus.ts` |
-| **實體化任務** | MaterializedTask | 由 `content.page_approved` 事件派生建立的 Task，帶有 `sourceReference` 指回原始 ContentPage | `workspace-flow` | `modules/workspace-flow/domain/entities/Task.ts`（計畫中欄位） |
+| **實體化任務** | MaterializedTask | 由 `knowledge.page_approved` 事件派生建立的 Task，帶有 `sourceReference` 指回原始 KnowledgePage | `workspace-flow` | `modules/workspace-flow/domain/entities/Task.ts` |
 | **來源參照** | sourceReference | 記錄業務實體（Task/Invoice）由哪個 ContentPage 派生而來的值物件（type, id, causationId, correlationId） | `workspace-flow` | `modules/workspace-flow/domain/value-objects/SourceReference.ts`（計畫中） |
 
 ### content ↔ workspace-flow 整合術語
 
 | 術語 | 英文 | 定義 | 所在模組 |
 |------|------|------|---------|
-| **頁面核准事件** | ContentPageApproved | `content.page_approved` 領域事件；使用者在審閱 AI 草稿後核准頁面時觸發；攜帶 `extractedTasks[]`、`extractedInvoices[]`、`actorId`、`causationId`、`correlationId` | `content` |
+| **頁面核准事件** | KnowledgePageApproved | `knowledge.page_approved` 領域事件；使用者在審閱 AI 草稿後核准頁面時觸發；攜帶 `extractedTasks[]`、`extractedInvoices[]`、`actorId`、`causationId`、`correlationId` | `knowledge` |
 | **因果 ID** | causationId | 記錄「哪個命令觸發了此事件」的 UUID；用於 Event Store 追蹤與稽核回溯；`ApproveContentPageUseCase` 執行時生成 | `shared`（EventMetadata） |
 | **關聯 ID** | correlationId | 記錄「整個業務流程（合約攝入 → 審閱 → 核准 → 任務建立）」的追蹤 UUID；在合約上傳時生成並一路傳遞 | `shared`（EventMetadata） |
-| **緩衝區** | Buffer Zone | `content` 模組在 AI 攝入與業務實體化之間扮演的「草稿暫存與人工審閱」角色；AI 解析結果先寫入此區，人工確認後再派生 `workspace-flow` 實體 | `content` |
-| **物化流程管理器** | contentToWorkflowMaterializer | 訂閱 `content.page_approved`、協調 `CreateTaskUseCase` / `CreateInvoiceUseCase` 的 Process Manager；位於 `workspace-flow/application/process-managers/`（計畫中） | `workspace-flow` |
+| **緩衝區** | Buffer Zone | `knowledge` 模組在 AI 攝入與業務實體化之間扮演的「草稿暫存與人工審閱」角色；AI 解析結果先寫入此區，人工確認後再派生 `workspace-flow` 實體 | `knowledge` |
+| **物化流程管理器** | ContentToWorkflowMaterializer | 歷史命名的 process manager；目前語意為訂閱 `knowledge.page_approved` 並協調 `workspace-flow` 的 task / invoice materialization | `workspace-flow` |
 
 ### 排程
 

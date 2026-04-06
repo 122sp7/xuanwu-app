@@ -1,10 +1,10 @@
 # 領域事件（Domain Events）
 
-<!-- change: Complete content.page_approved definition with actorId/causationId/correlationId fields and process flow; PR-NUM -->
+<!-- change: Refresh cross-context domain events to current topology; PR-NUM -->
 
-本文件記錄 Xuanwu App 各有界上下文中已定義的所有領域事件（Domain Events）。
+本文件記錄 Xuanwu App 在架構層最重要的跨上下文領域事件。各 bounded context 的完整事件集仍以 `modules/<context>/domain-events.md` 為準。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`bounded-contexts.md`](./bounded-contexts.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`../ddd/bounded-contexts.md`](../ddd/bounded-contexts.md) · [`module-boundary.md`](./module-boundary.md)
 
 ---
 
@@ -31,31 +31,28 @@ interface SomethingHappenedEvent {
 
 ---
 
-## `content` 模組事件
+## `knowledge` 模組事件
 
-**代碼位置：** `modules/knowledge/domain/events/content.events.ts`
+**代碼位置：** `modules/knowledge/domain-events.md`
 
-| 事件類型 | 觸發時機 | 關鍵欄位 |
-|---------|---------|---------|
-| `content.page_created` | 頁面建立 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId` |
-| `content.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle` |
-| `content.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId` |
-| `content.page_archived` | 頁面歸檔 | `pageId`, `accountId` |
-| `content.page_approved` | 使用者核准 AI 生成的草稿頁面/資料庫 | `pageId`, `extractedTasks[]`, `extractedInvoices[]`, `actorId`, `causationId`, `correlationId` |
-| `content.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText` |
-| `content.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText` |
-| `content.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId` |
-| `content.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId` |
+| 事件類型 | 觸發時機 | 關鍵欄位 | 主要消費者 |
+|---------|---------|---------|-----------|
+| `knowledge.page_created` | 頁面建立 | `pageId`, `workspaceId`, `title`, `actorId` | `knowledge-base`（promote 協議）、本地 read models |
+| `knowledge.block_updated` | 區塊內容更新 | `pageId`, `blockId`, `contentText` | `ai` / `search` 攝入重整流程 |
+| `knowledge.version_published` | 版本快照發佈 | `versionId`, `pageId`, `label`, `actorId` | 協作與審閱流程 |
+| `knowledge.page_approved` | 使用者核准草稿頁面 | `pageId`, `workspaceId`, `actorId`, `extractedTasks[]`, `extractedInvoices[]`, `causationId`, `correlationId` | `workspace-flow`, `ai` |
+| `knowledge.page_promoted` | 頁面提升為知識庫資產 | `pageId`, `targetArticleId`, `actorId` | `knowledge-base` |
 
-**`content.page_approved` 完整介面定義：**
+**`knowledge.page_approved` 完整介面定義：**
 
 ```typescript
-// 代碼位置：modules/knowledge/domain/events/content.events.ts
-interface ContentPageApprovedEvent {
-  readonly type: "content.page_approved";
-  readonly aggregateId: string;       // ContentPage ID（聚合根 ID）
-  readonly occurredAt: string;        // ISO 8601 核准時間戳
-  readonly pageId: string;            // ContentPage ID
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;
+  readonly occurredAt: string;
+  readonly pageId: string;
+  readonly workspaceId: string;
+  readonly actorId: string;
   readonly extractedTasks: ReadonlyArray<{
     readonly title: string;
     readonly dueDate?: string;
@@ -64,33 +61,24 @@ interface ContentPageApprovedEvent {
   readonly extractedInvoices: ReadonlyArray<{
     readonly amount: number;
     readonly description: string;
-    readonly currency?: string;       // 預設 "TWD"
+    readonly currency?: string;
   }>;
-  readonly actorId: string;           // 執行核准操作的使用者 ID
-  readonly causationId: string;       // 觸發此事件的命令 ID（ApproveContentPageUseCase 執行 ID）
-  readonly correlationId: string;     // 整個業務流程（合約 → 任務）的追蹤 ID
+  readonly causationId: string;
+  readonly correlationId: string;
 }
 ```
 
-**`content.page_approved` 消費者：**
+---
 
-| 消費者 | 行動 |
-|--------|------|
-| `workspace-flow` | 由 `contentToWorkflowMaterializer` Process Manager 監聽，根據 `extractedTasks[]` 建立 Task，根據 `extractedInvoices[]` 建立 Invoice，並在每個實體中記錄 `sourceReference`（指向 `pageId` 與 `causationId`） |
+## `ai` 模組事件
 
-```typescript
-// 聯合型別
-type ContentDomainEvent =
-  | ContentPageCreatedEvent
-  | ContentPageRenamedEvent
-  | ContentPageMovedEvent
-  | ContentPageArchivedEvent
-  | ContentPageApprovedEvent
-  | ContentBlockAddedEvent
-  | ContentBlockUpdatedEvent
-  | ContentBlockDeletedEvent
-  | ContentVersionPublishedEvent;
-```
+**代碼位置：** `modules/ai/domain-events.md`
+
+| 事件類型 | 觸發時機 | 關鍵欄位 | 主要消費者 |
+|---------|---------|---------|-----------|
+| `ai.ingestion_started` | ingestion job 開始 | `jobId`, `documentId`, `workspaceId` | UI / monitoring |
+| `ai.ingestion_completed` | parse/chunk/embed/index 完成 | `jobId`, `documentId`, `workspaceId`, `chunkCount` | `search` |
+| `ai.ingestion_failed` | ingestion pipeline 失敗 | `jobId`, `documentId`, `reason` | UI / audit / retry logic |
 
 ---
 
@@ -160,51 +148,33 @@ type ContentDomainEvent =
 
 ---
 
-## `shared` 模組跨上下文事件
+## `shared` 模組跨上下文事件基礎設施
 
-**代碼位置：** `modules/shared/domain/events/content-updated.event.ts`
-
-| 事件類型 | 觸發時機 | 消費者 |
-|---------|---------|--------|
-| `content.block-updated` | ContentBlock 內容變更後 | `knowledge`（向量重索引）、`knowledge-graph`（Auto-link 擷取） |
-
-```typescript
-interface ContentUpdatedEvent extends DomainEvent {
-  readonly type: "content.block-updated";
-  readonly pageId: string;
-  readonly blockId: string;
-  readonly content: string;   // 新的純文字內容
-}
-```
+`shared` 不擁有產品事件語意本身，而是提供 Event Store 與跨上下文發布基礎設施，例如 `EventRecord`、`PublishDomainEventUseCase`、event metadata 等通用原語。
 
 ---
 
 ## 事件流程圖
 
 ```
-content.page_created
+knowledge.page_approved
+  │  （欄位：pageId, workspaceId, extractedTasks[], extractedInvoices[], actorId, causationId, correlationId）
   │
-  └─► knowledge-graph: LinkExtractor（Auto-link 觸發管道，計畫中）
+  └─► workspace-flow: materializer / process manager
+        ├── 依 extractedTasks[] 建立 Task（含 sourceReference → KnowledgePage）
+        └── 依 extractedInvoices[] 建立 Invoice（含 sourceReference → KnowledgePage）
 
-content.page_approved
-  │  （欄位：pageId, extractedTasks[], extractedInvoices[], actorId, causationId, correlationId）
+knowledge.block_updated
   │
-  └─► workspace-flow: contentToWorkflowMaterializer（Process Manager）
-        ├── 依 extractedTasks[]  建立 Task（含 sourceReference → ContentPage）
-        └── 依 extractedInvoices[] 建立 Invoice（含 sourceReference → ContentPage）
+  └─► ai: 重新整理 ingestion job / index preparation
 
-content.block_updated / content.block-updated
+ai.ingestion_completed
   │
-  └─► knowledge: 向量重索引（RAG 攝入管線重跑）
-  └─► knowledge-graph: 連結重新擷取
+  └─► search: 更新可檢索表示、citation context 與 retrieval data
 
-workspace-flow.task.created
+workspace-flow.task.created / workspace-flow.invoice.paid
   │
   └─► workspace-audit: 記錄操作稽核日誌
-
-workspace-flow.invoice.paid
-  │
-  └─► workspace-audit: 記錄付款稽核日誌
 ```
 
 ---
@@ -223,10 +193,10 @@ const publishEvent = new PublishDomainEventUseCase(
 );
 
 await publishEvent.execute({
-  eventName: "content.page_created",
-  aggregateType: "ContentPage",
+  eventName: "knowledge.page_created",
+  aggregateType: "KnowledgePage",
   aggregateId: pageId,
-  payload: { title, accountId, workspaceId },
+  payload: { title, workspaceId, actorId: userId },
   metadata: { actorId: userId, traceId },
 });
 ```
