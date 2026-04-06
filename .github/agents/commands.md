@@ -50,4 +50,5 @@
 - **Node.js**: Version 24 required (see `engines` in `package.json`)
 - **Package manager**: npm
 - Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
 - Firebase CLI: `npx firebase` (no global install required)

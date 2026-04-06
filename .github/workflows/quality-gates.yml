@@ -72,7 +72,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r py_fn/requirements.txt
+          python -m pip install -r py_fn/requirements-dev.txt
 
       - name: Compile Python worker
         working-directory: py_fn

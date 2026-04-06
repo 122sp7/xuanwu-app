@@ -57,6 +57,7 @@ npm run build    # Next.js production build + TypeScript type-check
 For the Python worker:
 
 ```bash
+cd py_fn && python -m pip install -r requirements-dev.txt
 cd py_fn && python -m compileall -q .
 cd py_fn && python -m pytest tests/ -v
 ```
