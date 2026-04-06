@@ -8937,6 +8937,425 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 }
 ````
 
+## File: firestore.indexes.json
+````json
+{
+  "indexes": [
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "timestamp",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "notifications",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "recipientId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceQualityChecks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "documents",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "chunks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "taxonomy",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "embedding",
+          "vectorConfig": {
+            "dimension": 4,
+            "flat": {}
+          }
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyEntries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "organizationId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "publishedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "accountId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "dailyPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFeedPosts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowTasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "updatedAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowInvoices",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "workspaceFlowIssues",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "taskId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "wikiLibraries",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "knowledgeDatabases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "knowledgeDatabases",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "archived",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "databaseRecords",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "databaseId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "kbArticles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAtISO",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "kbCategories",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "depth",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "name",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "contentPages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
+````
+
 ## File: firestore.rules
 ````
 rules_version = '2';
@@ -20029,6 +20448,105 @@ RAG 文件的邏輯集合容器，對應使用者在 UI 看到的「知識庫」
 | `WikiLibraryRepository` | `save()`, `findByWorkspaceId()` |
 ````
 
+## File: modules/source/api/index.ts
+````typescript
+/**
+ * Module: source
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the source domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// --- Core entity types -------------------------------------------------------
+
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+
+// --- Wiki library entity types (owned by source domain) -------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/wiki-library.types";
+
+// --- Wiki library use-cases ------------------------------------------------
+
+import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
+import {
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
+
+export type { WikiLibrarySnapshot };
+
+const _defaultLibraryRepository = new FirebaseWikiLibraryRepository();
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, _defaultLibraryRepository);
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
+}
+
+// --- Document snapshot types --------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+export {
+  useDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+
+// --- Query functions ---------------------------------------------------------
+
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+
+// --- UI components (cross-module public) -------------------------------------
+
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+````
+
 ## File: modules/source/application-services.md
 ````markdown
 # source — Application Services
@@ -21836,6 +22354,231 @@ export class FirebaseRagDocumentRepository implements RagDocumentRepository {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+  }
+}
+````
+
+## File: modules/source/infrastructure/firebase/FirebaseWikiLibraryRepository.ts
+````typescript
+/**
+ * Module: source
+ * Layer: infrastructure/firebase
+ * Purpose: Firestore-backed implementation of WikiLibraryRepository.
+ *
+ * Paths:
+ *   accounts/{accountId}/wikiLibraries/{libraryId}
+ *   accounts/{accountId}/wikiLibraries/{libraryId}/fields/{fieldId}
+ *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
+ */
+
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  setDoc,
+  where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+} from "../../domain/entities/wiki-library.types";
+import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
+
+// ── Firestore document shapes (ISO dates to avoid Timestamp serialisation issues) ──
+
+interface FsLibrary {
+  accountId: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  status: WikiLibraryStatus;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+interface FsField {
+  libraryId: string;
+  key: string;
+  label: string;
+  type: WikiLibraryFieldType;
+  required: boolean;
+  options?: string[];
+  createdAtISO: string;
+}
+
+interface FsRow {
+  libraryId: string;
+  values: Record<string, unknown>;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+// ── Path helpers ──────────────────────────────────────────────────────────────
+
+function librariesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "wikiLibraries");
+}
+
+function libraryDoc(db: ReturnType<typeof getFirestore>, accountId: string, libraryId: string) {
+  return doc(db, "accounts", accountId, "wikiLibraries", libraryId);
+}
+
+function fieldsCol(db: ReturnType<typeof getFirestore>, accountId: string, libraryId: string) {
+  return collection(db, "accounts", accountId, "wikiLibraries", libraryId, "fields");
+}
+
+function fieldDoc(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  libraryId: string,
+  fieldId: string,
+) {
+  return doc(db, "accounts", accountId, "wikiLibraries", libraryId, "fields", fieldId);
+}
+
+function rowsCol(db: ReturnType<typeof getFirestore>, accountId: string, libraryId: string) {
+  return collection(db, "accounts", accountId, "wikiLibraries", libraryId, "rows");
+}
+
+function rowDoc(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  libraryId: string,
+  rowId: string,
+) {
+  return doc(db, "accounts", accountId, "wikiLibraries", libraryId, "rows", rowId);
+}
+
+// ── Mappers ───────────────────────────────────────────────────────────────────
+
+function toLibrary(id: string, data: FsLibrary): WikiLibrary {
+  return {
+    id,
+    accountId: data.accountId,
+    workspaceId: data.workspaceId,
+    name: data.name,
+    slug: data.slug,
+    status: data.status ?? "active",
+    createdAt: new Date(data.createdAtISO),
+    updatedAt: new Date(data.updatedAtISO),
+  };
+}
+
+function toField(id: string, data: FsField): WikiLibraryField {
+  return {
+    id,
+    libraryId: data.libraryId,
+    key: data.key,
+    label: data.label,
+    type: data.type ?? "text",
+    required: data.required === true,
+    options: Array.isArray(data.options) ? data.options : undefined,
+    createdAt: new Date(data.createdAtISO),
+  };
+}
+
+function toRow(id: string, data: FsRow): WikiLibraryRow {
+  return {
+    id,
+    libraryId: data.libraryId,
+    values:
+      typeof data.values === "object" && data.values !== null
+        ? (data.values as Record<string, unknown>)
+        : {},
+    createdAt: new Date(data.createdAtISO),
+    updatedAt: new Date(data.updatedAtISO),
+  };
+}
+
+// ── Repository implementation ─────────────────────────────────────────────────
+
+export class FirebaseWikiLibraryRepository implements WikiLibraryRepository {
+  private db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async listByAccountId(accountId: string): Promise<WikiLibrary[]> {
+    const db = this.db();
+    const q = query(
+      librariesCol(db, accountId),
+      where("status", "==", "active"),
+      orderBy("createdAtISO", "asc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toLibrary(d.id, d.data() as FsLibrary));
+  }
+
+  async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null> {
+    const db = this.db();
+    const snap = await getDoc(libraryDoc(db, accountId, libraryId));
+    if (!snap.exists()) return null;
+    return toLibrary(snap.id, snap.data() as FsLibrary);
+  }
+
+  async create(library: WikiLibrary): Promise<void> {
+    const db = this.db();
+    const data: FsLibrary = {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      name: library.name,
+      slug: library.slug,
+      status: library.status,
+      createdAtISO: library.createdAt.toISOString(),
+      updatedAtISO: library.updatedAt.toISOString(),
+    };
+    if (data.workspaceId === undefined) {
+      delete data.workspaceId;
+    }
+    await setDoc(libraryDoc(db, library.accountId, library.id), data);
+  }
+
+  async createField(accountId: string, field: WikiLibraryField): Promise<void> {
+    const db = this.db();
+    const data: FsField = {
+      libraryId: field.libraryId,
+      key: field.key,
+      label: field.label,
+      type: field.type,
+      required: field.required,
+      createdAtISO: field.createdAt.toISOString(),
+    };
+    if (field.options !== undefined) {
+      data.options = field.options;
+    }
+    await setDoc(fieldDoc(db, accountId, field.libraryId, field.id), data);
+  }
+
+  async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]> {
+    const db = this.db();
+    const q = query(fieldsCol(db, accountId, libraryId), orderBy("createdAtISO", "asc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toField(d.id, d.data() as FsField));
+  }
+
+  async createRow(accountId: string, row: WikiLibraryRow): Promise<void> {
+    const db = this.db();
+    const data: FsRow = {
+      libraryId: row.libraryId,
+      values: row.values,
+      createdAtISO: row.createdAt.toISOString(),
+      updatedAtISO: row.updatedAt.toISOString(),
+    };
+    await setDoc(rowDoc(db, accountId, row.libraryId, row.id), data);
+  }
+
+  async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]> {
+    const db = this.db();
+    const q = query(rowsCol(db, accountId, libraryId), orderBy("createdAtISO", "asc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toRow(d.id, d.data() as FsRow));
   }
 }
 ````
@@ -53173,105 +53916,6 @@ export class QStashEventBusRepository implements IEventBusRepository {
 - `../../../modules/shared/aggregates.md`
 ````
 
-## File: modules/source/api/index.ts
-````typescript
-/**
- * Module: source
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the source domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// --- Core entity types -------------------------------------------------------
-
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
-
-// --- Wiki library entity types (owned by source domain) -------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/wiki-library.types";
-
-// --- Wiki library use-cases ------------------------------------------------
-
-import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
-import {
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibrary as _createWikiLibrary,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-  listWikiLibraries as _listWikiLibraries,
-} from "../application/use-cases/wiki-libraries.use-case";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../domain/entities/wiki-library.types";
-import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
-
-export type { WikiLibrarySnapshot };
-
-const _defaultLibraryRepository = new FirebaseWikiLibraryRepository();
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, _defaultLibraryRepository);
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
-}
-
-// --- Document snapshot types --------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
-export {
-  useDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
-
-// --- Query functions ---------------------------------------------------------
-
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
-
-// --- UI components (cross-module public) -------------------------------------
-
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-````
-
 ## File: modules/source/domain-services.md
 ````markdown
 # source — Domain Services
@@ -53297,231 +53941,6 @@ export { LibraryTableView } from "../interfaces/components/LibraryTableView";
 
 - `../../../modules/source/domain-services.md`
 - `../../../modules/source/aggregates.md`
-````
-
-## File: modules/source/infrastructure/firebase/FirebaseWikiLibraryRepository.ts
-````typescript
-/**
- * Module: source
- * Layer: infrastructure/firebase
- * Purpose: Firestore-backed implementation of WikiLibraryRepository.
- *
- * Paths:
- *   accounts/{accountId}/wikiLibraries/{libraryId}
- *   accounts/{accountId}/wikiLibraries/{libraryId}/fields/{fieldId}
- *   accounts/{accountId}/wikiLibraries/{libraryId}/rows/{rowId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  setDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-} from "../../domain/entities/wiki-library.types";
-import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
-
-// ── Firestore document shapes (ISO dates to avoid Timestamp serialisation issues) ──
-
-interface FsLibrary {
-  accountId: string;
-  workspaceId?: string;
-  name: string;
-  slug: string;
-  status: WikiLibraryStatus;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-interface FsField {
-  libraryId: string;
-  key: string;
-  label: string;
-  type: WikiLibraryFieldType;
-  required: boolean;
-  options?: string[];
-  createdAtISO: string;
-}
-
-interface FsRow {
-  libraryId: string;
-  values: Record<string, unknown>;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-// ── Path helpers ──────────────────────────────────────────────────────────────
-
-function librariesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "wikiLibraries");
-}
-
-function libraryDoc(db: ReturnType<typeof getFirestore>, accountId: string, libraryId: string) {
-  return doc(db, "accounts", accountId, "wikiLibraries", libraryId);
-}
-
-function fieldsCol(db: ReturnType<typeof getFirestore>, accountId: string, libraryId: string) {
-  return collection(db, "accounts", accountId, "wikiLibraries", libraryId, "fields");
-}
-
-function fieldDoc(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  libraryId: string,
-  fieldId: string,
-) {
-  return doc(db, "accounts", accountId, "wikiLibraries", libraryId, "fields", fieldId);
-}
-
-function rowsCol(db: ReturnType<typeof getFirestore>, accountId: string, libraryId: string) {
-  return collection(db, "accounts", accountId, "wikiLibraries", libraryId, "rows");
-}
-
-function rowDoc(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  libraryId: string,
-  rowId: string,
-) {
-  return doc(db, "accounts", accountId, "wikiLibraries", libraryId, "rows", rowId);
-}
-
-// ── Mappers ───────────────────────────────────────────────────────────────────
-
-function toLibrary(id: string, data: FsLibrary): WikiLibrary {
-  return {
-    id,
-    accountId: data.accountId,
-    workspaceId: data.workspaceId,
-    name: data.name,
-    slug: data.slug,
-    status: data.status ?? "active",
-    createdAt: new Date(data.createdAtISO),
-    updatedAt: new Date(data.updatedAtISO),
-  };
-}
-
-function toField(id: string, data: FsField): WikiLibraryField {
-  return {
-    id,
-    libraryId: data.libraryId,
-    key: data.key,
-    label: data.label,
-    type: data.type ?? "text",
-    required: data.required === true,
-    options: Array.isArray(data.options) ? data.options : undefined,
-    createdAt: new Date(data.createdAtISO),
-  };
-}
-
-function toRow(id: string, data: FsRow): WikiLibraryRow {
-  return {
-    id,
-    libraryId: data.libraryId,
-    values:
-      typeof data.values === "object" && data.values !== null
-        ? (data.values as Record<string, unknown>)
-        : {},
-    createdAt: new Date(data.createdAtISO),
-    updatedAt: new Date(data.updatedAtISO),
-  };
-}
-
-// ── Repository implementation ─────────────────────────────────────────────────
-
-export class FirebaseWikiLibraryRepository implements WikiLibraryRepository {
-  private db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async listByAccountId(accountId: string): Promise<WikiLibrary[]> {
-    const db = this.db();
-    const q = query(
-      librariesCol(db, accountId),
-      where("status", "==", "active"),
-      orderBy("createdAtISO", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toLibrary(d.id, d.data() as FsLibrary));
-  }
-
-  async findById(accountId: string, libraryId: string): Promise<WikiLibrary | null> {
-    const db = this.db();
-    const snap = await getDoc(libraryDoc(db, accountId, libraryId));
-    if (!snap.exists()) return null;
-    return toLibrary(snap.id, snap.data() as FsLibrary);
-  }
-
-  async create(library: WikiLibrary): Promise<void> {
-    const db = this.db();
-    const data: FsLibrary = {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      name: library.name,
-      slug: library.slug,
-      status: library.status,
-      createdAtISO: library.createdAt.toISOString(),
-      updatedAtISO: library.updatedAt.toISOString(),
-    };
-    if (data.workspaceId === undefined) {
-      delete data.workspaceId;
-    }
-    await setDoc(libraryDoc(db, library.accountId, library.id), data);
-  }
-
-  async createField(accountId: string, field: WikiLibraryField): Promise<void> {
-    const db = this.db();
-    const data: FsField = {
-      libraryId: field.libraryId,
-      key: field.key,
-      label: field.label,
-      type: field.type,
-      required: field.required,
-      createdAtISO: field.createdAt.toISOString(),
-    };
-    if (field.options !== undefined) {
-      data.options = field.options;
-    }
-    await setDoc(fieldDoc(db, accountId, field.libraryId, field.id), data);
-  }
-
-  async listFields(accountId: string, libraryId: string): Promise<WikiLibraryField[]> {
-    const db = this.db();
-    const q = query(fieldsCol(db, accountId, libraryId), orderBy("createdAtISO", "asc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toField(d.id, d.data() as FsField));
-  }
-
-  async createRow(accountId: string, row: WikiLibraryRow): Promise<void> {
-    const db = this.db();
-    const data: FsRow = {
-      libraryId: row.libraryId,
-      values: row.values,
-      createdAtISO: row.createdAt.toISOString(),
-      updatedAtISO: row.updatedAt.toISOString(),
-    };
-    await setDoc(rowDoc(db, accountId, row.libraryId, row.id), data);
-  }
-
-  async listRows(accountId: string, libraryId: string): Promise<WikiLibraryRow[]> {
-    const db = this.db();
-    const q = query(rowsCol(db, accountId, libraryId), orderBy("createdAtISO", "asc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toRow(d.id, d.data() as FsRow));
-  }
-}
 ````
 
 ## File: modules/source/README.md
@@ -53939,56 +54358,6 @@ export type { PaginationDto, PagedResult } from "../application/dto/pagination.d
 // ── Command / operation result ────────────────────────────────────────────────
 
 export type { CommandResult } from "@shared-types";
-````
-
-## File: modules/workspace-flow/api/listeners.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file listeners.ts
- * @description Public event listener interface for workspace-flow.
- *
- * External modules (primarily the `knowledge` module's event bus) subscribe to
- * workspace-flow through this surface.  The concrete implementation is the
- * `KnowledgeToWorkflowMaterializer` process manager.
- *
- * ## Usage
- * ```ts
- * import { createKnowledgeToWorkflowListener } from "@/modules/workspace-flow/api";
- *
- * const listener = createKnowledgeToWorkflowListener();
- * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
- * ```
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-
-import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-
-// ── Public listener factory ───────────────────────────────────────────────────
-
-/**
- * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
- * Call `handle(event, workspaceId)` from your event bus subscriber.
- */
-export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer {
-  return new KnowledgeToWorkflowMaterializer(
-    new FirebaseTaskRepository(),
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-// ── Listener type contracts ───────────────────────────────────────────────────
-
-/** Shape of any handler that can process a `knowledge.page_approved` event. */
-export interface KnowledgePageApprovedHandler {
-  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
-}
-
-export type { KnowledgePageApprovedEvent };
 ````
 
 ## File: modules/workspace-flow/api/workspace-flow.facade.ts
@@ -54640,97 +55009,6 @@ export interface TaskService {
   transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
   listTasks(query: TaskQueryDto): Promise<Task[]>;
   getTask(taskId: string): Promise<Task | null>;
-}
-````
-
-## File: modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file knowledge-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `knowledge.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `knowledge` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export class KnowledgeToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `knowledge.page_approved` event.
-   *
-   * @param event - The full event payload from the knowledge module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
-    if (this.processedCausationIds.has(event.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.pageId,
-      causationId: event.causationId,
-      correlationId: event.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromKnowledgeUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      knowledgePageId: event.pageId,
-      sourceReference,
-      extractedTasks: event.extractedTasks,
-      extractedInvoices: event.extractedInvoices,
-    });
-
-    if (result.success) {
-      this.processedCausationIds.add(event.causationId);
-      return true;
-    }
-
-    return false;
-  }
 }
 ````
 
@@ -56894,40 +57172,6 @@ export function canTransitionIssueStatus(from: IssueStatus, to: IssueStatus): bo
 /** Returns true when the issue has reached a terminal state and cannot progress. */
 export function isTerminalIssueStatus(status: IssueStatus): boolean {
   return ISSUE_NEXT[status].length === 0;
-}
-````
-
-## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
-````typescript
-/**
- * @module workspace-flow/domain/value-objects
- * @file SourceReference.ts
- * @description Value object representing the origin of a materialized entity (Task or Invoice).
- *
- * A SourceReference is attached to Task and Invoice entities that were created
- * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
- * `knowledge.page_approved` event. It provides full audit traceability:
- *
- *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
- */
-
-export type SourceReferenceType = "KnowledgePage";
-
-export interface SourceReference {
-  /** The type of the source aggregate. */
-  readonly type: SourceReferenceType;
-  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
-  readonly id: string;
-  /**
-    * causationId from the `knowledge.page_approved` event that triggered
-   * materialization.  Stored for idempotency checks and audit trails.
-   */
-  readonly causationId: string;
-  /**
-   * correlationId tracing the entire business flow:
-   *   ingestion → human review → approval → materialization.
-   */
-  readonly correlationId: string;
 }
 ````
 
@@ -63649,425 +63893,6 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 ````
 
-## File: firestore.indexes.json
-````json
-{
-  "indexes": [
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "recipientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "timestamp",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "recipientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "read",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "timestamp",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "notifications",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "recipientId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "read",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceTasks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceQualityChecks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceIssues",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "documents",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "chunks",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "embedding",
-          "vectorConfig": {
-            "dimension": 4,
-            "flat": {}
-          }
-        }
-      ]
-    },
-    {
-      "collectionGroup": "chunks",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "taxonomy",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "embedding",
-          "vectorConfig": {
-            "dimension": 4,
-            "flat": {}
-          }
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyEntries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "publishedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyEntries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "organizationId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "publishedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyPosts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "accountId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "dailyPosts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFeedPosts",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowTasks",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "updatedAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowInvoices",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowIssues",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "taskId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "workspaceFlowIssues",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "taskId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "wikiLibraries",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "knowledgeDatabases",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "archived",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "knowledgeDatabases",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "archived",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "databaseRecords",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "databaseId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "order",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "kbArticles",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAtISO",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "kbCategories",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "workspaceId",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "depth",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "name",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "contentPages",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "order",
-          "order": "ASCENDING"
-        }
-      ]
-    }
-  ],
-  "fieldOverrides": []
-}
-````
-
 ## File: modules/knowledge-base/AGENT.md
 ````markdown
 # knowledge-base — DDD Agent
@@ -66107,99 +65932,178 @@ export type {
 } from "./listeners";
 ````
 
-## File: modules/workspace-flow/domain/entities/Invoice.ts
+## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
- * @module workspace-flow/domain/entities
- * @file Invoice.ts
- * @description Invoice aggregate entity representing a billing record for accepted tasks.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as billing rules expand
+ * @module workspace-flow/api
+ * @file listeners.ts
+ * @description Public event listener interface for workspace-flow.
+ *
+ * External modules (primarily the `knowledge` module's event bus) subscribe to
+ * workspace-flow through this surface.  The concrete implementation is the
+ * `KnowledgeToWorkflowMaterializer` process manager.
+ *
+ * ## Usage
+ * ```ts
+ * import { createKnowledgeToWorkflowListener } from "@/modules/workspace-flow/api";
+ *
+ * const listener = createKnowledgeToWorkflowListener();
+ * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
+ * ```
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
-import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
+import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
 
-// ── Aggregate ─────────────────────────────────────────────────────────────────
+// ── Public listener factory ───────────────────────────────────────────────────
 
-export interface Invoice {
-  readonly id: string;
-  readonly workspaceId: string;
-  readonly status: InvoiceStatus;
-  readonly totalAmount: number;
-  readonly submittedAtISO?: string;
-  readonly approvedAtISO?: string;
-  readonly paidAtISO?: string;
-  readonly closedAtISO?: string;
-  /**
-   * Present when this Invoice was materialized from a KnowledgePage via the
-    * `knowledge.page_approved` event. Provides full provenance traceability.
-   */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
+/**
+ * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
+ * Call `handle(event, workspaceId)` from your event bus subscriber.
+ */
+export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer {
+  return new KnowledgeToWorkflowMaterializer(
+    new FirebaseTaskRepository(),
+    new FirebaseInvoiceRepository(),
+  );
 }
 
-// ── Inputs ────────────────────────────────────────────────────────────────────
+// ── Listener type contracts ───────────────────────────────────────────────────
 
-export interface CreateInvoiceInput {
-  readonly workspaceId: string;
-  readonly sourceReference?: SourceReference;
+/** Shape of any handler that can process a `knowledge.page_approved` event. */
+export interface KnowledgePageApprovedHandler {
+  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
+}
+
+export type { KnowledgePageApprovedEvent };
+````
+
+## File: modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
+````typescript
+/**
+ * @module workspace-flow/application/process-managers
+ * @file knowledge-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `knowledge.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `knowledge` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
+ */
+
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+export class KnowledgeToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `knowledge.page_approved` event.
+   *
+   * @param event - The full event payload from the knowledge module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.pageId,
+      causationId: event.causationId,
+      correlationId: event.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromKnowledgeUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      knowledgePageId: event.pageId,
+      sourceReference,
+      extractedTasks: event.extractedTasks,
+      extractedInvoices: event.extractedInvoices,
+    });
+
+    if (result.success) {
+      this.processedCausationIds.add(event.causationId);
+      return true;
+    }
+
+    return false;
+  }
 }
 ````
 
-## File: modules/workspace-flow/domain/entities/Task.ts
+## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
 ````typescript
 /**
- * @module workspace-flow/domain/entities
- * @file Task.ts
- * @description Task aggregate entity representing a work unit and its lifecycle.
- * @author workspace-flow
- * @since 2026-03-24
- * @todo Add domain validation methods as business rules expand
+ * @module workspace-flow/domain/value-objects
+ * @file SourceReference.ts
+ * @description Value object representing the origin of a materialized entity (Task or Invoice).
+ *
+ * A SourceReference is attached to Task and Invoice entities that were created
+ * by the KnowledgeToWorkflowMaterializer Process Manager in response to a
+ * `knowledge.page_approved` event. It provides full audit traceability:
+ *
+ *   Task → sourceReference → KnowledgePage → IngestionJob → source PDF
  */
 
-import type { TaskStatus } from "../value-objects/TaskStatus";
-import type { SourceReference } from "../value-objects/SourceReference";
+export type SourceReferenceType = "KnowledgePage";
 
-// ── Aggregate ─────────────────────────────────────────────────────────────────
-
-export interface Task {
+export interface SourceReference {
+  /** The type of the source aggregate. */
+  readonly type: SourceReferenceType;
+  /** The ID of the source aggregate (e.g. KnowledgePage.id). */
   readonly id: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description: string;
-  readonly status: TaskStatus;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly acceptedAtISO?: string;
-  readonly archivedAtISO?: string;
   /**
-   * Present when this Task was materialized from a KnowledgePage via the
-    * `knowledge.page_approved` event. Provides full provenance traceability.
+   * causationId from the `knowledge.page_approved` event that triggered
+   * materialization.  Stored for idempotency checks and audit trails.
    */
-  readonly sourceReference?: SourceReference;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-// ── Inputs ────────────────────────────────────────────────────────────────────
-
-export interface CreateTaskInput {
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
-  readonly sourceReference?: SourceReference;
-}
-
-export interface UpdateTaskInput {
-  readonly title?: string;
-  readonly description?: string;
-  readonly assigneeId?: string;
-  readonly dueDateISO?: string;
+  readonly causationId: string;
+  /**
+   * correlationId tracing the entire business flow:
+   *   ingestion → human review → approval → materialization.
+   */
+  readonly correlationId: string;
 }
 ````
 
@@ -67977,6 +67881,579 @@ Any of the following require a context7 lookup before proceeding:
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
+## File: app/(shell)/_components/app-rail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  Table2,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    // ── Hub ──────────────────────────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── Content ──────────────────────────────────────────────────────
+    {
+      href: "/knowledge/pages",
+      label: "知識頁面",
+      icon: <FileText className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
+    },
+    {
+      href: "/knowledge-base/articles",
+      label: "文章庫",
+      icon: <BookOpen className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
+    },
+    {
+      href: "/knowledge-database/databases",
+      label: "資料庫",
+      icon: <Table2 className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
+  );
+}
+````
+
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
 ````typescript
 "use client";
@@ -69082,115 +69559,6 @@ export function DashboardSidebar({
 | 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
 | 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
 | 下游 | `workspace-feed`, `notification` | Published Language |
-````
-
-## File: modules/knowledge/api/knowledge-api.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api (cross-module facade)
- * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
- *          exposes the minimal surface needed by the demo-flow script and by
- *          other modules that communicate through the event bus.
- *
- * This is intentionally separate from KnowledgeFacade (which uses Firebase).
- * KnowledgeApi uses InMemory repos so it can run without any external service.
- */
-
-import {
-  createKnowledgePageCreatedEvent,
-} from "../../shared/domain/events/knowledge-page-created.event";
-import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
-
-import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
-import { BlockService } from "../application/block-service";
-import {
-  InMemoryKnowledgePageRepository,
-  InMemoryKnowledgeBlockRepository,
-} from "../infrastructure/InMemoryKnowledgeRepository";
-
-export class KnowledgeApi {
-  private readonly pageRepo: InMemoryKnowledgePageRepository;
-  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
-  private readonly blockService: BlockService;
-  private readonly eventBus: SimpleEventBus;
-
-  constructor(eventBus: SimpleEventBus) {
-    this.pageRepo = new InMemoryKnowledgePageRepository();
-    this.blockRepo = new InMemoryKnowledgeBlockRepository();
-    this.blockService = new BlockService(this.blockRepo, eventBus);
-    this.eventBus = eventBus;
-  }
-
-  /**
-   * Create a new page in the in-memory store and publish a
-    * `KnowledgePageCreatedEvent` so downstream modules can register
-    * page-related projections or structure-aware read models.
-   */
-  async createPage(
-    accountId: string,
-    title: string,
-    createdByUserId = "system",
-    options?: { workspaceId?: string; parentPageId?: string | null },
-  ): Promise<KnowledgePage> {
-    const page = await this.pageRepo.create({
-      accountId,
-      title,
-      createdByUserId,
-      parentPageId: options?.parentPageId ?? null,
-    });
-
-    const event = createKnowledgePageCreatedEvent(
-      page.id,
-      page.title,
-      accountId,
-      createdByUserId,
-      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
-    );
-    await this.eventBus.publish(event);
-
-    return page;
-  }
-
-  /** Add a block to an existing page and return the new block. */
-  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
-    return this.blockRepo.add({
-      accountId,
-      pageId,
-      content: { type: "text", richText: [{ type: "text", plainText: text }] },
-    });
-  }
-
-  /**
-   * Update a block's text content.
-   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
-    * (e.g. search or notebook-adjacent ingestion flows) can react.
-   */
-  async updateBlock(
-    accountId: string,
-    blockId: string,
-    text: string,
-  ): Promise<KnowledgeBlock | null> {
-    return this.blockService.updateBlock({ accountId, blockId, text });
-  }
-
-  /** Return all pages for an account. */
-  async listPages(accountId: string): Promise<KnowledgePage[]> {
-    return this.pageRepo.listByAccountId(accountId);
-  }
-
-  /** Return the page with all its blocks (flat list, ordered). */
-  async getPageStructure(
-    accountId: string,
-    pageId: string,
-  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
-    const page = await this.pageRepo.findById(accountId, pageId);
-    if (!page) return null;
-    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
-    return { page, blocks };
-  }
-}
 ````
 
 ## File: modules/knowledge/application-services.md
@@ -70566,586 +70934,99 @@ function escapeHtml(str: string): string {
 - 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
 ````
 
-## File: next-env.d.ts
+## File: modules/workspace-flow/domain/entities/Invoice.ts
 ````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-````
-
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-"use client";
-
 /**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
+ * @module workspace-flow/domain/entities
+ * @file Invoice.ts
+ * @description Invoice aggregate entity representing a billing record for accepted tasks.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as billing rules expand
  */
 
-import Link from "next/link";
-import {
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  Table2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import type { InvoiceStatus } from "../value-objects/InvoiceStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
 
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
+// ── Aggregate ─────────────────────────────────────────────────────────────────
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
+export interface Invoice {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly status: InvoiceStatus;
+  readonly totalAmount: number;
+  readonly submittedAtISO?: string;
+  readonly approvedAtISO?: string;
+  readonly paidAtISO?: string;
+  readonly closedAtISO?: string;
+  /**
+   * Present when this Invoice was materialized from a KnowledgePage via the
+   * `knowledge.page_approved` event. Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
 }
 
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateInvoiceInput {
+  readonly workspaceId: string;
+  readonly sourceReference?: SourceReference;
+}
+````
+
+## File: modules/workspace-flow/domain/entities/Task.ts
+````typescript
+/**
+ * @module workspace-flow/domain/entities
+ * @file Task.ts
+ * @description Task aggregate entity representing a work unit and its lifecycle.
+ * @author workspace-flow
+ * @since 2026-03-24
+ * @todo Add domain validation methods as business rules expand
+ */
+
+import type { TaskStatus } from "../value-objects/TaskStatus";
+import type { SourceReference } from "../value-objects/SourceReference";
+
+// ── Aggregate ─────────────────────────────────────────────────────────────────
+
+export interface Task {
+  readonly id: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description: string;
+  readonly status: TaskStatus;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly acceptedAtISO?: string;
+  readonly archivedAtISO?: string;
+  /**
+   * Present when this Task was materialized from a KnowledgePage via the
+   * `knowledge.page_approved` event. Provides full provenance traceability.
+   */
+  readonly sourceReference?: SourceReference;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
 }
 
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+// ── Inputs ────────────────────────────────────────────────────────────────────
+
+export interface CreateTaskInput {
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
+  readonly sourceReference?: SourceReference;
 }
 
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Hub ──────────────────────────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── Content ──────────────────────────────────────────────────────
-    {
-      href: "/knowledge/pages",
-      label: "知識頁面",
-      icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
-    },
-    {
-      href: "/knowledge-base/articles",
-      label: "文章庫",
-      icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
-    },
-    {
-      href: "/knowledge-database/databases",
-      label: "資料庫",
-      icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
-  );
+export interface UpdateTaskInput {
+  readonly title?: string;
+  readonly description?: string;
+  readonly assigneeId?: string;
+  readonly dueDateISO?: string;
 }
 ````
 
@@ -71271,6 +71152,115 @@ export { PageDialog } from "../interfaces/components/PageDialog";
 export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
 export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
 export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
+````
+
+## File: modules/knowledge/api/knowledge-api.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api (cross-module facade)
+ * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
+ *          exposes the minimal surface needed by the demo-flow script and by
+ *          other modules that communicate through the event bus.
+ *
+ * This is intentionally separate from KnowledgeFacade (which uses Firebase).
+ * KnowledgeApi uses InMemory repos so it can run without any external service.
+ */
+
+import {
+  createKnowledgePageCreatedEvent,
+} from "../../shared/domain/events/knowledge-page-created.event";
+import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
+
+import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+import { BlockService } from "../application/block-service";
+import {
+  InMemoryKnowledgePageRepository,
+  InMemoryKnowledgeBlockRepository,
+} from "../infrastructure/InMemoryKnowledgeRepository";
+
+export class KnowledgeApi {
+  private readonly pageRepo: InMemoryKnowledgePageRepository;
+  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
+  private readonly blockService: BlockService;
+  private readonly eventBus: SimpleEventBus;
+
+  constructor(eventBus: SimpleEventBus) {
+    this.pageRepo = new InMemoryKnowledgePageRepository();
+    this.blockRepo = new InMemoryKnowledgeBlockRepository();
+    this.blockService = new BlockService(this.blockRepo, eventBus);
+    this.eventBus = eventBus;
+  }
+
+  /**
+   * Create a new page in the in-memory store and publish a
+   * `KnowledgePageCreatedEvent` so downstream modules can register
+   * page-related projections or structure-aware read models.
+   */
+  async createPage(
+    accountId: string,
+    title: string,
+    createdByUserId = "system",
+    options?: { workspaceId?: string; parentPageId?: string | null },
+  ): Promise<KnowledgePage> {
+    const page = await this.pageRepo.create({
+      accountId,
+      title,
+      createdByUserId,
+      parentPageId: options?.parentPageId ?? null,
+    });
+
+    const event = createKnowledgePageCreatedEvent(
+      page.id,
+      page.title,
+      accountId,
+      createdByUserId,
+      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
+    );
+    await this.eventBus.publish(event);
+
+    return page;
+  }
+
+  /** Add a block to an existing page and return the new block. */
+  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
+    return this.blockRepo.add({
+      accountId,
+      pageId,
+      content: { type: "text", richText: [{ type: "text", plainText: text }] },
+    });
+  }
+
+  /**
+   * Update a block's text content.
+   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
+   * (e.g. search or notebook-adjacent ingestion flows) can react.
+   */
+  async updateBlock(
+    accountId: string,
+    blockId: string,
+    text: string,
+  ): Promise<KnowledgeBlock | null> {
+    return this.blockService.updateBlock({ accountId, blockId, text });
+  }
+
+  /** Return all pages for an account. */
+  async listPages(accountId: string): Promise<KnowledgePage[]> {
+    return this.pageRepo.listByAccountId(accountId);
+  }
+
+  /** Return the page with all its blocks (flat list, ordered). */
+  async getPageStructure(
+    accountId: string,
+    pageId: string,
+  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
+    const page = await this.pageRepo.findById(accountId, pageId);
+    if (!page) return null;
+    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
+    return { page, blocks };
+  }
+}
 ````
 
 ## File: modules/knowledge/README.md
@@ -71448,6 +71438,16 @@ export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklink
 
 > `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: modules/knowledge/AGENT.md
