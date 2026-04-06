@@ -4,10 +4,12 @@
  */
 
 import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
 import type { MemberReference, Team, PartnerInvite, OrgPolicy } from "../../domain/entities/Organization";
 import type { Unsubscribe } from "../../domain/repositories/OrganizationRepository";
 
 const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
 
 // ─── Members ─────────────────────────────────────────────────────────────────
 
@@ -44,5 +46,5 @@ export async function getPartnerInvites(organizationId: string): Promise<Partner
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
 export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return orgRepo.getPolicies(orgId);
+  return policyRepo.getPolicies(orgId);
 }
