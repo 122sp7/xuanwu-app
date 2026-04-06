@@ -6,7 +6,8 @@
 
 // ── Domain types ───────────────────────────────────────────────────────────────
 export type { Comment } from "../domain/entities/comment.entity";
-export type { Permission, PermissionLevel } from "../domain/entities/permission.entity";
+export type { SelectionRange } from "../domain/entities/comment.entity";
+export type { Permission, PermissionLevel, PrincipalType } from "../domain/entities/permission.entity";
 export type { Version } from "../domain/entities/version.entity";
 
 export type CommentId = string;

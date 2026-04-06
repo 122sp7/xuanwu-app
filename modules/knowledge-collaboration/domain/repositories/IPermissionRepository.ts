@@ -3,7 +3,7 @@
  * Layer: domain/repositories
  */
 
-import type { Permission, PermissionLevel } from "../entities/permission.entity";
+import type { Permission, PermissionLevel, PrincipalType } from "../entities/permission.entity";
 
 export interface GrantPermissionInput {
   readonly subjectId: string;
@@ -11,10 +11,11 @@ export interface GrantPermissionInput {
   readonly workspaceId: string;
   readonly accountId: string;
   readonly principalId: string;
-  readonly principalType: "user" | "team";
+  readonly principalType: PrincipalType;
   readonly level: PermissionLevel;
   readonly grantedByUserId: string;
   readonly expiresAtISO?: string | null;
+  readonly linkToken?: string | null;
 }
 
 export interface IPermissionRepository {

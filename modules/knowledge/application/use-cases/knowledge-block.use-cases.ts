@@ -7,6 +7,7 @@
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
 import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { BlockContent } from "../../domain/value-objects/block-content";
 import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
 import {
   AddKnowledgeBlockSchema,
@@ -31,7 +32,7 @@ export class AddKnowledgeBlockUseCase {
     }
 
     const { accountId, pageId, content, index } = parsed.data;
-    const block = await this.repo.add({ accountId, pageId, content, index });
+    const block = await this.repo.add({ accountId, pageId, content: content as BlockContent, index });
     return commandSuccess(block.id, Date.now());
   }
 }
@@ -46,7 +47,7 @@ export class UpdateKnowledgeBlockUseCase {
     }
 
     const { accountId, blockId, content } = parsed.data;
-    const updated = await this.repo.update({ accountId, blockId, content });
+    const updated = await this.repo.update({ accountId, blockId, content: content as BlockContent });
     if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
     return commandSuccess(updated.id, Date.now());
   }

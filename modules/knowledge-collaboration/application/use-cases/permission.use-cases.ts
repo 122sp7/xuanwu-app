@@ -20,11 +20,12 @@ export class GrantPermissionUseCase {
     if (!parsed.success) {
       return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
     }
-    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO } = parsed.data;
+    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO, linkToken } = parsed.data;
     const permission = await this.repo.grant({
       accountId, workspaceId, subjectId, subjectType,
       principalId, principalType, level, grantedByUserId,
       expiresAtISO: expiresAtISO ?? null,
+      linkToken: linkToken ?? null,
     });
     return commandSuccess(permission.id, Date.now());
   }

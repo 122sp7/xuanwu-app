@@ -70,10 +70,11 @@ export const GrantPermissionSchema = ContentScopeSchema.extend({
   subjectId: z.string().min(1),
   subjectType: z.enum(["page", "article", "database"]),
   principalId: z.string().min(1),
-  principalType: z.enum(["user", "team"]),
+  principalType: z.enum(["user", "team", "public", "link"]),
   level: z.enum(["view", "comment", "edit", "full"]),
   grantedByUserId: z.string().min(1),
   expiresAtISO: z.string().nullable().optional(),
+  linkToken: z.string().min(1).nullable().optional(),
 });
 export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
 

@@ -450,7 +450,7 @@ function ToolbarButton({ onClick, children, active, disabled, title }: ToolbarBu
 function buildBlockContent(tiptapJson: object): BlockContent {
   return {
     type: "text",
-    text: "", // Canonical text is the tiptapJson; plain text is left empty.
+    richText: [], // Canonical content is the tiptapJson; richText spans are left empty.
     properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson },
   };
 }

@@ -38,7 +38,7 @@ async function main() {
   if (!updated) {
     throw new Error("ASSERTION FAILED: updateBlock returned null");
   }
-  console.log(`    ✓ block updated  content="${updated.content.text}"\n`);
+  console.log(`    ✓ block updated  content="${updated.content.richText.map((s) => (s as { plainText?: string }).plainText ?? "").join("")}"\n`);
 
   console.log("✅  Demo flow completed successfully.");
 }

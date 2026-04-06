@@ -70,7 +70,6 @@ export function evaluateFormula(
   if (!/^[\d\s+\-*/()!&|<>=."'nulltruefals]+$/.test(resolved)) return null;
 
   try {
-    // eslint-disable-next-line no-new-func
     const result = new Function(`"use strict"; return (${resolved});`)() as unknown;
     if (typeof result === "string" || typeof result === "number" || typeof result === "boolean") return result;
     return null;

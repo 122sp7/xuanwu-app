@@ -16,7 +16,7 @@ export const BlockTypeSchema = z.enum(BLOCK_TYPES);
 
 export const BlockContentSchema = z.object({
   type: BlockTypeSchema,
-  richText: z.array(z.unknown()),
+  richText: z.array(z.unknown()).readonly(),
   properties: z.record(z.string(), z.unknown()).optional(),
 });
 

@@ -70,7 +70,7 @@ export class KnowledgeApi {
     return this.blockRepo.add({
       accountId,
       pageId,
-      content: { type: "text", text },
+      content: { type: "text", richText: [{ type: "text", plainText: text }] },
     });
   }
 
