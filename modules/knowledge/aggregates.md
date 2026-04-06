@@ -48,6 +48,7 @@
 - `slug` 在同一 accountId 下必須唯一
 - archived 頁面不可新增 ContentBlock
 - archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
 
 ---
 
@@ -93,8 +94,8 @@
 
 ### 職責
 Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 帶欄位 Schema（columns）的頁面集合，支援表格/看板視圖
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
 
 | 屬性 | 型別 | 說明 |
 |------|------|------|

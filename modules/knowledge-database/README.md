@@ -1,4 +1,4 @@
-# knowledge-collaboration — DDD Reference
+# knowledge-database — DDD Reference
 
 > **Domain Type:** Supporting Subdomain
 > **Module:** `modules/knowledge-database/`

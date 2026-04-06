@@ -7,11 +7,12 @@
 | `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
 | `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
 | `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔 | `pageId`, `accountId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
 | `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAtISO` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAtISO` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAtISO` |
+| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
 | `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
 | `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
 | `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
@@ -52,7 +53,7 @@ interface KnowledgePageVerifiedEvent {
   readonly verifiedByUserId: string;
   readonly verifiedAtISO: string;
   readonly verificationExpiresAtISO?: string;
-  readonly occurredAtISO: string;
+  readonly occurredAt: string;    // ISO 8601
 }
 
 interface KnowledgePageReviewRequestedEvent {
@@ -60,7 +61,7 @@ interface KnowledgePageReviewRequestedEvent {
   readonly pageId: string;
   readonly accountId: string;
   readonly requestedByUserId: string;
-  readonly occurredAtISO: string;
+  readonly occurredAt: string;    // ISO 8601
 }
 
 interface KnowledgePageOwnerAssignedEvent {
@@ -68,46 +69,22 @@ interface KnowledgePageOwnerAssignedEvent {
   readonly pageId: string;
   readonly accountId: string;
   readonly ownerId: string;
-  readonly occurredAtISO: string;
+  readonly occurredAt: string;    // ISO 8601
 }
 ```
 
-## 訂閱事件（消費端）
+## Promote 事件（D3：Page → Article 提升協議）
 
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
-| `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-
-## 最重要事件：knowledge.page_approved
+`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
 
 ```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
+interface KnowledgePagePromotedEvent {
+  readonly type: "knowledge.page_promoted";
   readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
+  readonly accountId: string;
+  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
+  readonly promotedByUserId: string;
+  readonly occurredAt: string;       // ISO 8601
 }
 ```
 
@@ -124,3 +101,4 @@ interface KnowledgePageApprovedEvent {
 | `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
 | `wiki` | `knowledge.page_created`, `knowledge.block_updated` | 同步 GraphNode |
 | `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
