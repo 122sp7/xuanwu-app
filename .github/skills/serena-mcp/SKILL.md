@@ -33,17 +33,77 @@ disable-model-invocation: true
 - Treat `.github/copilot-instructions.md` as the authoritative Serena workflow contract for this repository.
 - Use Serena MCP tools for `.serena/` work; do not patch `.serena/` directly with generic file editors.
 - If the current Serena context does not expose `create_text_file` or `summarize_changes`, record the limitation explicitly and keep memory/index updates structured through available Serena memory tools.
-- In this repo, `included_optional_tools` entries like `serena/*` or `context7/*` are not valid for direct SerenaAgent initialization in the current environment; verify concrete tool names first.
+- Verify concrete tool names first.
 
-## Memory Structure
-- Reserve protected root memories for stable baseline concepts such as project overview, architecture, coding conventions, task completion, and Serena tool reference.
-- Use `index/` for sync snapshots, memory maps, and current-state navigation.
-- Use `workflow/` for dated phase logs, maintenance notes, and execution evidence.
-- Use `_archive/` only for stale or superseded historical memories that should remain traceable but not treated as active guidance.
-- If protected core memory names cannot be recreated immediately, write clearly named replacement memories and point `index/` memories at them until canonical restoration is possible.
+## Serena Tools List
+
+### symbol_tools
+- find_referencing_symbols
+- find_symbol
+- get_symbols_overview
+- insert_after_symbol
+- insert_before_symbol
+- rename_symbol
+- replace_symbol_body
+- restart_language_server
+- safe_delete_symbol
+
+### jetbrains_tools
+- jet_brains_find_declaration
+- jet_brains_find_implementations
+- jet_brains_find_referencing_symbols
+- jet_brains_find_symbol
+- jet_brains_get_symbols_overview
+- jet_brains_inline_symbol
+- jet_brains_move
+- jet_brains_rename
+- jet_brains_safe_delete
+- jet_brains_type_hierarchy
+
+### cmd_tools
+- execute_shell_command
+
+### config_tools
+- activate_project
+- get_current_config
+- open_dashboard
+- remove_project
+- switch_modes
+
+### file_tools
+- create_text_file
+- delete_lines
+- find_file
+- insert_at_line
+- list_dir
+- read_file
+- replace_content
+- replace_lines
+- search_for_pattern
+
+### memory_tools
+- delete_memory
+- edit_memory
+- list_memories
+- read_memory
+- rename_memory
+- write_memory
+
+### query_project_tools
+- list_queryable_projects
+- query_project
+
+### workflow_tools
+- check_onboarding_performed
+- initial_instructions
+- onboarding
+- prepare_for_new_conversation
+- summarize_changes
+- think_about_collected_information
+- think_about_task_adherence
+- think_about_whether_you_are_done
 
 ## Bootstrap (Auto Install + Start)
-Run this first when Serena tools are missing or server is not active.
 
 ```bash
 uvx --from git+https://github.com/oraios/serena serena start-mcp-server
@@ -71,12 +131,6 @@ run uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 7. Run required validation and report evidence.
 8. Write phase-end memory update.
 
-## Validation
-- Use `serena tools list` to confirm concrete tool names before changing project-level tool configuration.
-- Use `serena project index` after large syncs, memory cleanup phases, or repo-wide structural corrections.
-- Use `serena project health-check` when configuration repair is part of the task, and record blockers if the command fails.
-- Re-read updated memories after changes so the final state is verified, not inferred.
-
 ## Phase-End Memory Template
 ```markdown
 ## Phase: <plan|impl|review|qa>
@@ -102,5 +156,4 @@ run uvx --from git+https://github.com/oraios/serena serena start-mcp-server
 ## Guardrails
 - If Serena write tool is unavailable, report blocked; do not bypass with direct file writes.
 - Keep memory names consistent (`workflow/<phase>-<task-id>`).
-- Keep guidance concise; avoid duplicating repository-global policy text.
-- Prefer fixing Serena drift at the source, but do not claim full repair when only replacement memories or partial index refresh were possible.
+- Keep guidance concise.

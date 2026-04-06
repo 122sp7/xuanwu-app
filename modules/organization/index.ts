@@ -51,20 +51,28 @@ export {
   createOrganizationWithTeam,
   updateOrganizationSettings,
   deleteOrganization,
+} from "./interfaces/_actions/organization-lifecycle.actions";
+export {
   inviteMember,
   recruitMember,
   dismissMember,
   updateMemberRole,
+} from "./interfaces/_actions/organization-member.actions";
+export {
   createTeam,
   deleteTeam,
   updateTeamMembers,
+} from "./interfaces/_actions/organization-team.actions";
+export {
   createPartnerGroup,
   sendPartnerInvite,
   dismissPartnerMember,
+} from "./interfaces/_actions/organization-partner.actions";
+export {
   createOrgPolicy,
   updateOrgPolicy,
   deleteOrgPolicy,
-} from "./interfaces/_actions/organization.actions";
+} from "./interfaces/_actions/organization-policy.actions";
 // Read Queries
 export {
   getOrganizationMembers,

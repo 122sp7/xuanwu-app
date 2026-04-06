@@ -16,7 +16,7 @@ import {
   wfArchiveTask,
   wfPassTaskQa,
   wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
+} from "../_actions/workspace-flow-task.actions";
 import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
 import { AssignTaskDialog } from "./AssignTaskDialog";
 import { IssueRow } from "./IssueRow";

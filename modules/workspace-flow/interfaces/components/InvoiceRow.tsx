@@ -15,7 +15,7 @@ import {
   wfRejectInvoice,
   wfReviewInvoice,
   wfSubmitInvoice,
-} from "../_actions/workspace-flow.actions";
+} from "../_actions/workspace-flow-invoice.actions";
 
 const INVOICE_STATUS_VARIANT: Record<
   InvoiceStatus,

@@ -32,7 +32,7 @@ import { Separator } from "@ui-shadcn/ui/separator";
 
 import type { Invoice } from "../../domain/entities/Invoice";
 import type { Task } from "../../domain/entities/Task";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
+import { wfCreateInvoice } from "../_actions/workspace-flow-invoice.actions";
 import {
   getWorkspaceFlowInvoices,
   getWorkspaceFlowTasks,

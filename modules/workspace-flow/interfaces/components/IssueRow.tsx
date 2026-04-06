@@ -15,7 +15,7 @@ import {
   wfPassIssueRetest,
   wfStartIssue,
   wfSubmitIssueRetest,
-} from "../_actions/workspace-flow.actions";
+} from "../_actions/workspace-flow-issue.actions";
 
 export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
   task: "任務",

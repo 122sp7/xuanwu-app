@@ -15,7 +15,7 @@ import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
-import { wfCreateTask } from "../_actions/workspace-flow.actions";
+import { wfCreateTask } from "../_actions/workspace-flow-task.actions";
 
 export interface CreateTaskDialogProps {
   open: boolean;
