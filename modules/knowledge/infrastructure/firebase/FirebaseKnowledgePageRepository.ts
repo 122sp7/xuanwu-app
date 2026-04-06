@@ -33,6 +33,8 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
 } from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 
@@ -65,6 +67,8 @@ function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePa
     verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
     verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
     verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
+    iconUrl: typeof data.iconUrl === "string" ? data.iconUrl : undefined,
+    coverUrl: typeof data.coverUrl === "string" ? data.coverUrl : undefined,
     createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
     updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
@@ -283,6 +287,40 @@ export class FirebaseKnowledgePageRepository implements KnowledgePageRepository 
     const nowISO = new Date().toISOString();
     await updateDoc(ref, {
       ownerId: input.ownerId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      iconUrl: input.iconUrl || null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      coverUrl: input.coverUrl || null,
       updatedAtISO: nowISO,
       updatedAt: serverTimestamp(),
     });

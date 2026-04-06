@@ -41,6 +41,12 @@ export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
 export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
 export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
 export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+
+// Form entity types
+export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
 
 // ── FieldComputationService ────────────────────────────────────────────────────
 export type {

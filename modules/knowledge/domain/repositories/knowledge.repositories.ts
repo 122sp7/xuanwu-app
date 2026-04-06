@@ -14,6 +14,8 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
 } from "../entities/knowledge-page.entity";
 import type {
   KnowledgeBlock,
@@ -50,6 +52,10 @@ export interface KnowledgePageRepository {
   requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
   /** Assign or change the owner of a wiki page. */
   assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
+  /** Set or clear the page icon (emoji or image URL). */
+  updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null>;
+  /** Set or clear the page cover image URL. */
+  updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null>;
   findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
   listByAccountId(accountId: string): Promise<KnowledgePage[]>;
   listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;

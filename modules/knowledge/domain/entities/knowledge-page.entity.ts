@@ -45,6 +45,11 @@ export interface KnowledgePage {
   readonly verifiedAtISO?: string;
   /** ISO timestamp after which the page auto-transitions to "needs_review". */
   readonly verificationExpiresAtISO?: string;
+  // ── Visual identity (Notion-equivalent) ─────────────────────────────────────
+  /** Emoji or image URL used as the page icon (shown next to title). */
+  readonly iconUrl?: string;
+  /** URL of the cover image displayed at the top of the page. */
+  readonly coverUrl?: string;
   readonly createdByUserId: string;
   readonly createdAtISO: string;
   readonly updatedAtISO: string;
@@ -109,4 +114,18 @@ export interface AssignPageOwnerInput {
   readonly accountId: string;
   readonly pageId: string;
   readonly ownerId: string;
+}
+
+export interface UpdatePageIconInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  /** Emoji character or image URL. Pass empty string to clear. */
+  readonly iconUrl: string;
+}
+
+export interface UpdatePageCoverInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  /** Image URL for the cover. Pass empty string to clear. */
+  readonly coverUrl: string;
 }
