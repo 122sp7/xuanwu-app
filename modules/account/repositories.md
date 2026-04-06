@@ -27,4 +27,4 @@
 ## 模組內對應文件
 
 - `../../../modules/account/repositories.md`
-- `../../../docs/ddd/account/aggregates.md`
+- `../../../modules/account/aggregates.md`

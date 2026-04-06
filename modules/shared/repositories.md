@@ -25,4 +25,4 @@
 ## 模組內對應文件
 
 - `../../../modules/shared/repositories.md`
-- `../../../docs/ddd/shared/aggregates.md`
+- `../../../modules/shared/aggregates.md`

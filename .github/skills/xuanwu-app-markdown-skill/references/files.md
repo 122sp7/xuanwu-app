@@ -6250,7 +6250,7 @@ interface AccountPolicyUpdatedEvent {
 ## 模組內對應文件
 
 - `../../../modules/account/domain-services.md`
-- `../../../docs/ddd/account/aggregates.md`
+- `../../../modules/account/aggregates.md`
 ````
 
 ## File: modules/account/README.md
@@ -6325,7 +6325,7 @@ interface AccountPolicyUpdatedEvent {
 ## 模組內對應文件
 
 - `../../../modules/account/repositories.md`
-- `../../../docs/ddd/account/aggregates.md`
+- `../../../modules/account/aggregates.md`
 ````
 
 ## File: modules/account/ubiquitous-language.md
@@ -6551,7 +6551,7 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 ## 模組內對應文件
 
 - `../../../modules/ai/domain-services.md`
-- `../../../docs/ddd/ai/aggregates.md`
+- `../../../modules/ai/aggregates.md`
 ````
 
 ## File: modules/ai/README.md
@@ -6624,7 +6624,7 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 ## 模組內對應文件
 
 - `../../../modules/ai/repositories.md`
-- `../../../docs/ddd/ai/aggregates.md`
+- `../../../modules/ai/aggregates.md`
 ````
 
 ## File: modules/ai/ubiquitous-language.md
@@ -6868,7 +6868,7 @@ identityApi.listenToTokenRefresh()
 ## 模組內對應文件
 
 - `../../../modules/identity/domain-services.md`
-- `../../../docs/ddd/identity/aggregates.md`
+- `../../../modules/identity/aggregates.md`
 ````
 
 ## File: modules/identity/README.md
@@ -6941,7 +6941,7 @@ identityApi.listenToTokenRefresh()
 ## 模組內對應文件
 
 - `../../../modules/identity/repositories.md`
-- `../../../docs/ddd/identity/aggregates.md`
+- `../../../modules/identity/aggregates.md`
 ````
 
 ## File: modules/identity/ubiquitous-language.md
@@ -7144,7 +7144,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/notebook/domain-services.md`
-- `../../../docs/ddd/notebook/aggregates.md`
+- `../../../modules/notebook/aggregates.md`
 ````
 
 ## File: modules/notebook/repositories.md
@@ -7184,7 +7184,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
+- `../../../modules/notebook/aggregates.md`
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -7404,7 +7404,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/notification/domain-services.md`
-- `../../../docs/ddd/notification/aggregates.md`
+- `../../../modules/notification/aggregates.md`
 ````
 
 ## File: modules/notification/repositories.md
@@ -7434,7 +7434,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/notification/repositories.md`
-- `../../../docs/ddd/notification/aggregates.md`
+- `../../../modules/notification/aggregates.md`
 ````
 
 ## File: modules/notification/ubiquitous-language.md
@@ -7668,7 +7668,7 @@ interface OrganizationMemberJoinedEvent {
 ## 模組內對應文件
 
 - `../../../modules/organization/domain-services.md`
-- `../../../docs/ddd/organization/aggregates.md`
+- `../../../modules/organization/aggregates.md`
 ````
 
 ## File: modules/organization/README.md
@@ -7739,7 +7739,7 @@ interface OrganizationMemberJoinedEvent {
 ## 模組內對應文件
 
 - `../../../modules/organization/repositories.md`
-- `../../../docs/ddd/organization/aggregates.md`
+- `../../../modules/organization/aggregates.md`
 ````
 
 ## File: modules/organization/ubiquitous-language.md
@@ -7874,7 +7874,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/search/domain-services.md`
-- `../../../docs/ddd/search/aggregates.md`
+- `../../../modules/search/aggregates.md`
 ````
 
 ## File: modules/shared/AGENT.md
@@ -8094,7 +8094,7 @@ interface DomainEvent {
 ## 模組內對應文件
 
 - `../../../modules/shared/domain-services.md`
-- `../../../docs/ddd/shared/aggregates.md`
+- `../../../modules/shared/aggregates.md`
 ````
 
 ## File: modules/shared/README.md
@@ -8167,7 +8167,7 @@ interface DomainEvent {
 ## 模組內對應文件
 
 - `../../../modules/shared/repositories.md`
-- `../../../docs/ddd/shared/aggregates.md`
+- `../../../modules/shared/aggregates.md`
 ````
 
 ## File: modules/shared/ubiquitous-language.md
@@ -8445,7 +8445,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/source/domain-services.md`
-- `../../../docs/ddd/source/aggregates.md`
+- `../../../modules/source/aggregates.md`
 ````
 
 ## File: modules/source/repositories.md
@@ -8480,7 +8480,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/source/repositories.md`
-- `../../../docs/ddd/source/aggregates.md`
+- `../../../modules/source/aggregates.md`
 ````
 
 ## File: modules/source/ubiquitous-language.md
@@ -8737,7 +8737,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/workspace-audit/domain-services.md`
-- `../../../docs/ddd/workspace-audit/aggregates.md`
+- `../../../modules/workspace-audit/aggregates.md`
 ````
 
 ## File: modules/workspace-audit/README.md
@@ -8809,7 +8809,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/workspace-audit/repositories.md`
-- `../../../docs/ddd/workspace-audit/aggregates.md`
+- `../../../modules/workspace-audit/aggregates.md`
 ````
 
 ## File: modules/workspace-audit/ubiquitous-language.md
@@ -8995,7 +8995,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/workspace-feed/domain-services.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
+- `../../../modules/workspace-feed/aggregates.md`
 ````
 
 ## File: modules/workspace-feed/README.md
@@ -9068,7 +9068,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/workspace-feed/repositories.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
+- `../../../modules/workspace-feed/aggregates.md`
 ````
 
 ## File: modules/workspace-feed/ubiquitous-language.md
@@ -9423,7 +9423,7 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 ## 模組內對應文件
 
 - `../../../modules/workspace-flow/domain-services.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
+- `../../../modules/workspace-flow/aggregates.md`
 ````
 
 ## File: modules/workspace-flow/README.md
@@ -9505,7 +9505,7 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 ## 模組內對應文件
 
 - `../../../modules/workspace-flow/repositories.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
+- `../../../modules/workspace-flow/aggregates.md`
 ````
 
 ## File: modules/workspace-flow/ubiquitous-language.md
@@ -9839,7 +9839,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/workspace-scheduling/domain-services.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
+- `../../../modules/workspace-scheduling/aggregates.md`
 ````
 
 ## File: modules/workspace-scheduling/README.md
@@ -9911,7 +9911,7 @@ Application layer 只負責：
 ## 模組內對應文件
 
 - `../../../modules/workspace-scheduling/repositories.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
+- `../../../modules/workspace-scheduling/aggregates.md`
 ````
 
 ## File: modules/workspace-scheduling/ubiquitous-language.md
@@ -10185,7 +10185,7 @@ interface WorkspaceCreatedEvent {
 ## 模組內對應文件
 
 - `../../../modules/workspace/domain-services.md`
-- `../../../docs/ddd/workspace/aggregates.md`
+- `../../../modules/workspace/aggregates.md`
 ````
 
 ## File: modules/workspace/repositories.md
@@ -10219,7 +10219,7 @@ interface WorkspaceCreatedEvent {
 ## 模組內對應文件
 
 - `../../../modules/workspace/repositories.md`
-- `../../../docs/ddd/workspace/aggregates.md`
+- `../../../modules/workspace/aggregates.md`
 ````
 
 ## File: modules/workspace/ubiquitous-language.md
@@ -14077,7 +14077,7 @@ Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization
 ## 模組內對應文件
 
 - `../../../modules/knowledge/domain-services.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: modules/knowledge/repositories.md
@@ -14132,7 +14132,7 @@ Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization
 ## 模組內對應文件
 
 - `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: README.md

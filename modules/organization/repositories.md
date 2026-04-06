@@ -23,4 +23,4 @@
 ## 模組內對應文件
 
 - `../../../modules/organization/repositories.md`
-- `../../../docs/ddd/organization/aggregates.md`
+- `../../../modules/organization/aggregates.md`

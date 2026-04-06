@@ -28,4 +28,4 @@
 ## 模組內對應文件
 
 - `../../../modules/source/repositories.md`
-- `../../../docs/ddd/source/aggregates.md`
+- `../../../modules/source/aggregates.md`

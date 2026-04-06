@@ -19,4 +19,4 @@
 ## 模組內對應文件
 
 - `../../../modules/workspace-scheduling/domain-services.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
+- `../../../modules/workspace-scheduling/aggregates.md`

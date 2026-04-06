@@ -48,4 +48,4 @@
 ## 模組內對應文件
 
 - `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+- `../../../modules/knowledge/aggregates.md`

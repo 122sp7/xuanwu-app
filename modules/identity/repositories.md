@@ -25,4 +25,4 @@
 ## 模組內對應文件
 
 - `../../../modules/identity/repositories.md`
-- `../../../docs/ddd/identity/aggregates.md`
+- `../../../modules/identity/aggregates.md`

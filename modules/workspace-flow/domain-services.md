@@ -23,4 +23,4 @@
 ## 模組內對應文件
 
 - `../../../modules/workspace-flow/domain-services.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
+- `../../../modules/workspace-flow/aggregates.md`

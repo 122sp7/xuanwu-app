@@ -19,4 +19,4 @@
 ## 模組內對應文件
 
 - `../../../modules/identity/domain-services.md`
-- `../../../docs/ddd/identity/aggregates.md`
+- `../../../modules/identity/aggregates.md`

@@ -9705,7 +9705,7 @@ interface AccountPolicyUpdatedEvent {
 ## 模組內對應文件
 
 - `../../../modules/account/domain-services.md`
-- `../../../docs/ddd/account/aggregates.md`
+- `../../../modules/account/aggregates.md`
 ````
 
 ## File: modules/account/domain/entities/Account.ts
@@ -10846,7 +10846,7 @@ export function subscribeToAccountsForUser(
 ## 模組內對應文件
 
 - `../../../modules/account/repositories.md`
-- `../../../docs/ddd/account/aggregates.md`
+- `../../../modules/account/aggregates.md`
 ````
 
 ## File: modules/account/ubiquitous-language.md
@@ -11280,7 +11280,7 @@ py_fn/ worker ──[Chunk + Embedding 寫回 Firestore]──► Next.js reads
 ## 模組內對應文件
 
 - `../../../modules/ai/domain-services.md`
-- `../../../docs/ddd/ai/aggregates.md`
+- `../../../modules/ai/aggregates.md`
 ````
 
 ## File: modules/ai/domain/entities/graph-node.ts
@@ -11537,7 +11537,7 @@ export class InMemoryIngestionJobRepository implements IngestionJobRepository {
 ## 模組內對應文件
 
 - `../../../modules/ai/repositories.md`
-- `../../../docs/ddd/ai/aggregates.md`
+- `../../../modules/ai/aggregates.md`
 ````
 
 ## File: modules/ai/ubiquitous-language.md
@@ -12073,7 +12073,7 @@ identityApi.listenToTokenRefresh()
 ## 模組內對應文件
 
 - `../../../modules/identity/domain-services.md`
-- `../../../docs/ddd/identity/aggregates.md`
+- `../../../modules/identity/aggregates.md`
 ````
 
 ## File: modules/identity/domain/entities/Identity.ts
@@ -12544,7 +12544,7 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 ## 模組內對應文件
 
 - `../../../modules/identity/repositories.md`
-- `../../../docs/ddd/identity/aggregates.md`
+- `../../../modules/identity/aggregates.md`
 ````
 
 ## File: modules/identity/ubiquitous-language.md
@@ -17650,7 +17650,7 @@ export class GenerateNotebookResponseUseCase {
 ## 模組內對應文件
 
 - `../../../modules/notebook/domain-services.md`
-- `../../../docs/ddd/notebook/aggregates.md`
+- `../../../modules/notebook/aggregates.md`
 ````
 
 ## File: modules/notebook/domain/entities/AgentGeneration.ts
@@ -17944,7 +17944,7 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 ## 模組內對應文件
 
 - `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
+- `../../../modules/notebook/aggregates.md`
 ````
 
 ## File: modules/notebook/ubiquitous-language.md
@@ -18313,7 +18313,7 @@ export class MarkAllNotificationsReadUseCase {
 ## 模組內對應文件
 
 - `../../../modules/notification/domain-services.md`
-- `../../../docs/ddd/notification/aggregates.md`
+- `../../../modules/notification/aggregates.md`
 ````
 
 ## File: modules/notification/domain/entities/Notification.ts
@@ -18774,7 +18774,7 @@ export async function getNotificationsForRecipient(
 ## 模組內對應文件
 
 - `../../../modules/notification/repositories.md`
-- `../../../docs/ddd/notification/aggregates.md`
+- `../../../modules/notification/aggregates.md`
 ````
 
 ## File: modules/notification/ubiquitous-language.md
@@ -19461,7 +19461,7 @@ interface OrganizationMemberJoinedEvent {
 ## 模組內對應文件
 
 - `../../../modules/organization/domain-services.md`
-- `../../../docs/ddd/organization/aggregates.md`
+- `../../../modules/organization/aggregates.md`
 ````
 
 ## File: modules/organization/domain/entities/Organization.ts
@@ -20391,7 +20391,7 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 ## 模組內對應文件
 
 - `../../../modules/organization/repositories.md`
-- `../../../docs/ddd/organization/aggregates.md`
+- `../../../modules/organization/aggregates.md`
 ````
 
 ## File: modules/organization/ubiquitous-language.md
@@ -20791,7 +20791,7 @@ export async function listWikiParsedDocuments(
 ## 模組內對應文件
 
 - `../../../modules/search/domain-services.md`
-- `../../../docs/ddd/search/aggregates.md`
+- `../../../modules/search/aggregates.md`
 ````
 
 ## File: modules/search/domain/entities/RagQuery.ts
@@ -22684,7 +22684,7 @@ interface DomainEvent {
 ## 模組內對應文件
 
 - `../../../modules/shared/domain-services.md`
-- `../../../docs/ddd/shared/aggregates.md`
+- `../../../modules/shared/aggregates.md`
 ````
 
 ## File: modules/shared/domain/event-record.ts
@@ -23118,7 +23118,7 @@ export class SimpleEventBus {
 ## 模組內對應文件
 
 - `../../../modules/shared/repositories.md`
-- `../../../docs/ddd/shared/aggregates.md`
+- `../../../modules/shared/aggregates.md`
 ````
 
 ## File: modules/shared/ubiquitous-language.md
@@ -24283,7 +24283,7 @@ export async function getWikiLibrarySnapshot(
 ## 模組內對應文件
 
 - `../../../modules/source/domain-services.md`
-- `../../../docs/ddd/source/aggregates.md`
+- `../../../modules/source/aggregates.md`
 ````
 
 ## File: modules/source/domain/entities/AuditRecord.ts
@@ -26810,7 +26810,7 @@ export async function getWorkspaceRagDocuments(
 ## 模組內對應文件
 
 - `../../../modules/source/repositories.md`
-- `../../../docs/ddd/source/aggregates.md`
+- `../../../modules/source/aggregates.md`
 ````
 
 ## File: modules/source/ubiquitous-language.md
@@ -27164,7 +27164,7 @@ export class ListOrganizationAuditLogsUseCase {
 ## 模組內對應文件
 
 - `../../../modules/workspace-audit/domain-services.md`
-- `../../../docs/ddd/workspace-audit/aggregates.md`
+- `../../../modules/workspace-audit/aggregates.md`
 ````
 
 ## File: modules/workspace-audit/domain/.gitkeep
@@ -27806,7 +27806,7 @@ export async function getOrganizationAuditLogs(
 ## 模組內對應文件
 
 - `../../../modules/workspace-audit/repositories.md`
-- `../../../docs/ddd/workspace-audit/aggregates.md`
+- `../../../modules/workspace-audit/aggregates.md`
 ````
 
 ## File: modules/workspace-audit/ubiquitous-language.md
@@ -28412,7 +28412,7 @@ export class ListAccountWorkspaceFeedUseCase {
 ## 模組內對應文件
 
 - `../../../modules/workspace-feed/domain-services.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
+- `../../../modules/workspace-feed/aggregates.md`
 ````
 
 ## File: modules/workspace-feed/domain/entities/workspace-feed-post.entity.ts
@@ -29630,7 +29630,7 @@ export async function getAccountWorkspaceFeed(accountId: string, limit = 50): Pr
 ## 模組內對應文件
 
 - `../../../modules/workspace-feed/repositories.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
+- `../../../modules/workspace-feed/aggregates.md`
 ````
 
 ## File: modules/workspace-feed/ubiquitous-language.md
@@ -30237,7 +30237,7 @@ knowledge.page_approved ──► ContentToWorkflowMaterializer
 ## 模組內對應文件
 
 - `../../../modules/workspace-flow/domain-services.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
+- `../../../modules/workspace-flow/aggregates.md`
 ````
 
 ## File: modules/workspace-flow/domain/value-objects/SourceReference.ts
@@ -30383,7 +30383,7 @@ export function toSourceReference(raw: unknown): SourceReference | undefined {
 ## 模組內對應文件
 
 - `../../../modules/workspace-flow/repositories.md`
-- `../../../docs/ddd/workspace-flow/aggregates.md`
+- `../../../modules/workspace-flow/aggregates.md`
 ````
 
 ## File: modules/workspace-flow/ubiquitous-language.md
@@ -31503,7 +31503,7 @@ export class ListAccountDemandsUseCase {
 ## 模組內對應文件
 
 - `../../../modules/workspace-scheduling/domain-services.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
+- `../../../modules/workspace-scheduling/aggregates.md`
 ````
 
 ## File: modules/workspace-scheduling/domain/repository.ts
@@ -32742,7 +32742,7 @@ export function WorkspaceSchedulingTab({
 ## 模組內對應文件
 
 - `../../../modules/workspace-scheduling/repositories.md`
-- `../../../docs/ddd/workspace-scheduling/aggregates.md`
+- `../../../modules/workspace-scheduling/aggregates.md`
 ````
 
 ## File: modules/workspace-scheduling/ubiquitous-language.md
@@ -33306,7 +33306,7 @@ interface WorkspaceCreatedEvent {
 ## 模組內對應文件
 
 - `../../../modules/workspace/domain-services.md`
-- `../../../docs/ddd/workspace/aggregates.md`
+- `../../../modules/workspace/aggregates.md`
 ````
 
 ## File: modules/workspace/domain/entities/WikiContentTree.ts
@@ -34811,7 +34811,7 @@ export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly Work
 ## 模組內對應文件
 
 - `../../../modules/workspace/repositories.md`
-- `../../../docs/ddd/workspace/aggregates.md`
+- `../../../modules/workspace/aggregates.md`
 ````
 
 ## File: modules/workspace/ubiquitous-language.md
@@ -46233,6 +46233,122 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
     assert get_rag_query_gateway_from_shim() is get_rag_query_gateway()
     assert get_rag_ingestion_gateway_from_shim() is get_rag_ingestion_gateway()
     assert get_document_pipeline_gateway_from_shim() is get_document_pipeline_gateway()
+````
+
+## File: repomix.config.json
+````json
+{
+  "$schema": "https://repomix.com/schemas/latest/schema.json",
+  "input": {
+    "maxFileSize": 52428800
+  },
+  "output": {
+    "filePath": "repomix-output.json",
+    "style": "json",
+    "parsableStyle": false,
+    "fileSummary": true,
+    "directoryStructure": true,
+    "files": true,
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "compress": false,
+    "topFilesLength": 5,
+    "showLineNumbers": false,
+    "truncateBase64": false,
+    "copyToClipboard": false,
+    "includeFullDirectoryStructure": false,
+    "tokenCountTree": false,
+    "git": {
+      "sortByChanges": true,
+      "sortByChangesMaxCommits": 100,
+      "includeDiffs": false,
+      "includeLogs": false,
+      "includeLogsCount": 50
+    }
+  },
+  "include": [],
+  "ignore": {
+    "useGitignore": true,
+    "useDotIgnore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "dist/**",
+      "coverage/**",
+      ".turbo/**",
+      ".vercel/**",
+      ".firebase/**",
+      ".output/**",
+      ".parcel-cache/**",
+
+      ".cursor/**",
+      ".vscode/**",
+      ".serena/**",
+      ".claude/**",
+      ".opencode/**",
+      ".idea/**",
+      ".history/**",
+
+      ".cache/**",
+      ".temp/**",
+      ".tmp/**",
+      "tmp/**",
+      "temp/**",
+
+      "*.log",
+      "logs/**",
+      "firebase-debug.log",
+
+      ".env*",
+      "*.pem",
+      "*.key",
+      "*.crt",
+
+      ".DS_Store",
+      "Thumbs.db",
+
+      "*.lock",
+      "package-lock.json",
+      "pnpm-lock.yaml",
+      "yarn.lock",
+      "skills-lock.json",
+
+      "*.tsbuildinfo",
+      ".eslintcache",
+      ".stylelintcache",
+
+      ".git/**",
+      ".github/workflows/**",
+      ".github/skills/**",
+      "docs/architecture/**",
+      "diagrams/**",
+
+      "public/**",
+      ".tmp-eslint*.json",
+      "*.png",
+      "*.jpg",
+      "*.jpeg",
+      "*.gif",
+      "*.webp",
+      "*.mp4",
+      "*.zip",
+      "*.tar",
+      "*.gz",
+
+      "*.sqlite",
+      "*.db"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  },
+  "tokenCount": {
+    "encoding": "o200k_base"
+  }
+}
 ````
 
 ## File: scripts/demo-flow.ts
@@ -62369,122 +62485,6 @@ export const VisTimeline: FC<VisTimelineProps> = ({
 export default VisTimeline;
 ````
 
-## File: repomix.config.json
-````json
-{
-  "$schema": "https://repomix.com/schemas/latest/schema.json",
-  "input": {
-    "maxFileSize": 52428800
-  },
-  "output": {
-    "filePath": "repomix-output.json",
-    "style": "json",
-    "parsableStyle": false,
-    "fileSummary": true,
-    "directoryStructure": true,
-    "files": true,
-    "removeComments": false,
-    "removeEmptyLines": false,
-    "compress": false,
-    "topFilesLength": 5,
-    "showLineNumbers": false,
-    "truncateBase64": false,
-    "copyToClipboard": false,
-    "includeFullDirectoryStructure": false,
-    "tokenCountTree": false,
-    "git": {
-      "sortByChanges": true,
-      "sortByChangesMaxCommits": 100,
-      "includeDiffs": false,
-      "includeLogs": false,
-      "includeLogsCount": 50
-    }
-  },
-  "include": [],
-  "ignore": {
-    "useGitignore": true,
-    "useDotIgnore": true,
-    "useDefaultPatterns": true,
-    "customPatterns": [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "dist/**",
-      "coverage/**",
-      ".turbo/**",
-      ".vercel/**",
-      ".firebase/**",
-      ".output/**",
-      ".parcel-cache/**",
-
-      ".cursor/**",
-      ".vscode/**",
-      ".serena/**",
-      ".claude/**",
-      ".opencode/**",
-      ".idea/**",
-      ".history/**",
-
-      ".cache/**",
-      ".temp/**",
-      ".tmp/**",
-      "tmp/**",
-      "temp/**",
-
-      "*.log",
-      "logs/**",
-      "firebase-debug.log",
-
-      ".env*",
-      "*.pem",
-      "*.key",
-      "*.crt",
-
-      ".DS_Store",
-      "Thumbs.db",
-
-      "*.lock",
-      "package-lock.json",
-      "pnpm-lock.yaml",
-      "yarn.lock",
-      "skills-lock.json",
-
-      "*.tsbuildinfo",
-      ".eslintcache",
-      ".stylelintcache",
-
-      ".git/**",
-      ".github/workflows/**",
-      ".github/skills/**",
-      "docs/architecture/**",
-      "diagrams/**",
-
-      "public/**",
-      ".tmp-eslint*.json",
-      "*.png",
-      "*.jpg",
-      "*.jpeg",
-      "*.gif",
-      "*.webp",
-      "*.mp4",
-      "*.zip",
-      "*.tar",
-      "*.gz",
-
-      "*.sqlite",
-      "*.db"
-    ]
-  },
-  "security": {
-    "enableSecurityCheck": true
-  },
-  "tokenCount": {
-    "encoding": "o200k_base"
-  }
-}
-````
-
 ## File: scripts/init-framework.sh
 ````bash
 #!/bin/bash
@@ -66669,7 +66669,7 @@ export { PageDialog } from "../interfaces/components/PageDialog";
 ## 模組內對應文件
 
 - `../../../modules/knowledge/domain-services.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
@@ -67110,7 +67110,7 @@ export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
 ## 模組內對應文件
 
 - `../../../modules/knowledge/repositories.md`
-- `../../../docs/ddd/knowledge/aggregates.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
@@ -68034,6 +68034,185 @@ export default eslintConfig;
 - ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
 - 若需調整界限上下文內容，請只編輯 canonical 檔案。
 - 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
+````
+
+## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: application/use-cases
+ * Article lifecycle use cases.
+ */
+
+import type { z } from "@lib-zod";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
+import type { Article } from "../../domain/entities/article.entity";
+import {
+  CreateArticleSchema,
+  UpdateArticleSchema,
+  PublishArticleSchema,
+  ArchiveArticleSchema,
+  VerifyArticleSchema,
+  RequestArticleReviewSchema,
+  DeleteArticleSchema,
+} from "../dto/knowledge-base.dto";
+import { v7 as generateId } from "@lib-uuid";
+
+export class CreateArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
+    const parsed = CreateArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const now = new Date().toISOString();
+    const article: Article = {
+      id: generateId(),
+      accountId: parsed.data.accountId,
+      workspaceId: parsed.data.workspaceId,
+      categoryId: parsed.data.categoryId,
+      title: parsed.data.title,
+      content: parsed.data.content,
+      tags: parsed.data.tags,
+      status: "draft",
+      version: 1,
+      verificationState: "unverified",
+      ownerId: parsed.data.createdByUserId,
+      verifiedByUserId: null,
+      verifiedAtISO: null,
+      verificationExpiresAtISO: null,
+      linkedArticleIds: [],
+      createdByUserId: parsed.data.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    await this.repo.save(article);
+    return commandSuccess(article.id, article.version);
+  }
+}
+
+export class UpdateArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
+    const parsed = UpdateArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    const updated: Article = {
+      ...existing,
+      title: parsed.data.title ?? existing.title,
+      content: parsed.data.content ?? existing.content,
+      categoryId: parsed.data.categoryId !== undefined ? parsed.data.categoryId : existing.categoryId,
+      tags: parsed.data.tags ?? existing.tags,
+      updatedAtISO: now,
+    };
+    await this.repo.save(updated);
+    return commandSuccess(updated.id, updated.version);
+  }
+}
+
+export class PublishArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
+    const parsed = PublishArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, status: "published", version: existing.version + 1, updatedAtISO: now });
+    return commandSuccess(parsed.data.id, existing.version + 1);
+  }
+}
+
+export class ArchiveArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
+    const parsed = ArchiveArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, status: "archived", updatedAtISO: now });
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class VerifyArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
+    const parsed = VerifyArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    const expiresAt = parsed.data.expiresInDays
+      ? new Date(Date.now() + parsed.data.expiresInDays * 86400000).toISOString()
+      : null;
+    await this.repo.save({
+      ...existing,
+      verificationState: "verified",
+      verifiedByUserId: parsed.data.verifiedByUserId,
+      verifiedAtISO: now,
+      verificationExpiresAtISO: expiresAt,
+      updatedAtISO: now,
+    });
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class RequestArticleReviewUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
+    const parsed = RequestArticleReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    const now = new Date().toISOString();
+    await this.repo.save({ ...existing, verificationState: "needs_review", updatedAtISO: now });
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class DeleteArticleUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
+    const parsed = DeleteArticleSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
+    }
+    const existing = await this.repo.getById(parsed.data.id);
+    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
+    await this.repo.delete(parsed.data.id);
+    return commandSuccess(parsed.data.id, existing.version);
+  }
+}
+
+export class ListArticlesUseCase {
+  constructor(private readonly repo: IArticleRepository) {}
+
+  async execute(params: { workspaceId: string; accountId: string; categoryId?: string }) {
+    return this.repo.list(params);
+  }
+}
 ````
 
 ## File: modules/knowledge-base/application/use-cases/category.use-cases.ts
@@ -69608,6 +69787,116 @@ export function WorkspaceDetailScreen({
 }
 ````
 
+## File: package.json
+````json
+{
+  "name": "xuanwu-app",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
+    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
+    "deploy:storage:rules": "npx firebase deploy --only storage",
+    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
+    "deploy:apphosting": "npx firebase deploy --only apphosting",
+    "deploy:functions": "npx firebase deploy --only functions:py_fn",
+    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
+    "deploy:functions:all": "npx firebase deploy --only functions",
+    "deploy:firebase": "npx firebase deploy",
+    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
+    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
+    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
+    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
+    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
+  },
+  "engines": {
+    "node": "24"
+  },
+  "dependencies": {
+    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
+    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
+    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
+    "@genkit-ai/google-genai": "^1.30.1",
+    "@tanstack/react-form": "^1.28.5",
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-table": "^8.21.3",
+    "@tanstack/react-virtual": "^3.13.23",
+    "@tiptap/extension-color": "^3.22.2",
+    "@tiptap/extension-link": "^3.22.2",
+    "@tiptap/extension-placeholder": "^3.22.2",
+    "@tiptap/extension-text-style": "^3.22.2",
+    "@tiptap/extension-typography": "^3.22.2",
+    "@tiptap/extension-underline": "^3.22.2",
+    "@tiptap/react": "^3.22.2",
+    "@tiptap/starter-kit": "^3.22.2",
+    "@trpc/client": "^11.13.4",
+    "@trpc/next": "^11.13.4",
+    "@trpc/react-query": "^11.13.4",
+    "@trpc/server": "^11.13.4",
+    "@xstate/react": "^6.1.0",
+    "axios": "^1.13.6",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
+    "firebase": "^12.9.0",
+    "genkit": "^1.30.1",
+    "input-otp": "^1.4.2",
+    "lucide-react": "^0.577.0",
+    "next": "16.1.7",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.4.3",
+    "react": "19.2.3",
+    "react-day-picker": "^9.14.0",
+    "react-dom": "19.2.3",
+    "react-graph-vis": "^1.0.7",
+    "react-markdown": "^10.1.0",
+    "recharts": "^2.15.4",
+    "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
+    "superjson": "^2.2.6",
+    "uuid": "^13.0.0",
+    "vaul": "^1.1.2",
+    "vis-data": "^8.0.3",
+    "vis-graph3d": "^7.0.2",
+    "vis-network": "^10.0.2",
+    "vis-timeline": "^8.5.0",
+    "xstate": "^5.28.0",
+    "zod": "^4.3.6",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^16.2.2",
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20.19.37",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.1.7",
+    "eslint-plugin-boundaries": "^6.0.1",
+    "eslint-plugin-jsdoc": "^62.8.0",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "repomix": "^1.12.0",
+    "shadcn": "^4.1.0",
+    "tailwind-merge": "^3.5.0",
+    "tailwindcss": "^4",
+    "tailwindcss-animate": "^1.0.7",
+    "tw-animate-css": "^1.4.0",
+    "typescript": "^5",
+    "typescript-eslint": "^8.58.0"
+  }
+}
+````
+
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
 ````typescript
 "use client";
@@ -70565,185 +70854,6 @@ export function DashboardSidebar({
 }
 ````
 
-## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: application/use-cases
- * Article lifecycle use cases.
- */
-
-import type { z } from "@lib-zod";
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
-import type { Article } from "../../domain/entities/article.entity";
-import {
-  CreateArticleSchema,
-  UpdateArticleSchema,
-  PublishArticleSchema,
-  ArchiveArticleSchema,
-  VerifyArticleSchema,
-  RequestArticleReviewSchema,
-  DeleteArticleSchema,
-} from "../dto/knowledge-base.dto";
-import { v7 as generateId } from "@lib-uuid";
-
-export class CreateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof CreateArticleSchema>): Promise<CommandResult> {
-    const parsed = CreateArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const now = new Date().toISOString();
-    const article: Article = {
-      id: generateId(),
-      accountId: parsed.data.accountId,
-      workspaceId: parsed.data.workspaceId,
-      categoryId: parsed.data.categoryId,
-      title: parsed.data.title,
-      content: parsed.data.content,
-      tags: parsed.data.tags,
-      status: "draft",
-      version: 1,
-      verificationState: "unverified",
-      ownerId: parsed.data.createdByUserId,
-      verifiedByUserId: null,
-      verifiedAtISO: null,
-      verificationExpiresAtISO: null,
-      linkedArticleIds: [],
-      createdByUserId: parsed.data.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    await this.repo.save(article);
-    return commandSuccess(article.id, article.version);
-  }
-}
-
-export class UpdateArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof UpdateArticleSchema>): Promise<CommandResult> {
-    const parsed = UpdateArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    const updated: Article = {
-      ...existing,
-      title: parsed.data.title ?? existing.title,
-      content: parsed.data.content ?? existing.content,
-      categoryId: parsed.data.categoryId !== undefined ? parsed.data.categoryId : existing.categoryId,
-      tags: parsed.data.tags ?? existing.tags,
-      updatedAtISO: now,
-    };
-    await this.repo.save(updated);
-    return commandSuccess(updated.id, updated.version);
-  }
-}
-
-export class PublishArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof PublishArticleSchema>): Promise<CommandResult> {
-    const parsed = PublishArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, status: "published", version: existing.version + 1, updatedAtISO: now });
-    return commandSuccess(parsed.data.id, existing.version + 1);
-  }
-}
-
-export class ArchiveArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof ArchiveArticleSchema>): Promise<CommandResult> {
-    const parsed = ArchiveArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, status: "archived", updatedAtISO: now });
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class VerifyArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof VerifyArticleSchema>): Promise<CommandResult> {
-    const parsed = VerifyArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    const expiresAt = parsed.data.expiresInDays
-      ? new Date(Date.now() + parsed.data.expiresInDays * 86400000).toISOString()
-      : null;
-    await this.repo.save({
-      ...existing,
-      verificationState: "verified",
-      verifiedByUserId: parsed.data.verifiedByUserId,
-      verifiedAtISO: now,
-      verificationExpiresAtISO: expiresAt,
-      updatedAtISO: now,
-    });
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class RequestArticleReviewUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof RequestArticleReviewSchema>): Promise<CommandResult> {
-    const parsed = RequestArticleReviewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    const now = new Date().toISOString();
-    await this.repo.save({ ...existing, verificationState: "needs_review", updatedAtISO: now });
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class DeleteArticleUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(input: z.infer<typeof DeleteArticleSchema>): Promise<CommandResult> {
-    const parsed = DeleteArticleSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("ARTICLE_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
-    }
-    const existing = await this.repo.getById(parsed.data.id);
-    if (!existing) return commandFailureFrom("ARTICLE_NOT_FOUND", "Article not found");
-    await this.repo.delete(parsed.data.id);
-    return commandSuccess(parsed.data.id, existing.version);
-  }
-}
-
-export class ListArticlesUseCase {
-  constructor(private readonly repo: IArticleRepository) {}
-
-  async execute(params: { workspaceId: string; accountId: string; categoryId?: string }) {
-    return this.repo.list(params);
-  }
-}
-````
-
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -71093,116 +71203,6 @@ interface KnowledgePagePromotedEvent {
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: package.json
-````json
-{
-  "name": "xuanwu-app",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint",
-    "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
-    "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
-    "deploy:storage:rules": "npx firebase deploy --only storage",
-    "deploy:rules": "npx firebase deploy --only firestore:rules,storage",
-    "deploy:apphosting": "npx firebase deploy --only apphosting",
-    "deploy:functions": "npx firebase deploy --only functions:py_fn",
-    "deploy:functions:py-fn": "npx firebase deploy --only functions:py-fn",
-    "deploy:functions:all": "npx firebase deploy --only functions",
-    "deploy:firebase": "npx firebase deploy",
-    "repomix:skill": "npx repomix --skill-generate xuanwu-app-skill --skill-output .github/skills/xuanwu-app-skill --force",
-    "repomix:markdown": "npx repomix --skill-generate xuanwu-app-markdown-skill --skill-output .github/skills/xuanwu-app-markdown-skill --include \"**/*.md\" --force",
-    "repomix:remote": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill --remote xx/xx --include \"apps/web/**\" --force",
-    "repomix:local": "npx repomix --skill-generate x-skill --skill-output .github/skills/x-skill D:\\122sp7\\apps --force",
-    "repomix:remote:vscode-docs": "npx repomix --remote microsoft/vscode-docs --include \"docs/**\" --skill-generate vscode-docs-skill --skill-output .github/skills/vscode-docs-skill --force"
-  },
-  "engines": {
-    "node": "24"
-  },
-  "dependencies": {
-    "@atlaskit/pragmatic-drag-and-drop": "^1.7.9",
-    "@atlaskit/pragmatic-drag-and-drop-hitbox": "^1.1.0",
-    "@atlaskit/pragmatic-drag-and-drop-react-drop-indicator": "^3.2.12",
-    "@genkit-ai/google-genai": "^1.30.1",
-    "@tanstack/react-form": "^1.28.5",
-    "@tanstack/react-query": "^5.90.21",
-    "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.23",
-    "@tiptap/extension-color": "^3.22.2",
-    "@tiptap/extension-link": "^3.22.2",
-    "@tiptap/extension-placeholder": "^3.22.2",
-    "@tiptap/extension-text-style": "^3.22.2",
-    "@tiptap/extension-typography": "^3.22.2",
-    "@tiptap/extension-underline": "^3.22.2",
-    "@tiptap/react": "^3.22.2",
-    "@tiptap/starter-kit": "^3.22.2",
-    "@trpc/client": "^11.13.4",
-    "@trpc/next": "^11.13.4",
-    "@trpc/react-query": "^11.13.4",
-    "@trpc/server": "^11.13.4",
-    "@xstate/react": "^6.1.0",
-    "axios": "^1.13.6",
-    "cmdk": "^1.1.1",
-    "date-fns": "^4.1.0",
-    "embla-carousel-react": "^8.6.0",
-    "firebase": "^12.9.0",
-    "genkit": "^1.30.1",
-    "input-otp": "^1.4.2",
-    "lucide-react": "^0.577.0",
-    "next": "16.1.7",
-    "next-themes": "^0.4.6",
-    "radix-ui": "^1.4.3",
-    "react": "19.2.3",
-    "react-day-picker": "^9.14.0",
-    "react-dom": "19.2.3",
-    "react-graph-vis": "^1.0.7",
-    "react-markdown": "^10.1.0",
-    "recharts": "^2.15.4",
-    "remark-gfm": "^4.0.1",
-    "sonner": "^2.0.7",
-    "superjson": "^2.2.6",
-    "uuid": "^13.0.0",
-    "vaul": "^1.1.2",
-    "vis-data": "^8.0.3",
-    "vis-graph3d": "^7.0.2",
-    "vis-network": "^10.0.2",
-    "vis-timeline": "^8.5.0",
-    "xstate": "^5.28.0",
-    "zod": "^4.3.6",
-    "zustand": "^5.0.12"
-  },
-  "devDependencies": {
-    "@next/eslint-plugin-next": "^16.2.2",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20.19.37",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "@typescript-eslint/eslint-plugin": "^8.57.1",
-    "@typescript-eslint/parser": "^8.57.1",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "eslint": "^9.39.4",
-    "eslint-config-next": "^16.1.7",
-    "eslint-plugin-boundaries": "^6.0.1",
-    "eslint-plugin-jsdoc": "^62.8.0",
-    "eslint-plugin-jsx-a11y": "^6.10.2",
-    "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "repomix": "^1.12.0",
-    "shadcn": "^4.1.0",
-    "tailwind-merge": "^3.5.0",
-    "tailwindcss": "^4",
-    "tailwindcss-animate": "^1.0.7",
-    "tw-animate-css": "^1.4.0",
-    "typescript": "^5",
-    "typescript-eslint": "^8.58.0"
-  }
-}
 ````
 
 ## File: app/(shell)/_components/app-rail.tsx
