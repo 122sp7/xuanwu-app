@@ -616,238 +616,6 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
-## File: .github/agents/knowledge-base.md
-````markdown
-# Knowledge Base — MDDD Domain & Architecture
-
-This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
-
-## Module-Driven Domain Design (MDDD)
-
-The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
-
-### Core Principle
-
-> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
-
-### Global Dependency Direction
-
-```
-UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
-```
-
-The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
-
-## Module Structure
-
-Each module under `modules/` follows a four-layer Clean Architecture:
-
-```
-modules/<module-name>/
-├── api/
-│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
-├── index.ts                    # Optional local barrel for same-module composition
-├── README.md                   # Module documentation (optional)
-├── domain/
-│   ├── entities/               # Aggregate roots, value objects, entity types
-│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
-│   ├── services/               # Pure domain services (stateless business rules)
-│   ├── value-objects/          # DDD value objects (immutable, equality by value)
-│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
-├── application/
-│   ├── use-cases/              # One file per use case (single operation)
-│   └── dto/                    # Data Transfer Objects for use-case I/O
-├── infrastructure/
-│   ├── firebase/               # Firebase Firestore repository implementations
-│   ├── genkit/                 # AI/Genkit integrations (AI module)
-│   ├── default/                # In-memory or simplified implementations
-│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
-│   ├── persistence/            # Persistence adapters
-│   └── repositories/           # Repository implementations (alternative layout)
-└── interfaces/
-    ├── components/             # React UI components
-    ├── queries/                # TanStack Query hooks (read-side)
-    ├── _actions/               # Next.js Server Actions (write-side)
-    ├── hooks/                  # Custom React hooks
-    ├── api/                    # REST API route controllers
-    ├── contracts/              # API contracts
-    └── view-models/            # View model transformations
-```
-
-Not every module has every subdirectory — only what it needs.
-
-### Boundary Policy
-
-- Every `modules/<module-name>/` is isolated.
-- Cross-module imports are allowed only via `modules/<target-module>/api/`.
-- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
-- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
-
-## Module Inventory
-
-Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
-
-`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
-
-> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
-
-## Package System (21 Packages)
-
-Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
-
-### Import Rule
-
-```typescript
-// ✅ CORRECT — via @alias from tsconfig.json
-import type { CommandResult, DomainError } from "@shared-types";
-import { cn, formatDate } from "@shared-utils";
-import { auth } from "@integration-firebase";
-
-// ❌ NEVER — relative paths to package internals
-import type { CommandResult } from "../../../../packages/shared-types/index";
-
-// ❌ NEVER — legacy paths (ESLint will block)
-import type { CommandResult } from "@/shared/types";
-```
-
-### Package Catalog
-
-| Alias | Package | Purpose |
-|-------|---------|---------|
-| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
-| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
-| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
-| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
-| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
-| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
-| `@integration-http` | integration-http | Axios HTTP client with interceptors |
-| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
-| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
-| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
-| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
-| `@lib-zod` | lib-zod | Zod v4 wrapper |
-| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
-| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
-| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
-| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
-| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
-| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
-| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
-| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
-
-### ESLint Boundary Enforcement
-
-Legacy import paths are blocked by `eslint.config.mjs`:
-
-| Blocked Pattern | Replacement |
-|----------------|-------------|
-| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
-| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
-| `@/libs/*` | `@lib-*` or `@integration-*` |
-| `@/ui/shadcn/*` | `@ui-shadcn/*` |
-| `@/ui/vis*` | `@ui-vis` |
-| `@/interfaces/*` | `@api-contracts` |
-
-`modules/` 內也有額外邊界保護：
-
-- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
-- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
-- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
-
-### 已知邊界警告（待修復）
-
-以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
-
-目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
-
-> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 reach into 已移除的圖譜內部實作，現已改為遵守當前公開邊界與現行 module topology。
-
-> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 的歷史 `wiki_beta.*` 命名已改為符合目前知識／來源 ownership 的事件與 aggregate 命名。
-
-## Tech Stack
-
-| Concern | Technology | Version |
-|---------|-----------|---------|
-| Framework | Next.js (App Router) | 16.1.7 |
-| UI Library | React | 19.2.3 |
-| Language | TypeScript | 5 |
-| Backend | Firebase (client SDK) | 12 |
-| Styling | Tailwind CSS | 4 |
-| Validation | Zod | 4.3.6 |
-| State (global) | Zustand | 5.0.12 |
-| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
-| AI | Genkit + Google GenAI | 1.30.1 |
-| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
-| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
-| Date Handling | date-fns | 4 |
-| HTTP Client | Axios | 1.13.6 |
-| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
-| Node Engine | Node.js | 24 |
-
-## Key Architectural Patterns
-
-### Repository Pattern
-
-- **Interface** lives in `domain/repositories/` — defines what the module needs
-- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
-- Domain layer never imports infrastructure
-
-### Use Case Pattern
-
-- Each use case is a single file under `application/use-cases/`
-- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
-- One use case = one user-facing operation
-
-### Hexagonal Ports (Advanced)
-
-Example port shapes:
-- `domain/ports/ActorContextPort.ts` — resolves who is acting
-- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
-- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
-- All access decisions flow through ports, not scattered in UI/router
-
-### Domain Events
-
-Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
-- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
-- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
-- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
-- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
-
-Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
-
-### Internal Imports Within a Module
-
-Inside a module, files use **relative imports** (not the module's own barrel export):
-
-```typescript
-// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-import { KnowledgePage } from "../../domain/entities/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
-
-// ❌ Do NOT self-import via the barrel
-import { KnowledgePage } from "@/modules/knowledge";
-```
-
-### Cross-Module Imports
-
-Between modules, always use the target module's `api/` boundary:
-
-```typescript
-// ✅ Cross-module import — event-store primitives are now in modules/shared
-import { PublishDomainEventUseCase } from "@/modules/shared/api";
-
-// ❌ Reaching into another module's internals
-import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
-```
-
-## Responsibility Boundaries
-
-- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
-- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
-- When ownership shifts, update contracts and architecture docs in the same change.
-````
-
 ## File: .github/agents/lint-rule-enforcer.agent.md
 ````markdown
 ---
@@ -9743,6 +9511,238 @@ This repository does not currently keep a standalone long-form spec workflow gui
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
 ````
 
+## File: .github/agents/knowledge-base.md
+````markdown
+# Knowledge Base — MDDD Domain & Architecture
+
+This file contains domain knowledge about the xuanwu-app architecture and codebase. For coding rules, see [`../instructions/README.md`](../instructions/README.md).
+
+## Module-Driven Domain Design (MDDD)
+
+The project follows **Module-Driven Domain Design**: each business capability is a self-contained module under `modules/`. The architecture is **module-driven, not layer-driven** — code is grouped by domain context first, then by technical layer within each module.
+
+### Core Principle
+
+> Every module owns a bounded context. Modules communicate through `modules/<target-module>/api/` only, never by reaching into each other's internals.
+
+### Global Dependency Direction
+
+```
+UI (interfaces/) → Application (application/) → Domain (domain/) ← Infrastructure (infrastructure/)
+```
+
+The domain layer has **zero outward dependencies**. Infrastructure implements domain-defined interfaces.
+
+## Module Structure
+
+Each module under `modules/` follows a four-layer Clean Architecture:
+
+```
+modules/<module-name>/
+├── api/
+│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
+├── index.ts                    # Optional local barrel for same-module composition
+├── README.md                   # Module documentation (optional)
+├── domain/
+│   ├── entities/               # Aggregate roots, value objects, entity types
+│   ├── repositories/           # Repository interfaces (contracts, NOT implementations)
+│   ├── services/               # Pure domain services (stateless business rules)
+│   ├── value-objects/          # DDD value objects (immutable, equality by value)
+│   └── ports/                  # Hexagonal ports for cross-cutting dependencies (optional)
+├── application/
+│   ├── use-cases/              # One file per use case (single operation)
+│   └── dto/                    # Data Transfer Objects for use-case I/O
+├── infrastructure/
+│   ├── firebase/               # Firebase Firestore repository implementations
+│   ├── genkit/                 # AI/Genkit integrations (AI module)
+│   ├── default/                # In-memory or simplified implementations
+│   ├── memory/                 # In-memory stores (e.g., billing placeholder)
+│   ├── persistence/            # Persistence adapters
+│   └── repositories/           # Repository implementations (alternative layout)
+└── interfaces/
+    ├── components/             # React UI components
+    ├── queries/                # TanStack Query hooks (read-side)
+    ├── _actions/               # Next.js Server Actions (write-side)
+    ├── hooks/                  # Custom React hooks
+    ├── api/                    # REST API route controllers
+    ├── contracts/              # API contracts
+    └── view-models/            # View model transformations
+```
+
+Not every module has every subdirectory — only what it needs.
+
+### Boundary Policy
+
+- Every `modules/<module-name>/` is isolated.
+- Cross-module imports are allowed only via `modules/<target-module>/api/`.
+- Keep guidance generic by default: do not prescribe a fixed domain-to-module mapping unless a governing contract explicitly requires it.
+- Keep boundaries explicit: business logic stays in `domain/` + `application/`; UI and UX concerns stay in `interfaces/` and `app/` composition.
+
+## Module Inventory
+
+Current module directories under `modules/` represent bounded contexts. Treat names as implementation-specific and avoid using this list as a hard-coded ownership policy for future design:
+
+`account`, `ai`, `identity`, `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `notification`, `organization`, `search`, `shared`, `source`, `workspace`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`.
+
+> **Removed modules:** `wiki` (decomposed into `knowledge-base`, `knowledge-collaboration`, `knowledge-database`), `namespace` (slug utilities migrated to `shared`), `event` (event-store primitives migrated to `shared`). The following names in older docs are stale and no longer exist: `agent`, `asset`, `content`, `knowledge-graph`, `retrieval`, `audit`, `file`, `graph`, `storage`.
+
+## Package System (21 Packages)
+
+Packages under `packages/` are **stable public boundaries** — the single source of truth for shared concerns. They contain actual implementations (no re-export chains).
+
+### Import Rule
+
+```typescript
+// ✅ CORRECT — via @alias from tsconfig.json
+import type { CommandResult, DomainError } from "@shared-types";
+import { cn, formatDate } from "@shared-utils";
+import { auth } from "@integration-firebase";
+
+// ❌ NEVER — relative paths to package internals
+import type { CommandResult } from "../../../../packages/shared-types/index";
+
+// ❌ NEVER — legacy paths (ESLint will block)
+import type { CommandResult } from "@/shared/types";
+```
+
+### Package Catalog
+
+| Alias | Package | Purpose |
+|-------|---------|---------|
+| `@shared-types` | shared-types | `CommandResult`, `DomainError`, `Timestamp`, primitive types |
+| `@shared-utils` | shared-utils | `cn()`, `formatDate()`, `generateId()` |
+| `@shared-validators` | shared-validators | Zod schemas for cross-cutting validation |
+| `@shared-constants` | shared-constants | `APP_NAME`, `PAGINATION_DEFAULTS` |
+| `@shared-hooks` | shared-hooks | `useAppStore` (Zustand global state) |
+| `@integration-firebase` | integration-firebase | Firebase client (auth, firestore, storage, messaging, functions, database, analytics, appcheck, performance, remote-config) |
+| `@integration-http` | integration-http | Axios HTTP client with interceptors |
+| `@api-contracts` | api-contracts | REST route registry + GraphQL schema |
+| `@ui-shadcn` | ui-shadcn | shadcn/ui components, `cn()` utility, hooks |
+| `@ui-vis` | ui-vis | Vis.js React components (VisNetwork, VisTimeline) |
+| `@lib-date-fns` | lib-date-fns | date-fns v4 wrapper |
+| `@lib-zod` | lib-zod | Zod v4 wrapper |
+| `@lib-uuid` | lib-uuid | UUID v13 wrapper |
+| `@lib-zustand` | lib-zustand | Zustand v5 wrapper |
+| `@lib-xstate` | lib-xstate | XState v5 + React hooks |
+| `@lib-tanstack` | lib-tanstack | TanStack Query/Form/Table/Virtual |
+| `@lib-superjson` | lib-superjson | SuperJSON for serialization |
+| `@lib-dragdrop` | lib-dragdrop | Atlaskit Pragmatic Drag and Drop |
+| `@lib-react-markdown` | lib-react-markdown | react-markdown wrapper |
+| `@lib-remark-gfm` | lib-remark-gfm | remark-gfm for GitHub-flavored markdown |
+
+### ESLint Boundary Enforcement
+
+Legacy import paths are blocked by `eslint.config.mjs`:
+
+| Blocked Pattern | Replacement |
+|----------------|-------------|
+| `@/shared/*` | `@shared-types`, `@shared-utils`, `@shared-validators`, `@shared-constants`, `@shared-hooks` |
+| `@/infrastructure/*` | `@integration-firebase`, `@integration-http` |
+| `@/libs/*` | `@lib-*` or `@integration-*` |
+| `@/ui/shadcn/*` | `@ui-shadcn/*` |
+| `@/ui/vis*` | `@ui-vis` |
+| `@/interfaces/*` | `@api-contracts` |
+
+`modules/` 內也有額外邊界保護：
+
+- `eslint-plugin-boundaries` 會檢查 `domain -> application / infrastructure / interfaces`、`application -> infrastructure / interfaces`、`infrastructure -> interfaces` 等違規依賴方向。
+- `modules/*` 之間不可直接 import 對方的 `application/`、`domain/`、`infrastructure/`、`interfaces/`，必須走模組公開邊界（`@/modules/<module>` 或 `api/`）。
+- 顯式 `index` 匯入（`../index`、`../index.ts`）在 `modules/` 內被封鎖，避免隱形跨層。
+
+### 已知邊界警告（待修復）
+
+以下為 `npm run lint` 中存在的既有 warning，尚未修復（0 errors，92 warnings 基準）：
+
+目前沒有 `no-restricted-imports` 或 `boundaries/dependencies` 邊界違規。所有模組間的互動皆透過 `/api` 公開邊界。
+
+> **已修復（2026-03）：** `modules/knowledge/api/index.ts` 原本直接 reach into 已移除的圖譜內部實作，現已改為遵守當前公開邊界與現行 module topology。
+
+> **已修復（2026-03）：** `modules/knowledge/application/use-cases/wiki-pages.use-case.ts` 與 `modules/source/application/use-cases/wiki-libraries.use-case.ts` 的歷史 `wiki_beta.*` 命名已改為符合目前知識／來源 ownership 的事件與 aggregate 命名。
+
+## Tech Stack
+
+| Concern | Technology | Version |
+|---------|-----------|---------|
+| Framework | Next.js (App Router) | 16.1.7 |
+| UI Library | React | 19.2.3 |
+| Language | TypeScript | 5 |
+| Backend | Firebase (client SDK) | 12 |
+| Styling | Tailwind CSS | 4 |
+| Validation | Zod | 4.3.6 |
+| State (global) | Zustand | 5.0.12 |
+| State (machines) | XState + @xstate/react | 5.28.0 / 6.1.0 |
+| AI | Genkit + Google GenAI | 1.30.1 |
+| Data Fetching | TanStack (Query, Table, Form, Virtual) | 5/8/1/3 |
+| Visualization | Vis (network, timeline, graph3d, vis-data) | Various |
+| Date Handling | date-fns | 4 |
+| HTTP Client | Axios | 1.13.6 |
+| Drag & Drop | @atlaskit/pragmatic-drag-and-drop | Latest |
+| Node Engine | Node.js | 24 |
+
+## Key Architectural Patterns
+
+### Repository Pattern
+
+- **Interface** lives in `domain/repositories/` — defines what the module needs
+- **Implementation** lives in `infrastructure/` — how to fetch/persist (Firebase, memory, etc.)
+- Domain layer never imports infrastructure
+
+### Use Case Pattern
+
+- Each use case is a single file under `application/use-cases/`
+- Naming: `verb-noun.use-case.ts` (e.g., `list-workspace-files.use-case.ts`)
+- One use case = one user-facing operation
+
+### Hexagonal Ports (Advanced)
+
+Example port shapes:
+- `domain/ports/ActorContextPort.ts` — resolves who is acting
+- `domain/ports/WorkspaceGrantPort.ts` — checks workspace permissions
+- `domain/ports/OrganizationPolicyPort.ts` — checks tenant policies
+- All access decisions flow through ports, not scattered in UI/router
+
+### Domain Events
+
+Event-store primitives live in `modules/shared` (migrated from the deleted `modules/event`):
+- `EventRecord` — rich event-store entity (id, eventName, aggregateType, aggregateId, occurredAt, payload, metadata)
+- `PublishDomainEventUseCase` — publishes events to the event store (`modules/shared/api`)
+- `IEventStoreRepository` / `IEventBusRepository` — event-store repository interfaces
+- `InMemoryEventStoreRepository` / `NoopEventBusRepository` — default implementations
+
+Domain events within a module follow the discriminated-union pattern: `type: "module.event_name"` with top-level fields (no `payload` wrapper) and `occurredAtISO: string`.
+
+### Internal Imports Within a Module
+
+Inside a module, files use **relative imports** (not the module's own barrel export):
+
+```typescript
+// ✅ Inside modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+import { KnowledgePage } from "../../domain/entities/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/KnowledgePageRepository";
+
+// ❌ Do NOT self-import via the barrel
+import { KnowledgePage } from "@/modules/knowledge";
+```
+
+### Cross-Module Imports
+
+Between modules, always use the target module's `api/` boundary:
+
+```typescript
+// ✅ Cross-module import — event-store primitives are now in modules/shared
+import { PublishDomainEventUseCase } from "@/modules/shared/api";
+
+// ❌ Reaching into another module's internals
+import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-domain-event";
+```
+
+## Responsibility Boundaries
+
+- Define ownership per feature or contract, not by hard-coded domain naming assumptions.
+- If a capability spans modules, formalize the boundary in `api/` and keep each module's internals private.
+- When ownership shifts, update contracts and architecture docs in the same change.
+````
+
 ## File: .github/instructions/doc-governance.instructions.md
 ````markdown
 ---
@@ -10804,153 +10804,6 @@ This section contains repository-local implementation guidance for Xuanwu contri
 
 - Web runtime: `npm run lint`, `npm run build`
 - Python worker: `cd py_fn && python -m compileall -q .`, `cd py_fn && python -m pytest tests/ -v`
-````
-
-## File: docs/guides/explanation/architecture-domain.md
-````markdown
-# 領域概念模型：Xuanwu Knowledge Platform 實現指南
-
-本文說明 Xuanwu 目前如何把知識平台概念落到實際儲存庫。`architecture.md` 提供產品與體驗層的概念來源，但目前的 canonical ownership 以 `docs/ddd/subdomains.md`、`docs/ddd/bounded-contexts.md` 與各 `modules/<context>/*.md` 為準。
-
----
-
-## 一、目前的架構視角
-
-Xuanwu 是一個以知識為核心的 modular monolith。從工程落位來看，可以用下列視角理解它：
-
-```text
-App Composition / UX Orchestration
-  -> app/, providers/, server actions, route slices
-
-Foundation & Governance
-  -> identity, account, organization, workspace, notification, shared,
-     workspace-audit, workspace-feed, workspace-flow, workspace-scheduling
-
-Knowledge Experience
-  -> knowledge, knowledge-base, knowledge-collaboration,
-     knowledge-database, source
-
-Retrieval & Reasoning
-  -> ai, search, notebook
-
-Worker Runtime
-  -> py_fn/ (parse, chunk, embed, background ingestion)
-```
-
-| 視角 | 主要 bounded contexts | 說明 |
-| --- | --- | --- |
-| Foundation & Governance | `identity`, `account`, `organization`, `workspace`, `notification`, `shared`, `workspace-*` | 提供身份、帳戶、租戶、工作區容器、治理、稽核、流程與排程能力。 |
-| Knowledge Experience | `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `source` | 承接頁面、文章、資料庫、協作與外部來源治理。 |
-| Retrieval & Reasoning | `ai`, `search`, `notebook` | 承接 ingestion orchestration、semantic retrieval、ask/cite、摘要與知識生成。 |
-
-這個分層是理解用的工程視角，不代表額外的 framework layer。真正的 owner 仍然是 bounded context 本身。
-
----
-
-## 二、核心領域概念
-
-### 2.1 Knowledge Experience
-
-| Bounded Context | 代表概念 | 角色 |
-| --- | --- | --- |
-| `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | 承接 Notion-like 頁面、區塊、版本與頁面審批生命週期。 |
-| `knowledge-base` | `Article`, `Category` | 承接組織級 article、SOP、wiki-like 發布與驗證。 |
-| `knowledge-collaboration` | Comment、Permission、Version Snapshot | 承接知識內容的協作、評論、權限與版本快照。 |
-| `knowledge-database` | Database、Record、View | 承接結構化資料庫、欄位、資料列與多視圖工作流。 |
-| `source` | File、Source Collection、`WikiLibrary`（歷史命名） | 承接外部文件、來源集合、上傳與 ingestion 邊界。 |
-
-`knowledge` 與 `knowledge-base` 是目前最核心的 differentiating domains：前者擁有知識頁面與可編輯內容生命週期，後者擁有組織級知識資產與可驗證發布語意。
-
-### 2.2 Retrieval & Reasoning
-
-| Bounded Context | 代表概念 | 角色 |
-| --- | --- | --- |
-| `ai` | `IngestionJob`, stage progression, chunk/index preparation | 協調文件攝入、worker handoff 與 ingestion 狀態流轉。 |
-| `search` | `RagRetrievedChunk`, `RagCitation`, retrieval summary, `WikiCitation`（歷史命名） | 承接 semantic retrieval、citation context、query support。 |
-| `notebook` | Thread、Message、Notebook Generation | 承接 ask/cite、摘要、研究與知識生成體驗。 |
-
-### 2.3 Foundation、Execution 與治理
-
-| Bounded Context | 代表概念 | 角色 |
-| --- | --- | --- |
-| `workspace` | `Workspace`, `Capability`, `WorkspaceGrant`, `WikiContentTree`（歷史命名） | 提供知識與流程掛載的協作容器。 |
-| `workspace-flow` | Task、Issue、Invoice、`SourceReference` | 將知識審批結果物化為可執行工作流程。 |
-| `workspace-feed` | Feed Post、Reaction、Reply | 承接工作區活動流與互動可見性。 |
-| `workspace-scheduling` | Work Demand、capacity coordination | 承接排程與需求對齊。 |
-| `workspace-audit` | append-only audit records | 承接治理與 traceability。 |
-| `identity`, `account`, `organization`, `notification`, `shared` | identity、policy、tenant、notification、event primitives | 提供平台共通基礎能力。 |
-
----
-
-## 三、跨上下文契約
-
-Xuanwu 的跨上下文協作不透過隱式共享實作，而透過 public `api/` surface 或 published domain events。
-
-| 上游 | 契約 | 下游 | 說明 |
-| --- | --- | --- | --- |
-| `knowledge` | `knowledge.page_approved` | `workspace-flow` | 將審批後的知識頁面物化為 Task / Invoice，並保留 `sourceReference`。 |
-| `knowledge` | `knowledge.page_promoted` | `knowledge-base` | 將頁面提升為組織級 article 或其他知識資產。 |
-| `knowledge` | `knowledge.block_updated` | `ai` / `search` | 觸發 ingestion 或可檢索表示的重整。 |
-| `source` | source registration / ingestion request | `ai` | 外部內容先經來源邊界，再進入 ingestion pipeline。 |
-| `ai` | `ai.ingestion_completed` | `search` | 宣告內容已進入可檢索狀態。 |
-| `search` | `search/api` | `notebook` | Notebook 透過同步查詢取得 ask/cite 與 retrieval context。 |
-| `organization` / `workspace` | workspace / tenant policy | `workspace-*`, `knowledge*`, `source` | 提供治理與容器邊界。 |
-
-這些契約的重點不在名詞本身，而在 owner 清楚、方向單向、語意穩定。
-
----
-
-## 四、執行時與邊界
-
-### 4.1 Runtime Split
-
-| Runtime | 主要責任 |
-| --- | --- |
-| Next.js | UI、session/auth orchestration、route composition、Server Actions、workspace-scoped interaction flow |
-| `py_fn/` | parsing、chunking、embedding、背景 ingestion 與 worker-style pipeline |
-
-Next.js 不承接 parse/chunk/embed 的 worker 邏輯；`py_fn/` 不承接頁面組裝、session 狀態或互動式 UI 邏輯。
-
-### 4.2 邊界規則
-
-1. 跨模組同步互動只能走目標模組的 `api/` surface。
-2. 非同步互動只能走 domain events 或其他顯式契約。
-3. 外部系統模型不得直接流入 core domain，必須先經 `source` workflow 或 infrastructure adapters 轉譯。
-4. bounded-context 細節文件由 `modules/<context>/*.md` 擁有；`docs/ddd/` 只作為戰略 routing 與入口。
-
----
-
-## 五、歷史術語與過渡規則
-
-下列名稱已不是 current bounded-context owners，只能在歷史、遷移或 compatibility 說明中出現：
-
-- `wiki`
-- `knowledge-graph`
-- `retrieval`
-- `agent`
-- `content`
-- `asset`
-
-不過部分型別或局部名稱仍保留歷史詞彙，例如 `WikiLibrary`、`WikiCitation`、`WikiContentTree`。這些名稱應被理解為目前 owner 之下的歷史局部語彙，而不是新的模組邊界。
-
-若未來要恢復 backlink、graph traversal、redirect graph、entity normalization 等能力，必須先在目前 topology 下重新決定 owner。合理候選通常會是：
-
-- `search`：偏檢索與結構查詢能力
-- `knowledge`：偏內容關聯與頁面語意能力
-- 新 supporting subdomain：若該能力已形成獨立模型與生命週期
-
----
-
-## 六、閱讀順序
-
-1. 先讀 `docs/ddd/subdomains.md`，確認 strategic classification。
-2. 再讀 `docs/ddd/bounded-contexts.md`，確認目前 bounded-context inventory。
-3. 依需要進入 `modules/<context>/README.md`、`ubiquitous-language.md`、`aggregates.md`、`domain-events.md`、`repositories.md`、`domain-services.md`。
-4. 最後讀 `docs/architecture/` 與 `docs/reference/specification/system-overview.md`，理解跨上下文與 runtime 邊界。
-
----
-
-本文件的目的是把產品概念與現行 bounded-context 拓樸對齊，而不是維護一份脫離程式碼的「理想模組表」。當實作演進時，應優先更新 `docs/ddd/` root maps 與對應 module docs，再回來同步這份 explanation。
 ````
 
 ## File: docs/hooks.md
@@ -13194,6 +13047,153 @@ Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization
 [← Back to README](../README.md)
 ````
 
+## File: docs/guides/explanation/architecture-domain.md
+````markdown
+# 領域概念模型：Xuanwu Knowledge Platform 實現指南
+
+本文說明 Xuanwu 目前如何把知識平台概念落到實際儲存庫。`architecture.md` 提供產品與體驗層的概念來源，但目前的 canonical ownership 以 `docs/ddd/subdomains.md`、`docs/ddd/bounded-contexts.md` 與各 `modules/<context>/*.md` 為準。
+
+---
+
+## 一、目前的架構視角
+
+Xuanwu 是一個以知識為核心的 modular monolith。從工程落位來看，可以用下列視角理解它：
+
+```text
+App Composition / UX Orchestration
+  -> app/, providers/, server actions, route slices
+
+Foundation & Governance
+  -> identity, account, organization, workspace, notification, shared,
+     workspace-audit, workspace-feed, workspace-flow, workspace-scheduling
+
+Knowledge Experience
+  -> knowledge, knowledge-base, knowledge-collaboration,
+     knowledge-database, source
+
+Retrieval & Reasoning
+  -> ai, search, notebook
+
+Worker Runtime
+  -> py_fn/ (parse, chunk, embed, background ingestion)
+```
+
+| 視角 | 主要 bounded contexts | 說明 |
+| --- | --- | --- |
+| Foundation & Governance | `identity`, `account`, `organization`, `workspace`, `notification`, `shared`, `workspace-*` | 提供身份、帳戶、租戶、工作區容器、治理、稽核、流程與排程能力。 |
+| Knowledge Experience | `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `source` | 承接頁面、文章、資料庫、協作與外部來源治理。 |
+| Retrieval & Reasoning | `ai`, `search`, `notebook` | 承接 ingestion orchestration、semantic retrieval、ask/cite、摘要與知識生成。 |
+
+這個分層是理解用的工程視角，不代表額外的 framework layer。真正的 owner 仍然是 bounded context 本身。
+
+---
+
+## 二、核心領域概念
+
+### 2.1 Knowledge Experience
+
+| Bounded Context | 代表概念 | 角色 |
+| --- | --- | --- |
+| `knowledge` | `KnowledgePage`, `ContentBlock`, `ContentVersion`, `KnowledgeCollection` | 承接 Notion-like 頁面、區塊、版本與頁面審批生命週期。 |
+| `knowledge-base` | `Article`, `Category` | 承接組織級 article、SOP、wiki-like 發布與驗證。 |
+| `knowledge-collaboration` | Comment、Permission、Version Snapshot | 承接知識內容的協作、評論、權限與版本快照。 |
+| `knowledge-database` | Database、Record、View | 承接結構化資料庫、欄位、資料列與多視圖工作流。 |
+| `source` | File、Source Collection、`WikiLibrary`（歷史命名） | 承接外部文件、來源集合、上傳與 ingestion 邊界。 |
+
+`knowledge` 與 `knowledge-base` 是目前最核心的 differentiating domains：前者擁有知識頁面與可編輯內容生命週期，後者擁有組織級知識資產與可驗證發布語意。
+
+### 2.2 Retrieval & Reasoning
+
+| Bounded Context | 代表概念 | 角色 |
+| --- | --- | --- |
+| `ai` | `IngestionJob`, stage progression, chunk/index preparation | 協調文件攝入、worker handoff 與 ingestion 狀態流轉。 |
+| `search` | `RagRetrievedChunk`, `RagCitation`, retrieval summary, `WikiCitation`（歷史命名） | 承接 semantic retrieval、citation context、query support。 |
+| `notebook` | Thread、Message、Notebook Generation | 承接 ask/cite、摘要、研究與知識生成體驗。 |
+
+### 2.3 Foundation、Execution 與治理
+
+| Bounded Context | 代表概念 | 角色 |
+| --- | --- | --- |
+| `workspace` | `Workspace`, `Capability`, `WorkspaceGrant`, `WikiContentTree`（歷史命名） | 提供知識與流程掛載的協作容器。 |
+| `workspace-flow` | Task、Issue、Invoice、`SourceReference` | 將知識審批結果物化為可執行工作流程。 |
+| `workspace-feed` | Feed Post、Reaction、Reply | 承接工作區活動流與互動可見性。 |
+| `workspace-scheduling` | Work Demand、capacity coordination | 承接排程與需求對齊。 |
+| `workspace-audit` | append-only audit records | 承接治理與 traceability。 |
+| `identity`, `account`, `organization`, `notification`, `shared` | identity、policy、tenant、notification、event primitives | 提供平台共通基礎能力。 |
+
+---
+
+## 三、跨上下文契約
+
+Xuanwu 的跨上下文協作不透過隱式共享實作，而透過 public `api/` surface 或 published domain events。
+
+| 上游 | 契約 | 下游 | 說明 |
+| --- | --- | --- | --- |
+| `knowledge` | `knowledge.page_approved` | `workspace-flow` | 將審批後的知識頁面物化為 Task / Invoice，並保留 `sourceReference`。 |
+| `knowledge` | `knowledge.page_promoted` | `knowledge-base` | 將頁面提升為組織級 article 或其他知識資產。 |
+| `knowledge` | `knowledge.block_updated` | `ai` / `search` | 觸發 ingestion 或可檢索表示的重整。 |
+| `source` | source registration / ingestion request | `ai` | 外部內容先經來源邊界，再進入 ingestion pipeline。 |
+| `ai` | `ai.ingestion_completed` | `search` | 宣告內容已進入可檢索狀態。 |
+| `search` | `search/api` | `notebook` | Notebook 透過同步查詢取得 ask/cite 與 retrieval context。 |
+| `organization` / `workspace` | workspace / tenant policy | `workspace-*`, `knowledge*`, `source` | 提供治理與容器邊界。 |
+
+這些契約的重點不在名詞本身，而在 owner 清楚、方向單向、語意穩定。
+
+---
+
+## 四、執行時與邊界
+
+### 4.1 Runtime Split
+
+| Runtime | 主要責任 |
+| --- | --- |
+| Next.js | UI、session/auth orchestration、route composition、Server Actions、workspace-scoped interaction flow |
+| `py_fn/` | parsing、chunking、embedding、背景 ingestion 與 worker-style pipeline |
+
+Next.js 不承接 parse/chunk/embed 的 worker 邏輯；`py_fn/` 不承接頁面組裝、session 狀態或互動式 UI 邏輯。
+
+### 4.2 邊界規則
+
+1. 跨模組同步互動只能走目標模組的 `api/` surface。
+2. 非同步互動只能走 domain events 或其他顯式契約。
+3. 外部系統模型不得直接流入 core domain，必須先經 `source` workflow 或 infrastructure adapters 轉譯。
+4. bounded-context 細節文件由 `modules/<context>/*.md` 擁有；`docs/ddd/` 只作為戰略 routing 與入口。
+
+---
+
+## 五、歷史術語與過渡規則
+
+下列名稱已不是 current bounded-context owners，只能在歷史、遷移或 compatibility 說明中出現：
+
+- `wiki`
+- `knowledge-graph`
+- `retrieval`
+- `agent`
+- `content`
+- `asset`
+
+不過部分型別或局部名稱仍保留歷史詞彙，例如 `WikiLibrary`、`WikiCitation`、`WikiContentTree`。這些名稱應被理解為目前 owner 之下的歷史局部語彙，而不是新的模組邊界。
+
+若未來要恢復 backlink、graph traversal、redirect graph、entity normalization 等能力，必須先在目前 topology 下重新決定 owner。合理候選通常會是：
+
+- `search`：偏檢索與結構查詢能力
+- `knowledge`：偏內容關聯與頁面語意能力
+- 新 supporting subdomain：若該能力已形成獨立模型與生命週期
+
+---
+
+## 六、閱讀順序
+
+1. 先讀 `docs/ddd/subdomains.md`，確認 strategic classification。
+2. 再讀 `docs/ddd/bounded-contexts.md`，確認目前 bounded-context inventory。
+3. 依需要進入 `modules/<context>/README.md`、`ubiquitous-language.md`、`aggregates.md`、`domain-events.md`、`repositories.md`、`domain-services.md`。
+4. 最後讀 `docs/architecture/` 與 `docs/reference/specification/system-overview.md`，理解跨上下文與 runtime 邊界。
+
+---
+
+本文件的目的是把產品概念與現行 bounded-context 拓樸對齊，而不是維護一份脫離程式碼的「理想模組表」。當實作演進時，應優先更新 `docs/ddd/` root maps 與對應 module docs，再回來同步這份 explanation。
+````
+
 ## File: modules/knowledge-base/AGENT.md
 ````markdown
 # knowledge-base — DDD Agent
@@ -13639,62 +13639,6 @@ Any of the following require a context7 lookup before proceeding:
 | 下游 | `workspace-feed`, `notification` | Published Language |
 ````
 
-## File: modules/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
-
-## 模組定位
-
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: modules/knowledge/application-services.md
 ````markdown
 # knowledge — Application Services
@@ -13924,6 +13868,62 @@ Application layer 只負責：
 - ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
 - 若需調整子域分類內容，請只編輯 canonical 檔案。
 - 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
+````
+
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
+
+## 模組定位
+
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
+
+> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
+```
+
+## page_approved 事件規則
+
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
 ````
 
 ## File: modules/knowledge/aggregates.md
