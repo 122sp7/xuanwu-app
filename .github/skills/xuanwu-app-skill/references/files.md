@@ -14462,177 +14462,6 @@ export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectio
 }
 ````
 
-## File: modules/knowledge/interfaces/components/PageTreeView.tsx
-````typescript
-"use client";
-
-import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
-import { PageDialog } from "./PageDialog";
-
-interface PageTreeViewProps {
-  nodes: KnowledgePageTreeNode[];
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-}
-
-function TreeNode({
-  node,
-  accountId,
-  workspaceId,
-  currentUserId,
-  onPageClick,
-  onCreated,
-  depth,
-}: {
-  node: KnowledgePageTreeNode;
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-  depth: number;
-}) {
-  const [expanded, setExpanded] = useState(depth < 1);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-
-  return (
-    <li>
-      <div
-        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
-        style={{ paddingLeft: `${8 + depth * 16}px` }}
-      >
-        <button
-          type="button"
-          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
-          onClick={() => setExpanded((v) => !v)}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {hasChildren ? (
-            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
-          ) : (
-            <FileText className="h-3.5 w-3.5" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          className="min-w-0 flex-1 truncate text-left text-sm"
-          onClick={() => onPageClick?.(node.id)}
-        >
-          {node.title}
-        </button>
-
-        <button
-          type="button"
-          className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
-          onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
-          title="新增子頁面"
-        >
-          <FilePlus className="h-3.5 w-3.5" />
-        </button>
-      </div>
-
-      {expanded && hasChildren && (
-        <ul className="list-none">
-          {node.children.map((child) => (
-            <TreeNode
-              key={child.id}
-              node={child}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              currentUserId={currentUserId}
-              onPageClick={onPageClick}
-              onCreated={onCreated}
-              depth={depth + 1}
-            />
-          ))}
-        </ul>
-      )}
-
-      <PageDialog
-        open={addChildOpen}
-        onOpenChange={setAddChildOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        parentPageId={node.id}
-        onSuccess={() => onCreated?.()}
-      />
-    </li>
-  );
-}
-
-export function PageTreeView({
-  nodes,
-  accountId,
-  workspaceId,
-  currentUserId,
-  onPageClick,
-  onCreated,
-}: PageTreeViewProps) {
-  const [addRootOpen, setAddRootOpen] = useState(false);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={() => setAddRootOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
-        </Button>
-      </div>
-
-      {nodes.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無頁面。點擊「新增頁面」開始建立。</p>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border/60 bg-background py-1">
-          <ul className="list-none">
-            {nodes.map((node) => (
-              <TreeNode
-                key={node.id}
-                node={node}
-                accountId={accountId}
-                workspaceId={workspaceId}
-                currentUserId={currentUserId}
-                onPageClick={onPageClick}
-                onCreated={onCreated}
-                depth={0}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <PageDialog
-        open={addRootOpen}
-        onOpenChange={setAddRootOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        parentPageId={null}
-        onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/knowledge/interfaces/index.ts
 ````typescript
 /**
@@ -51784,84 +51613,173 @@ export function PageDialog({
 }
 ````
 
-## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
+## File: modules/knowledge/interfaces/components/PageTreeView.tsx
 ````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side query helpers for reading Content domain data.
- */
+"use client";
 
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
-import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  GetKnowledgePageTreeUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsByAccountUseCase,
-} from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
+import { useState } from "react";
 
-export async function getKnowledgePage(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgePage | null> {
-  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
-    accountId,
-    pageId,
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import { PageDialog } from "./PageDialog";
+
+interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onPageClick,
+  onCreated,
+  depth,
+}: {
+  node: KnowledgePageTreeNode;
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+
+  return (
+    <li>
+      <div
+        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
+        style={{ paddingLeft: `${8 + depth * 16}px` }}
+      >
+        <button
+          type="button"
+          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {hasChildren ? (
+            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <FileText className="h-3.5 w-3.5" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-sm"
+          onClick={() => onPageClick?.(node.id)}
+        >
+          {node.title}
+        </button>
+
+        <button
+          type="button"
+          className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
+          onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
+          title="新增子頁面"
+        >
+          <FilePlus className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {expanded && hasChildren && (
+        <ul className="list-none">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.id}
+              node={child}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              currentUserId={currentUserId}
+              onPageClick={onPageClick}
+              onCreated={onCreated}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+      )}
+
+      <PageDialog
+        open={addChildOpen}
+        onOpenChange={setAddChildOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        parentPageId={node.id}
+        onSuccess={() => onCreated?.()}
+      />
+    </li>
   );
 }
 
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
-  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
+export function PageTreeView({
+  nodes,
+  accountId,
+  workspaceId,
+  currentUserId,
+  onPageClick,
+  onCreated,
+}: PageTreeViewProps) {
+  const [addRootOpen, setAddRootOpen] = useState(false);
 
-export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
-  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-7 px-2 text-xs"
+          onClick={() => setAddRootOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
+        </Button>
+      </div>
 
-export async function getKnowledgeBlocks(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgeBlock[]> {
-  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
-    accountId,
-    pageId,
-  );
-}
+      {nodes.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">尚無頁面。點擊「新增頁面」開始建立。</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 bg-background py-1">
+          <ul className="list-none">
+            {nodes.map((node) => (
+              <TreeNode
+                key={node.id}
+                node={node}
+                accountId={accountId}
+                workspaceId={workspaceId}
+                currentUserId={currentUserId}
+                onPageClick={onPageClick}
+                onCreated={onCreated}
+                depth={0}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
 
-export async function getKnowledgeVersions(
-  _accountId: string,
-  _pageId: string,
-): Promise<KnowledgeVersion[]> {
-  return [];
-}
-
-// ── Collection queries ────────────────────────────────────────────────────────
-
-export async function getKnowledgeCollection(
-  accountId: string,
-  collectionId: string,
-): Promise<KnowledgeCollection | null> {
-  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
-    collectionId,
-  );
-}
-
-export async function getKnowledgeCollections(
-  accountId: string,
-): Promise<KnowledgeCollection[]> {
-  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
+      <PageDialog
+        open={addRootOpen}
+        onOpenChange={setAddRootOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        parentPageId={null}
+        onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
+      />
+    </div>
   );
 }
 ````
@@ -54042,7 +53960,7 @@ export type { CommandResult } from "@shared-types";
  * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
  * ```
  *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
 import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
@@ -54750,7 +54668,7 @@ export interface TaskService {
  *   `SimpleEventBus` subscriber registered at application startup.
  * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
  *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
 import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
@@ -64920,103 +64838,6 @@ export class UnnestKnowledgeBlockUseCase {
 }
 ````
 
-## File: modules/knowledge/domain/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/barrel
- */
-
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ArchiveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "./entities/content-page.entity";
-
-export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
-export type { PageVerificationState } from "./entities/knowledge-page.entity";
-
-export type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  DeleteKnowledgeBlockInput,
-  NestKnowledgeBlockInput,
-  UnnestKnowledgeBlockInput,
-} from "./entities/content-block.entity";
-
-export type {
-  KnowledgeVersion,
-  KnowledgeVersionBlock,
-  CreateKnowledgeVersionInput,
-} from "./entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./value-objects/block-content";
-export {
-  BLOCK_TYPES,
-  blockContentEquals,
-  emptyTextBlockContent,
-  plainTextBlockContent,
-  richTextToPlainText,
-  extractMentionedPageIds,
-  extractMentionedUserIds,
-} from "./value-objects/block-content";
-export type {
-  RichTextSpanType,
-  TextAnnotations,
-  TextSpan,
-  MentionPageSpan,
-  MentionUserSpan,
-  LinkSpan,
-  RichTextSpan,
-} from "./value-objects/block-content";
-
-export type {
-  KnowledgeDomainEvent,
-  KnowledgePageCreatedEvent,
-  KnowledgePageRenamedEvent,
-  KnowledgePageMovedEvent,
-  KnowledgePageArchivedEvent,
-  KnowledgeBlockAddedEvent,
-  KnowledgeBlockUpdatedEvent,
-  KnowledgeBlockDeletedEvent,
-  KnowledgeVersionPublishedEvent,
-  KnowledgePageVerifiedEvent,
-  KnowledgePageReviewRequestedEvent,
-  KnowledgePageOwnerAssignedEvent,
-} from "./events/knowledge.events";
-
-// ── KnowledgeCollection ───────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "./entities/knowledge-collection.entity";
-
-export type {
-  KnowledgePageRepository,
-  KnowledgeBlockRepository,
-  KnowledgeVersionRepository,
-} from "./repositories/knowledge.repositories";
-````
-
 ## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
 ````typescript
 /**
@@ -65105,101 +64926,6 @@ export interface KnowledgeCollectionRepository {
   listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
   listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
 }
-````
-
-## File: modules/knowledge/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: module/barrel (public API)
- *
- * This is the ONLY file that external modules should import from.
- * All internal implementation details (domain, application, infrastructure)
- * are NOT importable from outside — use the exports listed here.
- *
- * Boundary rule: other modules import via `@/modules/knowledge`, never from
- * `@/modules/knowledge/domain/...` or deeper paths.
- *
- * Access pattern:
- *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
- *   - UI mutations                    → Server Actions below
- *   - UI reads                        → Query functions below
- *
- * Current boundary note:
- *   - `Page` / `Block` are owned by this module.
- *   - `KnowledgeCollection` is still exported here as a transitional surface.
- *   - `Article` / `Category` belong to `knowledge-base`.
- */
-
-// ── API: Facade (cross-domain entry point) ────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./api/knowledge-facade";
-
-// ── Domain: entity types ──────────────────────────────────────────────────────
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-} from "./domain/entities/content-page.entity";
-
-export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
-
-export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "./interfaces/_actions/knowledge.actions";
-
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "./interfaces/queries/knowledge.queries";
-
-// ── Domain: Collection + Wiki types ──────────────────────────────────────────
-export type {
-  KnowledgeCollection,
-  CollectionSpaceType,
-} from "./domain/entities/knowledge-collection.entity";
-
-export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
-
-// ── Interfaces: Components ────────────────────────────────────────────────────
-export { BlockEditorView } from "./interfaces/components/BlockEditorView";
-export { PageTreeView } from "./interfaces/components/PageTreeView";
-export { PageDialog } from "./interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
@@ -66114,6 +65840,88 @@ export interface PageEditorViewProps {
 
 export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
   return <RichTextEditor accountId={accountId} pageId={pageId} />;
+}
+````
+
+## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side query helpers for reading Content domain data.
+ */
+
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  GetKnowledgePageTreeUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsByAccountUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+
+export async function getKnowledgePage(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePage | null> {
+  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
+  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
+  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgeBlocks(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgeBlock[]> {
+  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgeVersions(
+  _accountId: string,
+  _pageId: string,
+): Promise<KnowledgeVersion[]> {
+  return [];
+}
+
+// ── Collection queries ────────────────────────────────────────────────────────
+
+export async function getKnowledgeCollection(
+  accountId: string,
+  collectionId: string,
+): Promise<KnowledgeCollection | null> {
+  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+    collectionId,
+  );
+}
+
+export async function getKnowledgeCollections(
+  accountId: string,
+): Promise<KnowledgeCollection[]> {
+  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+  );
 }
 ````
 
@@ -69725,6 +69533,198 @@ export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
 - `../../../modules/knowledge/aggregates.md`
 ````
 
+## File: modules/knowledge/domain/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/barrel
+ */
+
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ArchiveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "./entities/knowledge-page.entity";
+
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
+export type { PageVerificationState } from "./entities/knowledge-page.entity";
+
+export type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  DeleteKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "./entities/content-block.entity";
+
+export type {
+  KnowledgeVersion,
+  KnowledgeVersionBlock,
+  CreateKnowledgeVersionInput,
+} from "./entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./value-objects/block-content";
+export {
+  BLOCK_TYPES,
+  blockContentEquals,
+  emptyTextBlockContent,
+  plainTextBlockContent,
+  richTextToPlainText,
+  extractMentionedPageIds,
+  extractMentionedUserIds,
+} from "./value-objects/block-content";
+export type {
+  RichTextSpanType,
+  TextAnnotations,
+  TextSpan,
+  MentionPageSpan,
+  MentionUserSpan,
+  LinkSpan,
+  RichTextSpan,
+} from "./value-objects/block-content";
+
+export type {
+  KnowledgeDomainEvent,
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+  KnowledgePageVerifiedEvent,
+  KnowledgePageReviewRequestedEvent,
+  KnowledgePageOwnerAssignedEvent,
+} from "./events/knowledge.events";
+
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
+
+export type {
+  KnowledgePageRepository,
+  KnowledgeBlockRepository,
+  KnowledgeVersionRepository,
+} from "./repositories/knowledge.repositories";
+````
+
+## File: modules/knowledge/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: module/barrel (public API)
+ *
+ * This is the ONLY file that external modules should import from.
+ * All internal implementation details (domain, application, infrastructure)
+ * are NOT importable from outside — use the exports listed here.
+ *
+ * Boundary rule: other modules import via `@/modules/knowledge`, never from
+ * `@/modules/knowledge/domain/...` or deeper paths.
+ *
+ * Access pattern:
+ *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
+ *   - UI mutations                    → Server Actions below
+ *   - UI reads                        → Query functions below
+ *
+ * Current boundary note:
+ *   - `Page` / `Block` are owned by this module.
+ *   - `KnowledgeCollection` is still exported here as a transitional surface.
+ *   - `Article` / `Category` belong to `knowledge-base`.
+ */
+
+// ── API: Facade (cross-domain entry point) ────────────────────────────────────
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";
+
+// ── Domain: entity types ──────────────────────────────────────────────────────
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+} from "./domain/entities/knowledge-page.entity";
+
+export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
+
+export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./interfaces/_actions/knowledge.actions";
+
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "./interfaces/queries/knowledge.queries";
+
+// ── Domain: Collection + Wiki types ──────────────────────────────────────────
+export type {
+  KnowledgeCollection,
+  CollectionSpaceType,
+} from "./domain/entities/knowledge-collection.entity";
+
+export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
+
+// ── Interfaces: Components ────────────────────────────────────────────────────
+export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PageTreeView } from "./interfaces/components/PageTreeView";
+export { PageDialog } from "./interfaces/components/PageDialog";
+````
+
 ## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
 ````typescript
 "use client";
@@ -71149,135 +71149,6 @@ export function AppRail({
 }
 ````
 
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage（ContentPage）
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
 ## File: modules/knowledge/api/index.ts
 ````typescript
 /**
@@ -71633,6 +71504,135 @@ import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
 npm run lint
 npm run build
 ```
+````
+
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
 ## File: modules/knowledge/context-map.md

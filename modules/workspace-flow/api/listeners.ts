@@ -15,7 +15,7 @@
  * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
  * ```
  *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
 import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";

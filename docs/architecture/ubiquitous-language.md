@@ -170,7 +170,7 @@
 | **實體化任務** | MaterializedTask | 由 `knowledge.page_approved` 事件派生建立的 Task，帶有 `sourceReference` 指回原始 KnowledgePage | `workspace-flow` | `modules/workspace-flow/domain/entities/Task.ts` |
 | **來源參照** | sourceReference | 記錄業務實體（Task/Invoice）由哪個 KnowledgePage 派生而來的值物件（type, id, causationId, correlationId） | `workspace-flow` | `modules/workspace-flow/domain/value-objects/SourceReference.ts` |
 
-### content ↔ workspace-flow 整合術語
+### knowledge ↔ workspace-flow 整合術語
 
 | 術語 | 英文 | 定義 | 所在模組 |
 |------|------|------|---------|

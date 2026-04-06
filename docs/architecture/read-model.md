@@ -4,7 +4,7 @@
 
 本文件說明 Xuanwu App 中的 CQRS（Command Query Responsibility Segregation）讀寫分離設計，包含 Query 函式的位置、訂閱模式，以及與 Write-side（Use Cases）的分工。
 
-> **相關文件：** [`use-cases.md`](./use-cases.md) · [`repository-pattern.md`](./repository-pattern.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`use-cases.md`](./use-cases.md) · [`repository-pattern.md`](./repository-pattern.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 

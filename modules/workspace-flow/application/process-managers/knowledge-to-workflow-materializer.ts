@@ -21,7 +21,7 @@
  *   `SimpleEventBus` subscriber registered at application startup.
  * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
  *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
 import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";

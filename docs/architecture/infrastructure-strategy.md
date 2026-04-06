@@ -4,7 +4,7 @@
 
 本文件說明 Xuanwu App 的基礎設施技術選擇、各服務的職責分工，以及 Next.js 與 Python Worker 的 runtime 邊界。
 
-> **相關文件：** [`repository-pattern.md`](./repository-pattern.md) · [`ai-domain.md`](./ai-domain.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`repository-pattern.md`](./repository-pattern.md) · [`ai-domain.md`](./ai-domain.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 

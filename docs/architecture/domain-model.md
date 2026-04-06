@@ -4,7 +4,7 @@
 
 本文件描述 Xuanwu App 各有界上下文的聚合根（Aggregate Root）、實體（Entity）與值物件（Value Object）設計。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`domain-events.md`](./domain-events.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`domain-events.md`](./domain-events.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 

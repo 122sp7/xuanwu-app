@@ -4,7 +4,7 @@
 
 本文件說明 Xuanwu App 的 Repository Pattern 設計，包含 domain 層介面定義、Firebase 基礎設施實作，以及 Port（跨切關注點抽象）的使用方式。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 
