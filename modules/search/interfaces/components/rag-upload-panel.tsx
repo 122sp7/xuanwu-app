@@ -21,7 +21,7 @@ export interface RagUploadPanelProps {
   readonly uploading: boolean;
   readonly selectedFile: File | null;
   readonly dragging: boolean;
-  readonly fileInputRef: RefObject<HTMLInputElement>;
+  readonly fileInputRef: RefObject<HTMLInputElement | null>;
   readonly onFileChange: (file: File | null) => void;
   readonly onUpload: () => void;
   readonly onDragOver: (event: React.DragEvent<HTMLLabelElement>) => void;

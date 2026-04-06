@@ -5,6 +5,7 @@ import { GripVertical } from "lucide-react";
 
 import { draggable, dropTargetForElements } from "@lib-dragdrop";
 import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
 import { TypeSelectorButton } from "./block-type-selector";
 
 export interface BlockRowProps {
@@ -62,7 +63,7 @@ export function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeCh
         data-placeholder={blockPlaceholder(type)}
         className={blockEditableClass(type)}
       >
-        {richText.map((span) => span.text).join("")}
+        {richTextToPlainText(richText)}
       </div>
     </div>
   );

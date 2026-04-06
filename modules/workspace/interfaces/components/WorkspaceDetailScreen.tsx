@@ -140,7 +140,7 @@ export function WorkspaceDetailScreen({
       [city, state, postalCode].filter(Boolean).join(", "),
       country,
       details,
-    ].filter(Boolean);
+    ].filter((line): line is string => Boolean(line));
   }, [workspace]);
 
   function renderTabContent(tab: WorkspaceTabValue) {
