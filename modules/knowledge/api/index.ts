@@ -20,6 +20,9 @@ export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
 export type { Block } from "../interfaces/store/block-editor.store";
 
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+
 // ── Server Actions (write-side) ───────────────────────────────────────────────
 
 export {
