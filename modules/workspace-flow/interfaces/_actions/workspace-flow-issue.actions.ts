@@ -3,8 +3,8 @@
 /**
  * @module workspace-flow/interfaces/_actions
  * @file workspace-flow-issue.actions.ts
- * @description Server Actions for Issue aggregate write operations.
- *   Delegates exclusively to WorkspaceFlowFacade per IDDD Application Service pattern.
+ * @description Server Actions for workspace-flow Issue write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";

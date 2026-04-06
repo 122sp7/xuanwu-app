@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * @module organization/interfaces/_actions
- * @file organization-policy.actions.ts
- * @description Server Actions for OrgPolicy aggregate (create, update, delete).
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization policy server actions — create, update, delete.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";

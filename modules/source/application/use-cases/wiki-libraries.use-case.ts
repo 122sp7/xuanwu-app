@@ -1,8 +1,16 @@
 /**
  * Module: source
  * Layer: application/use-cases
- * Purpose: Wiki-style library use-cases — list, create, add fields, add rows, snapshot.
+ * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API for the source module's wiki-facing library
+ *          management surface.
  */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@/modules/shared/api";
 
 import type {
   AddWikiLibraryFieldInput,
@@ -14,13 +22,17 @@ import type {
 } from "../../domain/entities/wiki-library.types";
 import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
 import {
-  defaultEventPublisher,
-  deriveSlugCandidate,
-  ensureUniqueLibrarySlug,
   generateId,
   normalizeName,
   normalizeFieldKey,
+  ensureUniqueLibrarySlug,
+  deriveSlugCandidate,
 } from "./wiki-library-use-case.helpers";
+
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
 
 export async function listWikiLibraries(
   accountId: string,

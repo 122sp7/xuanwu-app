@@ -14,7 +14,7 @@ import {
 import { Input } from "@ui-shadcn/ui/input";
 import { Label } from "@ui-shadcn/ui/label";
 
-import { wfAssignTask } from "../_actions/workspace-flow-task.actions";
+import { wfAssignTask } from "../_actions/workspace-flow.actions";
 
 export interface AssignTaskDialogProps {
   open: boolean;

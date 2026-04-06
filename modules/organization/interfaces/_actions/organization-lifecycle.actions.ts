@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * @module organization/interfaces/_actions
- * @file organization-lifecycle.actions.ts
- * @description Server Actions for Organization lifecycle (create, settings, delete).
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization lifecycle server actions — create, update settings, delete.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";

@@ -1,25 +1,12 @@
 /**
  * Module: source
- * Layer: application/use-cases (internal helpers)
- * Purpose: Shared utility functions and singletons used by wiki-library use cases.
- *          Not exported from the module's public api/ boundary.
+ * Layer: application/use-cases
+ * Purpose: Private helper functions for wiki-library use cases.
+ *          Extracted to keep use-case files focused on business workflow only.
  */
 
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  deriveSlugCandidate,
-  isValidSlug,
-} from "@/modules/shared/api";
+import { deriveSlugCandidate, isValidSlug } from "@/modules/shared/api";
 import type { WikiLibrary } from "../../domain/entities/wiki-library.types";
-
-export { deriveSlugCandidate };
-
-export const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
 
 export function generateId(): string {
   const randomUUID = globalThis.crypto?.randomUUID;
@@ -63,3 +50,5 @@ export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary
 
   throw new Error("cannot allocate a unique slug for this library name");
 }
+
+export { deriveSlugCandidate };

@@ -16,7 +16,7 @@ import { Label } from "@ui-shadcn/ui/label";
 import { Textarea } from "@ui-shadcn/ui/textarea";
 
 import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import { wfOpenIssue } from "../_actions/workspace-flow-issue.actions";
+import { wfOpenIssue } from "../_actions/workspace-flow.actions";
 import { ISSUE_STAGE_LABEL } from "./IssueRow";
 
 export interface OpenIssueDialogProps {

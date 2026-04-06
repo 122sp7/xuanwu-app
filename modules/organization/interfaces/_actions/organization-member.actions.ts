@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * @module organization/interfaces/_actions
- * @file organization-member.actions.ts
- * @description Server Actions for Organization member management (invite, recruit, dismiss, role).
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization member server actions — invite, recruit, dismiss, update role.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";

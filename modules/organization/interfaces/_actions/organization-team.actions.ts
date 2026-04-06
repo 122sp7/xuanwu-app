@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * @module organization/interfaces/_actions
- * @file organization-team.actions.ts
- * @description Server Actions for Organization team management (create, delete, members).
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization team server actions — create, delete, update members.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";

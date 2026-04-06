@@ -1,9 +1,9 @@
 "use server";
 
 /**
- * @module organization/interfaces/_actions
- * @file organization-partner.actions.ts
- * @description Server Actions for Organization partner management (group, invite, dismiss).
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization partner server actions — create group, invite, dismiss.
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
