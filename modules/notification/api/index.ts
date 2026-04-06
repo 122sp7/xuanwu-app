@@ -22,3 +22,15 @@ export type {
 // ─── UI components ────────────────────────────────────────────────────────────
 
 export { NotificationBell } from "../interfaces/components/NotificationBell";
+
+// ─── Server Actions (cross-module public) ─────────────────────────────────────
+
+export {
+  dispatchNotification,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../interfaces/_actions/notification.actions";
+
+// ─── Queries ─────────────────────────────────────────────────────────────────
+
+export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";

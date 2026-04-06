@@ -48,6 +48,20 @@ export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
 // Form entity types
 export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
 
+// Automation entity types
+export type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/entities/database-automation.entity";
+
+// UI Components (automation)
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+
 // ── FieldComputationService ────────────────────────────────────────────────────
 export type {
   RelationFieldConfig,

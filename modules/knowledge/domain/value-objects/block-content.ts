@@ -111,7 +111,8 @@ export type BlockType =
   | "quote"
   | "callout"
   | "toggle"
-  | "toc";
+  | "toc"
+  | "synced";
 
 export const BLOCK_TYPES = [
   "text",
@@ -127,6 +128,7 @@ export const BLOCK_TYPES = [
   "callout",
   "toggle",
   "toc",
+  "synced",
 ] as const satisfies readonly BlockType[];
 
 export interface BlockContent {

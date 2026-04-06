@@ -39,6 +39,7 @@ const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   "callout": "💡",
   "toggle": "▶",
   "toc": "📋",
+  "synced": "🔗",
 };
 
 const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
@@ -55,6 +56,7 @@ const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
   "callout": "標注",
   "toggle": "折疊",
   "toc": "目錄",
+  "synced": "同步區塊",
 };
 
 export function BlockEditorView() {

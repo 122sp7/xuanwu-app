@@ -52,6 +52,7 @@ import {
   AlertCircle,
   ChevronRight,
   TableOfContents,
+  Link2,
 } from "lucide-react";
 
 import { getKnowledgeBlocks } from "../queries/knowledge.queries";
@@ -139,6 +140,41 @@ const TableOfContentsNode = Node.create({
   },
 });
 
+/**
+ * SyncedBlock — a reference block whose content mirrors a source block by ID.
+ * In the editor it renders as a styled read-only placeholder.
+ * Full real-time sync would be implemented via a Firestore listener in a
+ * dedicated React component; here the node marks the block as synced so the
+ * editor can render a visual indicator.
+ */
+const SyncedBlock = Node.create({
+  name: "syncedBlock",
+  group: "block",
+  content: "block*",
+  defining: true,
+
+  addAttributes() {
+    return {
+      sourceBlockId: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='synced-block']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "synced-block",
+        class: "synced-block",
+      }),
+      0,
+    ];
+  },
+});
+
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DEBOUNCE_MS = 800;
@@ -189,6 +225,7 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
       CalloutBlock,
       ToggleBlock,
       TableOfContentsNode,
+      SyncedBlock,
     ],
     editable: true,
     immediatelyRender: false,
@@ -512,6 +549,13 @@ function EditorToolbar({ editor }: { editor: Editor }) {
           title="目錄 (TOC)"
         >
           <TableOfContents className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().insertContent({ type: "syncedBlock" }).run()}
+          active={editor.isActive("syncedBlock")}
+          title="同步區塊 (Synced Block)"
+        >
+          <Link2 className="size-3.5" />
         </ToolbarButton>
       </ToolbarGroup>
     </div>
