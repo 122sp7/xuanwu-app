@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
-import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { formatDate } from "@shared-utils";
 import {
   Avatar,
@@ -45,6 +45,11 @@ import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
 import { useApp } from "@/app/providers/app-provider";
 
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
+import {
+  createSettingsDraft,
+  describeGrant,
+  type WorkspaceSettingsDraft,
+} from "../../application/workspace-settings";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import { WorkspaceWikiView } from "./WorkspaceWikiView";
@@ -101,49 +106,6 @@ function formatTimestamp(timestamp: WorkspaceEntity["createdAt"] | undefined) {
   }
 }
 
-function describeGrant(grant: WorkspaceGrant) {
-  if (grant.teamId) {
-    return "Team grant";
-  }
-
-  if (grant.userId) {
-    return "User grant";
-  }
-
-  return "Unscoped grant";
-}
-
-interface WorkspaceSettingsDraft {
-  readonly name: string;
-  readonly visibility: WorkspaceEntity["visibility"];
-  readonly lifecycleState: WorkspaceEntity["lifecycleState"];
-  readonly street: string;
-  readonly city: string;
-  readonly state: string;
-  readonly postalCode: string;
-  readonly country: string;
-  readonly details: string;
-  readonly managerId: string;
-  readonly supervisorId: string;
-  readonly safetyOfficerId: string;
-}
-
-function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft {
-  return {
-    name: workspace.name,
-    visibility: workspace.visibility,
-    lifecycleState: workspace.lifecycleState,
-    street: workspace.address?.street ?? "",
-    city: workspace.address?.city ?? "",
-    state: workspace.address?.state ?? "",
-    postalCode: workspace.address?.postalCode ?? "",
-    country: workspace.address?.country ?? "",
-    details: workspace.address?.details ?? "",
-    managerId: workspace.personnel?.managerId ?? "",
-    supervisorId: workspace.personnel?.supervisorId ?? "",
-    safetyOfficerId: workspace.personnel?.safetyOfficerId ?? "",
-  };
-}
 
 function trimOrUndefined(value: string) {
   const trimmed = value.trim();

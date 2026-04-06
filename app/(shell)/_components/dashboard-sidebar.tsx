@@ -259,14 +259,14 @@ export function DashboardSidebar({
   );
 
   const allWorkspaceLinks = useMemo(() => {
-    return Object.values(workspacesById)
+    return workspaces
       .map((workspace) => ({
         id: workspace.id,
         name: workspace.name,
         href: buildWorkspaceContextHref(workspace.id),
       }))
       .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
-  }, [workspacesById, buildWorkspaceContextHref]);
+  }, [workspaces, buildWorkspaceContextHref]);
 
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
