@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
 import {
   Card,
   CardContent,
@@ -24,7 +22,6 @@ import {
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import { WorkspaceWikiView } from "./WorkspaceWikiView";
-import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
@@ -36,6 +33,7 @@ import { MOBILE_TAB_GROUP_ORDER } from "./workspace-detail-helpers";
 import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
 import { WorkspaceSettingsDialog } from "./WorkspaceSettingsDialog";
 import { useWorkspaceSettingsSave } from "../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../hooks/useWorkspaceDetail";
 
 interface WorkspaceDetailScreenProps {
   readonly workspaceId: string;
@@ -62,10 +60,12 @@ export function WorkspaceDetailScreen({
   accountsHydrated,
   initialTab,
 }: WorkspaceDetailScreenProps) {
-  const router = useRouter();
   const { state: appState, dispatch } = useApp();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
   const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
   const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
 
@@ -74,54 +74,10 @@ export function WorkspaceDetailScreen({
     accountId,
     onSaved: (updated) => {
       setWorkspace(updated);
-      setLoadState("loaded");
       setSettingsDraft(createSettingsDraft(updated));
       setIsEditWorkspaceOpen(false);
     },
   });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceDetailScreen] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
 
   const personnelEntries = useMemo(() => {
     if (!workspace?.personnel) return [];
