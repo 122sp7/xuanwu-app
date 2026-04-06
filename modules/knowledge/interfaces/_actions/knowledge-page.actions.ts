@@ -9,13 +9,17 @@ import {
   MoveKnowledgePageUseCase,
   ArchiveKnowledgePageUseCase,
   ReorderKnowledgePageBlocksUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import {
   ApproveKnowledgePageUseCase,
   VerifyKnowledgePageUseCase,
   RequestPageReviewUseCase,
   AssignPageOwnerUseCase,
+} from "../../application/use-cases/knowledge-page-review.use-cases";
+import {
   UpdatePageIconUseCase,
   UpdatePageCoverUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
+} from "../../application/use-cases/knowledge-page-appearance.use-cases";
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
 import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";
 import type {

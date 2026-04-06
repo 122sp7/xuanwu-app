@@ -42,7 +42,8 @@ import {
   type WorkspaceTabValue,
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { useAuth } from "@/app/providers/auth-provider";
+import { createKnowledgePage } from "@/modules/knowledge/api";
 import { CustomizeNavigationDialog,
   readNavPreferences,
   type NavPreferences,
@@ -179,6 +180,7 @@ export function DashboardSidebar({
   onToggleCollapsed,
   onSelectWorkspace,
 }: DashboardSidebarProps) {
+  const { state: authState } = useAuth();
   const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
     activeAccount?.id,
     pathname,
@@ -357,20 +359,18 @@ export function DashboardSidebar({
     }
     setCreatingKind("page");
     try {
-      const db = getFirebaseFirestore();
-      const payload: Record<string, unknown> = {
-        title: "未命名頁面",
-        kind: "page",
+      const result = await createKnowledgePage({
         accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, "pages"),
-        payload,
-      );
-      toast.success("已建立頁面");
+        workspaceId: activeWorkspaceId ?? undefined,
+        title: "未命名頁面",
+        parentPageId: null,
+        createdByUserId: authState.user?.id ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
     } catch (error) {
       console.error(error);
       toast.error("建立頁面失敗");
