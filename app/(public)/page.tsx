@@ -12,14 +12,8 @@ import { useRouter } from "next/navigation";
 import { Loader2, ShieldCheck } from "lucide-react";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import {
-  FirebaseIdentityRepository,
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-} from "@/modules/identity/api";
-import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
+import { createClientAuthUseCases } from "@/modules/identity/api";
+import { createClientAccountUseCases } from "@/modules/account/api";
 import {
   createDevDemoUser,
   isDevDemoCredential,
@@ -49,17 +43,10 @@ export default function PublicPage() {
     sendPasswordResetEmailUseCase,
     createUserAccountUseCase,
   } =
-    useMemo(() => {
-      const identityRepo = new FirebaseIdentityRepository();
-      const accountRepo = new FirebaseAccountRepository();
-      return {
-        signInUseCase: new SignInUseCase(identityRepo),
-        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
-        registerUseCase: new RegisterUseCase(identityRepo),
-        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
-        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
-      };
-    }, []);
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
 
   useEffect(() => {
     if (state.status === "authenticated") {

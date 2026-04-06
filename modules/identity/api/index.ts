@@ -44,6 +44,30 @@ export {
   SignOutUseCase,
 } from "../application/use-cases/identity.use-cases";
 
+// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
+
+import { FirebaseIdentityRepository as _IdentityRepo } from "../infrastructure/firebase/FirebaseIdentityRepository";
+import {
+  SignInUseCase as _SignIn,
+  SignInAnonymouslyUseCase as _SignInAnon,
+  RegisterUseCase as _Register,
+  SendPasswordResetEmailUseCase as _ResetEmail,
+} from "../application/use-cases/identity.use-cases";
+
+/**
+ * Creates a wired set of client-side auth use cases for use in "use client" components.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAuthUseCases() {
+  const repo = new _IdentityRepo();
+  return {
+    signInUseCase: new _SignIn(repo),
+    signInAnonymouslyUseCase: new _SignInAnon(repo),
+    registerUseCase: new _Register(repo),
+    sendPasswordResetEmailUseCase: new _ResetEmail(repo),
+  };
+}
+
 // ─── Server Actions ───────────────────────────────────────────────────────────
 
 export {
