@@ -281,7 +281,7 @@ import { cn } from "@/shared/utils";
 
 | 問題 | 影響模組 | 當前狀態 | 目標狀態 | 優先級 |
 |------|---------|---------|---------|--------|
-| `knowledge/domain/entities/graph-node.ts`、`link.ts` 標記 `@deprecated` | `knowledge` | 檔案存在但為空殼，指向 `knowledge-graph` | 完全移除 deprecated 實體，確認無殘留 import | P1 |
-| `knowledge/domain/repositories/GraphRepository.ts` 與 `knowledge-graph` 重複 | `knowledge` | 兩模組各有 GraphRepository 定義 | 僅保留 `knowledge-graph` 版本 | P1 |
+| `knowledge/domain/entities/graph-node.ts`、`link.ts` 標記 `@deprecated` | `knowledge` | 檔案存在但僅作歷史 graph terminology bridge | 移除 deprecated bridge，確認無殘留 import | P1 |
+| `knowledge/domain/repositories/GraphRepository.ts` 保留歷史 graph bridge 命名 | `knowledge` | repository 名稱仍帶舊圖譜語彙 | 依未來 owner 決策改名或移除 bridge | P1 |
 | `identity`、`account`、`workspace` 聚合根缺乏 Domain Events | `identity`, `account`, `workspace` | 無 event stream，狀態變更無法被下游模組訂閱 | 逐步補充關鍵 Domain Events（見 ADR-002）| P2 |
 | `asset.WikiLibrary` 語意上偏向內容層 | `asset` | WikiLibrary 定義在 asset 模組 | 長期考慮移至 `content` 或明確文件化留在 `asset` 的理由 | P3 |

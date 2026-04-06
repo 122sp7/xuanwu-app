@@ -39,15 +39,14 @@ This skill contains the following reference files:
 
 ## Statistics
 
-297 files | 13,871 lines
+297 files | 13,089 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| Markdown | 297 | 13,871 |
+| Markdown | 297 | 13,089 |
 
 **Largest files:**
 - `docs/guides/explanation/architecture.md` (942 lines)
-- `docs/guides/explanation/architecture-domain.md` (925 lines)
 - `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)
 - `docs/guides/how-to/ui-ux/wireframes.md` (337 lines)
 - `py_fn/README.md` (265 lines)
@@ -56,3 +55,4 @@ This skill contains the following reference files:
 - `docs/guides/how-to/ui-ux/ux-principles.md` (228 lines)
 - `.github/prompts/playwright-mcp-inspect.prompt.md` (163 lines)
 - `docs/development/modules-implementation-guide.md` (161 lines)
+- `AGENTS.md` (147 lines)

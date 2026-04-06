@@ -38,12 +38,12 @@ This skill contains the following reference files:
 
 ## Statistics
 
-977 files | 67,870 lines
+977 files | 67,088 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
 | TypeScript | 416 | 24,359 |
-| Markdown | 297 | 13,871 |
+| Markdown | 297 | 13,089 |
 | TypeScript (TSX) | 136 | 23,306 |
 | No Extension | 52 | 136 |
 | Python | 49 | 3,532 |
@@ -59,9 +59,9 @@ This skill contains the following reference files:
 - `app/(shell)/_components/dashboard-sidebar.tsx` (953 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
 - `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (936 lines)
-- `docs/guides/explanation/architecture-domain.md` (925 lines)
 - `app/(shell)/dev-tools/page.tsx` (872 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `modules/search/interfaces/components/RagView.tsx` (659 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (611 lines)
 - `app/(shell)/_components/app-rail.tsx` (569 lines)
+- `py_fn/src/infrastructure/external/upstash/clients.py` (538 lines)
