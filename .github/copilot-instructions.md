@@ -14,6 +14,13 @@ Always-on workspace guidance for Copilot. Keep this file short, stable, and repo
 - Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
 - Prefer references to canonical docs over repeated policy text.
 
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
+
 ## Authoritative Sources
 
 Read these in order before making non-trivial decisions:
@@ -95,6 +102,7 @@ See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKI
 
 - **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
 - **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
 - If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
 - Index and memory changes are only valid when made through Serena tools.
 

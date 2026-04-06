@@ -10,6 +10,13 @@ Quick reference for Claude working in this Next.js 16 + MDDD repository.
 
 **Essential**: Read AGENTS.md for rules, commands, and patterns.
 
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first.
+- Serena remains the orchestration lead and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+- Repository orchestration memory and index updates must use Serena tools; do not replace them with direct `.serena/` edits.
+
 ## Coordination
 
 - Serena MCP is mandatory for every conversation and remains the orchestration lead.

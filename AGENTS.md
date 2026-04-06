@@ -30,6 +30,13 @@ Use the following status flow for issues, tasks, and features:
 3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
 4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
+- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
+
 ## Orchestration Protocol
 
 - Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
