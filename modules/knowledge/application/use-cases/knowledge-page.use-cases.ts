@@ -6,7 +6,7 @@
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 import {
   PublishDomainEventUseCase,

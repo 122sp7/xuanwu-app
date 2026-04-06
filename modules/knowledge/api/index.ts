@@ -107,8 +107,8 @@ export {
   getKnowledgeCollections,
 } from "../interfaces/queries/knowledge.queries";
 
-export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
-export type { KnowledgePage } from "../domain/entities/content-page.entity";
+export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
 
 // ── UI Components ─────────────────────────────────────────────────────────────
 export { PageTreeView } from "../interfaces/components/PageTreeView";

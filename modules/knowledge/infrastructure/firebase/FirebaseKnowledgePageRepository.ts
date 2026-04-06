@@ -33,7 +33,7 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
-} from "../../domain/entities/content-page.entity";
+} from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 
 function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {

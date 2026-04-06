@@ -4,7 +4,7 @@
  * Purpose: Server-side query helpers for reading Content domain data.
  */
 
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/content-page.entity";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
 import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
 import {

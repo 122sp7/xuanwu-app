@@ -17,8 +17,8 @@ export type {
   AssignPageOwnerInput,
 } from "./entities/content-page.entity";
 
-export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/content-page.entity";
-export type { PageVerificationState } from "./entities/content-page.entity";
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
+export type { PageVerificationState } from "./entities/knowledge-page.entity";
 
 export type {
   KnowledgeBlock,

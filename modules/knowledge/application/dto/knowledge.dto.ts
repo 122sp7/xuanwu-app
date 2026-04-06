@@ -6,7 +6,7 @@
 
 import { z } from "@lib-zod";
 import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/content-page.entity";
+import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/knowledge-page.entity";
 
 const AccountScopeSchema = z.object({
   accountId: z.string().min(1),

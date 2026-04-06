@@ -16,7 +16,7 @@
 
 ## Infrastructure Implementations
 
-- `infrastructure/firebase/FirebaseContentPageRepository.ts`
+- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
   - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
 - `infrastructure/firebase/FirebaseContentBlockRepository.ts`
 - `infrastructure/firebase/FirebaseContentCollectionRepository.ts`

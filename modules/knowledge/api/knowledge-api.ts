@@ -15,7 +15,7 @@ import {
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
 import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgePage } from "../domain/entities/content-page.entity";
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
 import { BlockService } from "../application/block-service";
 import {
   InMemoryKnowledgePageRepository,

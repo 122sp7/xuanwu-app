@@ -32,7 +32,7 @@ import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api"
 
 ### ❌ 禁止
 ```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
 import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
 import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
 ```

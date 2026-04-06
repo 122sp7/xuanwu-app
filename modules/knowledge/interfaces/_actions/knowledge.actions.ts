@@ -32,7 +32,7 @@ import {
   AddCollectionColumnUseCase,
   ArchiveKnowledgeCollectionUseCase,
 } from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
 import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
 import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
 import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";

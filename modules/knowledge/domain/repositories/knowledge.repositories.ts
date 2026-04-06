@@ -14,7 +14,7 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
-} from "../entities/content-page.entity";
+} from "../entities/knowledge-page.entity";
 import type {
   KnowledgeBlock,
   AddKnowledgeBlockInput,
