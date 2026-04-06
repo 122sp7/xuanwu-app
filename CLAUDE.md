@@ -10,6 +10,14 @@ Quick reference for Claude working in this Next.js 16 + MDDD repository.
 
 **Essential**: Read AGENTS.md for rules, commands, and patterns.
 
+## Coordination
+
+- Serena MCP is mandatory for every conversation and remains the orchestration lead.
+- Start with Serena to understand the request, gather the needed context, and decide whether subagents are required.
+- This file is a Claude compatibility quick reference, not a separate repository governance source. Repo-wide rules live in `AGENTS.md` and `.github/*`.
+- When a task touches Claude Code workflow, consult `.claude/settings.json` for hooks and permissions, `.claude/rules/tech-strategy.md` for technology policy, and `.claude/hooks/*` for automation and guards.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+
 ## Quick Commands
 
 ```bash

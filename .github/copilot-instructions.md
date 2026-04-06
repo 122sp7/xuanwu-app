@@ -71,6 +71,8 @@ DDD knowledge is owned by `docs/ddd/`. Use the root DDD maps first and then the 
 
 Serena MCP is **mandatory for every session**. There are no exceptions.
 
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
+
 ### Session-Start Protocol (Required)
 
 1. Bootstrap Serena MCP server if tools are not available:
@@ -98,7 +100,7 @@ See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKI
 
 ## Context7 Documentation Query
 
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
 
 ### Trigger Conditions
 
@@ -121,6 +123,15 @@ Any of the following require a context7 lookup before proceeding:
 - Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
 - Keep queries focused: one `topic` per call rather than fetching the entire doc set.
 - See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Claude Compatibility Layer
+
+`.claude/` is a supported Claude Code compatibility surface.
+
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
 
 ## Skill And Agent Routing
 

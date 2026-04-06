@@ -30,6 +30,14 @@ Use the following status flow for issues, tasks, and features:
 3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
 4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
 
+## Orchestration Protocol
+
+- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
+- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
+- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
+
 ## Key Rules
 
 ### Architecture
