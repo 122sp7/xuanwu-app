@@ -5,7 +5,8 @@
 - Current domain/source-of-truth docs: `docs/ddd/subdomains.md` and `docs/ddd/bounded-contexts.md`; `modules/subdomains.md` and `modules/bounded-contexts.md` are mirror entrypoints.
 - Current modules root contains 18 bounded contexts plus `modules/system.ts`.
 - Cross-module collaboration remains API-only via each module's public `api/` boundary.
-- Core Serena memory corrections in this sync: `project_overview` no longer treats `wiki-beta` as an active canonical knowledge namespace, and `architecture` now reflects the public `api/` boundary instead of a module `index.ts` barrel rule.
+- Core Serena memory corrections in this sync: authoritative replacements were written to `project_overview_current` and `architecture_current` because the protected `project_overview` and `architecture` names are governed by Serena read-only rules.
+- The prior protected memories were moved to `_archive/project_overview-stale-2026-04-06` and `_archive/architecture-stale-2026-04-06` after drift was confirmed.
 - Current MCP topology from `.mcp.json` includes Serena, Context7, Playwright MCP, Next DevTools, Chrome DevTools, sequential-thinking, filesystem, shadcn, mongodb, supabase-mcp, markitdown, and mcp-run-python.
 - `llms.txt` remains non-authoritative if it drifts from `.github/agents/*`, `docs/ddd/*`, or current workspace structure.
 - Historical `wiki-beta` references should be treated as migration history, not live module topology.

@@ -17,7 +17,8 @@
 - Used Serena `activate_project` and `get_current_config` to confirm the active project and available tools.
 - Used Serena `read_memory` to verify stale content in `project_overview`, `architecture`, and `index/project-sync-2026-04-06`.
 - Used Serena `search_for_pattern` to confirm API-boundary wording in repo authorities and the absence of live `wiki-beta` references under `app/`, `modules/`, `docs/`, and `.github/`.
-- Rewrote the affected Serena memories via Serena `write_memory`.
+- Updated Serena index/workflow memories via Serena `write_memory`.
+- Because `project_overview` and `architecture` are protected by read-only naming rules, their corrected authoritative replacements were written as `project_overview_current` and `architecture_current`, and the stale protected originals were moved to archive names.
 
 ### Deviations / Risks
 - Serena `summarize_changes` is available but not active in the current mode, so index refresh was recorded through explicit index memory updates rather than a summarize pass.
