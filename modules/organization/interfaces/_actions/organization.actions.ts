@@ -29,6 +29,7 @@ import {
   DeleteOrgPolicyUseCase,
 } from "../../application/use-cases/organization-policy.use-cases";
 import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
 import type {
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,
@@ -39,6 +40,7 @@ import type {
 } from "../../domain/entities/Organization";
 
 const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
 
 // ─── Org Lifecycle ────────────────────────────────────────────────────────────
 
@@ -199,7 +201,7 @@ export async function dismissPartnerMember(
 
 export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
   try {
-    return await new CreateOrgPolicyUseCase(orgRepo).execute(input);
+    return await new CreateOrgPolicyUseCase(policyRepo).execute(input);
   } catch (err) {
     return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -210,7 +212,7 @@ export async function updateOrgPolicy(
   data: UpdateOrgPolicyInput,
 ): Promise<CommandResult> {
   try {
-    return await new UpdateOrgPolicyUseCase(orgRepo).execute(policyId, data);
+    return await new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data);
   } catch (err) {
     return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -218,7 +220,7 @@ export async function updateOrgPolicy(
 
 export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
   try {
-    return await new DeleteOrgPolicyUseCase(orgRepo).execute(policyId);
+    return await new DeleteOrgPolicyUseCase(policyRepo).execute(policyId);
   } catch (err) {
     return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }

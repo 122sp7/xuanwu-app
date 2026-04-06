@@ -14,17 +14,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
 
 import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 
 const lifecycleBadgeVariant: Record<
   WorkspaceEntity["lifecycleState"],
@@ -258,70 +250,22 @@ export function WorkspaceHubScreen({
         </CardContent>
       </Card>
 
-      <Dialog
+      <CreateWorkspaceDialog
         open={isCreateWorkspaceOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
         onOpenChange={(open) => {
           setIsCreateWorkspaceOpen(open);
-          if (!open) {
-            resetCreateWorkspaceDialog();
-          }
+          if (!open) resetCreateWorkspaceDialog();
         }}
-      >
-        <DialogContent aria-describedby="create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-            <DialogDescription id="create-workspace-description">
-              建立後會直接出現在目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="workspace-name"
-              >
-                工作區名稱
-              </label>
-              <Input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => {
-                  setWorkspaceName(event.target.value);
-                  if (createError) {
-                    clearCreateError();
-                  }
-                }}
-                placeholder="例如：北區營運中心"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {createError && (
-                <p className="text-sm text-destructive">{createError}</p>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onWorkspaceNameChange={(name) => {
+          setWorkspaceName(name);
+          if (createError) clearCreateError();
+        }}
+        onSubmit={handleCreateWorkspace}
+      />
     </div>
   );
 }
