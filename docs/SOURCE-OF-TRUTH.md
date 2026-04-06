@@ -1,25 +1,24 @@
 # Source of Truth for Documentation Structure
 
-This document defines the only source used for the docs skeleton in this task.
+This document defines the documentation routing model for Xuanwu.
 
-## Context7 source
+## Documentation Ownership Model
 
-- Library ID: /anivar/developer-docs-framework
-- Framework basis: Diataxis four-purpose model
-- IA basis: shallow hierarchy, two-level max recommendation
+1. `docs/ddd/` owns strategic DDD maps and documentation entrypoints.
+2. `modules/<context>/*.md` owns bounded-context detail such as ubiquitous language, aggregates, domain events, context maps, repositories, and application services.
+3. `docs/architecture/` owns cross-context reasoning, runtime boundaries, and ADR-driven explanation.
+4. `docs/development/` owns implementation workflow and repository execution guidance.
+5. `docs/reference/` owns exact facts and specification-style material.
 
-## Applied structural decisions
+## Diataxis Constraints
 
-1. Top-level quadrants:
-   - tutorials/
-   - how-to/
-   - reference/
-   - explanation/
-2. One purpose per document.
-3. Shallow hierarchy target: docs/<section>/<file>.md.
-4. Templates are purpose-specific and separated.
+1. One purpose per document.
+2. Prefer shallow hierarchy where practical.
+3. Cross-link to the current owner instead of copying DDD content into multiple trees.
+4. Keep strategic maps, context detail, and implementation guidance distinct.
 
-## Notes
+## Project-Specific Notes
 
-- No project-internal content was used to design this skeleton.
-- Cross-linking is preferred over mixing content types in one page.
+- `docs/ddd/subdomains.md` and `docs/ddd/bounded-contexts.md` are the top-level DDD routing entrypoints.
+- Context detail is intentionally resolved through `modules/<context>/` until a future consolidation change explicitly moves ownership.
+- Internal AI delivery and agent workflow docs may live under `docs/`, but they should not replace product or architecture entrypoints.

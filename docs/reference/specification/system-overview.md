@@ -1,27 +1,24 @@
 # 系統全局規格（System Overview Specification）
 
-> **規格文件類型**：本文件描述 Xuanwu App 的系統定位、目標用戶、核心功能、技術架構與運行時邊界。
+> **規格文件類型**：本文件描述 Xuanwu 的產品定位、目標用戶、核心能力、 bounded-context 拓樸、整合方式與運行時邊界。
 
 ---
 
 ## 1. 系統定位
 
-**Xuanwu App** 是一個**企業知識管理與 AI 輔助的工作區平台**，提供：
+Xuanwu 是一個面向個人與組織協作的 Knowledge Platform。它的產品目標是把分散的文件、筆記、知識頁面、知識庫文章、結構化資料與外部來源整合進同一個可治理的工作區系統，讓知識不只被保存，還能被驗證、檢索、推理，並進一步轉化為可執行的工作成果。
 
-- 內容頁面與結構化資料庫體驗（Content / UI Layer）
-- 知識關聯與導航視角（Knowledge Graph Layer）
-- 企業級 RAG（Retrieval-Augmented Generation）知識查詢
-- 多工作區協作與組織管理
-- 文件解析、向量化與智慧問答
+系統採用 Modular Monolith 的 Module-Driven Domain Design 架構，以 `knowledge` 與 `knowledge-base` 為核心域，透過 `workspace` 與 `organization` 建立治理與協作邊界，並以 `source`、`ai`、`search`、`notebook` 等支援域建立從外部內容攝入到檢索與研究生成的完整閉環。
 
 ### 1.1 核心價值主張
 
 | 面向 | 價值 |
 |---|---|
-| **知識管理** | 以頁面、區塊、資料庫與知識關聯組織企業知識 |
-| **AI 驅動** | 上傳文件後自動解析、向量化，支援自然語言查詢 |
-| **多工作區** | 一個組織帳號可管理多個工作區，資料有效隔離 |
-| **可觀測** | 文件處理狀態、RAG 索引狀態均可在 UI 即時觀測 |
+| **知識沉澱** | 以頁面、區塊、文章、資料庫與來源集合沉澱知識資產 |
+| **知識治理** | 透過工作區、組織、審批、驗證、權限與稽核建立可治理性 |
+| **語意檢索** | 透過 ingestion、chunking、indexing 與 retrieval 建立可追溯查詢能力 |
+| **研究與生成** | 在 notebook 工作流中支援 ask/cite、摘要、洞察與知識生成 |
+| **知識落地執行** | 將知識進一步轉化為工作流程、排程、動態與協作執行成果 |
 
 ---
 
@@ -29,161 +26,99 @@
 
 | 用戶類型 | 說明 | 核心需求 |
 |---|---|---|
-| **個人知識工作者** | 個人帳號使用者 | 個人頁面管理、文件上傳、AI 問答 |
-| **企業團隊協作者** | 組織帳號成員 | 多工作區協作、文件共享、RAG 查詢 |
-| **組織管理員（Admin）** | 擁有管理權限的成員 | 成員管理、權限設定、稽核記錄 |
-| **系統管理員（Sysadmin）** | 後台操作人員 | 部署、監控、資料治理 |
+| **個人知識工作者** | 以個人帳號管理內容、來源與 AI 研究流程 | 頁面管理、來源整理、問答、摘要、知識生成 |
+| **組織協作者** | 在組織帳號與工作區中共同維護知識與執行流程 | 共享知識、工作區協作、文章驗證、檢索與引用 |
+| **組織管理員** | 負責成員、權限、治理與稽核可見性 | 組織管理、權限設定、稽核追查、政策治理 |
 
 ---
 
-## 3. 核心功能規格
+## 3. 核心能力
 
-### 3.1 Account 與 Workspace 管理
+### 3.1 核心知識域
 
-| 功能 | 說明 | 模組 |
+| 能力 | 說明 | Owner |
 |---|---|---|
-| 個人帳號 | 用戶可建立個人帳號 | `account` |
-| 組織帳號 | 用戶可建立組織，組織有獨立帳號 | `organization`, `account` |
-| 工作區建立 | 帳號下可建立多個工作區 | `workspace` |
-| 成員邀請 | 組織可邀請成員加入，分配角色 | `account`, `organization` |
-| 角色與權限 | RBAC 模型；Admin / Member / Viewer 等角色 | `account` |
+| Knowledge Pages | Notion-like 頁面、區塊、版本、審批與內容生命週期 | `knowledge` |
+| Knowledge Base | 組織級 wiki / SOP / article 與分類樹、驗證狀態 | `knowledge-base` |
+| Knowledge Collaboration | 留言、權限、版本快照 | `knowledge-collaboration` |
+| Knowledge Database | 結構化資料庫、record、view、relation | `knowledge-database` |
 
-### 3.2 知識庫功能
+### 3.2 來源、檢索與推理
 
-| 功能 | 說明 | 模組 |
+| 能力 | 說明 | Owner |
 |---|---|---|
-| 文件上傳 | 支援 PDF、TIFF、PNG、JPEG | `asset`, `knowledge` |
-| 文件列表 | Account 全覽；workspace 篩選 | `asset` |
-| 文件解析 | Google Document AI 自動解析 | `py_fn` |
-| RAG 向量化 | 文件切塊 + OpenAI Embedding | `py_fn` |
-| RAG 問答 | 自然語言問答，含引用來源 | `retrieval`, `agent` |
-| RAG 重整 | 手動觸發 RAG 重新索引 | `retrieval`, `knowledge` |
-| Pages | 區塊式頁面建立與管理 | `content` |
-| Libraries | 結構化資料庫管理 | `asset` |
+| Source Ingestion | 外部文件、附件、來源集合與 ingestion handoff | `source` |
+| AI Ingestion Pipeline | job 管理、chunk/index 準備與 worker handoff | `ai` |
+| Semantic Search | retrieval、citation context、查詢品質回饋 | `search` |
+| Notebook Workflow | ask/cite、摘要、研究、知識生成流程 | `notebook` |
 
-### 3.3 AI 功能
+### 3.3 協作與治理
 
-| 功能 | 說明 | 模組 |
+| 能力 | 說明 | Owner |
 |---|---|---|
-| AI Chat | 通用 AI 對話介面 | `agent` |
-| RAG 查詢 | 基於文件的智慧問答 | `retrieval`, `knowledge` |
-| 知識摘要 | 文件自動摘要（RAG pipeline） | `py_fn` |
-
-### 3.4 組織管理
-
-| 功能 | 說明 | 模組 |
-|---|---|---|
-| 成員管理 | 邀請、移除、角色調整 | `account`, `organization` |
-| 團隊管理 | 成員分組 | `organization` |
-| 排程管理 | 雙向資源排程 | `workspace-scheduling` |
-| 工作流程 | 工作區任務與流程管理 | `workspace-flow` |
-| 稽核記錄 | 操作稽核追蹤 | `workspace-audit` |
+| Identity & Account | 身份、token lifecycle、帳戶語意與個人化 | `identity`, `account` |
+| Organization Governance | 組織、團隊、成員與租戶治理 | `organization` |
+| Workspace Container | 工作區、工作區成員與模組組裝邊界 | `workspace` |
+| Workspace Feed | 工作區動態與互動可見性 | `workspace-feed` |
+| Workspace Flow | Task / Issue / Invoice 狀態機與知識物化流程 | `workspace-flow` |
+| Workspace Scheduling | 排程、需求、容量協調 | `workspace-scheduling` |
+| Workspace Audit | append-only 稽核軌跡 | `workspace-audit` |
+| Notification | 通知偏好與輸出訊號 | `notification` |
 
 ---
 
-## 4. 技術架構規格
+## 4. 架構規格
 
-### 4.1 運行時邊界
+### 4.1 Bounded Context 模型
 
-系統分為兩個主要運行時：
+Xuanwu 由多個具明確邊界的 bounded context 組成。每個 context 都擁有自己的 ubiquitous language、domain model、application use cases 與 infrastructure adapters。跨 context 溝通只允許透過以下兩種方式：
+
+1. 目標 context 的 public `api/` surface
+2. Published Domain Events 與其他明確事件契約
+
+### 4.2 當前上下文分類
+
+| 類別 | Contexts |
+|---|---|
+| **Core Domain** | `knowledge`, `knowledge-base` |
+| **Supporting Subdomain** | `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling` |
+| **Generic Subdomain** | `identity`, `account`, `organization`, `workspace`, `notification` |
+| **Shared Kernel** | `shared` |
+
+完整地圖請見 [../../ddd/bounded-contexts.md](../../ddd/bounded-contexts.md)。
+
+### 4.3 運行時邊界
 
 | 運行時 | 職責 | 技術 |
 |---|---|---|
-| **Next.js（前端/後端）** | 頁面渲染、互動 UI、Server Actions、查詢協調 | Next.js 16, React 19, TypeScript |
-| **py_fn（Python Worker）** | 文件解析、向量化、RAG pipeline | Python 3.11, Firebase Cloud Functions |
+| **Next.js** | UI、auth/session orchestration、route composition、Server Actions、workspace-scoped interaction flow | Next.js 16, React 19, TypeScript |
+| **py_fn** | parsing、chunking、embedding、背景 ingestion 工作 | Python worker runtime |
 
-**禁止跨越邊界**：
-- Next.js 不執行 parse/chunk/embed（這些在 py_fn）。
-- py_fn 不持有 UI 狀態或 session 邏輯。
+### 4.4 Anti-Corruption Boundary
 
-### 4.2 資料層架構
+外部內容來源不直接寫入核心域模型。外部文件、第三方資料來源、AI/infra 服務契約，必須透過 `source` workflow 與各 bounded context 的 infrastructure adapters 轉譯後再進入系統，避免外部概念污染核心知識模型。
 
-```
-Firebase Firestore    ← 主要資料儲存（accounts/{accountId}/...）
-Firebase Storage      ← 檔案儲存（上傳文件）
-Upstash Vector        ← 向量索引（RAG）
-Upstash Redis         ← 快取（RAG query cache）
-```
+---
 
-### 4.3 Firestore 資料模型（頂層）
+## 5. 整合方式
 
-```
-accounts/{accountId}/
-├── documents/{documentId}     ← 文件（Wiki）
-├── pages/{pageId}             ← 頁面（Pages）
-├── databases/{databaseId}     ← 資料庫（Libraries）
-├── workspaces/{workspaceId}   ← 工作區（Workspace）
-└── members/{memberId}         ← 成員（Account）
-```
-
-> **重要規則**：所有讀寫必須在 `accounts/{accountId}/...` 路徑下，禁止查詢頂層 collection。
-
-### 4.4 認證與授權
-
-```
-Firebase Auth → AuthProvider（client） → Shell Guard → RBAC（account roles）
-```
-
-| 角色 | 說明 |
+| 整合類型 | 說明 |
 |---|---|
-| `owner` | 帳號擁有者，全部權限 |
-| `admin` | 管理員，可管理成員與設定 |
-| `member` | 一般成員，可讀寫工作區資源 |
-| `viewer` | 唯讀成員，只能查看 |
+| Firebase | auth、firestore、storage 與 app hosting/integration capability |
+| Python worker | 文件解析、chunking、embedding、worker-side pipeline |
+| AI orchestration | Genkit 與相關模型/flow capability |
+| Search / vector infrastructure | 語意檢索、citation context 與 retrieval support |
 
 ---
 
-## 5. 模組責任邊界
-
-16 個 MDDD 業務模組的責任分配：
-
-| 模組 | 職責概要 |
-|---|---|
-| `account` | 用戶帳號、成員角色、帳號策略 |
-| `agent` | AI 對話協調、RAG orchestration（不擁有資料） |
-| `asset` | Wiki Library、RAG 文件記錄、檔案資產管理 |
-| `content` | Block 編輯器頁面、WikiPage、版本歷程 |
-| `identity` | 身份認證、Token 刷新 |
-| `knowledge` | 文件攝入、IngestionDocument、Embedding 流程 |
-| `knowledge-graph` | 圖節點、圖邊、連結、分類樹 |
-| `notification` | 通知推送 |
-| `organization` | 組織（租戶）管理、策略 |
-| `retrieval` | RAG 查詢、Wiki RAG 類型、向量檢索 |
-| `shared` | 共享領域原語：Slug 工具（原 namespace）、Event-store 原語（原 event）、BaseEntity、DomainEvent |
-| `workspace` | 工作區管理、成員管理、WikiContentTree |
-| `workspace-audit` | 不可變稽核記錄 |
-| `workspace-feed` | 工作區動態摘要 |
-| `workspace-flow` | 工作區任務與流程管理 |
-| `workspace-scheduling` | 雙向資源排程 |
-
----
-
-## 6. 整合點
-
-| 整合對象 | 用途 | SDK/協議 |
-|---|---|---|
-| Firebase Firestore | 資料儲存 | Firebase SDK v12 |
-| Firebase Storage | 檔案儲存 | Firebase SDK v12 |
-| Firebase Auth | 身份認證 | Firebase SDK v12 |
-| Firebase Cloud Functions | Callable 觸發 | Firebase SDK v12 |
-| Google Document AI | PDF 解析 | Google Cloud SDK（py_fn） |
-| Google Genkit | AI Flow 協調 | Genkit 1.30.1 |
-| OpenAI | Embedding 生成 | OpenAI SDK（py_fn） |
-| Upstash Vector | 向量搜尋 | Upstash SDK |
-| Upstash Redis | 快取 | Upstash SDK |
-| QStash | 非同步任務佇列 | Upstash QStash |
-
----
-
-## 7. 驗收標準（系統級別）
+## 6. 系統級驗收目標
 
 | 代號 | 標準 |
 |---|---|
-| S1 | 使用者可登入並進入 Shell |
-| S2 | 使用者可建立組織與工作區 |
-| S3 | 使用者可上傳文件並在列表看到 |
-| S4 | 文件解析後 `status` 更新為 `ready` |
-| S5 | RAG 問答可回傳 answer 與 citations |
-| S6 | 管理員可管理組織成員與角色 |
-| S7 | Console 無初始化錯誤 |
-| S8 | `npm run lint` 0 errors；`npm run build` 成功 |
+| S1 | 使用者可登入並進入 workspace-first shell |
+| S2 | 使用者可建立或切換個人/組織帳號與工作區 |
+| S3 | 使用者可建立知識頁面、文章、資料庫與來源集合 |
+| S4 | 來源內容可經 ingestion pipeline 進入可檢索狀態 |
+| S5 | ask/cite 或 notebook workflow 可回傳 answer 與 traceable citations |
+| S6 | 管理員可治理組織成員、權限、稽核與工作區範圍 |
+| S7 | 知識可進一步物化為 workflow、schedule、feed 等執行層結果 |

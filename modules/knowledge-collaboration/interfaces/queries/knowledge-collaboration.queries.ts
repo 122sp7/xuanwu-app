@@ -24,3 +24,16 @@ export async function getVersions(accountId: string, contentId: string): Promise
 export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
   return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
 }
+
+/**
+ * Subscribe to real-time comment updates for a content document.
+ * Returns an unsubscribe function — call it in a useEffect cleanup.
+ */
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: Comment[]) => void,
+): () => void {
+  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
+}
+

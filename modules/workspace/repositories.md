@@ -27,4 +27,4 @@
 ## 模組內對應文件
 
 - `../../../modules/workspace/repositories.md`
-- `../../../docs/ddd/workspace/aggregates.md`
+- `../../../modules/workspace/aggregates.md`

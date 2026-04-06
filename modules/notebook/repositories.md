@@ -33,4 +33,4 @@
 ## 模組內對應文件
 
 - `../../../modules/notebook/repositories.md`
-- `../../../docs/ddd/notebook/aggregates.md`
+- `../../../modules/notebook/aggregates.md`

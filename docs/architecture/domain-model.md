@@ -1,10 +1,10 @@
 # 領域模型（Domain Model）
 
-<!-- change: Add sourceReference / readonly view reference between ContentPage and workspace-flow entities; PR-NUM -->
+<!-- change: Add sourceReference / readonly view reference between KnowledgePage and workspace-flow entities; PR-NUM -->
 
 本文件描述 Xuanwu App 各有界上下文的聚合根（Aggregate Root）、實體（Entity）與值物件（Value Object）設計。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`domain-events.md`](./domain-events.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`domain-events.md`](./domain-events.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 
@@ -193,26 +193,24 @@
 
 ---
 
-## Content / UI Layer
+## Core Knowledge Domains
 
-### `content` 模組
+### `knowledge` 模組
 
 ```
-聚合根: ContentPage
+聚合根: KnowledgePage（由 knowledge-page entity 表示）
 ├── id: string
-├── accountId: string
 ├── workspaceId?: string
 ├── title: string
 ├── slug: string
 ├── parentPageId: string | null
 ├── blockIds: string[]
-├── status: ContentPageStatus         // "active" | "archived"
-└── createdAtISO: string
+├── status: KnowledgePageStatus       // "active" | "archived"
+└── approvalState?: string
 
 實體: ContentBlock
 ├── id: string
 ├── pageId: string
-├── accountId: string
 ├── type: BlockType
 ├── content: BlockContent
 └── order: number
@@ -220,34 +218,102 @@
 實體: ContentVersion
 ├── id: string
 ├── pageId: string
-├── accountId: string
 ├── snapshotBlocks: ContentBlock[]
-├── editSummary?: string
 ├── label?: string
 └── createdByUserId: string
 
-值物件: BlockType
-  → "text" | "heading-1" | "heading-2" | "heading-3"
-  | "image" | "code" | "bullet-list" | "numbered-list"
-  | "divider" | "quote"
-
-值物件: BlockContent
-  → 依 BlockType 多型，包含 type + text + properties?
-
-值物件: ContentPageStatus  → "active" | "archived"
+聚合根: KnowledgeCollection
+├── id: string
+├── workspaceId: string
+├── title: string
+├── pageIds: string[]
+└── columns: CollectionColumn[]
 ```
 
-> **設計決策：** `ContentBlock` 為獨立 Firestore 文件（非嵌套），支援局部更新與細粒度 Embedding。
+> **設計決策：** `ContentBlock` 為獨立文件，讓知識頁面可以局部更新並支援後續 ingestion / retrieval。
 
 **代碼位置：** `modules/knowledge/domain/entities/`
 
 ---
 
-### `asset` 模組
+### `knowledge-base` 模組
+
+```
+聚合根: Article
+├── id: string
+├── title: string
+├── slug: string
+├── categoryId?: string
+├── verificationState: string
+└── publishedAtISO?: string
+
+聚合根: Category
+├── id: string
+├── name: string
+├── parentCategoryId?: string
+└── order: number
+```
+
+**代碼位置：** `modules/knowledge-base/domain/`
+
+---
+
+### `knowledge-collaboration` 模組
+
+```
+聚合根: Comment
+├── id: string
+├── contentId: string
+├── authorId: string
+└── body: string
+
+值物件: PermissionSnapshot
+├── contentId: string
+├── actorId: string
+└── capability: string[]
+
+實體: VersionSnapshot
+├── id: string
+├── contentId: string
+└── createdAtISO: string
+```
+
+**代碼位置：** `modules/knowledge-collaboration/domain/`
+
+---
+
+### `knowledge-database` 模組
+
+```
+聚合根: Database
+├── id: string
+├── workspaceId: string
+├── title: string
+└── fields: DatabaseField[]
+
+實體: DatabaseRecord
+├── id: string
+├── databaseId: string
+└── values: Record<string, unknown>
+
+實體: DatabaseView
+├── id: string
+├── databaseId: string
+└── type: "table" | "kanban" | "calendar" | string
+```
+
+**代碼位置：** `modules/knowledge-database/domain/`
+
+---
+
+## Source, Retrieval, Notebook Domains
+
+### `source` 模組
 
 ```
 聚合根: File
 ├── id: string
+├── workspaceId: string
 ├── name: string
 ├── url: string
 ├── mimeType: string
@@ -258,61 +324,23 @@
 ├── version: number
 └── uploadedAt: string
 
-聚合根: WikiLibrary
+聚合根: SourceCollection / WikiLibrary（歷史命名）
 ├── id: string
 ├── name: string
 ├── workspaceId: string
 └── documents: DocumentRef[]
-
-值物件: AuditRecord
-├── actorId: string
-├── action: string
-└── timestamp: string
-
-值物件: RetentionPolicy
-└── retentionDays: number
-
-值物件: PermissionSnapshot
-└── canRead / canWrite / canDelete: boolean
 ```
 
 **代碼位置：** `modules/source/domain/entities/`
 
 ---
 
-## Knowledge Graph Layer
-
-### `knowledge-graph` 模組
-
-```
-實體: GraphNode
-├── id: string                        // 通常等於 PageId
-├── label: string
-└── type: GraphNodeType               // "page" | "tag" | "attachment"
-
-實體: Link（有向邊）
-├── id: string
-├── sourceId: string
-├── targetId: string
-└── type: LinkType                    // "explicit" | "implicit" | "hierarchy"
-
-值物件: ViewConfig
-├── layout: string
-└── filter: FilterConfig
-```
-
-**代碼位置：** `modules/wiki/domain/entities/`
-
----
-
-## AI Layer
-
-### `knowledge` 模組
+### `ai` 模組
 
 ```
 聚合根: IngestionJob
 ├── id: string
-├── docId: string
+├── documentId: string
 ├── status: string
 └── stages: IngestionStage[]
 
@@ -324,14 +352,14 @@
 實體: IngestionChunk
 ├── chunkIndex: number
 ├── text: string
-└── embedding: number[]
+└── embedding?: number[]
 ```
 
-**代碼位置：** `modules/knowledge/domain/entities/`
+**代碼位置：** `modules/ai/domain/`
 
 ---
 
-### `retrieval` 模組
+### `search` 模組
 
 ```
 實體: RagRetrievedChunk
@@ -339,8 +367,7 @@
 ├── docId: string
 ├── text: string
 ├── score: number
-├── taxonomy?: string
-└── page?: number
+└── taxonomy?: string
 
 實體: RagCitation
 ├── docId: string
@@ -354,25 +381,17 @@
 ├── retrievedChunkCount: number
 └── topK: number
 
-實體: RagStreamEvent
-├── type: "token" | "citation" | "done" | "error"
-├── traceId: string
-└── payload: unknown
+值物件: WikiCitation（歷史命名）
+└── 知識頁面或文章的引用表達
 ```
 
 **代碼位置：** `modules/search/domain/entities/`
 
 ---
 
-### `agent` 模組
+### `notebook` 模組
 
 ```
-實體: AgentGeneration
-├── input: string
-├── output: string
-├── model: string
-└── traceId: string
-
 實體: Thread
 ├── id: string
 └── messages: Message[]
@@ -380,13 +399,19 @@
 實體: Message
 ├── role: "user" | "assistant"
 └── content: string
+
+實體: AgentGeneration / NotebookGeneration
+├── input: string
+├── output: string
+├── model: string
+└── traceId: string
 ```
 
 **代碼位置：** `modules/notebook/domain/entities/`
 
 ---
 
-## WorkSpace Flow Layer
+## Execution & Collaboration Domains
 
 ### `workspace-flow` 模組
 
@@ -395,22 +420,17 @@
 ├── id: string
 ├── workspaceId: string
 ├── title: string
-├── description: string
 ├── status: TaskStatus
 │   → draft → in_progress → qa → acceptance → accepted → archived
 ├── assigneeId?: string
-├── dueDateISO?: string
-├── acceptedAtISO?: string
-└── sourceReference?: SourceReference  // 由 content.page_approved 派生時必填
+└── sourceReference?: SourceReference
 
 聚合根: Issue
 ├── id: string
 ├── workspaceId: string
 ├── taskId: string
-├── title: string
-├── status: IssueStatus
-│   → open → in_progress → fixed → retest → resolved → closed
-└── stage: IssueStage
+└── status: IssueStatus
+    → open → in_progress → fixed → retest → resolved → closed
 
 聚合根: Invoice
 ├── id: string
@@ -418,76 +438,34 @@
 ├── status: InvoiceStatus
 │   → draft → submitted → reviewed → approved → paid → closed
 ├── items: InvoiceItem[]
-└── sourceReference?: SourceReference  // 由 content.page_approved 派生時必填
-
-實體: InvoiceItem
-├── id: string
-├── invoiceId: string
-├── taskId: string
-├── amount: number
-└── description: string
+└── sourceReference?: SourceReference
 
 值物件: SourceReference
-├── type: "ContentPage"
-├── id: string                // ContentPage.id（溯源）
-├── causationId: string       // 事件的 causationId
-└── correlationId: string     // 整個業務流程的追蹤 ID
+├── type: "KnowledgePage"
+├── id: string
+├── causationId: string
+└── correlationId: string
 ```
 
 **代碼位置：** `modules/workspace-flow/domain/entities/`
 
----
+### `knowledge` ↔ `workspace-flow` 跨模組引用型態說明
 
-### `content` ↔ `workspace-flow` 跨模組引用型態說明
-
-`workspace-flow` 的 Task / Invoice 聚合根在由事件派生時，攜帶一個**唯讀溯源參照**（`sourceReference`），不允許透過此欄位直接操作 `content` 層：
+`workspace-flow` 的 Task / Invoice 在由 `knowledge.page_approved` 派生時，攜帶一個**唯讀溯源參照**（`sourceReference`），不允許透過此欄位直接操作 `knowledge` 層：
 
 ```typescript
-// 值物件：SourceReference（位於 modules/workspace-flow/domain/value-objects/）
 interface SourceReference {
-  readonly type: "ContentPage";          // 目前僅支援 ContentPage 作為來源
-  readonly id: string;                   // ContentPage.id
-  readonly causationId: string;          // content.page_approved 事件的 causationId
-  readonly correlationId: string;        // 整個業務流程的追蹤 ID
+  readonly type: "KnowledgePage";
+  readonly id: string;
+  readonly causationId: string;
+  readonly correlationId: string;
 }
-
-// 擴充後的 Task 聚合根（由 content.page_approved 派生時必填）
-interface Task {
-  // ... 現有欄位 ...
-  readonly sourceReference?: SourceReference;  // 由事件派生時必填；手動建立時為 undefined
-}
-
-// 擴充後的 Invoice 聚合根（由 content.page_approved 派生時必填）
-interface Invoice {
-  // ... 現有欄位 ...
-  readonly sourceReference?: SourceReference;  // 由事件派生時必填；手動建立時為 undefined
-}
-```
-
-**ContentPage（content 層）與 WorkspaceFlow 實體（workspace-flow 層）的引用關係：**
-
-```
-ContentPage (content)
-  │
-  │  觸發 content.page_approved（核准事件）
-  ▼
-contentToWorkflowMaterializer（Process Manager）
-  │
-  ├──► Task（workspace-flow）
-  │      └── sourceReference.id = ContentPage.id  [唯讀參照]
-  │
-  └──► Invoice（workspace-flow）
-         └── sourceReference.id = ContentPage.id  [唯讀參照]
-
-content Database Block（計畫中）
-  │
-  └──► 透過 Read Model 嵌入 Task 狀態         [唯讀視圖，禁止反向寫入]
 ```
 
 **禁止的引用模式：**
-- ❌ `workspace-flow` 直接 import `content/domain/`（違反 API 邊界規則）
-- ❌ `content` 直接寫入 `workspace-flow` Firestore 集合（違反狀態機保護）
-- ❌ Task/Invoice 的狀態轉換由 `content` 直接觸發（須透過 `workspace-flow/api` Server Action）
+- ❌ `workspace-flow` 直接 import `knowledge/domain/`
+- ❌ `knowledge` 直接寫入 `workspace-flow` 的持久化集合
+- ❌ Task / Invoice 狀態轉換由 `knowledge` 直接觸發，必須透過 `workspace-flow/api` 或事件流程
 
 ---
 
@@ -500,7 +478,6 @@ content Database Block（計畫中）
 ├── title: string
 ├── status: DemandStatus              // "draft" | "open" | "in_progress" | "completed"
 ├── priority: DemandPriority          // "low" | "medium" | "high"
-├── dueDate?: string
 └── assigneeId?: string
 ```
 
@@ -512,7 +489,6 @@ content Database Block（計畫中）
 聚合根: WorkspaceFeedPost
 ├── id: string
 ├── workspaceId: string
-├── accountId: string
 ├── authorId: string
 ├── content: string
 └── reactions: Reaction[]
@@ -537,10 +513,11 @@ content Database Block（計畫中）
 
 | 聚合 | 狀態機流程 |
 |------|------------|
+| `KnowledgePage` | `active → archived` |
+| `Article` | `draft → review → verified / published / archived` |
+| `IngestionJob` | `uploaded → processing → ready / failed → archived` |
 | `Task` | `draft → in_progress → qa → acceptance → accepted → archived` |
 | `Issue` | `open → in_progress → fixed → retest → resolved / closed` |
 | `Invoice` | `draft → submitted → reviewed → approved / rejected → paid → closed` |
 | `WorkDemand` | `draft → open → in_progress → completed` |
 | `WorkspaceEntity` | `preparatory → active → stopped` |
-| `IngestionJob` | `uploaded → processing → ready / failed → archived` |
-| `ContentPage` | `active → archived` |

@@ -19,4 +19,4 @@
 ## 模組內對應文件
 
 - `../../../modules/notification/domain-services.md`
-- `../../../docs/ddd/notification/aggregates.md`
+- `../../../modules/notification/aggregates.md`

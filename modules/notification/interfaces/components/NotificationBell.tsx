@@ -9,6 +9,7 @@
  * Server-action mutations are wired through the local _actions module.
  */
 
+import Link from "next/link";
 import { Bell } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
@@ -168,6 +169,15 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
               </button>
             ))
           )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href="/settings/notifications"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>

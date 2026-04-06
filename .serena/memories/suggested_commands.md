@@ -7,6 +7,11 @@
   - `npm run deploy:functions:python`
   - `npm run deploy:rules`
   - `npm run deploy:firebase`
+- Serena MCP / CLI utility commands:
+  - `uvx --from git+https://github.com/oraios/serena serena start-mcp-server`
+  - `uvx --from git+https://github.com/oraios/serena serena tools list`
+  - `uvx --from git+https://github.com/oraios/serena serena project index . --log-level INFO`
+  - `uvx --from git+https://github.com/oraios/serena serena project health-check .`
 - Windows utility commands commonly used:
   - `Get-ChildItem`, `Get-Location`, `Set-Location`
   - `Select-String` (or `rg` when available)

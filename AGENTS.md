@@ -79,9 +79,11 @@ Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`
 ```bash
 npm install          # Install dependencies
 npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run test         # Vitest unit test baseline
 npm run build        # Next.js production build + TypeScript type-check
 
 # Python worker
+cd py_fn && python -m pip install -r requirements-dev.txt
 cd py_fn && python -m compileall -q .
 cd py_fn && python -m pytest tests/ -v
 ```

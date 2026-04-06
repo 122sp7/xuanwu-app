@@ -24,7 +24,7 @@
 | `RagRetrievedChunk` | 檢索到的 chunk（chunkId, docId, chunkIndex, text, score, taxonomy） |
 | `RagCitation` | 引用資訊（chunkId, docId, text, score） |
 | `VectorDocument` | 向量索引文件（id, content, metadata, embedding） |
-| `WikiCitation` | Wiki RAG 引用（pageId, pageTitle, text, score） |
+| `WikiCitation` | 歷史命名的知識引用值物件；目前承載知識頁面或文章的引用資訊（pageId, pageTitle, text, score） |
 
 ---
 
@@ -36,4 +36,4 @@
 | `RagRetrievalRepository` | Chunk 向量搜尋操作 |
 | `RagGenerationRepository` | AI 答案生成（組合 chunks + Genkit 呼叫） |
 | `RagQueryFeedbackRepository` | 反饋持久化 |
-| `WikiContentRepository` | Wiki 整合 RAG 查詢（`queryWikiRag()`, `reindexWikiDocument()`） |
+| `WikiContentRepository` | 歷史命名的知識內容查詢 port；目前供 RAG 讀取知識頁面或文章內容 |

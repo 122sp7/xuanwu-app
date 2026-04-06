@@ -14,8 +14,6 @@ import {
   collection,
   getDocs,
   addDoc,
-  query,
-  where,
   arrayUnion,
   arrayRemove,
   onSnapshot,
@@ -28,56 +26,15 @@ import type {
   OrganizationEntity,
   MemberReference,
   Team,
-  OrgPolicy,
   PartnerInvite,
   CreateOrganizationCommand,
   UpdateOrganizationSettingsCommand,
   InviteMemberInput,
   UpdateMemberRoleInput,
   CreateTeamInput,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
   OrganizationRole,
 } from "../../domain/entities/Organization";
-
-// ─── Mappers ──────────────────────────────────────────────────────────────────
-
-function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
-    email: typeof data.email === "string" ? data.email : undefined,
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    description: typeof data.description === "string" ? data.description : undefined,
-    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
-    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
-    partnerInvites: Array.isArray(data.partnerInvites)
-      ? (data.partnerInvites as PartnerInvite[])
-      : undefined,
-    createdAt: data.createdAt as OrganizationEntity["createdAt"],
-  };
-}
-
-function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
-  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
-  const scope = VALID_SCOPES.has(data.scope as OrgPolicy["scope"])
-    ? (data.scope as OrgPolicy["scope"])
-    : "global";
-  return {
-    id,
-    orgId: data.orgId as string,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
-    scope,
-    isActive: data.isActive === true,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-  };
-}
+import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
 
 // ─── Repository ───────────────────────────────────────────────────────────────
 
@@ -380,16 +337,7 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     const snaps = await getDocs(
       collection(this.db, "organizations", organizationId, "teams"),
     );
-    return snaps.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        name: typeof data.name === "string" ? data.name : "",
-        description: typeof data.description === "string" ? data.description : "",
-        type: data.type === "external" ? "external" : "internal",
-        memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-      };
-    });
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
   }
 
   subscribeToTeams(
@@ -399,17 +347,7 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     return onSnapshot(
       collection(this.db, "organizations", organizationId, "teams"),
       (snap) => {
-        const teams: Team[] = snap.docs.map((d) => {
-          const data = d.data() as Record<string, unknown>;
-          return {
-            id: d.id,
-            name: typeof data.name === "string" ? data.name : "",
-            description: typeof data.description === "string" ? data.description : "",
-            type: data.type === "external" ? "external" : "internal",
-            memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-          };
-        });
-        onUpdate(teams);
+        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
       },
     );
   }
@@ -446,68 +384,6 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     const snaps = await getDocs(
       collection(this.db, "organizations", organizationId, "partnerInvites"),
     );
-    return snaps.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        email: data.email as string,
-        teamId: data.teamId as string,
-        role: (data.role as OrganizationRole) ?? "Guest",
-        inviteState: (data.inviteState as PartnerInvite["inviteState"]) ?? "pending",
-        invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
-        protocol: typeof data.protocol === "string" ? data.protocol : "",
-      };
-    });
-  }
-
-  // ─── Policy ──────────────────────────────────────────────────────────────────
-
-  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
-    const now = new Date().toISOString();
-    const ref = await addDoc(collection(this.db, "orgPolicies"), {
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      _createdAt: serverTimestamp(),
-    });
-    return {
-      id: ref.id,
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-      _updatedAt: serverTimestamp(),
-    };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.description !== undefined) updates.description = data.description;
-    if (data.rules !== undefined) updates.rules = data.rules;
-    if (data.scope !== undefined) updates.scope = data.scope;
-    if (data.isActive !== undefined) updates.isActive = data.isActive;
-    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
-  }
-
-  async deletePolicy(policyId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "orgPolicies", policyId));
-  }
-
-  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
-    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
   }
 }

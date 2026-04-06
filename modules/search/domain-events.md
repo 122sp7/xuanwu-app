@@ -12,11 +12,10 @@
 | 來源 BC | 訂閱事件 | 行動 |
 |---------|---------|------|
 | `ai` | `ai.ingestion_completed` | 新 chunks 的 embedding 已就緒，觸發向量索引更新 |
-| `wiki` | `wiki.node_activated` | 同步更新節點內容到向量索引 |
 
 ## 消費 search 事件的其他 BC
 
-`search` 主要提供**同步查詢服務**（非事件），被 `notebook` 和 wiki RAG UI 直接呼叫：
+`search` 主要提供**同步查詢服務**（非事件），被 `notebook` 與 workspace-scoped ask/cite 介面直接呼叫：
 
 ```typescript
 // notebook 呼叫 search 的同步查詢

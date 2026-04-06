@@ -20,6 +20,11 @@ export { BlockEditorView } from "../interfaces/components/BlockEditorView";
 export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
 export type { Block } from "../interfaces/store/block-editor.store";
 
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+
+export { RichTextEditor } from "../interfaces/components/RichTextEditor";
+
 // ── Server Actions (write-side) ───────────────────────────────────────────────
 
 export {
@@ -44,6 +49,8 @@ export {
   verifyKnowledgePage,
   requestKnowledgePageReview,
   assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
 } from "../interfaces/_actions/knowledge.actions";
 
 export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
@@ -102,9 +109,14 @@ export {
   getKnowledgeCollections,
 } from "../interfaces/queries/knowledge.queries";
 
-export type { KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
-export type { KnowledgePage } from "../domain/entities/content-page.entity";
+export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
 
 // ── UI Components ─────────────────────────────────────────────────────────────
 export { PageTreeView } from "../interfaces/components/PageTreeView";
 export { PageDialog } from "../interfaces/components/PageDialog";
+
+// ── BacklinkIndex ─────────────────────────────────────────────────────────────
+export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
+export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
+export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";

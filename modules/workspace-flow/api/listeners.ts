@@ -3,22 +3,22 @@
  * @file listeners.ts
  * @description Public event listener interface for workspace-flow.
  *
- * External modules (primarily the `content` module's event bus) subscribe to
+ * External modules (primarily the `knowledge` module's event bus) subscribe to
  * workspace-flow through this surface.  The concrete implementation is the
- * `ContentToWorkflowMaterializer` process manager.
+ * `KnowledgeToWorkflowMaterializer` process manager.
  *
  * ## Usage
  * ```ts
- * import { createContentToWorkflowListener } from "@/modules/workspace-flow/api";
+ * import { createKnowledgeToWorkflowListener } from "@/modules/workspace-flow/api";
  *
- * const listener = createContentToWorkflowListener(workspaceId);
+ * const listener = createKnowledgeToWorkflowListener();
  * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
  * ```
  *
- * @see ADR-001: docs/architecture/adr/ADR-001-content-to-workflow-boundary.md
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
  */
 
-import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
 import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
 import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
 import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
@@ -26,11 +26,11 @@ import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events"
 // ── Public listener factory ───────────────────────────────────────────────────
 
 /**
- * Creates a pre-wired `ContentToWorkflowMaterializer` backed by Firebase repos.
+ * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
  * Call `handle(event, workspaceId)` from your event bus subscriber.
  */
-export function createContentToWorkflowListener(): ContentToWorkflowMaterializer {
-  return new ContentToWorkflowMaterializer(
+export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer {
+  return new KnowledgeToWorkflowMaterializer(
     new FirebaseTaskRepository(),
     new FirebaseInvoiceRepository(),
   );
@@ -38,7 +38,7 @@ export function createContentToWorkflowListener(): ContentToWorkflowMaterializer
 
 // ── Listener type contracts ───────────────────────────────────────────────────
 
-/** Shape of any handler that can process a `content.page_approved` event. */
+/** Shape of any handler that can process a `knowledge.page_approved` event. */
 export interface KnowledgePageApprovedHandler {
   handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
 }

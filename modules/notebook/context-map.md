@@ -6,10 +6,7 @@
 
 - `notebook` 呼叫 `search/api` 取得語意相關 chunks（RAG retrieval）
 - 用於 RAG-augmented 對話生成
-
-### wiki → notebook（Customer/Supplier）
-
-- `notebook` 可查詢 `wiki/api` 取得知識圖譜上下文（未來支援圖譜推理）
+- `knowledge`、`knowledge-base` 與 `source` 的內容會先經 `ai` 攝入，再由 `search` 提供給 `notebook`
 
 ---
 
@@ -27,5 +24,4 @@
 | 關係 | 上游 | 下游 | 模式 |
 |------|------|------|------|
 | search → notebook | search | notebook | Customer/Supplier（同步查詢） |
-| wiki → notebook | wiki | notebook | Customer/Supplier（同步查詢） |
 | notebook → AI Chat UI | notebook | app/ | Anti-Corruption Layer（`app/(shell)/ai-chat/_actions.ts`） |

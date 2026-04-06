@@ -1,12 +1,12 @@
 /**
  * @module workspace-flow/application/dto
- * @file materialize-from-content.dto.ts
+ * @file materialize-from-knowledge.dto.ts
  * @description Command DTO for materializing Tasks and Invoices from a
- * `content.page_approved` event payload.
+ * `knowledge.page_approved` event payload.
  *
  * This DTO is used by both:
- *  - MaterializeTasksFromContentUseCase
- *  - ContentToWorkflowMaterializer (Process Manager)
+ *  - MaterializeTasksFromKnowledgeUseCase
+ *  - KnowledgeToWorkflowMaterializer (Process Manager)
  */
 
 import type { SourceReference } from "../../domain/value-objects/SourceReference";
@@ -23,10 +23,10 @@ export interface ExtractedInvoiceItem {
   readonly currency?: string;
 }
 
-export interface MaterializeFromContentDto {
+export interface MaterializeFromKnowledgeDto {
   readonly workspaceId: string;
   /** ID of the KnowledgePage that was approved (same as sourceReference.id). */
-  readonly contentPageId: string;
+  readonly knowledgePageId: string;
   /** Pre-built SourceReference value object to attach to every created entity. */
   readonly sourceReference: SourceReference;
   readonly extractedTasks: ReadonlyArray<ExtractedTaskItem>;

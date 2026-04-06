@@ -5,17 +5,17 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
 import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
 
 // ─── Create Org Policy ────────────────────────────────────────────────────────
 
 export class CreateOrgPolicyUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
 
   async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
     try {
-      const policy = await this.orgRepo.createPolicy(input);
+      const policy = await this.policyRepo.createPolicy(input);
       return commandSuccess(policy.id, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -29,11 +29,11 @@ export class CreateOrgPolicyUseCase {
 // ─── Update Org Policy ────────────────────────────────────────────────────────
 
 export class UpdateOrgPolicyUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
 
   async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
     try {
-      await this.orgRepo.updatePolicy(policyId, data);
+      await this.policyRepo.updatePolicy(policyId, data);
       return commandSuccess(policyId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -47,11 +47,11 @@ export class UpdateOrgPolicyUseCase {
 // ─── Delete Org Policy ────────────────────────────────────────────────────────
 
 export class DeleteOrgPolicyUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
 
   async execute(policyId: string): Promise<CommandResult> {
     try {
-      await this.orgRepo.deletePolicy(policyId);
+      await this.policyRepo.deletePolicy(policyId);
       return commandSuccess(policyId, Date.now());
     } catch (err) {
       return commandFailureFrom(

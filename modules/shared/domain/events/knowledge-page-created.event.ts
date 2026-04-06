@@ -1,9 +1,9 @@
 /**
  * modules/shared — domain event: KnowledgePageCreatedEvent
  *
- * Fired by the content module whenever a new page is created.
- * The knowledge-graph module subscribes to this event to automatically
- * register a GraphNode for the new page (auto-link trigger pipeline).
+ * Fired by the knowledge module whenever a new page is created.
+ * Downstream modules can subscribe to build read models, indexing flows,
+ * or future structure-aware capabilities for the new page.
  *
  * Follows Occam's Razor: minimal fields to drive downstream reactions.
  */

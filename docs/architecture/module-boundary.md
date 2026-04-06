@@ -4,7 +4,7 @@
 
 本文件說明 Xuanwu App 的 MDDD 模組邊界規則、API 邊界設計，以及 import 規範的強制機制。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`context-map.md`](./context-map.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`../ddd/bounded-contexts.md`](../ddd/bounded-contexts.md) · [`context-map.md`](./context-map.md) · [`../reference/specification/system-overview.md`](../reference/specification/system-overview.md)
 
 ---
 
@@ -50,24 +50,26 @@ interfaces/   →   application/   →   domain/   ←   infrastructure/
 // modules/<context>/api/index.ts 的典型結構
 
 // 1. Server Actions（write-side）
-export { createContentPage, updateContentBlock } from "../interfaces/_actions/content.actions";
+export { createKnowledgePage, updateKnowledgeBlock } from "../interfaces/_actions/knowledge.actions";
 
 // 2. Query 函式（read-side）
-export { listContentPages, getContentPageById } from "../interfaces/queries/content.queries";
+export { getKnowledgePages, getKnowledgePage } from "../interfaces/queries/knowledge.queries";
 
 // 3. DTO / 契約型別
-export type { CreateContentPageDto, ContentPageDto } from "./contracts";
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
 
 // 4. Facade（聚合多個 use case 的門面）
-export { contentFacade } from "./facade";
+export { knowledgeFacade } from "./knowledge-facade";
 ```
 
 ### 特殊邊界規則
 
 | 模組 | 特殊規則 |
 |------|---------|
-| `retrieval/api` | **禁止**匯出 `"use client"` UI 元件（RagView、RagQueryView）。Client 端請從 root barrel `modules/search` 匯出 |
+| `search/api` | **禁止**匯出 `"use client"` UI 元件（如 `RagView`、`RagQueryView`）。Client 端請從 root barrel `modules/search` 匯出 |
 | `identity/api` | **禁止**匯出 `"use client"` hooks/components，因 `account/application` 在 Server 端 import identity/api |
+| `knowledge/api` | 目前同時匯出 editor UI 與 store 型別；跨域整合時應優先使用 facade、actions、queries、event contracts |
 | `workspace/infrastructure` | `FirebaseWikiWorkspaceRepository` **禁止** import `@/modules/workspace/api`（循環依賴），改用 relative import `FirebaseWorkspaceRepository` |
 
 ---
@@ -78,7 +80,7 @@ export { contentFacade } from "./facade";
 
 ```typescript
 // 跨模組：走 api/ 邊界
-import { createContentPage } from "@/modules/knowledge/api";
+import { createKnowledgePage } from "@/modules/knowledge/api";
 import { getWorkspaceById } from "@/modules/workspace/api";
 import { deriveSlugCandidate } from "@/modules/shared/api";
 
@@ -89,15 +91,15 @@ import { Button } from "@ui-shadcn/ui/button";
 import { getFirebaseFirestore } from "@integration-firebase";
 
 // 同模組內部：可用相對路徑
-import type { ContentPage } from "../domain/entities/content-page.entity";
-import { FirebaseContentPageRepository } from "../infrastructure/firebase/FirebaseContentPageRepository";
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
 ```
 
 ### ❌ 禁止的 import 模式
 
 ```typescript
 // ❌ 跨模組直接 import 他模組內部層
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
 import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
 
 // ❌ 使用舊版 @/ 直接 import shared/libs
@@ -118,9 +120,11 @@ import { collection } from "firebase/firestore";    // ❌ 在 domain/ 中
 | `@shared-types` | `packages/shared-types/` | `CommandResult`, `DomainError`, `ID`, `Timestamp` |
 | `@shared-utils` | `packages/shared-utils/` | `cn()`, 通用工具函式 |
 | `@ui-shadcn` | `packages/ui-shadcn/` | shadcn/ui 元件 |
-| `@ui-base` | `packages/ui-base/` | 基礎 UI 元件 |
+| `@ui-vis` | `packages/ui-vis/` | 視覺化元件 |
 | `@integration-firebase` | `packages/integration-firebase/` | Firebase SDK 初始化 |
+| `@integration-http` | `packages/integration-http/` | HTTP 整合 |
 | `@lib-uuid` | `packages/lib-uuid/` | UUID 產生工具 |
+| `@lib-xstate` | `packages/lib-xstate/` | 狀態機與整合 Hook |
 
 ---
 
@@ -175,50 +179,51 @@ rules: {
 
 ---
 
-## 模組清單（16 個有界上下文）
+## 模組清單（18 個有界上下文）
 
-| # | 模組 | 層級 | 主要職責 |
+| # | 模組 | 類別 | 主要職責 |
 |---|------|------|---------|
-| 1 | `account` | Platform Foundation | 帳戶 Profile、策略 |
-| 2 | `agent` | AI | 對話代理、Genkit |
-| 3 | `asset` | Content/UI | 檔案上傳、Wiki Library |
-| 4 | `content` | Content/UI | Page/Block 編輯器 |
-| 5 | `identity` | Platform Foundation | Firebase Auth |
-| 6 | `knowledge` | AI | 攝入作業管理 |
-| 7 | `knowledge-graph` | Knowledge Graph | 知識圖節點/邊 |
-| 8 | `notification` | Platform Foundation | 系統通知 |
-| 9 | `organization` | Platform Foundation | 租戶/Team 管理 |
-| 10 | `retrieval` | AI | RAG 向量搜索、答案生成 |
-| 11 | `shared` | Platform Foundation | EventRecord、Slug 工具 |
-| 12 | `workspace` | Platform Foundation | 工作區生命週期 |
-| 13 | `workspace-audit` | Platform Foundation | 操作稽核日誌 |
-| 14 | `workspace-feed` | Platform Foundation | 動態牆 |
-| 15 | `workspace-flow` | Platform Foundation | Task/Issue/Invoice 工作流 |
-| 16 | `workspace-scheduling` | Platform Foundation | 排程需求 |
+| 1 | `knowledge` | Core Domain | Knowledge page、block、version、approval lifecycle |
+| 2 | `knowledge-base` | Core Domain | Article、category、verification 與組織級知識資產 |
+| 3 | `ai` | Supporting | Ingestion job、chunking/indexing handoff |
+| 4 | `knowledge-collaboration` | Supporting | Comment、permission、version snapshot |
+| 5 | `knowledge-database` | Supporting | Database、record、view 與 relation data work |
+| 6 | `notebook` | Supporting | Ask/cite、summary、knowledge generation |
+| 7 | `search` | Supporting | Retrieval、citation context、RAG query |
+| 8 | `source` | Supporting | External source、file、ingestion boundary |
+| 9 | `workspace-audit` | Supporting | 稽核與 traceability |
+| 10 | `workspace-feed` | Supporting | 動態牆、回應、反應 |
+| 11 | `workspace-flow` | Supporting | Task、Issue、Invoice workflow |
+| 12 | `workspace-scheduling` | Supporting | 排程需求與容量協調 |
+| 13 | `identity` | Generic | 認證與 token lifecycle |
+| 14 | `account` | Generic | 帳戶語意、個人化與策略 |
+| 15 | `organization` | Generic | 租戶、team、member 治理 |
+| 16 | `workspace` | Generic | 工作區容器與成員邊界 |
+| 17 | `notification` | Generic | 通知與偏好設定 |
+| 18 | `shared` | Shared Kernel | EventRecord、Slug 工具、共享原語 |
 
 ---
 
-## 跨模組 API 邊界範例：content ↔ workspace-flow 事件整合
+## 跨模組 API 邊界範例：knowledge ↔ workspace-flow 事件整合
 
-`content` 與 `workspace-flow` 之間的事件驅動整合必須透過各自的 `api/` 公開邊界，以下為公開介面範例：
+`knowledge` 與 `workspace-flow` 之間的事件驅動整合必須透過各自的 `api/` 公開邊界，以下為公開介面範例：
 
 ### `modules/knowledge/api/events.ts`（計畫中）
 
 ```typescript
 // modules/knowledge/api/events.ts
-// 匯出 content 模組的公開事件契約，供其他模組（如 workspace-flow）訂閱
+// 匯出 knowledge 模組的公開事件契約，供其他模組（如 workspace-flow）訂閱
 
 export type {
-  ContentPageApprovedEvent,
-  ContentPageCreatedEvent,
-  ContentBlockUpdatedEvent,
-} from "../domain/events/content.events";
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+} from "../domain/events/knowledge.events";
 
 // 事件類型常數（供訂閱者 switch/case 使用）
-export const CONTENT_EVENT_TYPES = {
-  PAGE_APPROVED: "content.page_approved",
-  PAGE_CREATED: "content.page_created",
-  BLOCK_UPDATED: "content.block_updated",
+export const KNOWLEDGE_EVENT_TYPES = {
+  PAGE_APPROVED: "knowledge.page_approved",
+  PAGE_CREATED: "knowledge.page_created",
+  BLOCK_UPDATED: "knowledge.block_updated",
 } as const;
 ```
 
@@ -229,20 +234,19 @@ export const CONTENT_EVENT_TYPES = {
 // 定義 workspace-flow 模組對外暴露的事件監聽介面
 // 供 Process Manager、Cloud Functions Trigger 或 Event Bus 使用
 
-import type { ContentPageApprovedEvent } from "@/modules/knowledge/api/events";
-import { ContentToWorkflowMaterializer } from "../application/process-managers/content-to-workflow-materializer";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api";
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
 
 /**
- * 處理 content.page_approved 事件
+ * 處理 knowledge.page_approved 事件
  * 觸發點：Cloud Functions Firestore Trigger 或 Event Bus Consumer
  */
-export async function handleContentPageApproved(
-  event: ContentPageApprovedEvent,
+export async function handleKnowledgePageApproved(
+  event: KnowledgePageApprovedEvent,
 ): Promise<void> {
-  const materializer = new ContentToWorkflowMaterializer(
+  const materializer = new KnowledgeToWorkflowMaterializer(
     new FirebaseTaskRepository(),
     new FirebaseInvoiceRepository(),
-    new FirebaseEventStoreRepository(),
   );
   await materializer.handle(event);
 }
@@ -250,16 +254,16 @@ export async function handleContentPageApproved(
 // 監聽器描述（供 Event Bus 註冊使用）
 export const WORKSPACE_FLOW_EVENT_LISTENERS = [
   {
-    eventType: "content.page_approved",
-    handler: handleContentPageApproved,
-    description: "Materializes Task and Invoice from approved ContentPage",
+    eventType: "knowledge.page_approved",
+    handler: handleKnowledgePageApproved,
+    description: "Materializes Task and Invoice from approved KnowledgePage",
   },
 ] as const;
 ```
 
 **使用規則：**
-- `workspace-flow` 只能從 `@/modules/knowledge/api/events` import 事件型別，**不得**直接 import `content/domain/`。
-- `content` 不得直接呼叫 `workspace-flow` 的 Use Case，只能透過 Event Bus 解耦。
+- `workspace-flow` 只能從 `@/modules/knowledge/api` import 事件型別，**不得**直接 import `knowledge/domain/`。
+- `knowledge` 不得直接呼叫 `workspace-flow` 的 Use Case，只能透過 Event Bus 解耦。
 - `listeners.ts` 是 `workspace-flow/api` 的一部分，供外部（Cloud Functions、Trigger、tests）安全呼叫。
 
 ---
@@ -271,8 +275,8 @@ export const WORKSPACE_FLOW_EVENT_LISTENERS = [
 | 位置 | 例外 | 原因 |
 |------|------|------|
 | `workspace/infrastructure/FirebaseWikiWorkspaceRepository.ts` | 使用相對 import 而非 `workspace/api` | 避免循環依賴 |
-| `retrieval/index.ts` (root barrel) | 匯出 `"use client"` 元件 | 供 Client 端使用的根 barrel，非 api/ |
-| `knowledge/domain/entities/graph-node.ts` | 標記 `@deprecated`，指向 knowledge-graph | 模組重構過渡期暫留 |
+| `search/index.ts` (root barrel) | 匯出 `"use client"` 元件（如 `RagQueryView`） | 供 Client 端使用的根 barrel，非 api/ |
+| `knowledge/api/index.ts` | 同時匯出 editor components 與 store 型別 | 目前 route composition 仍透過此公開表面組裝知識編輯體驗 |
 
 ---
 
@@ -287,6 +291,6 @@ export const WORKSPACE_FLOW_EVENT_LISTENERS = [
 - [ ] 建立 `interfaces/`（queries、hooks、components、actions）
 - [ ] 建立 `README.md`（職責說明）
 - [ ] 更新 `docs/ddd/bounded-contexts.md`（Canonical）
-- [ ] 更新 `.github/terminology-glossary.md` 與 `docs/ddd/<context>/ubiquitous-language.md`（Canonical）
+- [ ] 更新 `.github/terminology-glossary.md` 與 `modules/<context>/ubiquitous-language.md`
 - [ ] 更新 `docs/architecture/domain-implementation-target.md`
-- [ ] 更新 `agents/knowledge-base.md`
+- [ ] 更新 `.github/agents/knowledge-base.md`

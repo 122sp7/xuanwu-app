@@ -9,6 +9,7 @@
 ## Lint & Type Check
 
 - `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
 - TypeScript type-checking is included in `npm run build`
 
 ## Firebase Deployment
@@ -49,4 +50,5 @@
 - **Node.js**: Version 24 required (see `engines` in `package.json`)
 - **Package manager**: npm
 - Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
 - Firebase CLI: `npx firebase` (no global install required)

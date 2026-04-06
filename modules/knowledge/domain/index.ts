@@ -15,16 +15,18 @@ export type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
-} from "./entities/content-page.entity";
+} from "./entities/knowledge-page.entity";
 
-export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/content-page.entity";
-export type { PageVerificationState } from "./entities/content-page.entity";
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
+export type { PageVerificationState } from "./entities/knowledge-page.entity";
 
 export type {
   KnowledgeBlock,
   AddKnowledgeBlockInput,
   UpdateKnowledgeBlockInput,
   DeleteKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
 } from "./entities/content-block.entity";
 
 export type {
@@ -38,6 +40,19 @@ export {
   BLOCK_TYPES,
   blockContentEquals,
   emptyTextBlockContent,
+  plainTextBlockContent,
+  richTextToPlainText,
+  extractMentionedPageIds,
+  extractMentionedUserIds,
+} from "./value-objects/block-content";
+export type {
+  RichTextSpanType,
+  TextAnnotations,
+  TextSpan,
+  MentionPageSpan,
+  MentionUserSpan,
+  LinkSpan,
+  RichTextSpan,
 } from "./value-objects/block-content";
 
 export type {

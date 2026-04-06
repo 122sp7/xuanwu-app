@@ -25,4 +25,4 @@
 ## 模組內對應文件
 
 - `../../../modules/workspace-feed/repositories.md`
-- `../../../docs/ddd/workspace-feed/aggregates.md`
+- `../../../modules/workspace-feed/aggregates.md`

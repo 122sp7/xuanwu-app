@@ -6,13 +6,14 @@
 
 import {
   collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+  onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
 import type { Comment } from "../../domain/entities/comment.entity";
 import type {
   ICommentRepository,
+  CommentUnsubscribe,
   CreateCommentInput,
   UpdateCommentInput,
   ResolveCommentInput,
@@ -36,6 +37,18 @@ function toComment(id: string, data: Record<string, unknown>): Comment {
     authorId: typeof data.authorId === "string" ? data.authorId : "",
     body: typeof data.body === "string" ? data.body : "",
     parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+    blockId: typeof data.blockId === "string" ? data.blockId : null,
+    selectionRange: (
+      data.selectionRange !== null &&
+      typeof data.selectionRange === "object" &&
+      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
+      typeof (data.selectionRange as Record<string, unknown>).to === "number"
+    )
+      ? {
+          from: (data.selectionRange as Record<string, unknown>).from as number,
+          to: (data.selectionRange as Record<string, unknown>).to as number,
+        }
+      : null,
     resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
     resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
@@ -58,6 +71,8 @@ export class FirebaseCommentRepository implements ICommentRepository {
       authorId: input.authorId,
       body: input.body,
       parentCommentId: input.parentCommentId ?? null,
+      blockId: input.blockId ?? null,
+      selectionRange: input.selectionRange ?? null,
       resolvedAt: null,
       resolvedByUserId: null,
       createdAtISO: now,
@@ -106,5 +121,21 @@ export class FirebaseCommentRepository implements ICommentRepository {
     const q = query(commentsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "asc"));
     const snaps = await getDocs(q);
     return snaps.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribe(
+    accountId: string,
+    contentId: string,
+    onUpdate: (comments: Comment[]) => void,
+  ): CommentUnsubscribe {
+    const db = this.db();
+    const q = query(
+      commentsCol(db, accountId),
+      where("contentId", "==", contentId),
+      orderBy("createdAtISO", "asc"),
+    );
+    return onSnapshot(q, (snap) => {
+      onUpdate(snap.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>)));
+    });
   }
 }

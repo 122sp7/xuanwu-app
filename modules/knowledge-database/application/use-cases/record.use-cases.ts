@@ -18,8 +18,8 @@ export class CreateRecordUseCase {
   async execute(input: CreateRecordDto): Promise<CommandResult> {
     const parsed = CreateRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, databaseId, properties = {}, createdByUserId } = parsed.data;
-    const rec = await this.repo.create({ accountId, workspaceId, databaseId, properties, createdByUserId });
+    const { accountId, workspaceId, databaseId, pageId, properties = {}, createdByUserId } = parsed.data;
+    const rec = await this.repo.create({ accountId, workspaceId, databaseId, pageId, properties, createdByUserId });
     return commandSuccess(rec.id, Date.now());
   }
 }

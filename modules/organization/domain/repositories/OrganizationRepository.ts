@@ -12,9 +12,6 @@ import type {
   UpdateOrganizationSettingsCommand,
   MemberReference,
   Team,
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
   PartnerInvite,
 } from "../entities/Organization";
 
@@ -48,10 +45,4 @@ export interface OrganizationRepository {
   sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
   dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
   getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
-
-  // ─── Policy ────────────────────────────────────────────────────────────────
-  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
-  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
-  deletePolicy(policyId: string): Promise<void>;
-  getPolicies(orgId: string): Promise<OrgPolicy[]>;
 }

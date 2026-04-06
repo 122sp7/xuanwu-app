@@ -7,20 +7,21 @@ applyTo: 'docs/**/*.md'
 
 遵循 Vaughn Vernon《Implementing Domain-Driven Design》的 **Published Language** 原則：每個 DDD 概念只有一個公開、版本化的真相來源。
 
-> 權威知識位置：[`docs/ddd/`](../../docs/ddd/)
+> 權威知識入口：[`docs/ddd/`](../../docs/ddd/)
+> bounded-context 詳細文件：`modules/<context>/*.md`
 > 文件框架來源：[`docs/SOURCE-OF-TRUTH.md`](../../docs/SOURCE-OF-TRUTH.md) (Diataxis)
 
 ## 核心規則（強制）
 
-1. **唯一真相來源（Single Source of Truth）**：每個 DDD 概念在 `docs/ddd/` 中只能對應到一套根文件或一組 bounded-context 文件。新增文件前必須先確認 `docs/ddd/` 中不存在同主題內容。
-2. **禁止複製（No Duplication）**：嚴禁將 `docs/ddd/` 的內容複製到 `.github/`、`modules/` 或其他位置。引用請使用 Markdown 相對連結。
+1. **唯一真相來源（Single Source of Truth）**：DDD 根地圖與戰略分類由 `docs/ddd/` 擁有；各 bounded context 的詳細參考集由對應 `modules/<context>/*.md` 擁有。新增文件前必須先確認對應 owner 已存在同主題內容。
+2. **禁止複製（No Duplication）**：嚴禁將 strategic maps 或 bounded-context detail 在多處複製。引用請使用 Markdown 相對連結。
 3. **引用而非複製（Link, Don't Copy）**：
    ```markdown
    ✅ 正確：詳見 [bounded-contexts.md](../../docs/ddd/bounded-contexts.md)
    ❌ 錯誤：直接貼上 bounded-contexts.md 的內容
    ```
-4. **Instructions 只含行為約束**：`.github/instructions/` 文件只描述 Copilot 的**行為規則**，不包含領域知識。知識連結到 `docs/ddd/`。
-5. **術語查閱優先**：引入新術語前，先查 [`../../.github/terminology-glossary.md`](../../.github/terminology-glossary.md) 與對應 bounded context 的 `docs/ddd/<context>/ubiquitous-language.md`。
+4. **Instructions 只含行為約束**：`.github/instructions/` 文件只描述 Copilot 的**行為規則**，不包含領域知識。知識連結到 `docs/ddd/` root maps 或 `modules/<context>/*.md` 詳細文件。
+5. **術語查閱優先**：引入新術語前，先查 [`../../.github/terminology-glossary.md`](../../.github/terminology-glossary.md) 與對應 bounded context 的 `modules/<context>/ubiquitous-language.md`。
 
 ## 文件分類（Diataxis 四象限）
 
@@ -30,7 +31,7 @@ applyTo: 'docs/**/*.md'
 | `docs/guides/how-to/` | 任務導向，解決特定問題 | 以目標開頭 |
 | `docs/reference/` | 精確事實，API / 術語查詢 | 簡潔、可掃描 |
 | `docs/guides/explanation/` | 概念導向，解釋「為什麼」 | 分析性散文 |
-| `docs/ddd/` | Xuanwu 的 DDD 參考集 | 結構化 + 程式碼對照 |
+| `docs/ddd/` | Xuanwu 的 DDD 戰略地圖與入口 | 戰略分類 + 模組地圖 |
 
 ## DDD 概念的文件定位
 
@@ -38,13 +39,13 @@ applyTo: 'docs/**/*.md'
 |------|---------|--------------|
 | 子域分類 | [`subdomains.md`](../../docs/ddd/subdomains.md) | 只能連結，不能複製 |
 | 限界上下文 / 模組地圖 | [`bounded-contexts.md`](../../docs/ddd/bounded-contexts.md) | 只能連結，不能複製 |
-| 通用語言 / 術語 | `docs/ddd/<context>/ubiquitous-language.md` | 只能連結，不能複製 |
-| 聚合根 / 實體 / VO | `docs/ddd/<context>/aggregates.md` | 只能連結，不能複製 |
-| 領域事件 | `docs/ddd/<context>/domain-events.md` | 只能連結，不能複製 |
-| 上下文地圖 | `docs/ddd/<context>/context-map.md` | 只能連結，不能複製 |
-| 儲存庫模式 | `docs/ddd/<context>/repositories.md` | 只能連結，不能複製 |
-| 使用案例 / Application Services | `docs/ddd/<context>/application-services.md` | 只能連結，不能複製 |
-| Domain Services | `docs/ddd/<context>/domain-services.md` | 只能連結，不能複製 |
+| 通用語言 / 術語 | `modules/<context>/ubiquitous-language.md` | 只能連結，不能複製 |
+| 聚合根 / 實體 / VO | `modules/<context>/aggregates.md` | 只能連結，不能複製 |
+| 領域事件 | `modules/<context>/domain-events.md` | 只能連結，不能複製 |
+| 上下文地圖 | `modules/<context>/context-map.md` | 只能連結，不能複製 |
+| 儲存庫模式 | `modules/<context>/repositories.md` | 只能連結，不能複製 |
+| 使用案例 / Application Services | `modules/<context>/application-services.md` | 只能連結，不能複製 |
+| Domain Services | `modules/<context>/domain-services.md` | 只能連結，不能複製 |
 
 ## 防止文件膨脹的規則
 
@@ -52,6 +53,6 @@ applyTo: 'docs/**/*.md'
 - **最大兩層深度**：`docs/<section>/<file>.md`，禁止更深的嵌套。
 - **禁止跨象限混合**：一個文件只服務一個目的（tutorial / how-to / reference / explanation）。
 - **技術文件屬於模組**：模組特定的實作細節放在 `modules/<context>/README.md`，不放在全局 `docs/`。
-- **Repomix 技能同步**：`.github/skills/` 的 repomix 輸出必須透過 `package.json` 既有 scripts 重新生成，保持與 `.github/*` 和 `docs/ddd/*` 同步。
+- **Repomix 技能同步**：`.github/skills/` 的 repomix 輸出必須透過 `package.json` 既有 scripts 重新生成，保持與 `.github/*`、`docs/ddd/*` 和 `modules/<context>/*.md` 同步。
 
 Tags: #use skill context7 #use skill xuanwu-app-skill

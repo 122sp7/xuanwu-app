@@ -35,7 +35,7 @@ export type {
   KnowledgePage,
   KnowledgePageStatus,
   KnowledgePageTreeNode,
-} from "./domain/entities/content-page.entity";
+} from "./domain/entities/knowledge-page.entity";
 
 export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
 
@@ -83,7 +83,7 @@ export type {
   CollectionSpaceType,
 } from "./domain/entities/knowledge-collection.entity";
 
-export type { PageVerificationState } from "./domain/entities/content-page.entity";
+export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
 
 // ── Interfaces: Components ────────────────────────────────────────────────────
 export { BlockEditorView } from "./interfaces/components/BlockEditorView";

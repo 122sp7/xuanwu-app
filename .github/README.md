@@ -13,11 +13,11 @@ This directory contains the repository-local Copilot customization set for Xuanw
 
 ## DDD Reference Set
 
-Use `docs/ddd/` as the primary DDD documentation surface:
+Use `docs/ddd/` for strategic DDD routing and `modules/<context>/` for the current bounded-context detail set:
 
 - [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
 - [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
-- `../docs/ddd/<context>/{README,ubiquitous-language,aggregates,domain-events,context-map,application-services,repositories,domain-services}.md`
+- `../modules/<context>/{README,ubiquitous-language,aggregates,domain-events,context-map,application-services,repositories,domain-services}.md`
 
 ## Skill Refresh
 

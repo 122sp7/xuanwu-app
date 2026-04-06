@@ -78,10 +78,10 @@ export {
 
 export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
 
-// ── Event listeners (content → workspace-flow integration) ───────────────────
+// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
 
 export {
-  createContentToWorkflowListener,
+  createKnowledgeToWorkflowListener,
 } from "./listeners";
 
 export type {

@@ -1,28 +1,35 @@
-# Documentation
+# Xuanwu Documentation
 
-This docs skeleton is based on the Diataxis documentation framework as retrieved from Context7.
+This directory is the documentation root for Xuanwu's product, architecture, development workflow, and AI delivery assets.
 
-## Source of truth
+## Primary Entry Points
 
-- Framework: Diataxis four-purpose model
-- Purposes: tutorials, how-to guides, reference, explanation
-- IA rule: keep hierarchy shallow (max two levels under docs/)
+- [ddd/subdomains.md](./ddd/subdomains.md): strategic subdomain classification
+- [ddd/bounded-contexts.md](./ddd/bounded-contexts.md): canonical bounded-context map
+- [architecture/README.md](./architecture/README.md): cross-context architecture and ADR reading path
+- [reference/specification/system-overview.md](./reference/specification/system-overview.md): system and product overview
+- [development/README.md](./development/README.md): implementation and contributor guides
 
 ## Structure
 
-- tutorials/: learning-oriented, guided paths
-- guides/how-to/: task-oriented procedures
-- guides/explanation/: concept-oriented reasoning and trade-offs
-- reference/: exact facts and reference material
-- reference/specification/: specification documents
-- architecture/: architecture docs, DDD reference, ADR collection
-- development/: development process and implementation guides
-- diagrams/: architecture and flow diagrams
-- templates/: one template per purpose
+- `ddd/`: strategic DDD maps and routing entrypoints
+- `architecture/`: cross-context architecture explanations, decisions, and system diagrams
+- `development/`: implementation guidance and repository-local execution rules
+- `guides/how-to/`: task-oriented procedures
+- `guides/explanation/`: concept-oriented architecture and reasoning
+- `reference/`: precise facts, specifications, and reference material
+- `tutorials/`: guided learning paths
+- `templates/`: documentation templates
 
-## Authoring constraints
+## Routing Rules
 
-1. Each page serves exactly one purpose.
-2. Do not mix tutorial/how-to/reference/explanation content in one page.
-3. Keep folder depth to docs/<section>/<file>.md.
-4. Cross-link related pages instead of mixing content types.
+1. Start with `ddd/` when the question is about ownership, boundaries, or terminology routing.
+2. Use `modules/<context>/*.md` for bounded-context details such as ubiquitous language, aggregates, events, repositories, and application services.
+3. Use `architecture/` for cross-context reasoning, runtime boundaries, and ADRs.
+4. Use `reference/` for exact facts and specifications.
+
+## Authoring Constraints
+
+1. Each document should serve one Diataxis purpose.
+2. Link to canonical material instead of copying bounded-context knowledge into multiple places.
+3. Keep document routing explicit so humans and agents can find the current owner quickly.

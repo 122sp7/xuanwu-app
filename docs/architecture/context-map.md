@@ -1,157 +1,82 @@
 # Context Map（上下文關係圖）
 
-<!-- change: Add content→workspace-flow Customer/Supplier event-driven section and DDD table row; PR-NUM -->
+<!-- change: Refresh context map to current bounded-context topology; PR-NUM -->
 
-本文件描述 Xuanwu App 16 個有界上下文之間的關係與互動模式。
+本文件描述 Xuanwu App 目前 bounded contexts 之間的關係與互動模式。
 
-> **相關文件：** [`bounded-contexts.md`](./bounded-contexts.md) · [`module-boundary.md`](./module-boundary.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`../ddd/bounded-contexts.md`](../ddd/bounded-contexts.md) · [`module-boundary.md`](./module-boundary.md) · [`../reference/specification/system-overview.md`](../reference/specification/system-overview.md)
 
 ---
 
 ## 全局上下文關係圖
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ AI Layer                                                                      │
-│  ┌──────────┐    RAG 查詢    ┌──────────────┐   對話編排  ┌──────────┐      │
-│  │ knowledge│──── chunks ──►│  retrieval   │◄──────────►│  agent   │      │
-│  │(攝入管線) │               │(向量搜索/生成)│             │(Genkit)  │      │
-│  └──────────┘               └──────────────┘             └──────────┘      │
-│       ▲                             ▲                                        │
-│       │                             │                                        │
-├───────┼─────────────────────────────┼──────────────────────────────────────┤
-│ Knowledge Graph Layer               │                                        │
-│  ┌──────────────────┐               │                                        │
-│  │  knowledge-graph │ Backlink/     │                                        │
-│  │  (GraphNode/Link)│ Graph Traversal                                        │
-│  └──────────────────┘               │                                        │
-│       ▲                             │                                        │
-│       │ page_created/block_updated  │                                        │
-├───────┼─────────────────────────────┼──────────────────────────────────────┤
-│ Content / UI Layer                  │                                        │
-│  ┌──────────┐        ┌──────────┐   │                                        │
-│  │ content  │──embeds►│  asset   │──► RagDocument ─────────────────────────►│
-│  │(Page/Blk)│        │(File/Lib)│                                            │
-│  └──────────┘        └──────────┘                                            │
-│       ▲                   ▲                                                   │
-│       │                   │                                                   │
-├───────┼───────────────────┼──────────────────────────────────────────────────┤
-│ Platform Foundation Layer │                                                   │
-│  ┌──────────┐  ┌──────────┐   ┌──────────────┐   ┌──────────────────────┐  │
-│  │ identity │  │ account  │   │ organization │   │  workspace           │  │
-│  │(Firebase │─►│(Profile) │◄──│(Tenant/Team) │──►│  + workspace-audit   │  │
-│  │  Auth)   │  └──────────┘   └──────────────┘   │  + workspace-feed    │  │
-│  └──────────┘                                      │  + workspace-flow    │  │
-│                                                     │  + workspace-sched. │  │
-│                      ┌──────────────────────┐      │  + notification      │  │
-│                      │ shared               │      └──────────────────────┘  │
-│                      │(EventRecord/Slug)    │                                 │
-│                      └──────────────────────┘                                 │
-└─────────────────────────────────────────────────────────────────────────────┘
+identity ──► account ──► organization ──► workspace
+              │            │
+              │            ├──► workspace-feed
+              │            ├──► workspace-flow
+              │            ├──► workspace-scheduling
+              │            └──► workspace-audit
+              │
+workspace ──hosts──► knowledge ──promote──► knowledge-base
+  │               │   │                    │
+  │               │   └──► knowledge-collaboration
+  │               │
+  │               └──► knowledge-database
+  │
+  └──► source ──registers──► ai ──ingestion_completed──► search ──► notebook
+
+shared ──► all contexts (event store primitives, slugs, shared domain contracts)
+notification ──consumes platform / workflow signals for user-facing delivery
 ```
 
 ---
 
 ## 上下文互動關係詳細說明
 
-### Platform Foundation 層內部關係
+### Foundation 與治理邊界
+
+- `identity` 提供已驗證身份；`account` 承接帳戶語意與個人化。
+- `organization` 擁有 tenant / team / member 關係；`workspace` 是協作容器與模組掛載邊界。
+- `workspace-feed`、`workspace-flow`、`workspace-scheduling`、`workspace-audit` 都以 `workspaceId` 為基礎鍵，但各自擁有自己的狀態與資料模型。
+
+### 核心知識與知識資產
+
+- `knowledge` 擁有 Knowledge Page、Block、Version 與 Approval lifecycle。
+- `knowledge-base` 承接被提升為組織級文章、SOP、Wiki-like assets 的內容。
+- `knowledge-collaboration` 承接評論、權限與版本快照；不反向擁有 `knowledge` 本身。
+- `knowledge-database` 承接結構化 database / record / view 模型，並與頁面體驗並列存在。
+
+### 來源、攝入、檢索、Notebook
+
+- `source` 是外部文件與來源的 anti-corruption entrypoint。
+- `ai` 承接 ingestion job、stage progression 與 `py_fn/` worker handoff。
+- `search` 消費 `ai` 已準備好的 ingestion 結果，提供 retrieval、citation context、answer generation。
+- `notebook` 透過 `search/api` 取得查詢結果，組裝 ask/cite、summary 與 knowledge generation 體驗。
+
+### 物化流程（Materialization Flow）
 
 ```
-identity ──認證→ account
-  │
-  └── 提供 uid，account 使用 identity/api 查詢已驗證使用者
-
-account ──profile for→ organization (members)
-  │
-  └── Organization.members[] 中的 MemberReference 參照 Account id
-
-account ──owns→ workspace
-  │
-  └── WorkspaceEntity.accountId 關聯至帳戶/組織
-
-organization ──contains→ workspace
-  │
-  └── WorkspaceEntity.accountId + accountType="organization"
-```
-
-**關係模式：** Customer/Supplier — `identity` 是上游供應者，`account` 是下游消費者。
-
----
-
-### Workspace Layer 內部關係
-
-```
-workspace ──hosts→ workspace-feed
-  │  workspace ──hosts→ workspace-flow
-  │  workspace ──hosts→ workspace-scheduling
-  │  workspace ──hosts→ workspace-audit
-  │
-  └── 以 workspaceId 作為外鍵關聯，各子模組各自管理資料
-
-workspace-flow.task.created ──event→ workspace-audit
-  └── 稽核日誌訂閱 workspace-flow 事件（計畫中）
-```
-
----
-
-### Content Layer 關係
-
-```
-workspace ──hosts→ content (via WikiContentTree)
-  └── workspace.domain.entities.WikiContentTree 持有頁面 ID 層級結構
-
-content ──page link events→ knowledge-graph (Auto-link, 計畫中)
-  └── content.block-updated → LinkExtractor → knowledge-graph.addLink()
-
-content ──embeds chunks→ knowledge (RAG ingestion)
-  └── ContentBlock.text → py_fn 攝入管線 → IngestionChunk
-
-workspace ──hosts→ asset (Files & Libraries)
-  └── asset.File 以 workspaceId 歸屬
-
-content ──page approved events→ workspace-flow (Materialization)
-  └── content.page_approved → 生成 Task / Invoice 並帶入 causationId
-  └── content 作為 Buffer Zone：AI 解析結果先寫入 ContentPage，
-      使用者審閱後核准，派發 ContentPageApprovedEvent
-  └── workspace-flow 消費事件，生成帶有 sourceReference 的 Task / Invoice
-  └── 事件欄位：pageId, extractedTasks[], extractedInvoices[],
-                actorId, causationId, correlationId
-
-content (Database View) ──reads→ workspace-flow
-  └── 透過 ID 參照動態嵌入任務與發票狀態，單向讀取。
-  └── 查詢路徑：modules/workspace-flow/api → getWorkspaceFlowTasks()
-  └── 禁止 content 直接覆寫 workspace-flow 的狀態機
-```
-
-**因果流程（Causality Flow）：**
-
-```
-[AI py_fn] 解析合約
-    │ 寫入草稿
+[source / external documents]
+    │ register
     ▼
-[content: ContentPage + Database Blocks]
-    │ 使用者審閱 / 修改
-    ▼ ApproveContentPageUseCase
-[content.page_approved Event]
+[ai ingestion pipeline]
+    │ indexed / ready
+    ▼
+[search retrieval]
+    │ ask/cite context
+    ▼
+[notebook research flow]
+
+[knowledge page draft]
+    │ user review / approve
+    ▼
+[knowledge.page_approved]
     │ causationId + correlationId
-    ▼ contentToWorkflowMaterializer
-[workspace-flow: Task / Invoice（帶 sourceReference）]
-```
-
----
-
-### AI Layer 關係
-
-```
-knowledge ──ingested chunks→ retrieval
-  └── py_fn 攝入後將 vectors 寫入 Firestore；retrieval 透過向量搜索讀取
-
-retrieval ──answer generation→ agent
-  └── agent.application.use-cases.AnswerRagQueryUseCase
-      委派至 retrieval 模組的 RagRetrievalRepository + RagGenerationRepository
-
-asset ──RAG document→ knowledge
-  └── RegisterUploadedRagDocumentUseCase → IngestionJob 建立
+    ▼
+[workspace-flow materializer]
+    ├── Task (sourceReference → KnowledgePage)
+    └── Invoice (sourceReference → KnowledgePage)
 ```
 
 ---
@@ -164,12 +89,12 @@ asset ──RAG document→ knowledge
 | `account` | `organization` | **Published Language** | MemberReference 是公開合約 |
 | `organization` | `workspace` | **Conformist** | workspace 遵從 organization 的帳戶模型 |
 | `workspace` | `workspace-flow/feed/audit` | **Open Host Service** | workspace 提供標準化 workspaceId 鍵 |
-| `content` | `knowledge-graph` | **Event-driven** | 透過 ContentUpdatedEvent 解耦 |
-| `content` | `knowledge` | **Event-driven** | 透過 py_fn 攝入管線解耦 |
-| `content` | `workspace-flow` | **Event-driven / Customer-Supplier** | 透過 `content.page_approved` 派生任務，並透過 ID 關聯視圖 |
-| `knowledge` | `retrieval` | **Shared Kernel** | 共享 chunk schema（Firestore 文件結構） |
-| `retrieval` | `agent` | **Customer/Supplier** | agent 呼叫 retrieval/api 執行 RAG |
-| `asset` | `knowledge` | **Customer/Supplier** | 上傳後觸發 IngestionJob |
+| `workspace` | `knowledge` | **Customer/Supplier** | workspace 提供知識內容的容器與可見性邊界 |
+| `knowledge` | `knowledge-base` | **Customer/Supplier** | knowledge page 可被提升為 article / SOP asset |
+| `knowledge` | `workspace-flow` | **Published Language** | 透過 `knowledge.page_approved` 派生任務與發票 |
+| `source` | `ai` | **Customer/Supplier** | source 提供待攝入文件與來源集合 |
+| `ai` | `search` | **Published Language** | 透過 ingestion 完成事件與 index-ready 狀態協作 |
+| `search` | `notebook` | **Customer/Supplier** | notebook 呼叫 `search/api` 執行 ask/cite 與 retrieval |
 | `shared` | 所有模組 | **Shared Kernel** | EventRecord + Slug 工具共享原語 |
 
 ---
@@ -192,6 +117,6 @@ asset ──RAG document→ knowledge
 | 通訊類型 | 方式 | 範例 |
 |---------|------|------|
 | **同步查詢** | 透過目標模組的 `api/index.ts` | `import { getWorkspaceById } from "@/modules/workspace/api"` |
-| **命令觸發** | 透過目標模組的 `api/index.ts` Server Action | `import { createContentPage } from "@/modules/knowledge/api"` |
+| **命令觸發** | 透過目標模組的 `api/index.ts` Server Action | `import { createKnowledgePage } from "@/modules/knowledge/api"` |
 | **非同步事件** | `shared` 模組的 Event Store + Event Bus | `PublishDomainEventUseCase.execute()` |
 | **Python 管線** | Firestore 文件狀態機（`uploaded → processing → ready`） | `IngestionJob.status` 輪詢/訂閱 |

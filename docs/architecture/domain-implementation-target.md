@@ -5,8 +5,8 @@ This note tracks the current implementation target for bounded-context coverage 
 ## Current target
 
 - Keep the active bounded-context inventory in `modules/` aligned with the canonical map in [`../ddd/bounded-contexts.md`](../ddd/bounded-contexts.md).
-- Treat legacy wiki behavior as decomposed across `content`, `asset`, `workspace`, and `retrieval`, and avoid re-introducing a separate legacy wiki module.
-- Use `docs/ddd/<context>/` as the detailed implementation reference for each active bounded context.
+- Treat legacy wiki behavior as decomposed across `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `search`, `notebook`, `source`, and `workspace`, and avoid re-introducing a separate standalone wiki module.
+- Use `modules/<context>/*.md` as the detailed implementation reference for each active bounded context.
 
 ## Refresh triggers
 

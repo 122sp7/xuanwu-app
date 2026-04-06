@@ -4,7 +4,7 @@ This note captures the current documentation-level UI gaps around the workspace-
 
 ## Current confirmed gaps
 
-- The review → approve → materialize flow described in [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md) is an architecture target, not a documented shipped workspace UI flow yet.
+- The review → approve → materialize flow described in [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md) is an architecture target, not a documented shipped workspace UI flow yet.
 - Workspace navigation is intentionally workspace-first, so new UI work should extend existing workspace surfaces before adding parallel top-level destinations.
 - Any new workspace surface should document its ownership boundary and the module API it depends on before implementation starts.
 
@@ -19,5 +19,5 @@ Before adding a new workspace-facing UI surface, confirm:
 ## Related references
 
 - [`README.md`](./README.md)
-- [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+- [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 - [`module-boundary.md`](./module-boundary.md)

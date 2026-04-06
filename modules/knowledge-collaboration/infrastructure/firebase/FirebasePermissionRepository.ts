@@ -10,7 +10,7 @@ import {
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
-import type { Permission, PermissionLevel } from "../../domain/entities/permission.entity";
+import type { Permission, PermissionLevel, PrincipalType } from "../../domain/entities/permission.entity";
 import type {
   IPermissionRepository,
   GrantPermissionInput,
@@ -32,11 +32,12 @@ function toPermission(id: string, data: Record<string, unknown>): Permission {
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
     accountId: typeof data.accountId === "string" ? data.accountId : "",
     principalId: typeof data.principalId === "string" ? data.principalId : "",
-    principalType: (data.principalType as Permission["principalType"]) ?? "user",
+    principalType: (data.principalType as PrincipalType) ?? "user",
     level: (data.level as PermissionLevel) ?? "view",
     grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
     grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
     expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
   };
 }
 
@@ -58,6 +59,7 @@ export class FirebasePermissionRepository implements IPermissionRepository {
       grantedByUserId: input.grantedByUserId,
       grantedAtISO: now,
       expiresAtISO: input.expiresAtISO ?? null,
+      linkToken: input.linkToken ?? null,
       _createdAt: serverTimestamp(),
     };
     await setDoc(permissionDoc(db, input.accountId, id), data);

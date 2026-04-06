@@ -31,6 +31,7 @@ function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
     databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
     workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
     accountId: typeof data.accountId === "string" ? data.accountId : "",
+    pageId: typeof data.pageId === "string" ? data.pageId : null,
     properties: typeof data.properties === "object" && data.properties !== null
       ? new Map(Object.entries(data.properties as Record<string, unknown>))
       : new Map(),
@@ -52,6 +53,7 @@ export class FirebaseRecordRepository implements IDatabaseRecordRepository {
       databaseId: input.databaseId,
       workspaceId: input.workspaceId,
       accountId: input.accountId,
+      pageId: input.pageId ?? null,
       properties: input.properties ?? {},
       createdByUserId: input.createdByUserId,
       createdAtISO: now,

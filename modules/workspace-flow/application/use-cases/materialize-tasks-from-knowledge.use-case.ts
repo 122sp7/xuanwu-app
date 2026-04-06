@@ -1,32 +1,32 @@
 /**
  * @module workspace-flow/application/use-cases
- * @file materialize-tasks-from-content.use-case.ts
+ * @file materialize-tasks-from-knowledge.use-case.ts
  * @description Use case: Batch-create Tasks (and optionally Invoices) from a
- * `content.page_approved` event payload.
+ * `knowledge.page_approved` event payload.
  *
  * Idempotency: callers must ensure the same `sourceReference.causationId` is
- * not processed twice.  This use case does NOT check for duplicates itself;
- * that responsibility belongs to the ContentToWorkflowMaterializer process
+ * not processed twice. This use case does NOT check for duplicates itself;
+ * that responsibility belongs to the KnowledgeToWorkflowMaterializer process
  * manager which wraps this use case.
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { TaskRepository } from "../../domain/repositories/TaskRepository";
 import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import type { MaterializeFromContentDto } from "../dto/materialize-from-content.dto";
+import type { MaterializeFromKnowledgeDto } from "../dto/materialize-from-knowledge.dto";
 
-export class MaterializeTasksFromContentUseCase {
+export class MaterializeTasksFromKnowledgeUseCase {
   constructor(
     private readonly taskRepository: TaskRepository,
     private readonly invoiceRepository: InvoiceRepository,
   ) {}
 
-  async execute(dto: MaterializeFromContentDto): Promise<CommandResult> {
+  async execute(dto: MaterializeFromKnowledgeDto): Promise<CommandResult> {
     if (!dto.workspaceId.trim()) {
       return commandFailureFrom("WF_MATERIALIZE_WORKSPACE_REQUIRED", "workspaceId is required.");
     }
-    if (!dto.contentPageId.trim()) {
-      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "contentPageId is required.");
+    if (!dto.knowledgePageId.trim()) {
+      return commandFailureFrom("WF_MATERIALIZE_PAGE_REQUIRED", "knowledgePageId is required.");
     }
 
     const taskIds: string[] = [];
@@ -49,11 +49,6 @@ export class MaterializeTasksFromContentUseCase {
         workspaceId: dto.workspaceId,
         sourceReference: dto.sourceReference,
       });
-      // Add the extracted item to the invoice.
-      // taskId is empty here because the invoice was generated from AI-extracted data
-      // before any Tasks are created; the association is completed manually by the
-      // user during the Task acceptance flow (ApproveTaskAcceptanceUseCase) or via
-      // a subsequent LinkInvoiceItemToTaskUseCase once both entities exist.
       await this.invoiceRepository.addItem({
         invoiceId: invoice.id,
         amount: item.amount,
@@ -62,6 +57,6 @@ export class MaterializeTasksFromContentUseCase {
       invoiceIds.push(invoice.id);
     }
 
-    return commandSuccess(dto.contentPageId, Date.now());
+    return commandSuccess(dto.knowledgePageId, Date.now());
   }
 }

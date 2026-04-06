@@ -1,10 +1,10 @@
 # 領域服務（Domain Services）
 
-<!-- change: Add contentToWorkflowMaterializer Process Manager / Saga design; PR-NUM -->
+<!-- change: Refresh process-manager terminology and current service owners; PR-NUM -->
 
 本文件說明 Xuanwu App 各有界上下文中實作的 Domain Services，包含狀態機轉換策略（Transition Policy）、業務守衛（Guards）、以及跨聚合的純函式服務。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`use-cases.md`](./use-cases.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`use-cases.md`](./use-cases.md) · [`domain-events.md`](./domain-events.md)
 
 ---
 
@@ -120,7 +120,7 @@ rejected → closed      (CLOSE)
 
 ---
 
-## `asset` 模組
+## `source` 模組
 
 ### 上傳完成領域服務
 
@@ -154,15 +154,9 @@ export function isValidSlug(slug: string): boolean;
 
 ---
 
-## `knowledge-graph` 模組（計畫中）
+## `search` / `knowledge` 的結構關聯服務（備註）
 
-### LinkExtractor 服務（Auto-link）
-
-**代碼位置：** `modules/wiki/application/` （service 存在，觸發管道待建）
-
-職責：分析頁面 ContentBlock 文字，自動識別 `[[頁面標題]]` 或 `[[page-slug]]` 格式的隱式連結，建立 `LinkType = "implicit"` 的有向邊。
-
-**計畫觸發方式：** 監聽 `content.block-updated` 事件後自動執行。
+目前沒有獨立的 `knowledge-graph` bounded context。若未來需要恢復自動連結、backlink 或圖遍歷等能力，應先決定它是 `search` 的檢索結構能力、`knowledge` 的內容關聯能力，或新的 supporting subdomain，而不是直接沿用已移除的 `modules/wiki` 拓樸。
 
 ---
 
@@ -170,36 +164,35 @@ export function isValidSlug(slug: string): boolean;
 
 Process Manager 負責協調**跨越多個有界上下文的長時間業務流程**，不含業務規則，僅負責訂閱事件 → 觸發命令的有序協調。
 
-### `contentToWorkflowMaterializer`（計畫中，v1.1）
+### `KnowledgeToWorkflowMaterializer`
 
-**職責：** 監聽 `content.page_approved` 事件，並協調 `workspace-flow` 模組將 AI 解析的草稿實體化為正式的 Task / Invoice。
+**職責：** 監聽 `knowledge.page_approved` 事件，並協調 `workspace-flow` 模組將經審閱核准的知識頁面物化為正式的 Task / Invoice。
 
 **建議位置選項：**
 
 | 選項 | 路徑 | 適用場景 |
 |------|------|---------|
-| **A（推薦）** | `modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts` | 若 Process Manager 主要驅動 workspace-flow 業務邏輯（推薦：職責集中） |
-| **B** | `modules/shared/application/sagas/content-to-workflow-materializer.ts` | 若未來有更多跨模組 Saga 需要統一管理 |
+| **A（推薦）** | `modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts` | 若 Process Manager 主要驅動 workspace-flow 業務邏輯（推薦：職責集中） |
+| **B** | `modules/shared/application/sagas/knowledge-to-workflow-materializer.ts` | 若未來有更多跨模組 Saga 需要統一管理 |
 
 **設計草案（選項 A）：**
 
 ```typescript
-// modules/workspace-flow/application/process-managers/content-to-workflow-materializer.ts
-export class ContentToWorkflowMaterializer {
+// modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
+export class KnowledgeToWorkflowMaterializer {
   constructor(
     private readonly taskRepo: ITaskRepository,
     private readonly invoiceRepo: IInvoiceRepository,
-    private readonly eventStore: IEventStoreRepository,
   ) {}
 
   /**
-   * 處理 content.page_approved 事件
+   * 處理 knowledge.page_approved 事件
    * 根據 extractedTasks 建立 Task，根據 extractedInvoices 建立 Invoice
-   * 每個實體均帶有 sourceReference 指回 ContentPage
+   * 每個實體均帶有 sourceReference 指回 KnowledgePage
    */
-  async handle(event: ContentPageApprovedEvent): Promise<void> {
+    async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
     const sourceReference = {
-      type: "ContentPage" as const,
+      type: "KnowledgePage" as const,
       id: event.pageId,
       causationId: event.causationId,
       correlationId: event.correlationId,
@@ -208,7 +201,7 @@ export class ContentToWorkflowMaterializer {
     for (const extracted of event.extractedTasks) {
       await this.taskRepo.save({
         id: generateId(),
-        workspaceId: /* 從 ContentPage 關聯的 workspaceId 取得 */,
+        workspaceId,
         title: extracted.title,
         description: extracted.description ?? "",
         status: "draft",
@@ -219,7 +212,7 @@ export class ContentToWorkflowMaterializer {
     for (const extracted of event.extractedInvoices) {
       await this.invoiceRepo.save({
         id: generateId(),
-        workspaceId: /* 從 ContentPage 關聯的 workspaceId 取得 */,
+        workspaceId: /* 從 KnowledgePage 關聯的 workspaceId 取得 */,
         status: "draft",
         items: [{ amount: extracted.amount, description: extracted.description }],
         sourceReference,

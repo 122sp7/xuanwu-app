@@ -1,10 +1,10 @@
 # Use Cases / Application Layer（應用層）
 
-<!-- change: Add ApproveContentPageUseCase and MaterializeTasksFromContentUseCase; PR-NUM -->
+<!-- change: Add ApproveKnowledgePageUseCase and MaterializeTasksFromKnowledgeUseCase; PR-NUM -->
 
 本文件列出 Xuanwu App 所有有界上下文的 Use Cases，說明其職責、輸入/輸出契約，以及在 Application Layer 中的角色。
 
-> **相關文件：** [`domain-model.md`](./domain-model.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`domain-model.md`](./domain-model.md) · [`repository-pattern.md`](./repository-pattern.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 
@@ -86,33 +86,28 @@ export class VerbNounUseCase {
 | `UpdateWorkspaceSettingsUseCase` | 更新工作區設定 | `WorkspaceRepository` |
 | `AddWorkspaceMemberUseCase` | 新增工作區成員 | `WorkspaceRepository` |
 | `RemoveWorkspaceMemberUseCase` | 移除工作區成員 | `WorkspaceRepository` |
-| `GetWikiContentTreeUseCase` | 取得頁面樹結構 | `WikiWorkspaceRepository` |
+| `ListWorkspaceReferencesUseCase` | 取得工作區下可掛載的知識/來源參照 | `WikiWorkspaceRepository` |
 
 **代碼位置：** `modules/workspace/application/use-cases/`
 
 ---
 
-## `content` 模組
+## `knowledge` 模組
 
-| Use Case | 動作 | Repository |
-|---------|------|------------|
-| `CreateContentPageUseCase` | 建立頁面 | `ContentPageRepository` |
-| `RenameContentPageUseCase` | 重新命名頁面 | `ContentPageRepository` |
-| `MoveContentPageUseCase` | 移動頁面（變更父節點） | `ContentPageRepository` |
-| `ArchiveContentPageUseCase` | 歸檔頁面 | `ContentPageRepository` |
-| `ApproveContentPageUseCase` | 核准 AI 草稿頁面，觸發 `content.page_approved` 事件（計畫中，v1.1） | `ContentPageRepository`, `IEventStoreRepository`, `IEventBusRepository` |
-| `AddContentBlockUseCase` | 新增區塊 | `ContentBlockRepository` |
-| `UpdateContentBlockUseCase` | 更新區塊內容 | `ContentBlockRepository` |
-| `DeleteContentBlockUseCase` | 刪除區塊 | `ContentBlockRepository` |
-| `CreateContentVersionUseCase` | 建立版本快照 | `ContentVersionRepository` |
-| `ListContentVersionsUseCase` | 列出版本歷程 | `ContentVersionRepository` |
-| `GetWikiPagesUseCase` | 取得 Wiki Pages | `WikiPageRepository` |
+| 能力群組 | 代表動作 | Repository / Port |
+|---------|----------|-------------------|
+| Page Lifecycle | 建立、重新命名、移動、歸檔 Knowledge Page | `KnowledgePageRepository` |
+| Block Editing | 新增、更新、刪除、重排內容區塊 | `ContentBlockRepository` |
+| Versioning | 發佈與查詢版本快照 | `ContentVersionRepository` |
+| Collection Management | 建立 collection、加入/移除 page、維護欄位 | collection repositories |
+| Review & Verification | 指派 owner、請求 review、驗證 page | review / policy ports |
+| Approval Event | 核准草稿頁面並發出 `knowledge.page_approved` | repository + event ports |
 
-### `ApproveContentPageUseCase` 詳解（計畫中）
+### `ApproveKnowledgePageUseCase` / approval flow 摘要
 
 ```
-輸入: ApproveContentPageInput
-  pageId: string            // 必填：要核准的 ContentPage ID
+輸入: ApproveKnowledgePageInput
+  pageId: string            // 必填：要核准的 KnowledgePage ID
   workspaceId: string       // 必填：所屬工作區
   actorId: string           // 必填：執行核准的使用者 ID
   extractedTasks: Array<{ title, dueDate?, description? }>
@@ -122,51 +117,86 @@ export class VerbNounUseCase {
 流程:
   1. 驗證 pageId 存在且 status = "active"（非 archived）
   2. 驗證 actorId 有權限核准（對應工作區的成員）
-  3. ContentPageRepository.update(pageId, { approvalState: "approved", approvedAtISO })
-  4. PublishDomainEventUseCase.execute({ eventName: "content.page_approved", ... })
+  3. KnowledgePageRepository.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO })
+  4. PublishDomainEventUseCase.execute({ eventName: "knowledge.page_approved", ... })
      └── causationId = 此次執行的 requestId（UUID）
      └── correlationId = input.correlationId ?? generateId()
   5. 返回 CommandResult { success: true, aggregateId: pageId }
 
-代碼位置（計畫中）: modules/knowledge/application/use-cases/approve-content-page.use-case.ts
+代碼位置（依模組慣例）: modules/knowledge/application/use-cases/
 ```
 
 **代碼位置：** `modules/knowledge/application/use-cases/`
 
 ---
 
-## `asset` 模組
+## `knowledge-base` 模組
+
+| 能力群組 | 代表動作 | Repository / Port |
+|---------|----------|-------------------|
+| Article Lifecycle | 建立、更新、發布、封存 article | article repositories |
+| Category Management | 維護 category tree 與 article 分類 | category repositories |
+| Verification | 文章驗證、狀態轉移、共享知識資產治理 | verification / review ports |
+
+**代碼位置：** `modules/knowledge-base/application/use-cases/`
+
+---
+
+## `knowledge-collaboration` 模組
 
 | Use Case | 動作 | Repository |
 |---------|------|------------|
-| `UploadInitFileUseCase` | 初始化檔案上傳（取得上傳憑證） | `FileRepository` |
-| `UploadCompleteFileUseCase` | 完成上傳、更新 metadata | `FileRepository` |
-| `ListWorkspaceFilesUseCase` | 列出工作區檔案 | `FileRepository` |
-| `RegisterUploadedRagDocumentUseCase` | 將上傳文件登錄至 RAG 管線 | `RagDocumentRepository` |
-| `CreateWikiLibraryUseCase` | 建立 Wiki Library | `WikiLibraryRepository` |
-| `ListWikiLibrariesUseCase` | 列出 Wiki Libraries | `WikiLibraryRepository` |
+| `CommentUseCases` | 建立、編輯、查詢留言串 | comment repositories |
+| `PermissionUseCases` | 管理知識協作權限與共享範圍 | permission repositories |
+| `VersionUseCases` | 維護不可變版本快照與比較 | version repositories |
+
+**代碼位置：** `modules/knowledge-collaboration/application/use-cases/`
+
+---
+
+## `knowledge-database` 模組
+
+| 能力群組 | 代表動作 | Repository / Port |
+|---------|----------|-------------------|
+| Database Lifecycle | 建立與更新 database schema | database repositories |
+| Record Operations | 新增、更新、刪除 records | record repositories |
+| View Composition | table / kanban / calendar 等 view 設定 | view repositories |
+
+**代碼位置：** `modules/knowledge-database/application/use-cases/`
+
+---
+
+## `source` 模組
+
+| 能力群組 | 代表動作 | Repository / Port |
+|---------|----------|-------------------|
+| File Intake | 初始化/完成上傳、維護 metadata | `FileRepository` |
+| Source Governance | 維護來源集合、範圍與關聯 | source repositories |
+| Ingestion Registration | 將可處理來源登錄給 ingestion pipeline | worker / integration ports |
 
 **代碼位置：** `modules/source/application/use-cases/`
 
 ---
 
-## `knowledge` 模組
+## `ai` 模組
 
 | Use Case | 動作 | Repository |
 |---------|------|------------|
 | `RegisterIngestionDocumentUseCase` | 登錄待攝入文件 | `IngestionJobRepository` |
 | `AdvanceIngestionStageUseCase` | 推進攝入作業至下一階段 | `IngestionJobRepository` |
 
-**代碼位置：** `modules/knowledge/application/use-cases/`
+**代碼位置：** `modules/ai/application/use-cases/`
 
 ---
 
-## `retrieval` 模組
+## `search` 模組
 
-| Use Case | 動作 | Repository |
-|---------|------|------------|
-| `AnswerRagQueryUseCase` | 執行 RAG 查詢並返回答案 + 引用 | `RagRetrievalRepository`, `RagGenerationRepository` |
-| `GetWikiRagChunksUseCase` | 取得 Wiki RAG 分塊結果 | `WikiContentRepository` |
+| 能力群組 | 代表動作 | Repository / Port |
+|---------|----------|-------------------|
+| Answer RAG Query | 執行 retrieval 並返回答案 + citations | `RagRetrievalRepository`, `RagGenerationRepository` |
+| Retrieval Support | 查詢 chunks、citation context、retrieval summary | `RagRetrievalRepository` |
+| Feedback Loop | 提交與持久化查詢品質回饋 | `RagQueryFeedbackRepository` |
+| Legacy Wiki-RAG Surface | 歷史命名的 knowledge-content 查詢與重建索引入口 | `WikiContentRepository` |
 
 **代碼位置：** `modules/search/application/use-cases/`
 
@@ -192,12 +222,13 @@ export class VerbNounUseCase {
 
 ---
 
-## `agent` 模組
+## `notebook` 模組
 
-| Use Case | 動作 | Repository |
-|---------|------|------------|
-| `GenerateAgentResponseUseCase` | 對話式 AI 代理生成回應 | `AgentRepository` |
-| `AnswerRagQueryUseCase` | 透過 agent 執行 RAG 查詢 | `RagRetrievalRepository`, `RagGenerationRepository` |
+| 能力群組 | 代表動作 | Repository / Upstream |
+|---------|----------|----------------------|
+| Thread & Message Flow | 建立 thread、追加訊息、維護研究上下文 | notebook repositories |
+| Ask/Cite Orchestration | 呼叫 `search` 取得 retrieval 結果後組裝 notebook 回答 | `search/api` |
+| Summary & Generation | 產出摘要、洞察與知識草稿 | AI / generation ports |
 
 **代碼位置：** `modules/notebook/application/use-cases/`
 
@@ -216,13 +247,13 @@ export class VerbNounUseCase {
 | `PassTaskQaUseCase` | QA 通過 → `acceptance` | `evaluateTaskTransition` + `hasNoOpenIssues` |
 | `ApproveTaskAcceptanceUseCase` | 驗收核准 → `accepted` | `evaluateTaskTransition` |
 | `ArchiveTaskUseCase` | 歸檔 → `archived` | `evaluateTaskTransition` + `invoiceAllowsArchive` |
-| `MaterializeTasksFromContentUseCase` | 由 `content.page_approved` 事件批量建立 Task，攜帶 `sourceReference`（計畫中，v1.1） | — |
+| `MaterializeTasksFromKnowledgeEvent` | 由 `knowledge.page_approved` 事件批量建立 Task，攜帶 `sourceReference` | — |
 
-### `MaterializeTasksFromContentUseCase` 詳解（計畫中）
+### `MaterializeTasksFromKnowledgeEvent` / materializer 摘要
 
 ```
 輸入: MaterializeTasksFromContentInput
-  pageId: string                    // content.page_approved 事件的 pageId
+  pageId: string                    // knowledge.page_approved 事件的 pageId
   workspaceId: string               // 對應工作區
   extractedTasks: Array<{ title, dueDate?, description? }>
   sourceReference: SourceReference  // { type, id, causationId, correlationId }
@@ -230,11 +261,11 @@ export class VerbNounUseCase {
 流程:
   1. 依 extractedTasks 批量呼叫 TaskRepository.save()
   2. 每個 Task 的 status 初始化為 "draft"
-  3. 每個 Task 均攜帶 sourceReference（指回 ContentPage）
+  3. 每個 Task 均攜帶 sourceReference（指回 KnowledgePage）
   4. 冪等性保護：若已存在相同 sourceReference.causationId 的 Task，跳過建立
   5. 返回 CommandResult { success: true, aggregateId: pageId }
 
-代碼位置（計畫中）: modules/workspace-flow/application/use-cases/materialize-tasks-from-content.use-case.ts
+代碼位置（目前實作語意）: modules/workspace-flow/application/process-managers/
 ```
 
 ### Issue Use Cases
@@ -264,7 +295,7 @@ export class VerbNounUseCase {
 | `RejectInvoiceUseCase` | 拒絕 |
 | `PayInvoiceUseCase` | 付款完成（paid） |
 | `CloseInvoiceUseCase` | 關閉（closed） |
-| `MaterializeInvoicesFromContentUseCase` | 由 `content.page_approved` 事件批量建立 Invoice，攜帶 `sourceReference`（計畫中，v1.1） | — |
+| `MaterializeInvoicesFromKnowledgeEvent` | 由 `knowledge.page_approved` 事件批量建立 Invoice，攜帶 `sourceReference` | — |
 
 **代碼位置：** `modules/workspace-flow/application/use-cases/`
 
@@ -277,6 +308,8 @@ export class VerbNounUseCase {
 | `LogAuditEntryUseCase` | 記錄操作稽核日誌 |
 | `ListAuditLogsUseCase` | 列出工作區稽核記錄 |
 
+**代碼位置：** `modules/workspace-audit/application/use-cases/`
+
 ---
 
 ## `workspace-feed` 模組
@@ -287,6 +320,20 @@ export class VerbNounUseCase {
 | `ReactToFeedPostUseCase` | 對貼文互動（按讚/回覆/轉貼） |
 | `ListFeedPostsUseCase` | 列出動態牆貼文 |
 
+**代碼位置：** `modules/workspace-feed/application/`
+
+---
+
+## `workspace-scheduling` 模組
+
+| Use Case | 動作 |
+|---------|------|
+| `SubmitWorkDemandUseCase` | 提交工作需求 |
+| `AssignWorkWindowUseCase` | 指派時段 / 容量 |
+| `ReviewCapacityUseCase` | 檢查工作量與排程衝突 |
+
+**代碼位置：** `modules/workspace-scheduling/application/`
+
 ---
 
 ## `notification` 模組
@@ -296,6 +343,8 @@ export class VerbNounUseCase {
 | `SendNotificationUseCase` | 發送通知 |
 | `MarkNotificationReadUseCase` | 標記已讀 |
 | `ListNotificationsUseCase` | 列出收件匣 |
+
+**代碼位置：** `modules/notification/application/use-cases/`
 
 ---
 

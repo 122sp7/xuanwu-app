@@ -2,7 +2,7 @@
 
 ## 模組定位
 
-`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 ContentToWorkflowMaterializer 訂閱 knowledge 事件。
+`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 KnowledgeToWorkflowMaterializer 訂閱 knowledge 事件。
 
 ## 通用語言（Ubiquitous Language）
 
@@ -16,7 +16,7 @@
 | `InvoiceStatus` | Status（單獨使用） |
 | `MaterializedTask` | ConvertedTask、AutoTask |
 | `sourceReference` | Origin、Source（作為物化來源） |
-| `ContentToWorkflowMaterializer` | ContentProcessor、PageConverter |
+| `KnowledgeToWorkflowMaterializer` | ContentProcessor、PageConverter |
 
 ## 狀態機（必須嚴格遵守）
 

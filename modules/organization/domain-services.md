@@ -19,4 +19,4 @@
 ## 模組內對應文件
 
 - `../../../modules/organization/domain-services.md`
-- `../../../docs/ddd/organization/aggregates.md`
+- `../../../modules/organization/aggregates.md`

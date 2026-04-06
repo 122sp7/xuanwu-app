@@ -21,7 +21,7 @@ Application layer 只負責：
 - `application/dto/create-task.dto.ts`
 - `application/dto/invoice-query.dto.ts`
 - `application/dto/issue-query.dto.ts`
-- `application/dto/materialize-from-content.dto.ts`
+- `application/dto/materialize-from-knowledge.dto.ts`
 - `application/dto/open-issue.dto.ts`
 - `application/dto/pagination.dto.ts`
 - `application/dto/remove-invoice-item.dto.ts`
@@ -32,7 +32,7 @@ Application layer 只負責：
 - `application/ports/InvoiceService.ts`
 - `application/ports/IssueService.ts`
 - `application/ports/TaskService.ts`
-- `application/process-managers/content-to-workflow-materializer.ts`
+- `application/process-managers/knowledge-to-workflow-materializer.ts`
 - `application/use-cases/add-invoice-item.use-case.ts`
 - `application/use-cases/approve-invoice.use-case.ts`
 - `application/use-cases/approve-task-acceptance.use-case.ts`
@@ -44,7 +44,7 @@ Application layer 只負責：
 - `application/use-cases/create-task.use-case.ts`
 - `application/use-cases/fail-issue-retest.use-case.ts`
 - `application/use-cases/fix-issue.use-case.ts`
-- `application/use-cases/materialize-tasks-from-content.use-case.ts`
+- `application/use-cases/materialize-tasks-from-knowledge.use-case.ts`
 - `application/use-cases/open-issue.use-case.ts`
 - `application/use-cases/pass-issue-retest.use-case.ts`
 - `application/use-cases/pass-task-qa.use-case.ts`

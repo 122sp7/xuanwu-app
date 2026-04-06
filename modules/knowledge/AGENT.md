@@ -19,8 +19,8 @@
 | `PageVerificationState` | verified、needs_review（需透過型別） |
 | `PageOwner` (`ownerId`) | Owner、Responsible |
 
-> `WikiPage` 為 `wiki` BC 的術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
 
 ## 邊界規則
 
@@ -32,9 +32,9 @@ import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api"
 
 ### ❌ 禁止
 ```typescript
-import { ContentPage } from "@/modules/knowledge/domain/entities/content-page.entity";
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
 import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { WikiPage } from "@/modules/wiki/domain/entities/...";
+import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
 ```
 
 ## page_approved 事件規則

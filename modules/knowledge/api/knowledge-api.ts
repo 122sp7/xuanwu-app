@@ -15,7 +15,7 @@ import {
 import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
 
 import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgePage } from "../domain/entities/content-page.entity";
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
 import { BlockService } from "../application/block-service";
 import {
   InMemoryKnowledgePageRepository,
@@ -37,8 +37,8 @@ export class KnowledgeApi {
 
   /**
    * Create a new page in the in-memory store and publish a
-   * `KnowledgePageCreatedEvent` so the knowledge-graph module can
-   * automatically register a GraphNode for the new page.
+   * `KnowledgePageCreatedEvent` so downstream modules can register
+   * page-related projections or structure-aware read models.
    */
   async createPage(
     accountId: string,
@@ -70,14 +70,14 @@ export class KnowledgeApi {
     return this.blockRepo.add({
       accountId,
       pageId,
-      content: { type: "text", text },
+      content: { type: "text", richText: [{ type: "text", plainText: text }] },
     });
   }
 
   /**
    * Update a block's text content.
    * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
-   * (e.g. knowledge) can react.
+   * (e.g. search or notebook-adjacent ingestion flows) can react.
    */
   async updateBlock(
     accountId: string,

@@ -4,7 +4,7 @@
 
 本文件說明 Xuanwu App 中的 CQRS（Command Query Responsibility Segregation）讀寫分離設計，包含 Query 函式的位置、訂閱模式，以及與 Write-side（Use Cases）的分工。
 
-> **相關文件：** [`use-cases.md`](./use-cases.md) · [`repository-pattern.md`](./repository-pattern.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-content-to-workflow-boundary.md`](./adr/ADR-001-content-to-workflow-boundary.md)
+> **相關文件：** [`use-cases.md`](./use-cases.md) · [`repository-pattern.md`](./repository-pattern.md) · [`infrastructure-strategy.md`](./infrastructure-strategy.md) · [`adr/ADR-001-knowledge-to-workflow-boundary.md`](./adr/ADR-001-knowledge-to-workflow-boundary.md)
 
 ---
 
@@ -112,7 +112,7 @@ export function subscribeToWorkspacesForAccount(
 
 ---
 
-### `asset` 模組
+### `source` 模組
 
 **代碼位置：** `modules/source/interfaces/queries/file.queries.ts`
 
@@ -124,7 +124,7 @@ export function subscribeToWorkspacesForAccount(
 
 ---
 
-### `content` 模組
+### `knowledge` 模組
 
 **代碼位置：** `modules/knowledge/interfaces/queries/content.queries.ts`
 
@@ -233,14 +233,14 @@ useEffect(() => {
 
 ---
 
-## `content` Database ↔ `workspace-flow` 跨模組唯讀同步
+## `knowledge` / `knowledge-database` ↔ `workspace-flow` 跨模組唯讀同步
 
-`content` 模組的 Database Block（計畫中）可透過 Read Model 嵌入 `workspace-flow` 的任務與發票狀態，提供統一的視圖介面。此同步**必須**是單向唯讀的，任何對 Task/Invoice 狀態的變更都必須透過 `workspace-flow/api` 的 Server Action。
+`knowledge` 與 `knowledge-database` 的資料視圖可透過 Read Model 嵌入 `workspace-flow` 的任務與發票狀態，提供統一的檢視介面。此同步**必須**是單向唯讀的，任何對 Task/Invoice 狀態的變更都必須透過 `workspace-flow/api` 的 Server Action。
 
 ### 查詢路徑
 
 ```typescript
-// content Database Block 渲染時，透過 workspace-flow/api 的 Query 函式取得任務列表
+// knowledge / knowledge-database 視圖渲染時，透過 workspace-flow/api 的 Query 函式取得任務列表
 // modules/knowledge/interfaces/components/DatabaseBlock.tsx（計畫中）
 
 import { getWorkspaceFlowTasks } from "@/modules/workspace-flow/api";
@@ -271,7 +271,7 @@ export function subscribeToWorkspaceFlowTasks(
 
 ### Firestore Indexing（查詢效能）
 
-`content` Database Block 展示 Task 時常用的查詢模式需要 Compound Index：
+`knowledge` / `knowledge-database` 視圖展示 Task 時常用的查詢模式需要 Compound Index：
 
 | 查詢模式 | 需要的 Index |
 |---------|------------|
@@ -279,7 +279,7 @@ export function subscribeToWorkspaceFlowTasks(
 | 依 `workspaceId` + `sourceReference.id` 過濾（溯源查詢） | `workspaceId ASC, sourceReference.id ASC` |
 | 依 `workspaceId` + `createdAt` 排序 | `workspaceId ASC, createdAtISO DESC` |
 
-**注意：** `sourceReference.id` 的查詢索引特別重要，因為 `content` Database Block 需要根據 ContentPage ID 過濾出由同一份合約頁面派生的所有任務。
+**注意：** `sourceReference.id` 的查詢索引特別重要，因為知識頁面或資料視圖需要根據 KnowledgePage ID 過濾出由同一份內容派生的所有任務。
 
 ---
 

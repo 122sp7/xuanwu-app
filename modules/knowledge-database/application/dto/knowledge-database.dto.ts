@@ -56,6 +56,7 @@ export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
 
 export const CreateRecordSchema = WorkspaceScopeSchema.extend({
   databaseId: z.string().min(1),
+  pageId: z.string().min(1).nullable().optional(),
   properties: z.record(z.string(), z.unknown()).optional(),
   createdByUserId: z.string().min(1),
 });

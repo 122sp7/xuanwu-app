@@ -12,7 +12,7 @@
  */
 
 import type { KnowledgePageRepository, KnowledgeBlockRepository } from "../domain/repositories/knowledge.repositories";
-import type { KnowledgePage, KnowledgePageTreeNode } from "../domain/entities/content-page.entity";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
 import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
 import type { KnowledgeVersion } from "../domain/entities/content-version.entity";
 import type { BlockContent } from "../domain/value-objects/block-content";
@@ -33,7 +33,7 @@ import {
   ListKnowledgeBlocksUseCase,
 } from "../application/use-cases/knowledge-block.use-cases";
 
-import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseContentPageRepository";
+import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
 import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
 
 export interface KnowledgeCreatePageParams {

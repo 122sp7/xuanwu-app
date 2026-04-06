@@ -40,7 +40,7 @@ export default function KnowledgePagesPage() {
         <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
         <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
         <p className="text-sm text-muted-foreground">
-          知識頁面階層樹。建立頁面後可於區塊編輯器中編輯內容。
+          知識頁面階層樹。點選頁面進入內容編輯器。
         </p>
       </header>
 
@@ -51,13 +51,6 @@ export default function KnowledgePagesPage() {
           className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
         >
           返回 Knowledge Hub
-        </button>
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge/block-editor")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground ml-auto"
-        >
-          區塊編輯器
         </button>
       </div>
 
@@ -77,7 +70,7 @@ export default function KnowledgePagesPage() {
           accountId={accountId}
           workspaceId={workspaceId}
           currentUserId={currentUserId}
-          onPageClick={(pageId) => router.push(`/knowledge/block-editor?pageId=${pageId}`)}
+          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
           onCreated={() => load()}
         />
       )}

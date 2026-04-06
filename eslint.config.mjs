@@ -303,6 +303,35 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── MDDD layer-purity: file-size guardrails ────────────────────────────
+  // Vernon (IDDD): each layer has a single concern.  God files are the
+  // strongest signal that business logic has leaked into the wrong layer.
+  //
+  // Thresholds (warn, not error, to preserve zero-error baseline):
+  //   interfaces/ ≤ 300 lines  — UI components must not own business logic.
+  //   application/ ≤ 300 lines — one use-case file = one use-case.
+  //   infrastructure/ ≤ 400 lines — repositories are legitimately longer.
+  //
+  // When a file exceeds the limit: extract a sub-component / split use-cases
+  // / break the repository into focused query/command repositories.
+  {
+    files: ["modules/*/interfaces/**/*.{ts,tsx}"],
+    rules: {
+      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["modules/*/application/**/*.{ts,tsx}"],
+    rules: {
+      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["modules/*/infrastructure/**/*.{ts,tsx}"],
+    rules: {
+      "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
   // ─── Package boundary enforcement ───────────────────────────────────────
   // Forbid legacy import paths that were migrated to packages/*.
   {

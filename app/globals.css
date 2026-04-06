@@ -126,3 +126,72 @@
     @apply font-sans;
   }
 }
+
+/* ── Tiptap / ProseMirror editor styles ───────────────────────────────────── */
+.tiptap-editor .ProseMirror {
+  outline: none;
+  min-height: 320px;
+}
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--muted-foreground);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+.tiptap-editor .ProseMirror h1 { @apply text-3xl font-bold mb-3 mt-5; }
+.tiptap-editor .ProseMirror h2 { @apply text-2xl font-semibold mb-2 mt-4; }
+.tiptap-editor .ProseMirror h3 { @apply text-xl font-medium mb-2 mt-3; }
+.tiptap-editor .ProseMirror p  { @apply mb-2 leading-relaxed; }
+.tiptap-editor .ProseMirror ul { @apply list-disc pl-5 mb-2 space-y-0.5; }
+.tiptap-editor .ProseMirror ol { @apply list-decimal pl-5 mb-2 space-y-0.5; }
+.tiptap-editor .ProseMirror li { @apply leading-relaxed; }
+.tiptap-editor .ProseMirror blockquote {
+  @apply border-l-4 border-primary/50 pl-4 italic text-muted-foreground my-2;
+}
+.tiptap-editor .ProseMirror hr {
+  @apply border-t border-border/60 my-4;
+}
+.tiptap-editor .ProseMirror code {
+  @apply rounded bg-muted px-1 py-0.5 font-mono text-[0.85em];
+}
+.tiptap-editor .ProseMirror a {
+  @apply text-primary underline cursor-pointer;
+}
+.tiptap-editor .ProseMirror strong { @apply font-bold; }
+.tiptap-editor .ProseMirror em { @apply italic; }
+.tiptap-editor .ProseMirror u  { @apply underline; }
+.tiptap-editor .ProseMirror s  { @apply line-through; }
+/* ── Callout block ──────────────────────────────────────────────────────────── */
+.tiptap-editor .ProseMirror .callout-block {
+  @apply flex gap-3 rounded-lg border border-border/60 bg-muted/40 px-4 py-3 mb-3;
+}
+.tiptap-editor .ProseMirror .callout-emoji {
+  @apply text-xl shrink-0 select-none leading-relaxed;
+}
+.tiptap-editor .ProseMirror .callout-content {
+  @apply flex-1 min-w-0;
+}
+.tiptap-editor .ProseMirror .callout-content p { @apply mb-1; }
+
+/* ── Toggle (collapsible) block ─────────────────────────────────────────────── */
+.tiptap-editor .ProseMirror .toggle-block {
+  @apply rounded-lg border border-border/60 bg-background mb-3 overflow-hidden;
+}
+.tiptap-editor .ProseMirror .toggle-block > summary {
+  @apply cursor-pointer select-none px-4 py-2 font-medium text-sm text-foreground hover:bg-muted/30 transition;
+  list-style: none;
+}
+.tiptap-editor .ProseMirror .toggle-block > summary::-webkit-details-marker { display: none; }
+.tiptap-editor .ProseMirror .toggle-block > :not(summary) {
+  @apply px-4 py-2 text-sm;
+}
+
+/* ── Table of Contents block ─────────────────────────────────────────────────── */
+.tiptap-editor .ProseMirror .toc-block {
+  @apply rounded-lg border border-border/60 bg-muted/30 px-4 py-3 mb-3 text-sm text-muted-foreground;
+}
+.tiptap-editor .ProseMirror .toc-block::before {
+  content: "📋 目錄（自動產生）";
+  @apply block text-xs font-semibold text-muted-foreground mb-1;
+}

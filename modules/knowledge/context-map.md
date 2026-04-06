@@ -17,18 +17,13 @@
 **這是平台最重要的跨 BC 整合點。**
 
 - 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
 - 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
 
 ```
 knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
+                                          (KnowledgeToWorkflowMaterializer)
 ```
-
-### knowledge → wiki（Customer/Supplier）
-
-- `wiki` 訂閱 `knowledge.page_created` / `knowledge.block_updated` 以同步 GraphNode
-- `wiki.GraphNode.id` 對應 `knowledge.KnowledgePage.id`
 
 ### knowledge → ai（Customer/Supplier）
 
@@ -66,7 +61,6 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 | identity → knowledge | identity | knowledge | Customer/Supplier |
 | workspace → knowledge | workspace | knowledge | Customer/Supplier |
 | knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → wiki | knowledge | wiki | Customer/Supplier（Events） |
 | knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
 | knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
 | knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |

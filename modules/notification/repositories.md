@@ -23,4 +23,4 @@
 ## 模組內對應文件
 
 - `../../../modules/notification/repositories.md`
-- `../../../docs/ddd/notification/aggregates.md`
+- `../../../modules/notification/aggregates.md`

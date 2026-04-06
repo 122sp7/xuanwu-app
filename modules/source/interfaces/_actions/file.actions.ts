@@ -1,5 +1,6 @@
 "use server";
 
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type {
   UploadCompleteFileInputDto,
   UploadCompleteFileOutputDto,
@@ -17,6 +18,8 @@ import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFi
 import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
 import { KnowledgeIngestionApi } from "@/modules/ai/api";
 import type { FileCommandResult } from "../contracts/file-command-result";
+import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
 
 const knowledgeIngestionApi = new KnowledgeIngestionApi();
 
@@ -91,4 +94,42 @@ export async function registerUploadedRagDocument(
     ...result,
     commandId,
   };
+}
+
+export async function deleteSourceDocument(
+  accountId: string,
+  documentId: string,
+): Promise<CommandResult> {
+  if (!accountId.trim() || !documentId.trim()) {
+    return commandFailureFrom("SOURCE_DOCUMENT_INVALID_INPUT", "accountId and documentId are required.");
+  }
+  try {
+    const db = getFirestore(firebaseClientApp);
+    await deleteDoc(doc(db, "accounts", accountId, "documents", documentId));
+    return commandSuccess(documentId, Date.now());
+  } catch (err) {
+    return commandFailureFrom("SOURCE_DOCUMENT_DELETE_FAILED", err instanceof Error ? err.message : "Delete failed.");
+  }
+}
+
+export async function renameSourceDocument(
+  accountId: string,
+  documentId: string,
+  newName: string,
+): Promise<CommandResult> {
+  if (!accountId.trim() || !documentId.trim() || !newName.trim()) {
+    return commandFailureFrom("SOURCE_DOCUMENT_INVALID_INPUT", "accountId, documentId and newName are required.");
+  }
+  try {
+    const db = getFirestore(firebaseClientApp);
+    await updateDoc(doc(db, "accounts", accountId, "documents", documentId), {
+      title: newName,
+      "source.filename": newName,
+      "metadata.filename": newName,
+      updatedAt: serverTimestamp(),
+    });
+    return commandSuccess(documentId, Date.now());
+  } catch (err) {
+    return commandFailureFrom("SOURCE_DOCUMENT_RENAME_FAILED", err instanceof Error ? err.message : "Rename failed.");
+  }
 }

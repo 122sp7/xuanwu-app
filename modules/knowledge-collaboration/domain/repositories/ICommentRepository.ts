@@ -3,7 +3,9 @@
  * Layer: domain/repositories
  */
 
-import type { Comment } from "../entities/comment.entity";
+import type { Comment, SelectionRange } from "../entities/comment.entity";
+
+export type CommentUnsubscribe = () => void;
 
 export interface CreateCommentInput {
   readonly contentId: string;
@@ -13,6 +15,8 @@ export interface CreateCommentInput {
   readonly authorId: string;
   readonly body: string;
   readonly parentCommentId?: string | null;
+  readonly blockId?: string | null;
+  readonly selectionRange?: SelectionRange | null;
 }
 
 export interface UpdateCommentInput {
@@ -34,4 +38,10 @@ export interface ICommentRepository {
   delete(accountId: string, commentId: string): Promise<void>;
   findById(accountId: string, commentId: string): Promise<Comment | null>;
   listByContent(accountId: string, contentId: string): Promise<Comment[]>;
+  /** Subscribe to real-time comment updates. Returns an unsubscribe function. */
+  subscribe(
+    accountId: string,
+    contentId: string,
+    onUpdate: (comments: Comment[]) => void,
+  ): CommentUnsubscribe;
 }

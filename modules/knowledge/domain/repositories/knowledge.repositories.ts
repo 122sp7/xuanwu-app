@@ -14,11 +14,15 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
-} from "../entities/content-page.entity";
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
+} from "../entities/knowledge-page.entity";
 import type {
   KnowledgeBlock,
   AddKnowledgeBlockInput,
   UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
 } from "../entities/content-block.entity";
 import type {
   KnowledgeVersion,
@@ -48,6 +52,10 @@ export interface KnowledgePageRepository {
   requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
   /** Assign or change the owner of a wiki page. */
   assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
+  /** Set or clear the page icon (emoji or image URL). */
+  updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null>;
+  /** Set or clear the page cover image URL. */
+  updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null>;
   findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
   listByAccountId(accountId: string): Promise<KnowledgePage[]>;
   listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
@@ -59,6 +67,10 @@ export interface KnowledgeBlockRepository {
   delete(accountId: string, blockId: string): Promise<void>;
   findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
   listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
+  /** Nest a block under a parent block (creates parent → child relationship). */
+  nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  /** Unnest a block, moving it back to page-level. */
+  unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
 }
 
 export interface KnowledgeVersionRepository {

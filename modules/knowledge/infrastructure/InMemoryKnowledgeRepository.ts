@@ -12,6 +12,8 @@ import type {
   KnowledgeBlock,
   AddKnowledgeBlockInput,
   UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
 } from "../domain/entities/content-block.entity";
 import type {
   KnowledgePage,
@@ -23,7 +25,9 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
-} from "../domain/entities/content-page.entity";
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
+} from "../domain/entities/knowledge-page.entity";
 import type {
   KnowledgeBlockRepository,
   KnowledgePageRepository,
@@ -153,6 +157,22 @@ export class InMemoryKnowledgePageRepository implements KnowledgePageRepository 
     return updated;
   }
 
+  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, iconUrl: input.iconUrl || undefined, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, coverUrl: input.coverUrl || undefined, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
   async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
     return this.pages.get(pageId) ?? null;
   }
@@ -196,6 +216,8 @@ export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepositor
       accountId: input.accountId,
       content: input.content,
       order: input.index ?? siblingsCount,
+      parentBlockId: input.parentBlockId ?? null,
+      childBlockIds: [],
       createdAtISO: now,
       updatedAtISO: now,
     };
@@ -227,5 +249,42 @@ export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepositor
     return [...this.blocks.values()]
       .filter((b) => b.accountId === accountId && b.pageId === pageId)
       .sort((a, b) => a.order - b.order);
+  }
+
+  async nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    const parent = this.blocks.get(input.parentBlockId);
+    if (!block || !parent) return null;
+    const now = new Date().toISOString();
+
+    const idx = input.index !== undefined ? input.index : parent.childBlockIds.length;
+    const updatedChildren = [...parent.childBlockIds];
+    updatedChildren.splice(idx, 0, input.blockId);
+
+    this.blocks.set(input.parentBlockId, { ...parent, childBlockIds: updatedChildren, updatedAtISO: now });
+    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: input.parentBlockId, updatedAtISO: now };
+    this.blocks.set(input.blockId, updatedBlock);
+    return updatedBlock;
+  }
+
+  async unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    if (!block) return null;
+    const now = new Date().toISOString();
+
+    if (block.parentBlockId) {
+      const parent = this.blocks.get(block.parentBlockId);
+      if (parent) {
+        this.blocks.set(block.parentBlockId, {
+          ...parent,
+          childBlockIds: parent.childBlockIds.filter((id) => id !== input.blockId),
+          updatedAtISO: now,
+        });
+      }
+    }
+
+    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: null, updatedAtISO: now };
+    this.blocks.set(input.blockId, updatedBlock);
+    return updatedBlock;
   }
 }
