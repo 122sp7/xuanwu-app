@@ -4006,6 +4006,304 @@ export default function DashboardPage() {
 }
 ````
 
+## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowLeft,
+  BadgeCheck,
+  Edit,
+  FileClock,
+  MessageSquare,
+  History,
+  Globe,
+  Link2,
+} from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getArticle,
+  getCategories,
+  getBacklinks,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  ArticleDialog,
+} from "@/modules/knowledge-base/api";
+import type { Article, Category } from "@/modules/knowledge-base/api";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
+import { ReactMarkdown } from "@lib-react-markdown";
+import { remarkGfm } from "@lib-remark-gfm";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+
+export default function ArticleDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const articleId = params.articleId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const workspaceId = appState.activeWorkspaceId ?? "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [article, setArticle] = useState<Article | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [backlinks, setBacklinks] = useState<Article[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editOpen, setEditOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !articleId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [art, cats, bls] = await Promise.all([
+        getArticle(accountId, articleId),
+        getCategories(accountId, workspaceId),
+        getBacklinks(accountId, articleId),
+      ]);
+      setArticle(art);
+      setCategories(cats);
+      setBacklinks(bls);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, workspaceId, articleId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function handlePublish() {
+    startTransition(async () => {
+      await publishArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveArticle({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  function handleVerify() {
+    startTransition(async () => {
+      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
+      await load();
+    });
+  }
+
+  function handleRequestReview() {
+    startTransition(async () => {
+      await requestArticleReview({ id: articleId, accountId });
+      await load();
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-64 w-full rounded-lg" />
+      </div>
+    );
+  }
+
+  if (!article) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.back()}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到文章。</p>
+      </div>
+    );
+  }
+
+  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
+    draft: "outline",
+    published: "default",
+    archived: "secondary",
+  };
+  const statusLabel: Record<string, string> = {
+    draft: "草稿",
+    published: "已發佈",
+    archived: "已封存",
+  };
+  const veriLabel: Record<string, string> = {
+    verified: "已驗證",
+    needs_review: "待審查",
+    unverified: "未驗證",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Back + actions bar */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-base/articles")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
+        </Button>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          {article.status === "draft" && (
+            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
+              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
+            </Button>
+          )}
+          {article.status !== "archived" && (
+            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+            </Button>
+          )}
+          {article.verificationState !== "verified" && (
+            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
+              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
+            </Button>
+          )}
+          {article.verificationState === "verified" && (
+            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
+              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setEditOpen(true)}>
+            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
+          </Button>
+        </div>
+      </div>
+
+      {/* Header */}
+      <header className="space-y-2 border-b border-border/60 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={statusVariant[article.status] ?? "outline"}>
+            {statusLabel[article.status] ?? article.status}
+          </Badge>
+          {article.verificationState && (
+            <Badge variant="outline" className="text-xs">
+              {veriLabel[article.verificationState] ?? article.verificationState}
+            </Badge>
+          )}
+          {article.tags.map((tag) => (
+            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+              {tag}
+            </span>
+          ))}
+        </div>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
+        <p className="text-xs text-muted-foreground">
+          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+        </p>
+      </header>
+
+      {/* Body tabs */}
+      <Tabs defaultValue="content" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="content">內容</TabsTrigger>
+          <TabsTrigger value="backlinks">
+            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
+            {backlinks.length > 0 && (
+              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
+                {backlinks.length}
+              </span>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="comments">
+            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
+          </TabsTrigger>
+          <TabsTrigger value="versions">
+            <History className="mr-1 h-3.5 w-3.5" /> 版本
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content">
+          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
+            {article.content ? (
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {article.content}
+              </ReactMarkdown>
+            ) : (
+              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="backlinks">
+          {backlinks.length === 0 ? (
+            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
+              尚無其他文章引用此文章。
+            </p>
+          ) : (
+            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
+              {backlinks.map((bl) => (
+                <li key={bl.id}>
+                  <button
+                    type="button"
+                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
+                    className="text-sm text-primary hover:underline text-left"
+                  >
+                    {bl.title}
+                  </button>
+                  <p className="text-[10px] text-muted-foreground">
+                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </TabsContent>
+
+        <TabsContent value="comments">
+          {currentUserId ? (
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={workspaceId}
+              contentId={articleId}
+              contentType="article"
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
+          )}
+        </TabsContent>
+
+        <TabsContent value="versions">
+          {currentUserId ? (
+            <VersionHistoryPanel
+              accountId={accountId}
+              contentId={articleId}
+              currentUserId={currentUserId}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
+          )}
+        </TabsContent>
+      </Tabs>
+
+      <ArticleDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        accountId={accountId}
+        workspaceId={workspaceId}
+        currentUserId={currentUserId}
+        categories={categories}
+        article={article}
+        onSuccess={() => load()}
+      />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/knowledge-base/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -12700,6 +12998,50 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
 ````
 
+## File: modules/knowledge-base/api/index.ts
+````typescript
+/**
+ * knowledge-base public API boundary
+ *
+ * Other modules MUST import knowledge-base resources from this file only.
+ * Never import from domain/, application/, or infrastructure/ directly.
+ */
+
+// ─── Read contracts ────────────────────────────────────────────────────────────
+export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
+export type { Category } from "../domain/entities/category.entity";
+
+// ─── Identifiers used by other BCs ────────────────────────────────────────────
+export type ArticleId = string;
+export type CategoryId = string;
+
+// ─── Server Actions (write-side) ──────────────────────────────────────────────
+export {
+  createArticle,
+  updateArticle,
+  publishArticle,
+  archiveArticle,
+  verifyArticle,
+  requestArticleReview,
+  deleteArticle,
+  createCategory,
+  renameCategory,
+  moveCategory,
+  deleteCategory,
+} from "../interfaces/_actions/knowledge-base.actions";
+
+// ─── Queries (read-side) ──────────────────────────────────────────────────────
+export {
+  getArticles,
+  getArticle,
+  getCategories,
+  getBacklinks,
+} from "../interfaces/queries/knowledge-base.queries";
+
+// ─── UI Components ────────────────────────────────────────────────────────────
+export { ArticleDialog } from "../interfaces/components/ArticleDialog";
+````
+
 ## File: modules/knowledge-base/application/dto/knowledge-base.dto.ts
 ````typescript
 /**
@@ -12912,6 +13254,45 @@ export class BacklinkExtractorService {
 export * from "./api";
 ````
 
+## File: modules/knowledge-base/interfaces/queries/knowledge-base.queries.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: interfaces/queries
+ * Direct-instantiation query functions (read-side).
+ */
+
+import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
+import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
+import type { Article, ArticleStatus } from "../../domain/entities/article.entity";
+import type { Category } from "../../domain/entities/category.entity";
+
+export async function getArticles(params: {
+  accountId: string;
+  workspaceId: string;
+  categoryId?: string;
+  status?: ArticleStatus;
+}): Promise<Article[]> {
+  const repo = new FirebaseArticleRepository();
+  return repo.list(params);
+}
+
+export async function getArticle(accountId: string, articleId: string): Promise<Article | null> {
+  const repo = new FirebaseArticleRepository();
+  return repo.getArticleById(accountId, articleId);
+}
+
+export async function getCategories(accountId: string, workspaceId: string): Promise<Category[]> {
+  const repo = new FirebaseCategoryRepository().withAccountId(accountId);
+  return repo.listByWorkspace(workspaceId, accountId);
+}
+
+export async function getBacklinks(accountId: string, articleId: string): Promise<Article[]> {
+  const repo = new FirebaseArticleRepository();
+  return repo.listByLinkedArticleId(accountId, articleId);
+}
+````
+
 ## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
 ````typescript
 /**
@@ -13103,295 +13484,6 @@ export class FirebaseVersionRepository implements IVersionRepository {
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
-import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
-import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
-
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
-function makeVersionRepo() { return new FirebaseVersionRepository(); }
-function makePermissionRepo() { return new FirebasePermissionRepository(); }
-
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    return await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
-  try {
-    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
-  try {
-    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
-  try {
-    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
-  try {
-    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef, useState, useTransition } from "react";
-import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import {
-  getComments,
-} from "../queries/knowledge-collaboration.queries";
-import {
-  createComment,
-  resolveComment,
-  deleteComment,
-} from "../_actions/knowledge-collaboration.actions";
-import type { Comment } from "../../domain/entities/comment.entity";
-
-interface CommentPanelProps {
-  accountId: string;
-  workspaceId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  currentUserId: string;
-}
-
-export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [body, setBody] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    let disposed = false;
-    void Promise.resolve().then(async () => {
-      if (disposed) return;
-      setLoading(true);
-      try {
-        const data = await getComments(accountId, contentId);
-        if (!disposed) { setComments(data); setLoading(false); }
-      } catch {
-        if (!disposed) setLoading(false);
-      }
-    });
-    return () => { disposed = true; };
-  }, [accountId, contentId]);
-
-  function handlePost() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    startTransition(async () => {
-      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
-      setBody("");
-      textareaRef.current?.focus();
-    });
-  }
-
-  function handleResolve(commentId: string) {
-    startTransition(async () => {
-      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-      const fresh = await getComments(accountId, contentId);
-      setComments(fresh);
-    });
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(async () => {
-      await deleteComment({ id: commentId, accountId });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    });
-  }
-
-  const active = comments.filter((c) => !c.resolvedAt);
-  const resolved = comments.filter((c) => c.resolvedAt);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">留言</span>
-        {active.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
-        )}
-      </div>
-
-      {/* Comment input */}
-      <div className="flex flex-col gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="新增留言..."
-          rows={2}
-          className="resize-none text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
-          }}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            送出
-          </Button>
-        </div>
-      </div>
-
-      {/* Comment list */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
-        </div>
-      ) : active.length === 0 && resolved.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無留言。</p>
-      ) : (
-        <div className="space-y-2">
-          {active.map((c) => (
-            <CommentItem
-              key={c.id}
-              comment={c}
-              isOwner={c.authorId === currentUserId}
-              onResolve={() => handleResolve(c.id)}
-              onDelete={() => handleDelete(c.id)}
-              isPending={isPending}
-            />
-          ))}
-          {resolved.length > 0 && (
-            <details className="text-xs text-muted-foreground cursor-pointer">
-              <summary className="select-none">已解決 ({resolved.length})</summary>
-              <div className="mt-2 space-y-2">
-                {resolved.map((c) => (
-                  <CommentItem
-                    key={c.id}
-                    comment={c}
-                    isOwner={c.authorId === currentUserId}
-                    onDelete={() => handleDelete(c.id)}
-                    isPending={isPending}
-                  />
-                ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface CommentItemProps {
-  comment: Comment;
-  isOwner: boolean;
-  onResolve?: () => void;
-  onDelete?: () => void;
-  isPending: boolean;
-}
-
-function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
-  const resolved = !!comment.resolvedAt;
-  return (
-    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
-      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">
-          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </span>
-        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
-        <div className="ml-auto flex gap-1">
-          {!resolved && onResolve && (
-            <button
-              type="button"
-              onClick={onResolve}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="標記為已解決"
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {isOwner && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-              title="刪除"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
 ## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
 "use client";
@@ -13489,36 +13581,6 @@ export function VersionHistoryPanel({ accountId, contentId, currentUserId }: Ver
       )}
     </div>
   );
-}
-````
-
-## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/queries
- */
-
-import type { Comment } from "../../domain/entities/comment.entity";
-import type { Version } from "../../domain/entities/version.entity";
-import type { Permission } from "../../domain/entities/permission.entity";
-import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
-import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
-import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-
-export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
-  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
-}
-
-export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
-  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
-}
-
-export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
-  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
 }
 ````
 
@@ -16066,185 +16128,6 @@ export async function markAllNotificationsRead(recipientId: string): Promise<Com
   } catch (err) {
     return commandFailureFrom("NOTIFICATION_MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
-}
-````
-
-## File: modules/notification/interfaces/components/NotificationBell.tsx
-````typescript
-"use client";
-
-/**
- * Module: notification
- * Layer: interfaces/components
- * Purpose: Reusable notification bell with dropdown for shell header.
- *
- * Consumes use-cases via the module facade (no direct infrastructure imports).
- * Server-action mutations are wired through the local _actions module.
- */
-
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../domain/entities/Notification";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-interface NotificationBellProps {
-  readonly recipientId: string;
-}
-
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 ````
 
@@ -46628,50 +46511,165 @@ export default function DevToolsPage() {
 }
 ````
 
-## File: app/(shell)/knowledge-base/articles/[articleId]/page.tsx
+## File: app/(shell)/knowledge-base/articles/page.tsx
 ````typescript
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import {
-  Archive,
-  ArrowLeft,
-  BadgeCheck,
-  Edit,
-  FileClock,
-  MessageSquare,
-  History,
-  Globe,
-  Link2,
-} from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { BadgeCheck, BookOpen, ChevronDown, ChevronRight, CircleDot, FileClock, FolderOpen, Layers, Plus } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getArticle,
-  getCategories,
-  getBacklinks,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  ArticleDialog,
-} from "@/modules/knowledge-base/api";
-import type { Article, Category } from "@/modules/knowledge-base/api";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
-import { ReactMarkdown } from "@lib-react-markdown";
-import { remarkGfm } from "@lib-remark-gfm";
+import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
+import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 
-export default function ArticleDetailPage() {
-  const params = useParams();
+const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  draft: { label: "草稿", variant: "outline" },
+  published: { label: "已發佈", variant: "default" },
+  archived: { label: "已封存", variant: "secondary" },
+};
+
+const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
+  verified: { label: "已驗證", icon: BadgeCheck },
+  needs_review: { label: "待審查", icon: FileClock },
+  unverified: { label: "未驗證", icon: CircleDot },
+};
+
+// ── Category tree helpers ────────────────────────────────────────────────────
+
+interface CategoryNode extends Category {
+  children: CategoryNode[];
+}
+
+function buildCategoryTree(categories: Category[]): CategoryNode[] {
+  const map = new Map<string, CategoryNode>();
+  for (const cat of categories) {
+    map.set(cat.id, { ...cat, children: [] });
+  }
+  const roots: CategoryNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentCategoryId) {
+      map.get(node.parentCategoryId)?.children.push(node);
+    } else {
+      roots.push(node);
+    }
+  }
+  return roots;
+}
+
+// ── Category tree panel ──────────────────────────────────────────────────────
+
+interface CategoryTreePanelProps {
+  categories: Category[];
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
+  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
+
+  return (
+    <aside className="w-52 shrink-0 space-y-1">
+      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        分類
+      </p>
+      <button
+        type="button"
+        onClick={() => onSelect(null)}
+        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
+          selectedId === null
+            ? "bg-primary/10 text-primary font-medium"
+            : "text-foreground hover:bg-muted"
+        }`}
+      >
+        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
+        全部文章
+      </button>
+      {roots.map((node) => (
+        <CategoryNodeRow
+          key={node.id}
+          node={node}
+          selectedId={selectedId}
+          onSelect={onSelect}
+        />
+      ))}
+      {categories.length === 0 && (
+        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
+      )}
+    </aside>
+  );
+}
+
+interface CategoryNodeRowProps {
+  node: CategoryNode;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+}
+
+function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children.length > 0;
+  const isSelected = selectedId === node.id;
+
+  return (
+    <div>
+      <div className="flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
+          style={{ visibility: hasChildren ? "visible" : "hidden" }}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {expanded ? (
+            <ChevronDown className="size-3" />
+          ) : (
+            <ChevronRight className="size-3" />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect(node.id)}
+          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
+            isSelected
+              ? "bg-primary/10 text-primary font-medium"
+              : "text-foreground hover:bg-muted"
+          }`}
+        >
+          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
+          <span className="truncate">{node.name}</span>
+          {node.articleIds.length > 0 && (
+            <span className="ml-auto text-[10px] text-muted-foreground/60">
+              {node.articleIds.length}
+            </span>
+          )}
+        </button>
+      </div>
+      {hasChildren && expanded && (
+        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
+          {node.children.map((child) => (
+            <CategoryNodeRow
+              key={child.id}
+              node={child}
+              selectedId={selectedId}
+              onSelect={onSelect}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
+export default function KnowledgeBaseArticlesPage() {
   const router = useRouter();
-  const articleId = params.articleId as string;
-
   const { state: appState } = useApp();
   const { state: authState } = useAuth();
 
@@ -46679,248 +46677,156 @@ export default function ArticleDetailPage() {
   const workspaceId = appState.activeWorkspaceId ?? "";
   const currentUserId = authState.user?.id ?? "";
 
-  const [article, setArticle] = useState<Article | null>(null);
+  const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [backlinks, setBacklinks] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editOpen, setEditOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!accountId || !articleId) { setLoading(false); return; }
+    if (!accountId || !workspaceId) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [art, cats, bls] = await Promise.all([
-        getArticle(accountId, articleId),
+      const [arts, cats] = await Promise.all([
+        getArticles({ accountId, workspaceId }),
         getCategories(accountId, workspaceId),
-        getBacklinks(accountId, articleId),
       ]);
-      setArticle(art);
+      setArticles(arts);
       setCategories(cats);
-      setBacklinks(bls);
     } finally {
       setLoading(false);
     }
-  }, [accountId, workspaceId, articleId]);
+  }, [accountId, workspaceId]);
 
   useEffect(() => { load(); }, [load]);
 
-  function handlePublish() {
-    startTransition(async () => {
-      await publishArticle({ id: articleId, accountId });
-      await load();
-    });
-  }
+  const filteredArticles = useMemo(() => {
+    if (!selectedCategoryId) return articles;
+    const cat = categories.find((c) => c.id === selectedCategoryId);
+    if (!cat) return articles;
+    return articles.filter((a) => cat.articleIds.includes(a.id));
+  }, [articles, categories, selectedCategoryId]);
 
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveArticle({ id: articleId, accountId });
-      await load();
-    });
+  function handleSuccess(articleId?: string) {
+    if (articleId) {
+      router.push(`/knowledge-base/articles/${articleId}`);
+    } else {
+      load();
+    }
   }
-
-  function handleVerify() {
-    startTransition(async () => {
-      await verifyArticle({ id: articleId, accountId, verifiedByUserId: currentUserId });
-      await load();
-    });
-  }
-
-  function handleRequestReview() {
-    startTransition(async () => {
-      await requestArticleReview({ id: articleId, accountId });
-      await load();
-    });
-  }
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-40" />
-        <Skeleton className="h-64 w-full rounded-lg" />
-      </div>
-    );
-  }
-
-  if (!article) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.back()}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 返回
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到文章。</p>
-      </div>
-    );
-  }
-
-  const statusVariant: Record<string, "default" | "secondary" | "outline"> = {
-    draft: "outline",
-    published: "default",
-    archived: "secondary",
-  };
-  const statusLabel: Record<string, string> = {
-    draft: "草稿",
-    published: "已發佈",
-    archived: "已封存",
-  };
-  const veriLabel: Record<string, string> = {
-    verified: "已驗證",
-    needs_review: "待審查",
-    unverified: "未驗證",
-  };
 
   return (
     <div className="space-y-4">
-      {/* Back + actions bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-base/articles")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" /> 文章列表
-        </Button>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {article.status === "draft" && (
-            <Button size="sm" variant="outline" onClick={handlePublish} disabled={isPending}>
-              <Globe className="mr-1.5 h-3.5 w-3.5" /> 發佈
-            </Button>
-          )}
-          {article.status !== "archived" && (
-            <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-              <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-            </Button>
-          )}
-          {article.verificationState !== "verified" && (
-            <Button size="sm" variant="outline" onClick={handleVerify} disabled={isPending}>
-              <BadgeCheck className="mr-1.5 h-3.5 w-3.5" /> 標記已驗證
-            </Button>
-          )}
-          {article.verificationState === "verified" && (
-            <Button size="sm" variant="outline" onClick={handleRequestReview} disabled={isPending}>
-              <FileClock className="mr-1.5 h-3.5 w-3.5" /> 請求審查
-            </Button>
-          )}
-          <Button size="sm" onClick={() => setEditOpen(true)}>
-            <Edit className="mr-1.5 h-3.5 w-3.5" /> 編輯
-          </Button>
-        </div>
-      </div>
-
-      {/* Header */}
-      <header className="space-y-2 border-b border-border/60 pb-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={statusVariant[article.status] ?? "outline"}>
-            {statusLabel[article.status] ?? article.status}
-          </Badge>
-          {article.verificationState && (
-            <Badge variant="outline" className="text-xs">
-              {veriLabel[article.verificationState] ?? article.verificationState}
-            </Badge>
-          )}
-          {article.tags.map((tag) => (
-            <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-              {tag}
-            </span>
-          ))}
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">{article.title}</h1>
-        <p className="text-xs text-muted-foreground">
-          v{article.version} · 更新於 {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
+        <p className="text-sm text-muted-foreground">
+          組織知識庫的 SOP 文章、通用文件與驗證管治。
         </p>
       </header>
 
-      {/* Body tabs */}
-      <Tabs defaultValue="content" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="content">內容</TabsTrigger>
-          <TabsTrigger value="backlinks">
-            <Link2 className="mr-1 h-3.5 w-3.5" /> 反向連結
-            {backlinks.length > 0 && (
-              <span className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground">
-                {backlinks.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="comments">
-            <MessageSquare className="mr-1 h-3.5 w-3.5" /> 留言
-          </TabsTrigger>
-          <TabsTrigger value="versions">
-            <History className="mr-1 h-3.5 w-3.5" /> 版本
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="content">
-          <div className="prose prose-sm dark:prose-invert min-h-[200px] max-w-none rounded-lg border border-border/60 bg-muted/10 p-4">
-            {article.content ? (
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {article.content}
-              </ReactMarkdown>
-            ) : (
-              <p className="text-sm text-muted-foreground">此文章尚無內容。</p>
-            )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="backlinks">
-          {backlinks.length === 0 ? (
-            <p className="rounded-lg border border-border/60 bg-muted/10 p-4 text-sm text-muted-foreground">
-              尚無其他文章引用此文章。
-            </p>
-          ) : (
-            <ul className="space-y-2 rounded-lg border border-border/60 bg-muted/10 p-4">
-              {backlinks.map((bl) => (
-                <li key={bl.id}>
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/knowledge-base/articles/${bl.id}`)}
-                    className="text-sm text-primary hover:underline text-left"
-                  >
-                    {bl.title}
-                  </button>
-                  <p className="text-[10px] text-muted-foreground">
-                    {new Date(bl.updatedAtISO).toLocaleDateString("zh-TW")}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </TabsContent>
-
-        <TabsContent value="comments">
-          {currentUserId ? (
-            <CommentPanel
-              accountId={accountId}
-              workspaceId={workspaceId}
-              contentId={articleId}
-              contentType="article"
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看留言。</p>
-          )}
-        </TabsContent>
-
-        <TabsContent value="versions">
-          {currentUserId ? (
-            <VersionHistoryPanel
-              accountId={accountId}
-              contentId={articleId}
-              currentUserId={currentUserId}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">請先登入以查看版本歷程。</p>
-          )}
-        </TabsContent>
-      </Tabs>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+        <Button
+          size="sm"
+          className="ml-auto"
+          disabled={!accountId || !workspaceId}
+          onClick={() => setDialogOpen(true)}
+        >
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          新增文章
+        </Button>
+      </div>
 
       <ArticleDialog
-        open={editOpen}
-        onOpenChange={setEditOpen}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
         accountId={accountId}
         workspaceId={workspaceId}
         currentUserId={currentUserId}
         categories={categories}
-        article={article}
-        onSuccess={() => load()}
+        onSuccess={handleSuccess}
       />
+
+      {!accountId || !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號/工作區情境，請先登入或切換帳號。
+        </p>
+      ) : loading ? (
+        <div className="flex gap-4">
+          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
+          <div className="grid flex-1 gap-3 sm:grid-cols-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-28 w-full rounded-lg" />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-4">
+          <CategoryTreePanel
+            categories={categories}
+            selectedId={selectedCategoryId}
+            onSelect={setSelectedCategoryId}
+          />
+
+          <div className="flex-1">
+            {filteredArticles.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
+                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
+                <p className="text-sm text-muted-foreground">
+                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {filteredArticles.map((article) => {
+                  const status = STATUS_CONFIG[article.status];
+                  const veri = VERIFICATION_CONFIG[article.verificationState];
+                  const VeriIcon = veri.icon;
+                  return (
+                    <Card
+                      key={article.id}
+                      className="cursor-pointer hover:bg-muted/10 transition-colors"
+                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
+                    >
+                      <CardHeader className="pb-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
+                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <VeriIcon className="h-3 w-3" />
+                          <span>{veri.label}</span>
+                        </div>
+                        {article.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {article.tags.slice(0, 3).map((tag) => (
+                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        <p className="text-[10px] text-muted-foreground/70">
+                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -49254,50 +49160,6 @@ npm run build
 | `articleIds` | 直屬文章 ID 列表 |
 ````
 
-## File: modules/knowledge-base/api/index.ts
-````typescript
-/**
- * knowledge-base public API boundary
- *
- * Other modules MUST import knowledge-base resources from this file only.
- * Never import from domain/, application/, or infrastructure/ directly.
- */
-
-// ─── Read contracts ────────────────────────────────────────────────────────────
-export type { Article, ArticleStatus, VerificationState } from "../domain/entities/article.entity";
-export type { Category } from "../domain/entities/category.entity";
-
-// ─── Identifiers used by other BCs ────────────────────────────────────────────
-export type ArticleId = string;
-export type CategoryId = string;
-
-// ─── Server Actions (write-side) ──────────────────────────────────────────────
-export {
-  createArticle,
-  updateArticle,
-  publishArticle,
-  archiveArticle,
-  verifyArticle,
-  requestArticleReview,
-  deleteArticle,
-  createCategory,
-  renameCategory,
-  moveCategory,
-  deleteCategory,
-} from "../interfaces/_actions/knowledge-base.actions";
-
-// ─── Queries (read-side) ──────────────────────────────────────────────────────
-export {
-  getArticles,
-  getArticle,
-  getCategories,
-  getBacklinks,
-} from "../interfaces/queries/knowledge-base.queries";
-
-// ─── UI Components ────────────────────────────────────────────────────────────
-export { ArticleDialog } from "../interfaces/components/ArticleDialog";
-````
-
 ## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
 ````typescript
 /**
@@ -49597,6 +49459,142 @@ export class ListCategoriesUseCase {
 - `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
 - `ArticleSlugService` — title → URL-safe slug 轉換
 - `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+````
+
+## File: modules/knowledge-base/infrastructure/firebase/FirebaseArticleRepository.ts
+````typescript
+/**
+ * Module: knowledge-base
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/kbArticles/{articleId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { Article, ArticleStatus } from "../../domain/entities/article.entity";
+import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
+
+function articlesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "kbArticles");
+}
+
+function articleDoc(db: ReturnType<typeof getFirestore>, accountId: string, articleId: string) {
+  return doc(db, "accounts", accountId, "kbArticles", articleId);
+}
+
+function toArticle(id: string, data: Record<string, unknown>): Article {
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    categoryId: typeof data.categoryId === "string" ? data.categoryId : null,
+    title: typeof data.title === "string" ? data.title : "",
+    content: typeof data.content === "string" ? data.content : "",
+    tags: Array.isArray(data.tags)
+      ? (data.tags as unknown[]).filter((t): t is string => typeof t === "string")
+      : [],
+    status: (data.status as ArticleStatus) ?? "draft",
+    version: typeof data.version === "number" ? data.version : 1,
+    verificationState: (data.verificationState as Article["verificationState"]) ?? "unverified",
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : null,
+    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : null,
+    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : null,
+    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : null,
+    linkedArticleIds: Array.isArray(data.linkedArticleIds)
+      ? (data.linkedArticleIds as unknown[]).filter((l): l is string => typeof l === "string")
+      : [],
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseArticleRepository implements IArticleRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async getById(_articleId: string): Promise<Article> {
+    // Note: _articleId must be scoped with accountId in compound queries;
+    // for direct lookup we search across all accounts via collectionGroup if needed.
+    // At this layer we expect callers to use listByWorkspace for discovery.
+    // We cannot getById without accountId — this is a limitation of the Firestore path.
+    // The article id from use-cases already has accountId in context.
+    // We'll need to resolve via a workspace-scoped query. For now, search by docId broadly.
+    // This is why save() stores accountId in the doc itself.
+    throw new Error("Use getArticleById(accountId, articleId) instead");
+  }
+
+  async getArticleById(accountId: string, articleId: string): Promise<Article | null> {
+    const db = this.db();
+    const snap = await getDoc(articleDoc(db, accountId, articleId));
+    if (!snap.exists()) return null;
+    return toArticle(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async list(params: {
+    workspaceId: string;
+    accountId: string;
+    categoryId?: string;
+    status?: ArticleStatus;
+    limit?: number;
+  }): Promise<Article[]> {
+    const db = this.db();
+    let q = query(articlesCol(db, params.accountId), where("workspaceId", "==", params.workspaceId));
+    if (params.categoryId) {
+      q = query(q, where("categoryId", "==", params.categoryId));
+    }
+    if (params.status) {
+      q = query(q, where("status", "==", params.status));
+    }
+    q = query(q, orderBy("createdAtISO", "desc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toArticle(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async search(_params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]> {
+    // Full-text search is not supported by Firestore; delegate to search module.
+    return [];
+  }
+
+  async save(article: Article): Promise<void> {
+    const db = this.db();
+    const ref = articleDoc(db, article.accountId, article.id);
+    const { id: _id, ...data } = article;
+    await setDoc(ref, { ...data, _createdAt: serverTimestamp() }, { merge: true });
+  }
+
+  async getByIds(_articleIds: string[]): Promise<Article[]> {
+    // Must be called with accountId; not feasible without extra context.
+    return [];
+  }
+
+  async findByLinkedArticleId(_articleId: string): Promise<Article[]> {
+    // Cross-account lookup not supported without accountId scope.
+    return [];
+  }
+
+  async listByLinkedArticleId(accountId: string, articleId: string): Promise<Article[]> {
+    const db = this.db();
+    const q = query(
+      articlesCol(db, accountId),
+      where("linkedArticleIds", "array-contains", articleId),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toArticle(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async delete(_articleId: string): Promise<void> {
+    // articleId alone is insufficient — callers should use deleteArticle(accountId, articleId).
+    throw new Error("Use deleteArticle(accountId, articleId) instead");
+  }
+
+  async deleteArticle(accountId: string, articleId: string): Promise<void> {
+    const db = this.db();
+    await deleteDoc(articleDoc(db, accountId, articleId));
+  }
+}
 ````
 
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseCategoryRepository.ts
@@ -50017,45 +50015,6 @@ export function ArticleDialog({
       </DialogContent>
     </Dialog>
   );
-}
-````
-
-## File: modules/knowledge-base/interfaces/queries/knowledge-base.queries.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: interfaces/queries
- * Direct-instantiation query functions (read-side).
- */
-
-import { FirebaseArticleRepository } from "../../infrastructure/firebase/FirebaseArticleRepository";
-import { FirebaseCategoryRepository } from "../../infrastructure/firebase/FirebaseCategoryRepository";
-import type { Article, ArticleStatus } from "../../domain/entities/article.entity";
-import type { Category } from "../../domain/entities/category.entity";
-
-export async function getArticles(params: {
-  accountId: string;
-  workspaceId: string;
-  categoryId?: string;
-  status?: ArticleStatus;
-}): Promise<Article[]> {
-  const repo = new FirebaseArticleRepository();
-  return repo.list(params);
-}
-
-export async function getArticle(accountId: string, articleId: string): Promise<Article | null> {
-  const repo = new FirebaseArticleRepository();
-  return repo.getArticleById(accountId, articleId);
-}
-
-export async function getCategories(accountId: string, workspaceId: string): Promise<Category[]> {
-  const repo = new FirebaseCategoryRepository().withAccountId(accountId);
-  return repo.listByWorkspace(workspaceId, accountId);
-}
-
-export async function getBacklinks(accountId: string, articleId: string): Promise<Article[]> {
-  const repo = new FirebaseArticleRepository();
-  return repo.listByLinkedArticleId(accountId, articleId);
 }
 ````
 
@@ -50695,6 +50654,382 @@ export class FirebasePermissionRepository implements IPermissionRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { dispatchNotification } from "@/modules/notification/api";
+import { CreateCommentUseCase, UpdateCommentUseCase, ResolveCommentUseCase, DeleteCommentUseCase } from "../../application/use-cases/comment.use-cases";
+import { CreateVersionUseCase, DeleteVersionUseCase } from "../../application/use-cases/version.use-cases";
+import { GrantPermissionUseCase, RevokePermissionUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+import type { CreateCommentDto, UpdateCommentDto, ResolveCommentDto, DeleteCommentDto, CreateVersionDto, DeleteVersionDto, GrantPermissionDto, RevokePermissionDto } from "../../application/dto/knowledge-collaboration.dto";
+
+function makeCommentRepo() { return new FirebaseCommentRepository(); }
+function makeVersionRepo() { return new FirebaseVersionRepository(); }
+function makePermissionRepo() { return new FirebasePermissionRepository(); }
+
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
+      await Promise.allSettled(
+        input.mentionedUserIds.map((recipientId) =>
+          dispatchNotification({
+            recipientId,
+            title: "有人提及了你",
+            message: input.body.slice(0, 100),
+            type: "info",
+            sourceEventType: "comment.mention",
+            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
+          }),
+        ),
+      );
+    }
+    return result;
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createVersion(input: CreateVersionDto): Promise<CommandResult> {
+  try {
+    return await new CreateVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteVersion(input: DeleteVersionDto): Promise<CommandResult> {
+  try {
+    return await new DeleteVersionUseCase(makeVersionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("VERSION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function grantPermission(input: GrantPermissionDto): Promise<CommandResult> {
+  try {
+    return await new GrantPermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokePermission(input: RevokePermissionDto): Promise<CommandResult> {
+  try {
+    return await new RevokePermissionUseCase(makePermissionRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("PERMISSION_REVOKE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { subscribeComments } from "../queries/knowledge-collaboration.queries";
+import {
+  createComment,
+  resolveComment,
+  deleteComment,
+} from "../_actions/knowledge-collaboration.actions";
+import type { Comment } from "../../domain/entities/comment.entity";
+
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
+}
+
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [body, setBody] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeComments(accountId, contentId, (data) => {
+      setComments(data);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    startTransition(async () => {
+      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
+      setBody("");
+      textareaRef.current?.focus();
+    });
+  }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  const active = comments.filter((c) => !c.resolvedAt);
+  const resolved = comments.filter((c) => c.resolvedAt);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {active.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
+        )}
+      </div>
+
+      {/* Comment input */}
+      <div className="flex flex-col gap-2">
+        <Textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="新增留言..."
+          rows={2}
+          className="resize-none text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
+          }}
+        />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            送出
+          </Button>
+        </div>
+      </div>
+
+      {/* Comment list */}
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
+        </div>
+      ) : active.length === 0 && resolved.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無留言。</p>
+      ) : (
+        <div className="space-y-2">
+          {active.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              isOwner={c.authorId === currentUserId}
+              onResolve={() => handleResolve(c.id)}
+              onDelete={() => handleDelete(c.id)}
+              isPending={isPending}
+            />
+          ))}
+          {resolved.length > 0 && (
+            <details className="text-xs text-muted-foreground cursor-pointer">
+              <summary className="select-none">已解決 ({resolved.length})</summary>
+              <div className="mt-2 space-y-2">
+                {resolved.map((c) => (
+                  <CommentItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={c.authorId === currentUserId}
+                    onDelete={() => handleDelete(c.id)}
+                    isPending={isPending}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface CommentItemProps {
+  comment: Comment;
+  isOwner: boolean;
+  onResolve?: () => void;
+  onDelete?: () => void;
+  isPending: boolean;
+}
+
+function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
+  const resolved = !!comment.resolvedAt;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
+      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
+        <div className="ml-auto flex gap-1">
+          {!resolved && onResolve && (
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="標記為已解決"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isOwner && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+              title="刪除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/queries
+ */
+
+import {
+  collection,
+  getFirestore,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { Comment } from "../../domain/entities/comment.entity";
+import type { Version } from "../../domain/entities/version.entity";
+import type { Permission } from "../../domain/entities/permission.entity";
+import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
+import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
+import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+
+export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
+  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+}
+
+export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
+  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+}
+
+export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
+  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
+}
+
+/**
+ * Subscribe to real-time comment updates for a content document.
+ * Returns an unsubscribe function — call it in a useEffect cleanup.
+ */
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: Comment[]) => void,
+): () => void {
+  const db = getFirestore(firebaseClientApp);
+  const col = collection(db, "accounts", accountId, "collaborationComments");
+  const q = query(
+    col,
+    where("contentId", "==", contentId),
+    orderBy("createdAtISO", "asc"),
+  );
+  return onSnapshot(q, (snap) => {
+    const comments: Comment[] = snap.docs.map((d) => {
+      const data = d.data() as Record<string, unknown>;
+      return {
+        id: d.id,
+        accountId: typeof data.accountId === "string" ? data.accountId : accountId,
+        workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+        contentId: typeof data.contentId === "string" ? data.contentId : contentId,
+        contentType: (data.contentType as Comment["contentType"]) ?? "page",
+        authorId: typeof data.authorId === "string" ? data.authorId : "",
+        body: typeof data.body === "string" ? data.body : "",
+        parentCommentId:
+          typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+        blockId:
+          typeof data.blockId === "string" ? data.blockId : null,
+        selectionRange: null,
+        resolvedAt:
+          typeof data.resolvedAt === "string" ? data.resolvedAt : null,
+        resolvedByUserId:
+          typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
+        createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
+        updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
+      };
+    });
+    onUpdate(comments);
+  });
+}
+````
+
 ## File: modules/knowledge-collaboration/README.md
 ````markdown
 # knowledge-collaboration — DDD Reference
@@ -50903,6 +51238,62 @@ export const DeleteViewSchema = z.object({
   accountId: z.string().min(1),
 });
 export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
+````
+
+## File: modules/knowledge-database/application/use-cases/automation.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ * Purpose: Automation CRUD use-cases.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { DatabaseAutomation } from "../../domain/entities/database-automation.entity";
+import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
+import type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../../domain/entities/database-automation.entity";
+
+export class CreateAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(input: CreateAutomationInput): Promise<CommandResult> {
+    if (!input.name.trim()) {
+      return commandFailureFrom("AUTOMATION_INVALID_INPUT", "Automation name is required.");
+    }
+    const automation = await this.repo.create(input);
+    return commandSuccess(automation.id, Date.now());
+  }
+}
+
+export class UpdateAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(input: UpdateAutomationInput): Promise<CommandResult> {
+    const result = await this.repo.update(input);
+    if (!result) return commandFailureFrom("AUTOMATION_NOT_FOUND", "Automation not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
+    await this.repo.delete(id, accountId, databaseId);
+    return commandSuccess(id, Date.now());
+  }
+}
+
+export class ListAutomationsUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
+    return this.repo.listByDatabase(accountId, databaseId);
+  }
+}
 ````
 
 ## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
@@ -51136,86 +51527,6 @@ export class ListViewsUseCase {
 → [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
 ````
 
-## File: modules/knowledge-database/domain/entities/database-automation.entity.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: domain/entities
- * Purpose: DatabaseAutomation — rules that trigger actions when database records change.
- *
- * Notion-equivalent: "Automations" tab on a database.
- * Trigger + Action pairs. Execution is handled by a background worker (QStash).
- */
-
-export type AutomationTrigger =
-  | "record_created"
-  | "record_updated"
-  | "record_deleted"
-  | "property_changed";
-
-export type AutomationActionType =
-  | "send_notification"
-  | "update_property"
-  | "create_record"
-  | "webhook";
-
-export interface AutomationCondition {
-  /** Field name to evaluate */
-  fieldId: string;
-  operator: "equals" | "not_equals" | "is_empty" | "is_not_empty" | "contains";
-  value?: string;
-}
-
-export interface AutomationAction {
-  type: AutomationActionType;
-  /** Payload depends on type:
-   *  send_notification → { recipientId, message }
-   *  update_property   → { fieldId, value }
-   *  create_record     → { databaseId }
-   *  webhook           → { url, method }
-   */
-  config: Record<string, string>;
-}
-
-export interface DatabaseAutomation {
-  id: string;
-  databaseId: string;
-  accountId: string;
-  name: string;
-  enabled: boolean;
-  trigger: AutomationTrigger;
-  /** Field that must change — only relevant for "property_changed" trigger */
-  triggerFieldId?: string;
-  conditions: AutomationCondition[];
-  actions: AutomationAction[];
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-export interface CreateAutomationInput {
-  databaseId: string;
-  accountId: string;
-  name: string;
-  trigger: AutomationTrigger;
-  triggerFieldId?: string;
-  conditions?: AutomationCondition[];
-  actions?: AutomationAction[];
-  createdByUserId: string;
-}
-
-export interface UpdateAutomationInput {
-  id: string;
-  accountId: string;
-  name?: string;
-  enabled?: boolean;
-  trigger?: AutomationTrigger;
-  triggerFieldId?: string;
-  conditions?: AutomationCondition[];
-  actions?: AutomationAction[];
-}
-````
-
 ## File: modules/knowledge-database/domain/entities/database-form.entity.ts
 ````typescript
 /**
@@ -51279,6 +51590,28 @@ export interface DatabaseRecord {
 }
 ````
 
+## File: modules/knowledge-database/domain/repositories/IAutomationRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/repositories
+ * Purpose: Repository interface for DatabaseAutomation aggregate.
+ */
+
+import type {
+  DatabaseAutomation,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../entities/database-automation.entity";
+
+export interface IAutomationRepository {
+  create(input: CreateAutomationInput): Promise<DatabaseAutomation>;
+  update(input: UpdateAutomationInput): Promise<DatabaseAutomation | null>;
+  delete(id: string, accountId: string, databaseId: string): Promise<void>;
+  listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomation[]>;
+}
+````
+
 ## File: modules/knowledge-database/domain/repositories/IDatabaseRecordRepository.ts
 ````typescript
 /**
@@ -51312,254 +51645,195 @@ export interface IDatabaseRecordRepository {
 }
 ````
 
-## File: modules/knowledge-database/interfaces/components/DatabaseAutomationView.tsx
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseAutomationRepository.ts
 ````typescript
-"use client";
-
 /**
  * Module: knowledge-database
- * Layer: interfaces/components
- * Purpose: DatabaseAutomationView — manage automation rules for a Database.
- *
- * Notion-equivalent: Database > "Automations" panel.
- * Renders a list of existing automations and a creator for new ones.
- * Actual execution is handled server-side; this component is management UI only.
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
  */
 
-import { Plus, Zap, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
 
 import type {
   DatabaseAutomation,
-  AutomationTrigger,
-  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+  CreateAutomationInput,
+  UpdateAutomationInput,
 } from "../../domain/entities/database-automation.entity";
+import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
 
-// ── Trigger labels ─────────────────────────────────────────────────────────────
-const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
-  record_created: "建立記錄時",
-  record_updated: "更新記錄時",
-  record_deleted: "刪除記錄時",
-  property_changed: "屬性變更時",
-};
-
-const ACTION_LABELS: Record<AutomationActionType, string> = {
-  send_notification: "發送通知",
-  update_property: "更新屬性",
-  create_record: "建立記錄",
-  webhook: "呼叫 Webhook",
-};
-
-// ── In-memory store (replace with Firebase persistence in the real impl) ───────
-const DEMO_AUTOMATIONS: DatabaseAutomation[] = [];
-
-interface DatabaseAutomationViewProps {
-  databaseId: string;
-  accountId: string;
-  currentUserId: string;
+function automationsCol(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  databaseId: string,
+) {
+  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations");
 }
 
-interface DraftAutomation {
-  name: string;
-  trigger: AutomationTrigger;
-  actionType: AutomationActionType;
-  actionValue: string;
+function automationDocRef(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  databaseId: string,
+  automationId: string,
+) {
+  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations", automationId);
 }
 
-const DEFAULT_DRAFT: DraftAutomation = {
-  name: "",
-  trigger: "record_created",
-  actionType: "send_notification",
-  actionValue: "",
-};
+function toCondition(c: Record<string, unknown>): AutomationCondition {
+  return {
+    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
+    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
+    value: typeof c.value === "string" ? c.value : undefined,
+  };
+}
 
-export function DatabaseAutomationView({
-  databaseId,
-  accountId,
-  currentUserId,
-}: DatabaseAutomationViewProps) {
-  const [automations, setAutomations] = useState<DatabaseAutomation[]>(DEMO_AUTOMATIONS);
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState<DraftAutomation>(DEFAULT_DRAFT);
+function toAction(a: Record<string, unknown>): AutomationAction {
+  return {
+    type: (a.type as AutomationAction["type"]) ?? "send_notification",
+    config:
+      typeof a.config === "object" && a.config !== null
+        ? (a.config as Record<string, string>)
+        : {},
+  };
+}
 
-  function handleSave() {
-    if (!draft.name.trim()) return;
+function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomation {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    enabled: data.enabled !== false,
+    trigger: (data.trigger as DatabaseAutomation["trigger"]) ?? "record_created",
+    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
+    conditions: Array.isArray(data.conditions)
+      ? (data.conditions as Record<string, unknown>[]).map(toCondition)
+      : [],
+    actions: Array.isArray(data.actions)
+      ? (data.actions as Record<string, unknown>[]).map(toAction)
+      : [],
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
+  };
+}
+
+export class FirebaseAutomationRepository implements IAutomationRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async create(input: CreateAutomationInput): Promise<DatabaseAutomation> {
+    const id = generateId();
     const now = new Date().toISOString();
-    const newAutomation: DatabaseAutomation = {
-      id: crypto.randomUUID(),
-      databaseId,
-      accountId,
-      name: draft.name.trim(),
+    const docRef = automationDocRef(this.db, input.accountId, input.databaseId, id);
+    const payload = {
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.name,
       enabled: true,
-      trigger: draft.trigger,
-      conditions: [],
-      actions: [{ type: draft.actionType, config: { value: draft.actionValue } }],
-      createdByUserId: currentUserId,
+      trigger: input.trigger,
+      triggerFieldId: input.triggerFieldId ?? null,
+      conditions: input.conditions ?? [],
+      actions: input.actions ?? [],
+      createdByUserId: input.createdByUserId,
       createdAtISO: now,
       updatedAtISO: now,
+      serverCreatedAt: serverTimestamp(),
     };
-    setAutomations((prev) => [...prev, newAutomation]);
-    setDraft(DEFAULT_DRAFT);
-    setCreating(false);
+    await setDoc(docRef, payload);
+    return toAutomation(id, payload);
   }
 
-  function handleToggle(id: string) {
-    setAutomations((prev) =>
-      prev.map((a) => a.id === id ? { ...a, enabled: !a.enabled } : a),
+  async update(input: UpdateAutomationInput): Promise<DatabaseAutomation | null> {
+    const { id, accountId, databaseId, ...fields } = input;
+    const docRef = automationDocRef(this.db, accountId, databaseId, id);
+    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
+    await updateDoc(docRef, updates);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+    return toAutomation(id, snap.data() as Record<string, unknown>);
+  }
+
+  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
+    const docRef = automationDocRef(this.db, accountId, databaseId, id);
+    await deleteDoc(docRef);
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
+    const q = query(
+      automationsCol(this.db, accountId, databaseId),
+      where("databaseId", "==", databaseId),
+      orderBy("createdAtISO", "asc"),
     );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
   }
+}
+````
 
-  function handleDelete(id: string) {
-    setAutomations((prev) => prev.filter((a) => a.id !== id));
+## File: modules/knowledge-database/interfaces/_actions/knowledge-database-automation.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/_actions
+ * Purpose: Server Actions for DatabaseAutomation CRUD.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
+import {
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+} from "../../application/use-cases/automation.use-cases";
+import type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/entities/database-automation.entity";
+
+function makeAutomationRepo() { return new FirebaseAutomationRepository(); }
+
+export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
 
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">自動化規則</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {automations.length}
-          </span>
-        </div>
-        {!creating && (
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreating(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            新增規則
-          </Button>
-        )}
-      </div>
+export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
 
-      {/* Create form */}
-      {creating && (
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-medium">新規則</p>
-
-          <div className="space-y-1">
-            <Label className="text-xs">規則名稱</Label>
-            <Input
-              value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              placeholder="例如：建立後發送通知"
-              className="h-8 text-sm"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">觸發條件</Label>
-              <Select
-                value={draft.trigger}
-                onValueChange={(v) => setDraft((d) => ({ ...d, trigger: v as AutomationTrigger }))}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(TRIGGER_LABELS) as AutomationTrigger[]).map((t) => (
-                    <SelectItem key={t} value={t}>{TRIGGER_LABELS[t]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">執行動作</Label>
-              <Select
-                value={draft.actionType}
-                onValueChange={(v) => setDraft((d) => ({ ...d, actionType: v as AutomationActionType }))}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(ACTION_LABELS) as AutomationActionType[]).map((a) => (
-                    <SelectItem key={a} value={a}>{ACTION_LABELS[a]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">動作參數（選填）</Label>
-            <Input
-              value={draft.actionValue}
-              onChange={(e) => setDraft((d) => ({ ...d, actionValue: e.target.value }))}
-              placeholder={draft.actionType === "webhook" ? "https://..." : "訊息內容或欄位值"}
-              className="h-8 text-sm"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => { setCreating(false); setDraft(DEFAULT_DRAFT); }}>
-              取消
-            </Button>
-            <Button size="sm" disabled={!draft.name.trim()} onClick={handleSave}>
-              儲存
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      {automations.length === 0 && !creating ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
-          <Zap className="mx-auto mb-2 h-8 w-8 opacity-30" />
-          <p>尚無自動化規則</p>
-          <p className="text-xs mt-1">點擊「新增規則」來建立第一條規則</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border">
-          {automations.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
-              <button
-                type="button"
-                onClick={() => handleToggle(a.id)}
-                title={a.enabled ? "停用" : "啟用"}
-                className="shrink-0 text-muted-foreground hover:text-foreground"
-              >
-                {a.enabled
-                  ? <ToggleRight className="h-5 w-5 text-primary" />
-                  : <ToggleLeft className="h-5 w-5" />
-                }
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium truncate ${!a.enabled ? "line-through text-muted-foreground" : ""}`}>
-                  {a.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {TRIGGER_LABELS[a.trigger]} → {ACTION_LABELS[a.actions[0]?.type ?? "send_notification"]}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() => handleDelete(a.id)}
-                title="刪除"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+export async function deleteAutomation(
+  id: string,
+  accountId: string,
+  databaseId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 ````
 
@@ -52954,6 +53228,26 @@ export function DatabaseTableView({
       </Button>
     </div>
   );
+}
+````
+
+## File: modules/knowledge-database/interfaces/queries/knowledge-database-automation.queries.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/queries
+ * Purpose: Automation read-side queries.
+ */
+
+import type { DatabaseAutomation } from "../../domain/entities/database-automation.entity";
+import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
+import { ListAutomationsUseCase } from "../../application/use-cases/automation.use-cases";
+
+export async function getAutomations(
+  accountId: string,
+  databaseId: string,
+): Promise<DatabaseAutomation[]> {
+  return new ListAutomationsUseCase(new FirebaseAutomationRepository()).execute(accountId, databaseId);
 }
 ````
 
@@ -54524,6 +54818,195 @@ export { getNotificationsForRecipient } from "../interfaces/queries/notification
 
 - `../../../modules/notification/domain-services.md`
 - `../../../modules/notification/aggregates.md`
+````
+
+## File: modules/notification/interfaces/components/NotificationBell.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notification
+ * Layer: interfaces/components
+ * Purpose: Reusable notification bell with dropdown for shell header.
+ *
+ * Consumes use-cases via the module facade (no direct infrastructure imports).
+ * Server-action mutations are wired through the local _actions module.
+ */
+
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+interface NotificationBellProps {
+  readonly recipientId: string;
+}
+
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href="/settings/notifications"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 ````
 
 ## File: modules/notification/README.md
@@ -62901,327 +63384,6 @@ Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral
 - `../../modules/<context>/*.md` for bounded-context details
 ````
 
-## File: app/(shell)/knowledge-base/articles/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { BadgeCheck, BookOpen, ChevronDown, ChevronRight, CircleDot, FileClock, FolderOpen, Layers, Plus } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
-import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const STATUS_CONFIG: Record<ArticleStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
-  draft: { label: "草稿", variant: "outline" },
-  published: { label: "已發佈", variant: "default" },
-  archived: { label: "已封存", variant: "secondary" },
-};
-
-const VERIFICATION_CONFIG: Record<VerificationState, { label: string; icon: React.ElementType }> = {
-  verified: { label: "已驗證", icon: BadgeCheck },
-  needs_review: { label: "待審查", icon: FileClock },
-  unverified: { label: "未驗證", icon: CircleDot },
-};
-
-// ── Category tree helpers ────────────────────────────────────────────────────
-
-interface CategoryNode extends Category {
-  children: CategoryNode[];
-}
-
-function buildCategoryTree(categories: Category[]): CategoryNode[] {
-  const map = new Map<string, CategoryNode>();
-  for (const cat of categories) {
-    map.set(cat.id, { ...cat, children: [] });
-  }
-  const roots: CategoryNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentCategoryId) {
-      map.get(node.parentCategoryId)?.children.push(node);
-    } else {
-      roots.push(node);
-    }
-  }
-  return roots;
-}
-
-// ── Category tree panel ──────────────────────────────────────────────────────
-
-interface CategoryTreePanelProps {
-  categories: Category[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryTreePanel({ categories, selectedId, onSelect }: CategoryTreePanelProps) {
-  const roots = useMemo(() => buildCategoryTree(categories), [categories]);
-
-  return (
-    <aside className="w-52 shrink-0 space-y-1">
-      <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-        分類
-      </p>
-      <button
-        type="button"
-        onClick={() => onSelect(null)}
-        className={`flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors ${
-          selectedId === null
-            ? "bg-primary/10 text-primary font-medium"
-            : "text-foreground hover:bg-muted"
-        }`}
-      >
-        <Layers className="size-3.5 shrink-0 text-muted-foreground" />
-        全部文章
-      </button>
-      {roots.map((node) => (
-        <CategoryNodeRow
-          key={node.id}
-          node={node}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
-      ))}
-      {categories.length === 0 && (
-        <p className="px-2 text-xs text-muted-foreground/60">尚無分類</p>
-      )}
-    </aside>
-  );
-}
-
-interface CategoryNodeRowProps {
-  node: CategoryNode;
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-}
-
-function CategoryNodeRow({ node, selectedId, onSelect }: CategoryNodeRowProps) {
-  const [expanded, setExpanded] = useState(true);
-  const hasChildren = node.children.length > 0;
-  const isSelected = selectedId === node.id;
-
-  return (
-    <div>
-      <div className="flex items-center gap-0.5">
-        <button
-          type="button"
-          onClick={() => setExpanded((v) => !v)}
-          className="p-0.5 text-muted-foreground opacity-0 transition hover:opacity-100"
-          style={{ visibility: hasChildren ? "visible" : "hidden" }}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {expanded ? (
-            <ChevronDown className="size-3" />
-          ) : (
-            <ChevronRight className="size-3" />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onSelect(node.id)}
-          className={`flex flex-1 items-center gap-2 rounded-md px-2 py-1 text-left text-sm transition-colors ${
-            isSelected
-              ? "bg-primary/10 text-primary font-medium"
-              : "text-foreground hover:bg-muted"
-          }`}
-        >
-          <FolderOpen className="size-3.5 shrink-0 text-muted-foreground" />
-          <span className="truncate">{node.name}</span>
-          {node.articleIds.length > 0 && (
-            <span className="ml-auto text-[10px] text-muted-foreground/60">
-              {node.articleIds.length}
-            </span>
-          )}
-        </button>
-      </div>
-      {hasChildren && expanded && (
-        <div className="ml-4 space-y-0.5 border-l border-border/40 pl-1">
-          {node.children.map((child) => (
-            <CategoryNodeRow
-              key={child.id}
-              node={child}
-              selectedId={selectedId}
-              onSelect={onSelect}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Main page ────────────────────────────────────────────────────────────────
-
-export default function KnowledgeBaseArticlesPage() {
-  const router = useRouter();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const workspaceId = appState.activeWorkspaceId ?? "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    if (!accountId || !workspaceId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const [arts, cats] = await Promise.all([
-        getArticles({ accountId, workspaceId }),
-        getCategories(accountId, workspaceId),
-      ]);
-      setArticles(arts);
-      setCategories(cats);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const filteredArticles = useMemo(() => {
-    if (!selectedCategoryId) return articles;
-    const cat = categories.find((c) => c.id === selectedCategoryId);
-    if (!cat) return articles;
-    return articles.filter((a) => cat.articleIds.includes(a.id));
-  }, [articles, categories, selectedCategoryId]);
-
-  function handleSuccess(articleId?: string) {
-    if (articleId) {
-      router.push(`/knowledge-base/articles/${articleId}`);
-    } else {
-      load();
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Base</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文章</h1>
-        <p className="text-sm text-muted-foreground">
-          組織知識庫的 SOP 文章、通用文件與驗證管治。
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-        <Button
-          size="sm"
-          className="ml-auto"
-          disabled={!accountId || !workspaceId}
-          onClick={() => setDialogOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          新增文章
-        </Button>
-      </div>
-
-      <ArticleDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        categories={categories}
-        onSuccess={handleSuccess}
-      />
-
-      {!accountId || !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號/工作區情境，請先登入或切換帳號。
-        </p>
-      ) : loading ? (
-        <div className="flex gap-4">
-          <Skeleton className="h-48 w-52 shrink-0 rounded-lg" />
-          <div className="grid flex-1 gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-28 w-full rounded-lg" />
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="flex gap-4">
-          <CategoryTreePanel
-            categories={categories}
-            selectedId={selectedCategoryId}
-            onSelect={setSelectedCategoryId}
-          />
-
-          <div className="flex-1">
-            {filteredArticles.length === 0 ? (
-              <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-10 text-center">
-                <BookOpen className="h-8 w-8 text-muted-foreground/50" />
-                <p className="text-sm text-muted-foreground">
-                  {selectedCategoryId ? "此分類尚無文章。" : "尚無文章。點擊「新增文章」開始建立。"}
-                </p>
-              </div>
-            ) : (
-              <div className="grid gap-3 sm:grid-cols-2">
-                {filteredArticles.map((article) => {
-                  const status = STATUS_CONFIG[article.status];
-                  const veri = VERIFICATION_CONFIG[article.verificationState];
-                  const VeriIcon = veri.icon;
-                  return (
-                    <Card
-                      key={article.id}
-                      className="cursor-pointer hover:bg-muted/10 transition-colors"
-                      onClick={() => router.push(`/knowledge-base/articles/${article.id}`)}
-                    >
-                      <CardHeader className="pb-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <CardTitle className="line-clamp-2 text-sm font-medium">{article.title}</CardTitle>
-                          <Badge variant={status.variant} className="shrink-0 text-[10px]">{status.label}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <VeriIcon className="h-3 w-3" />
-                          <span>{veri.label}</span>
-                        </div>
-                        {article.tags.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {article.tags.slice(0, 3).map((tag) => (
-                              <span key={tag} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
-                                {tag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                        <p className="text-[10px] text-muted-foreground/70">
-                          v{article.version} · {new Date(article.updatedAtISO).toLocaleDateString("zh-TW")}
-                        </p>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/workspaces/page.tsx
 ````typescript
 "use client";
@@ -64368,231 +64530,6 @@ export default eslintConfig;
 | `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
 ````
 
-## File: modules/knowledge-base/infrastructure/firebase/FirebaseArticleRepository.ts
-````typescript
-/**
- * Module: knowledge-base
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/kbArticles/{articleId}
- */
-
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { Article, ArticleStatus } from "../../domain/entities/article.entity";
-import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
-
-function articlesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "kbArticles");
-}
-
-function articleDoc(db: ReturnType<typeof getFirestore>, accountId: string, articleId: string) {
-  return doc(db, "accounts", accountId, "kbArticles", articleId);
-}
-
-function toArticle(id: string, data: Record<string, unknown>): Article {
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    categoryId: typeof data.categoryId === "string" ? data.categoryId : null,
-    title: typeof data.title === "string" ? data.title : "",
-    content: typeof data.content === "string" ? data.content : "",
-    tags: Array.isArray(data.tags)
-      ? (data.tags as unknown[]).filter((t): t is string => typeof t === "string")
-      : [],
-    status: (data.status as ArticleStatus) ?? "draft",
-    version: typeof data.version === "number" ? data.version : 1,
-    verificationState: (data.verificationState as Article["verificationState"]) ?? "unverified",
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : null,
-    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : null,
-    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : null,
-    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : null,
-    linkedArticleIds: Array.isArray(data.linkedArticleIds)
-      ? (data.linkedArticleIds as unknown[]).filter((l): l is string => typeof l === "string")
-      : [],
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseArticleRepository implements IArticleRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async getById(_articleId: string): Promise<Article> {
-    // Note: _articleId must be scoped with accountId in compound queries;
-    // for direct lookup we search across all accounts via collectionGroup if needed.
-    // At this layer we expect callers to use listByWorkspace for discovery.
-    // We cannot getById without accountId — this is a limitation of the Firestore path.
-    // The article id from use-cases already has accountId in context.
-    // We'll need to resolve via a workspace-scoped query. For now, search by docId broadly.
-    // This is why save() stores accountId in the doc itself.
-    throw new Error("Use getArticleById(accountId, articleId) instead");
-  }
-
-  async getArticleById(accountId: string, articleId: string): Promise<Article | null> {
-    const db = this.db();
-    const snap = await getDoc(articleDoc(db, accountId, articleId));
-    if (!snap.exists()) return null;
-    return toArticle(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async list(params: {
-    workspaceId: string;
-    accountId: string;
-    categoryId?: string;
-    status?: ArticleStatus;
-    limit?: number;
-  }): Promise<Article[]> {
-    const db = this.db();
-    let q = query(articlesCol(db, params.accountId), where("workspaceId", "==", params.workspaceId));
-    if (params.categoryId) {
-      q = query(q, where("categoryId", "==", params.categoryId));
-    }
-    if (params.status) {
-      q = query(q, where("status", "==", params.status));
-    }
-    q = query(q, orderBy("createdAtISO", "desc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toArticle(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async search(_params: { workspaceId: string; query: string; limit?: number }): Promise<Article[]> {
-    // Full-text search is not supported by Firestore; delegate to search module.
-    return [];
-  }
-
-  async save(article: Article): Promise<void> {
-    const db = this.db();
-    const ref = articleDoc(db, article.accountId, article.id);
-    const { id: _id, ...data } = article;
-    await setDoc(ref, { ...data, _createdAt: serverTimestamp() }, { merge: true });
-  }
-
-  async getByIds(_articleIds: string[]): Promise<Article[]> {
-    // Must be called with accountId; not feasible without extra context.
-    return [];
-  }
-
-  async findByLinkedArticleId(_articleId: string): Promise<Article[]> {
-    // Cross-account lookup not supported without accountId scope.
-    return [];
-  }
-
-  async listByLinkedArticleId(accountId: string, articleId: string): Promise<Article[]> {
-    const db = this.db();
-    const q = query(
-      articlesCol(db, accountId),
-      where("linkedArticleIds", "array-contains", articleId),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toArticle(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async delete(_articleId: string): Promise<void> {
-    // articleId alone is insufficient — callers should use deleteArticle(accountId, articleId).
-    throw new Error("Use deleteArticle(accountId, articleId) instead");
-  }
-
-  async deleteArticle(accountId: string, articleId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(articleDoc(db, accountId, articleId));
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/dto
- */
-
-import { z } from "@lib-zod";
-
-const ContentScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-// ── Comment ───────────────────────────────────────────────────────────────────
-
-export const CreateCommentSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  authorId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-  parentCommentId: z.string().min(1).nullable().optional(),
-  blockId: z.string().min(1).nullable().optional(),
-  selectionRange: z
-    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
-    .nullable()
-    .optional(),
-});
-export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
-
-export const UpdateCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-});
-export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
-
-export const ResolveCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  resolvedByUserId: z.string().min(1),
-});
-export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
-
-export const DeleteCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
-
-// ── Version ───────────────────────────────────────────────────────────────────
-
-export const CreateVersionSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  snapshotBlocks: z.array(z.unknown()),
-  label: z.string().max(200).nullable().optional(),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
-
-export const DeleteVersionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
-
-// ── Permission ────────────────────────────────────────────────────────────────
-
-export const GrantPermissionSchema = ContentScopeSchema.extend({
-  subjectId: z.string().min(1),
-  subjectType: z.enum(["page", "article", "database"]),
-  principalId: z.string().min(1),
-  principalType: z.enum(["user", "team", "public", "link"]),
-  level: z.enum(["view", "comment", "edit", "full"]),
-  grantedByUserId: z.string().min(1),
-  expiresAtISO: z.string().nullable().optional(),
-  linkToken: z.string().min(1).nullable().optional(),
-});
-export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
-
-export const RevokePermissionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
-````
-
 ## File: modules/knowledge-database/application/services/field-computation.service.ts
 ````typescript
 /**
@@ -64787,6 +64724,87 @@ export function resolveComputedFields(input: {
 → [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
 ````
 
+## File: modules/knowledge-database/domain/entities/database-automation.entity.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/entities
+ * Purpose: DatabaseAutomation — rules that trigger actions when database records change.
+ *
+ * Notion-equivalent: "Automations" tab on a database.
+ * Trigger + Action pairs. Execution is handled by a background worker (QStash).
+ */
+
+export type AutomationTrigger =
+  | "record_created"
+  | "record_updated"
+  | "record_deleted"
+  | "property_changed";
+
+export type AutomationActionType =
+  | "send_notification"
+  | "update_property"
+  | "create_record"
+  | "webhook";
+
+export interface AutomationCondition {
+  /** Field name to evaluate */
+  fieldId: string;
+  operator: "equals" | "not_equals" | "is_empty" | "is_not_empty" | "contains";
+  value?: string;
+}
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  /** Payload depends on type:
+   *  send_notification → { recipientId, message }
+   *  update_property   → { fieldId, value }
+   *  create_record     → { databaseId }
+   *  webhook           → { url, method }
+   */
+  config: Record<string, string>;
+}
+
+export interface DatabaseAutomation {
+  id: string;
+  databaseId: string;
+  accountId: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  /** Field that must change — only relevant for "property_changed" trigger */
+  triggerFieldId?: string;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+export interface CreateAutomationInput {
+  databaseId: string;
+  accountId: string;
+  name: string;
+  trigger: AutomationTrigger;
+  triggerFieldId?: string;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+  createdByUserId: string;
+}
+
+export interface UpdateAutomationInput {
+  id: string;
+  accountId: string;
+  databaseId: string;
+  name?: string;
+  enabled?: boolean;
+  trigger?: AutomationTrigger;
+  triggerFieldId?: string;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+}
+````
+
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
 ````typescript
 /**
@@ -64892,6 +64910,284 @@ export class FirebaseRecordRepository implements IDatabaseRecordRepository {
     const snaps = await getDocs(q);
     return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
   }
+}
+````
+
+## File: modules/knowledge-database/interfaces/components/DatabaseAutomationView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/components
+ * Purpose: DatabaseAutomationView — manage automation rules for a Database.
+ *
+ * Notion-equivalent: Database > "Automations" panel.
+ * Renders a list of existing automations and a creator for new ones.
+ * Actual execution is handled server-side; this component is management UI only.
+ */
+
+import { Plus, Zap, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+} from "../../domain/entities/database-automation.entity";
+import {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../_actions/knowledge-database-automation.actions";
+import { getAutomations } from "../queries/knowledge-database-automation.queries";
+
+// ── Trigger labels ─────────────────────────────────────────────────────────────
+const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
+  record_created: "建立記錄時",
+  record_updated: "更新記錄時",
+  record_deleted: "刪除記錄時",
+  property_changed: "屬性變更時",
+};
+
+const ACTION_LABELS: Record<AutomationActionType, string> = {
+  send_notification: "發送通知",
+  update_property: "更新屬性",
+  create_record: "建立記錄",
+  webhook: "呼叫 Webhook",
+};
+
+interface DatabaseAutomationViewProps {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
+}
+
+interface DraftAutomation {
+  name: string;
+  trigger: AutomationTrigger;
+  actionType: AutomationActionType;
+  actionValue: string;
+}
+
+const DEFAULT_DRAFT: DraftAutomation = {
+  name: "",
+  trigger: "record_created",
+  actionType: "send_notification",
+  actionValue: "",
+};
+
+export function DatabaseAutomationView({
+  databaseId,
+  accountId,
+  currentUserId,
+}: DatabaseAutomationViewProps) {
+  const [automations, setAutomations] = useState<DatabaseAutomation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState<DraftAutomation>(DEFAULT_DRAFT);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await getAutomations(accountId, databaseId);
+      setAutomations(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function handleSave() {
+    if (!draft.name.trim()) return;
+    await createAutomation({
+      databaseId,
+      accountId,
+      name: draft.name.trim(),
+      trigger: draft.trigger,
+      conditions: [],
+      actions: [{ type: draft.actionType, config: { value: draft.actionValue } }],
+      createdByUserId: currentUserId,
+    });
+    setDraft(DEFAULT_DRAFT);
+    setCreating(false);
+    await refresh();
+  }
+
+  async function handleToggle(automation: DatabaseAutomation) {
+    setAutomations((prev) =>
+      prev.map((a) => a.id === automation.id ? { ...a, enabled: !a.enabled } : a),
+    );
+    await updateAutomation({
+      id: automation.id,
+      accountId,
+      databaseId,
+      enabled: !automation.enabled,
+    });
+    await refresh();
+  }
+
+  async function handleDelete(id: string) {
+    setAutomations((prev) => prev.filter((a) => a.id !== id));
+    await deleteAutomation(id, accountId, databaseId);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">自動化規則</span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {automations.length}
+          </span>
+        </div>
+        {!creating && (
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreating(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            新增規則
+          </Button>
+        )}
+      </div>
+
+      {/* Create form */}
+      {creating && (
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+          <p className="text-sm font-medium">新規則</p>
+
+          <div className="space-y-1">
+            <Label className="text-xs">規則名稱</Label>
+            <Input
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder="例如：建立後發送通知"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">觸發條件</Label>
+              <Select
+                value={draft.trigger}
+                onValueChange={(v) => setDraft((d) => ({ ...d, trigger: v as AutomationTrigger }))}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TRIGGER_LABELS) as AutomationTrigger[]).map((t) => (
+                    <SelectItem key={t} value={t}>{TRIGGER_LABELS[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">執行動作</Label>
+              <Select
+                value={draft.actionType}
+                onValueChange={(v) => setDraft((d) => ({ ...d, actionType: v as AutomationActionType }))}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ACTION_LABELS) as AutomationActionType[]).map((a) => (
+                    <SelectItem key={a} value={a}>{ACTION_LABELS[a]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">動作參數（選填）</Label>
+            <Input
+              value={draft.actionValue}
+              onChange={(e) => setDraft((d) => ({ ...d, actionValue: e.target.value }))}
+              placeholder={draft.actionType === "webhook" ? "https://..." : "訊息內容或欄位值"}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => { setCreating(false); setDraft(DEFAULT_DRAFT); }}>
+              取消
+            </Button>
+            <Button size="sm" disabled={!draft.name.trim()} onClick={() => void handleSave()}>
+              儲存
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* List */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
+          ))}
+        </div>
+      ) : automations.length === 0 && !creating ? (
+        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <Zap className="mx-auto mb-2 h-8 w-8 opacity-30" />
+          <p>尚無自動化規則</p>
+          <p className="text-xs mt-1">點擊「新增規則」來建立第一條規則</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {automations.map((a) => (
+            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => void handleToggle(a)}
+                title={a.enabled ? "停用" : "啟用"}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                {a.enabled
+                  ? <ToggleRight className="h-5 w-5 text-primary" />
+                  : <ToggleLeft className="h-5 w-5" />
+                }
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium truncate ${!a.enabled ? "line-through text-muted-foreground" : ""}`}>
+                  {a.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {TRIGGER_LABELS[a.trigger]} → {ACTION_LABELS[a.actions[0]?.type ?? "send_notification"]}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => void handleDelete(a.id)}
+                title="刪除"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 ````
 
@@ -67624,579 +67920,6 @@ Any of the following require a context7 lookup before proceeding:
 - Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
-````typescript
-"use client";
-
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  BookOpen,
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FileText,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  Table2,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
-}
-
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
-  activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
-  isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Hub ──────────────────────────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── Content ──────────────────────────────────────────────────────
-    {
-      href: "/knowledge/pages",
-      label: "知識頁面",
-      icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
-    },
-    {
-      href: "/knowledge-base/articles",
-      label: "文章庫",
-      icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
-    },
-    {
-      href: "/knowledge-database/databases",
-      label: "資料庫",
-      icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
-  return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
-        open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
-        open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </TooltipProvider>
-  );
-}
-````
-
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
 ````typescript
 "use client";
@@ -69575,6 +69298,96 @@ export default function DatabaseDetailPage() {
 | 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
 | 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
 | 下游 | `notification`, `workspace-feed` | Published Language |
+````
+
+## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/dto
+ */
+
+import { z } from "@lib-zod";
+
+const ContentScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+// ── Comment ───────────────────────────────────────────────────────────────────
+
+export const CreateCommentSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  authorId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+  parentCommentId: z.string().min(1).nullable().optional(),
+  blockId: z.string().min(1).nullable().optional(),
+  mentionedUserIds: z.array(z.string().min(1)).optional(),
+  selectionRange: z
+    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
+    .nullable()
+    .optional(),
+});
+export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
+
+export const UpdateCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+});
+export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
+
+export const ResolveCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  resolvedByUserId: z.string().min(1),
+});
+export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
+
+export const DeleteCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
+
+// ── Version ───────────────────────────────────────────────────────────────────
+
+export const CreateVersionSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  snapshotBlocks: z.array(z.unknown()),
+  label: z.string().max(200).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
+
+export const DeleteVersionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
+
+// ── Permission ────────────────────────────────────────────────────────────────
+
+export const GrantPermissionSchema = ContentScopeSchema.extend({
+  subjectId: z.string().min(1),
+  subjectType: z.enum(["page", "article", "database"]),
+  principalId: z.string().min(1),
+  principalType: z.enum(["user", "team", "public", "link"]),
+  level: z.enum(["view", "comment", "edit", "full"]),
+  grantedByUserId: z.string().min(1),
+  expiresAtISO: z.string().nullable().optional(),
+  linkToken: z.string().min(1).nullable().optional(),
+});
+export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
+
+export const RevokePermissionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
 ````
 
 ## File: modules/knowledge-database/README.md
@@ -71257,6 +71070,586 @@ export interface UpdateTaskInput {
 }
 ````
 
+## File: app/(shell)/_components/app-rail.tsx
+````typescript
+"use client";
+
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
+
+import Link from "next/link";
+import {
+  BookOpen,
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  Rss,
+  SlidersHorizontal,
+  Table2,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { type FormEvent, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { createOrganization } from "@/modules/organization/api";
+import {
+  createWorkspace,
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import { Input } from "@ui-shadcn/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
+}
+
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
+}
+
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  function resetDialog() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  function resetWorkspaceDialog() {
+    setWorkspaceName("");
+    setWorkspaceCreateError(null);
+    setIsCreatingWorkspace(false);
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setWorkspaceCreateError("請輸入工作區名稱。");
+      return;
+    }
+    if (!activeAccount) {
+      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+    setIsCreatingWorkspace(true);
+    setWorkspaceCreateError(null);
+    const result = await createWorkspace({
+      name,
+      accountId: activeAccount.id,
+      accountType: isOrganizationAccount ? "organization" : "user",
+    });
+    if (!result.success) {
+      setWorkspaceCreateError(result.error.message);
+      setIsCreatingWorkspace(false);
+      return;
+    }
+    resetWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    router.push("/workspace");
+  }
+
+  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    resetDialog();
+    setIsCreateOrgOpen(false);
+    router.push("/organization");
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  const railItems: RailItem[] = [
+    // ── Hub ──────────────────────────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── Content ──────────────────────────────────────────────────────
+    {
+      href: "/knowledge/pages",
+      label: "知識頁面",
+      icon: <FileText className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
+    },
+    {
+      href: "/knowledge-base/articles",
+      label: "文章庫",
+      icon: <BookOpen className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
+    },
+    {
+      href: "/knowledge-database/databases",
+      label: "資料庫",
+      icon: <Table2 className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
+    },
+    {
+      href: "/workspace-feed",
+      label: "動態消息",
+      icon: <Rss className="size-[18px]" />,
+      isActive: (currentPathname) => isExactOrChildPath("/workspace-feed", currentPathname),
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
+
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
+
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
+    [workspaces],
+  );
+
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
+
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <Dialog
+        open={isCreateOrgOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrgOpen(open);
+          if (!open) resetDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-org-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="rail-create-org-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateOrg}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="rail-organization-name"
+                value={orgName}
+                onChange={(e) => {
+                  setOrgName(e.target.value);
+                  if (orgError) setOrgError(null);
+                }}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreating}
+                maxLength={80}
+              />
+              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetDialog();
+                  setIsCreateOrgOpen(false);
+                }}
+                disabled={isCreating}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreating || !user}>
+                {isCreating ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <Dialog
+        open={isCreateWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetWorkspaceDialog();
+        }}
+      >
+        <DialogContent aria-describedby="rail-create-workspace-description">
+          <DialogHeader>
+            <DialogTitle>建立新工作區</DialogTitle>
+            <DialogDescription id="rail-create-workspace-description">
+              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+                工作區名稱
+              </label>
+              <Input
+                id="rail-workspace-name"
+                value={workspaceName}
+                onChange={(e) => {
+                  setWorkspaceName(e.target.value);
+                  if (workspaceCreateError) setWorkspaceCreateError(null);
+                }}
+                placeholder="例如：Project Alpha"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingWorkspace}
+                maxLength={80}
+              />
+              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetWorkspaceDialog();
+                  setIsCreateWorkspaceOpen(false);
+                }}
+                disabled={isCreatingWorkspace}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
+                {isCreatingWorkspace ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </TooltipProvider>
+  );
+}
+````
+
 ## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
 ````typescript
 "use client";
@@ -71704,91 +72097,6 @@ export default function KnowledgePageDetailPage() {
     </div>
   );
 }
-````
-
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
-
-// UI Components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-
-// Form entity types
-export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
-
-// Automation entity types
-export type {
-  DatabaseAutomation,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/entities/database-automation.entity";
-
-// UI Components (automation)
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-
-// ── FieldComputationService ────────────────────────────────────────────────────
-export type {
-  RelationFieldConfig,
-  RelationValue,
-  FormulaFieldConfig,
-  FormulaResult,
-  RollupFieldConfig,
-  RollupAggregation,
-  RollupResult,
-  ComputedFieldValue,
-} from "../application/services/field-computation.service";
-export {
-  resolveRelationValue,
-  evaluateFormula,
-  computeRollup,
-  resolveComputedFields,
-} from "../application/services/field-computation.service";
 ````
 
 ## File: modules/knowledge/api/knowledge-api.ts
@@ -72710,6 +73018,101 @@ function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }: TypeS
 
 > `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: modules/knowledge-database/api/index.ts
+````typescript
+/**
+ * knowledge-database public API boundary
+ */
+
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
+
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
+
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/knowledge-database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
+
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+
+// Form entity types
+export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
+
+// Automation entity types
+export type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/entities/database-automation.entity";
+
+// UI Components (automation)
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+
+// Automation server actions
+export {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/knowledge-database-automation.actions";
+
+// Automation queries
+export { getAutomations } from "../interfaces/queries/knowledge-database-automation.queries";
+
+// ── FieldComputationService ────────────────────────────────────────────────────
+export type {
+  RelationFieldConfig,
+  RelationValue,
+  FormulaFieldConfig,
+  FormulaResult,
+  RollupFieldConfig,
+  RollupAggregation,
+  RollupResult,
+  ComputedFieldValue,
+} from "../application/services/field-computation.service";
+export {
+  resolveRelationValue,
+  evaluateFormula,
+  computeRollup,
+  resolveComputedFields,
+} from "../application/services/field-computation.service";
 ````
 
 ## File: modules/knowledge/AGENT.md
