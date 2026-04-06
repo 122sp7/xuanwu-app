@@ -1,9 +1,5 @@
 """
 RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
-
-Text-processing helpers (clean_text, chunk_text, detect_language_hint)
-live in domain.services.rag_ingestion_text and are re-exported here for
-backward compatibility with existing callers.
 """
 
 from __future__ import annotations
@@ -26,14 +22,6 @@ from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
 from domain.services.rag_ingestion_text import clean_text, chunk_text, detect_language_hint
 
 logger = logging.getLogger(__name__)
-
-# Re-export for callers that import directly from this module.
-__all__ = [
-    "ingest_document_for_rag",
-    "clean_text",
-    "chunk_text",
-    "detect_language_hint",
-]
 
 
 def ingest_document_for_rag(
