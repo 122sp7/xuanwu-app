@@ -38,30 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-969 files | 66,582 lines
+1024 files | 70,535 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 415 | 24,277 |
-| Markdown | 295 | 13,956 |
-| TypeScript (TSX) | 131 | 22,059 |
+| TypeScript | 437 | 26,345 |
+| Markdown | 297 | 13,089 |
+| TypeScript (TSX) | 162 | 24,705 |
 | No Extension | 52 | 136 |
 | Python | 49 | 3,532 |
 | MERMAID | 10 | 583 |
-| JSON | 8 | 866 |
+| JSON | 8 | 874 |
 | RULES | 2 | 18 |
-| JavaScript (ESM) | 2 | 357 |
+| JavaScript (ESM) | 2 | 386 |
 | Text | 2 | 114 |
-| Other | 3 | 684 |
+| Other | 3 | 753 |
 
 **Largest files:**
-- `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,112 lines)
-- `app/(shell)/_components/dashboard-sidebar.tsx` (953 lines)
 - `docs/guides/explanation/architecture.md` (942 lines)
-- `modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx` (936 lines)
-- `docs/guides/explanation/architecture-domain.md` (925 lines)
+- `app/(shell)/_components/dashboard-sidebar.tsx` (894 lines)
 - `app/(shell)/dev-tools/page.tsx` (872 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `modules/search/interfaces/components/RagView.tsx` (659 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (611 lines)
-- `app/(shell)/_components/app-rail.tsx` (569 lines)
+- `app/(shell)/_components/app-rail.tsx` (576 lines)
+- `py_fn/src/infrastructure/external/upstash/clients.py` (538 lines)
+- `py_fn/src/interface/handlers/https.py` (515 lines)
+- `scripts/init-framework.sh` (492 lines)
+- `modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (445 lines)

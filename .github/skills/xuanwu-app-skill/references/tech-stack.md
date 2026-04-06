@@ -20,6 +20,14 @@
 - @tanstack/react-query (^5.90.21)
 - @tanstack/react-table (^8.21.3)
 - @tanstack/react-virtual (^3.13.23)
+- @tiptap/extension-color (^3.22.2)
+- @tiptap/extension-link (^3.22.2)
+- @tiptap/extension-placeholder (^3.22.2)
+- @tiptap/extension-text-style (^3.22.2)
+- @tiptap/extension-typography (^3.22.2)
+- @tiptap/extension-underline (^3.22.2)
+- @tiptap/react (^3.22.2)
+- @tiptap/starter-kit (^3.22.2)
 - @trpc/client (^11.13.4)
 - @trpc/next (^11.13.4)
 - @trpc/react-query (^11.13.4)
@@ -87,5 +95,5 @@
 - .gitattributes
 - tsconfig.json
 - .gitignore
-- eslint.config.mjs
 - package.json
+- eslint.config.mjs
