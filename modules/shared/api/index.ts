@@ -34,3 +34,4 @@ export { PublishDomainEventUseCase } from "../application/publish-domain-event";
 export type { PublishDomainEventDTO } from "../application/publish-domain-event";
 export { InMemoryEventStoreRepository } from "../infrastructure/InMemoryEventStoreRepository";
 export { NoopEventBusRepository } from "../infrastructure/NoopEventBusRepository";
+export { QStashEventBusRepository } from "../infrastructure/QStashEventBusRepository";

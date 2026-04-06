@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, PlusCircle } from "lucide-react";
+import { ArrowLeft, Archive, PlusCircle, Table2, Kanban, List } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -11,6 +11,8 @@ import {
   addDatabaseField,
   archiveDatabase,
   DatabaseTableView,
+  DatabaseBoardView,
+  DatabaseListView,
 } from "@/modules/knowledge-database/api";
 import type { Database, FieldType } from "@/modules/knowledge-database/api";
 import { Button } from "@ui-shadcn/ui/button";
@@ -118,6 +120,7 @@ export default function DatabaseDetailPage() {
   const [database, setDatabase] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list">("table");
   const [isPending, startTransition] = useTransition();
 
   const load = useCallback(async () => {
@@ -173,21 +176,14 @@ export default function DatabaseDetailPage() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
+      {/* Top bar */}
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge-database/databases")}>
           <ArrowLeft className="mr-1.5 h-4 w-4" /> 資料庫列表
         </Button>
-        <div className="ml-auto flex items-center gap-2">
-          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
-            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
-          </Button>
-          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
-            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
-          </Button>
-        </div>
       </div>
 
+      {/* Page header */}
       <header className="space-y-1 border-b border-border/60 pb-4">
         <div className="flex items-center gap-2">
           {database.icon && <span className="text-xl">{database.icon}</span>}
@@ -201,13 +197,69 @@ export default function DatabaseDetailPage() {
         </p>
       </header>
 
-      {/* Table View */}
-      <DatabaseTableView
-        database={database}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-      />
+      {/* View switcher + actions */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-md border border-border/60 p-0.5">
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            title="表格視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "table" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Table2 className="h-3 w-3" /> 表格
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("board")}
+            title="看板視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "board" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Kanban className="h-3 w-3" /> 看板
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("list")}
+            title="清單視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <List className="h-3 w-3" /> 清單
+          </button>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
+            <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleArchive} disabled={isPending}>
+            <Archive className="mr-1.5 h-3.5 w-3.5" /> 封存
+          </Button>
+        </div>
+      </div>
+
+      {/* View */}
+      {viewMode === "table" && (
+        <DatabaseTableView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "board" && (
+        <DatabaseBoardView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "list" && (
+        <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
 
       <AddFieldDialog
         open={addFieldOpen}

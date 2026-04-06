@@ -35,7 +35,7 @@ import {
 import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseContentPageRepository";
 import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
 import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import { InMemoryEventStoreRepository, NoopEventBusRepository } from "@/modules/shared/api";
+import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";
 import { v7 as generateId } from "@lib-uuid";
 import type {
   CreateKnowledgePageDto,
@@ -175,10 +175,14 @@ export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Prom
     // causationId is generated at the action layer (command origin) to ensure
     // proper command-event causality tracing as described in ADR-001.
     const causationId = input.causationId ?? generateId();
+    // Use QStash when configured; fall back to Noop for local / unconfigured envs.
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
     return await new ApproveKnowledgePageUseCase(
       makePageRepo(),
       new InMemoryEventStoreRepository(),
-      new NoopEventBusRepository(),
+      eventBus,
     ).execute({ ...input, causationId });
   } catch (err) {
     return commandFailureFrom(

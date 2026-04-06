@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, Check, Pencil } from "lucide-react";
+import { ArrowLeft, Archive, Check, MessageSquare, Pencil, X } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -13,6 +13,7 @@ import {
   PageEditorView,
 } from "@/modules/knowledge/api";
 import type { KnowledgePage } from "@/modules/knowledge/api";
+import { CommentPanel } from "@/modules/knowledge-collaboration/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Input } from "@ui-shadcn/ui/input";
 import { Badge } from "@ui-shadcn/ui/badge";
@@ -108,6 +109,7 @@ export default function KnowledgePageDetailPage() {
 
   const [page, setPage] = useState<KnowledgePage | null>(null);
   const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
 
   const load = useCallback(async () => {
@@ -184,6 +186,14 @@ export default function KnowledgePageDetailPage() {
           頁面列表
         </Button>
         <div className="ml-auto flex items-center gap-2">
+          <Button
+            size="sm"
+            variant={commentOpen ? "default" : "outline"}
+            onClick={() => setCommentOpen((v) => !v)}
+          >
+            <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+            留言
+          </Button>
           {page.status === "active" && (
             <Button
               size="sm"
@@ -222,12 +232,42 @@ export default function KnowledgePageDetailPage() {
         </div>
       </header>
 
-      {/* Block editor — connected to Firebase */}
-      {accountId ? (
-        <PageEditorView accountId={accountId} pageId={pageId} />
-      ) : (
-        <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-      )}
+      {/* Main content + optional comment side panel */}
+      <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+        {/* Block editor — connected to Firebase */}
+        <div className="min-w-0 flex-1">
+          {accountId ? (
+            <PageEditorView accountId={accountId} pageId={pageId} />
+          ) : (
+            <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+          )}
+        </div>
+
+        {/* Comment panel — slides in from right */}
+        {commentOpen && accountId && (
+          <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+            <div className="mb-3 flex items-center gap-2">
+              <MessageSquare className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">留言</span>
+              <button
+                type="button"
+                onClick={() => setCommentOpen(false)}
+                className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                aria-label="關閉留言面板"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            <CommentPanel
+              accountId={accountId}
+              workspaceId={appState.activeWorkspaceId ?? ""}
+              contentId={pageId}
+              contentType="page"
+              currentUserId={authState.user?.id ?? ""}
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }

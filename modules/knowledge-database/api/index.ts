@@ -39,3 +39,5 @@ export {
 // UI Components
 export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
 export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
