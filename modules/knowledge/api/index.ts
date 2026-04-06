@@ -49,6 +49,8 @@ export {
   verifyKnowledgePage,
   requestKnowledgePageReview,
   assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
 } from "../interfaces/_actions/knowledge.actions";
 
 export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";

@@ -18,6 +18,8 @@ import {
   VerifyKnowledgePageUseCase,
   RequestPageReviewUseCase,
   AssignPageOwnerUseCase,
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
 } from "../../application/use-cases/knowledge-page.use-cases";
 import {
   AddKnowledgeBlockUseCase,
@@ -57,6 +59,8 @@ import type {
   VerifyKnowledgePageDto,
   RequestPageReviewDto,
   AssignPageOwnerDto,
+  UpdatePageIconDto,
+  UpdatePageCoverDto,
 } from "../../application/dto/knowledge.dto";
 
 function makePageRepo() {
@@ -306,6 +310,32 @@ export async function assignKnowledgePageOwner(
   } catch (err) {
     return commandFailureFrom(
       "CONTENT_PAGE_ASSIGN_OWNER_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function updateKnowledgePageIcon(
+  input: UpdatePageIconDto,
+): Promise<CommandResult> {
+  try {
+    return await new UpdatePageIconUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_ICON_UPDATE_FAILED",
+      err instanceof Error ? err.message : "Unexpected error",
+    );
+  }
+}
+
+export async function updateKnowledgePageCover(
+  input: UpdatePageCoverDto,
+): Promise<CommandResult> {
+  try {
+    return await new UpdatePageCoverUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom(
+      "CONTENT_PAGE_COVER_UPDATE_FAILED",
       err instanceof Error ? err.message : "Unexpected error",
     );
   }

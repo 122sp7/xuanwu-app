@@ -24,6 +24,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import { Node, mergeAttributes } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { Underline } from "@tiptap/extension-underline";
@@ -48,6 +49,9 @@ import {
   Undo,
   Redo,
   Loader2,
+  AlertCircle,
+  ChevronRight,
+  TableOfContents,
 } from "lucide-react";
 
 import { getKnowledgeBlocks } from "../queries/knowledge.queries";
@@ -57,6 +61,83 @@ import {
 } from "../_actions/knowledge.actions";
 import type { BlockContent } from "../../domain/value-objects/block-content";
 import { richTextToPlainText } from "../../domain/value-objects/block-content";
+
+// ── Custom Tiptap Extensions ──────────────────────────────────────────────────
+
+/**
+ * CalloutBlock — a highlighted info/warning callout block.
+ * Renders as: <div data-type="callout"><p>...</p></div>
+ */
+const CalloutBlock = Node.create({
+  name: "callout",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  addAttributes() {
+    return {
+      emoji: { default: "💡" },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='callout']" }];
+  },
+
+  renderHTML({ HTMLAttributes, node }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, { "data-type": "callout", class: "callout-block" }),
+      ["span", { class: "callout-emoji", contenteditable: "false" }, node.attrs.emoji as string],
+      ["div", { class: "callout-content" }, 0],
+    ];
+  },
+});
+
+/**
+ * ToggleBlock — a collapsible details/summary block.
+ * Renders as: <details><summary>...</summary></details>
+ */
+const ToggleBlock = Node.create({
+  name: "toggle",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: "details" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
+  },
+});
+
+/**
+ * TableOfContentsBlock — a read-only auto-generated TOC node.
+ * Renders as: <div data-type="toc" contenteditable="false">...</div>
+ * Actual heading links are injected via the editor's DOM at render time.
+ */
+const TableOfContentsNode = Node.create({
+  name: "tableOfContents",
+  group: "block",
+  atom: true,
+
+  parseHTML() {
+    return [{ tag: "div[data-type='toc']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "toc",
+        contenteditable: "false",
+        class: "toc-block",
+      }),
+    ];
+  },
+});
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +186,9 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
       }),
       Typography,
       Color,
+      CalloutBlock,
+      ToggleBlock,
+      TableOfContentsNode,
     ],
     editable: true,
     immediatelyRender: false,
@@ -402,6 +486,32 @@ function EditorToolbar({ editor }: { editor: Editor }) {
           title="水平線"
         >
           <Minus className="size-3.5" />
+        </ToolbarButton>
+      </ToolbarGroup>
+
+      <ToolbarSeparator />
+
+      {/* Callout / Toggle / TOC */}
+      <ToolbarGroup>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleWrap("callout").run()}
+          active={editor.isActive("callout")}
+          title="標注區塊 (Callout)"
+        >
+          <AlertCircle className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleWrap("toggle").run()}
+          active={editor.isActive("toggle")}
+          title="折疊區塊 (Toggle)"
+        >
+          <ChevronRight className="size-3.5" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().insertContent({ type: "tableOfContents" }).run()}
+          title="目錄 (TOC)"
+        >
+          <TableOfContents className="size-3.5" />
         </ToolbarButton>
       </ToolbarGroup>
     </div>

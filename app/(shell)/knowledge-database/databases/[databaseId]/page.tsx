@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, PlusCircle, Table2, Kanban, List } from "lucide-react";
+import { ArrowLeft, Archive, FileText, PlusCircle, Table2, Kanban, List, Calendar, LayoutGrid } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
@@ -13,6 +13,8 @@ import {
   DatabaseTableView,
   DatabaseBoardView,
   DatabaseListView,
+  DatabaseCalendarView,
+  DatabaseGalleryView,
 } from "@/modules/knowledge-database/api";
 import type { Database, FieldType } from "@/modules/knowledge-database/api";
 import { Button } from "@ui-shadcn/ui/button";
@@ -120,7 +122,7 @@ export default function DatabaseDetailPage() {
   const [database, setDatabase] = useState<Database | null>(null);
   const [loading, setLoading] = useState(true);
   const [addFieldOpen, setAddFieldOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"table" | "board" | "list">("table");
+  const [viewMode, setViewMode] = useState<"table" | "board" | "list" | "calendar" | "gallery">("table");
   const [isPending, startTransition] = useTransition();
 
   const load = useCallback(async () => {
@@ -224,8 +226,27 @@ export default function DatabaseDetailPage() {
           >
             <List className="h-3 w-3" /> 清單
           </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("calendar")}
+            title="日曆視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Calendar className="h-3 w-3" /> 日曆
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("gallery")}
+            title="圖庫視圖"
+            className={`flex items-center gap-1 rounded px-2 py-1 text-xs transition ${viewMode === "gallery" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <LayoutGrid className="h-3 w-3" /> 圖庫
+          </button>
         </div>
         <div className="ml-auto flex items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => router.push(`/knowledge-database/databases/${databaseId}/forms`)} disabled={isPending}>
+            <FileText className="mr-1.5 h-3.5 w-3.5" /> 表單
+          </Button>
           <Button size="sm" variant="outline" onClick={() => setAddFieldOpen(true)} disabled={isPending}>
             <PlusCircle className="mr-1.5 h-3.5 w-3.5" /> 新增欄位
           </Button>
@@ -254,6 +275,22 @@ export default function DatabaseDetailPage() {
       )}
       {viewMode === "list" && (
         <DatabaseListView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "calendar" && (
+        <DatabaseCalendarView
+          database={database}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+        />
+      )}
+      {viewMode === "gallery" && (
+        <DatabaseGalleryView
           database={database}
           accountId={accountId}
           workspaceId={workspaceId}

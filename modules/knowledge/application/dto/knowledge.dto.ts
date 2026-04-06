@@ -246,3 +246,17 @@ export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
 });
 
 export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
+
+export const UpdatePageIconSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  iconUrl: z.string().max(2000),
+});
+
+export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
+
+export const UpdatePageCoverSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  coverUrl: z.string().max(2000),
+});
+
+export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;

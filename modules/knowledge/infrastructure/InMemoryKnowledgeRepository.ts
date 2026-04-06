@@ -25,6 +25,8 @@ import type {
   VerifyKnowledgePageInput,
   RequestPageReviewInput,
   AssignPageOwnerInput,
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
 } from "../domain/entities/knowledge-page.entity";
 import type {
   KnowledgeBlockRepository,
@@ -151,6 +153,22 @@ export class InMemoryKnowledgePageRepository implements KnowledgePageRepository 
     const page = this.pages.get(input.pageId);
     if (!page) return null;
     const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, iconUrl: input.iconUrl || undefined, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, coverUrl: input.coverUrl || undefined, updatedAtISO: new Date().toISOString() };
     this.pages.set(input.pageId, updated);
     return updated;
   }

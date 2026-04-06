@@ -108,7 +108,10 @@ export type BlockType =
   | "bullet-list"
   | "numbered-list"
   | "divider"
-  | "quote";
+  | "quote"
+  | "callout"
+  | "toggle"
+  | "toc";
 
 export const BLOCK_TYPES = [
   "text",
@@ -121,6 +124,9 @@ export const BLOCK_TYPES = [
   "numbered-list",
   "divider",
   "quote",
+  "callout",
+  "toggle",
+  "toc",
 ] as const satisfies readonly BlockType[];
 
 export interface BlockContent {
