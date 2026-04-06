@@ -72,3 +72,4 @@ venv/
 *.db
 .beads-credential-key
 .playwright-mcp
+.tmp-eslint*.json

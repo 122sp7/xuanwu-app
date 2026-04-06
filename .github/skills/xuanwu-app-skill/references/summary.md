@@ -49,9 +49,9 @@ This skill contains the following reference files:
 | Python | 49 | 3,532 |
 | MERMAID | 10 | 583 |
 | JSON | 8 | 866 |
-| Text | 2 | 114 |
-| JavaScript (ESM) | 2 | 356 |
 | RULES | 2 | 18 |
+| JavaScript (ESM) | 2 | 356 |
+| Text | 2 | 114 |
 | Other | 3 | 684 |
 
 **Largest files:**
