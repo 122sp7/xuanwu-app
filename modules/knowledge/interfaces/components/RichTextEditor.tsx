@@ -92,21 +92,6 @@ const CalloutBlock = Node.create({
       ["div", { class: "callout-content" }, 0],
     ];
   },
-
-  addCommands() {
-    return {
-      setCallout:
-        () =>
-        ({ commands }) => {
-          return commands.wrapIn(this.name);
-        },
-      toggleCallout:
-        () =>
-        ({ commands }) => {
-          return commands.toggleWrap(this.name);
-        },
-    };
-  },
 });
 
 /**
@@ -125,21 +110,6 @@ const ToggleBlock = Node.create({
 
   renderHTML({ HTMLAttributes }) {
     return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
-  },
-
-  addCommands() {
-    return {
-      setToggle:
-        () =>
-        ({ commands }) => {
-          return commands.wrapIn(this.name);
-        },
-      toggleToggle:
-        () =>
-        ({ commands }) => {
-          return commands.toggleWrap(this.name);
-        },
-    };
   },
 });
 
@@ -166,16 +136,6 @@ const TableOfContentsNode = Node.create({
         class: "toc-block",
       }),
     ];
-  },
-
-  addCommands() {
-    return {
-      insertTableOfContents:
-        () =>
-        ({ commands }) => {
-          return commands.insertContent({ type: this.name });
-        },
-    };
   },
 });
 
@@ -534,26 +494,21 @@ function EditorToolbar({ editor }: { editor: Editor }) {
       {/* Callout / Toggle / TOC */}
       <ToolbarGroup>
         <ToolbarButton
-          // @ts-expect-error custom command
-          onClick={() => editor.chain().focus().toggleCallout().run()}
-          // @ts-expect-error custom isActive
+          onClick={() => editor.chain().focus().toggleWrap("callout").run()}
           active={editor.isActive("callout")}
           title="標注區塊 (Callout)"
         >
           <AlertCircle className="size-3.5" />
         </ToolbarButton>
         <ToolbarButton
-          // @ts-expect-error custom command
-          onClick={() => editor.chain().focus().toggleToggle().run()}
-          // @ts-expect-error custom isActive
+          onClick={() => editor.chain().focus().toggleWrap("toggle").run()}
           active={editor.isActive("toggle")}
           title="折疊區塊 (Toggle)"
         >
           <ChevronRight className="size-3.5" />
         </ToolbarButton>
         <ToolbarButton
-          // @ts-expect-error custom command
-          onClick={() => editor.chain().focus().insertTableOfContents().run()}
+          onClick={() => editor.chain().focus().insertContent({ type: "tableOfContents" }).run()}
           title="目錄 (TOC)"
         >
           <TableOfContents className="size-3.5" />

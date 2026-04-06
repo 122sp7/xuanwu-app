@@ -181,10 +181,8 @@ function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
   const [open, setOpen] = useState(false);
   const [url, setUrl] = useState(value ?? "");
 
-  useEffect(() => { setUrl(value ?? ""); }, [value]);
-
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={(v) => { setOpen(v); if (v) setUrl(value ?? ""); }}>
       <PopoverTrigger asChild>
         <button
           type="button"

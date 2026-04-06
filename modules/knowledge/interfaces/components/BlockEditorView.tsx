@@ -36,6 +36,9 @@ const BLOCK_TYPE_LABELS: Record<BlockType, string> = {
   "numbered-list": "1.",
   "divider": "—",
   "quote": "❝",
+  "callout": "💡",
+  "toggle": "▶",
+  "toc": "📋",
 };
 
 const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
@@ -49,6 +52,9 @@ const BLOCK_TYPE_NAMES: Record<BlockType, string> = {
   "numbered-list": "編號清單",
   "divider": "分隔線",
   "quote": "引言",
+  "callout": "標注",
+  "toggle": "折疊",
+  "toc": "目錄",
 };
 
 export function BlockEditorView() {
