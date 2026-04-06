@@ -36,6 +36,18 @@ function toComment(id: string, data: Record<string, unknown>): Comment {
     authorId: typeof data.authorId === "string" ? data.authorId : "",
     body: typeof data.body === "string" ? data.body : "",
     parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+    blockId: typeof data.blockId === "string" ? data.blockId : null,
+    selectionRange: (
+      data.selectionRange !== null &&
+      typeof data.selectionRange === "object" &&
+      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
+      typeof (data.selectionRange as Record<string, unknown>).to === "number"
+    )
+      ? {
+          from: (data.selectionRange as Record<string, unknown>).from as number,
+          to: (data.selectionRange as Record<string, unknown>).to as number,
+        }
+      : null,
     resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
     resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
     createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
@@ -58,6 +70,8 @@ export class FirebaseCommentRepository implements ICommentRepository {
       authorId: input.authorId,
       body: input.body,
       parentCommentId: input.parentCommentId ?? null,
+      blockId: input.blockId ?? null,
+      selectionRange: input.selectionRange ?? null,
       resolvedAt: null,
       resolvedByUserId: null,
       createdAtISO: now,

@@ -11,6 +11,7 @@ export interface CreateRecordInput {
   readonly accountId: string;
   readonly properties?: Record<string, unknown>;
   readonly createdByUserId: string;
+  readonly pageId?: string | null;
 }
 
 export interface UpdateRecordInput {

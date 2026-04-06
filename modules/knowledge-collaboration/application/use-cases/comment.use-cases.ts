@@ -21,8 +21,8 @@ export class CreateCommentUseCase {
     if (!parsed.success) {
       return commandFailureFrom("COMMENT_INVALID_INPUT", parsed.error.message);
     }
-    const { accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId } = parsed.data;
-    const comment = await this.repo.create({ accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId });
+    const { accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId, blockId, selectionRange } = parsed.data;
+    const comment = await this.repo.create({ accountId, workspaceId, contentId, contentType, authorId, body, parentCommentId: parentCommentId ?? null, blockId, selectionRange });
     return commandSuccess(comment.id, Date.now());
   }
 }

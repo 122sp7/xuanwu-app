@@ -41,3 +41,21 @@ export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
 export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
 export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
 export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+
+// ── FieldComputationService ────────────────────────────────────────────────────
+export type {
+  RelationFieldConfig,
+  RelationValue,
+  FormulaFieldConfig,
+  FormulaResult,
+  RollupFieldConfig,
+  RollupAggregation,
+  RollupResult,
+  ComputedFieldValue,
+} from "../application/services/field-computation.service";
+export {
+  resolveRelationValue,
+  evaluateFormula,
+  computeRollup,
+  resolveComputedFields,
+} from "../application/services/field-computation.service";

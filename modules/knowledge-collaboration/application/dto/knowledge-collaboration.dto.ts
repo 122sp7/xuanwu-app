@@ -18,6 +18,11 @@ export const CreateCommentSchema = ContentScopeSchema.extend({
   authorId: z.string().min(1),
   body: z.string().min(1).max(10000),
   parentCommentId: z.string().min(1).nullable().optional(),
+  blockId: z.string().min(1).nullable().optional(),
+  selectionRange: z
+    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
+    .nullable()
+    .optional(),
 });
 export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
 

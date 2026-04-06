@@ -113,3 +113,8 @@ export type { KnowledgePage } from "../domain/entities/content-page.entity";
 // ── UI Components ─────────────────────────────────────────────────────────────
 export { PageTreeView } from "../interfaces/components/PageTreeView";
 export { PageDialog } from "../interfaces/components/PageDialog";
+
+// ── BacklinkIndex ─────────────────────────────────────────────────────────────
+export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
+export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
+export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";

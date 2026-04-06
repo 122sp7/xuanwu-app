@@ -3,7 +3,7 @@
  * Layer: domain/repositories
  */
 
-import type { Comment } from "../entities/comment.entity";
+import type { Comment, SelectionRange } from "../entities/comment.entity";
 
 export interface CreateCommentInput {
   readonly contentId: string;
@@ -13,6 +13,8 @@ export interface CreateCommentInput {
   readonly authorId: string;
   readonly body: string;
   readonly parentCommentId?: string | null;
+  readonly blockId?: string | null;
+  readonly selectionRange?: SelectionRange | null;
 }
 
 export interface UpdateCommentInput {
