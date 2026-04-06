@@ -89,11 +89,13 @@
 - tw-animate-css (^1.4.0)
 - typescript (^5)
 - typescript-eslint (^8.58.0)
+- vitest (^4.1.2)
 
 ## Configuration Files
 
 - .gitattributes
 - tsconfig.json
 - .gitignore
+- vitest.config.ts
 - package.json
 - eslint.config.mjs

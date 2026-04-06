@@ -130,62 +130,6 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
-## File: .github/agents/commands.md
-````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
 ## File: .github/agents/doc-ingest.agent.md
 ````markdown
 ---
@@ -1819,6 +1763,108 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
+## File: .github/instructions/playwright-mcp-testing.instructions.md
+````markdown
+---
+description: >
+  Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
+  截圖存證、表單操作自動化、Console 錯誤偵測時適用。
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Playwright MCP Testing Rules
+
+## 工具優先順序
+
+1. **主要**：`mcp_playwright-mc_*` 工具鏈（snapshot → ref → action）
+2. **備援**：`mcp_io_github_ver_browser_eval`（playwright-mcp 失效時）
+3. **永遠不用**：在備援模式下呼叫 playwright-mcp（會得到 closed 錯誤）
+
+## Snapshot-First 原則
+
+**禁止** 在未取得 snapshot ref 的情況下直接 click 或 fill。
+
+```
+✅ 正確：snapshot → 找 ref → click(ref: "...")
+❌ 錯誤：直接 click(selector: "button.create")
+```
+
+## evaluate 限制（備援模式）
+
+以下表達式在 `mcp_io_github_ver_browser_eval evaluate` 中會失敗：
+
+- 包含 `new Event()`、`new PointerEvent()` 的鏈式表達式
+- 包含 `Array.from()` + 方法鏈的複合表達式
+- 包含 for loop 的表達式
+
+解法：拆分為多個單一表達式呼叫。
+
+## SPA 導航規則
+
+**全頁重載導致 React 狀態重置**（activeAccount 被清空）。
+
+```
+✅ 允許：點擊 Link 的 ref（SPA 路由）
+✅ 允許：點擊麵包屑 a[href="/target"] 的 ref
+❌ 禁止：瀏覽器導航到新 URL（重置 activeAccount）
+❌ 禁止：evaluate window.location.href = '...'
+```
+
+## Radix UI Dropdown 開啟規則
+
+Radix DropdownMenu 需要 `PointerEvent` 才能觸發。使用 snapshot 找到 trigger 的 ref，然後 click 它（playwright-mcp 的 click 自動發送正確事件）。
+
+## 帳號情境一致性
+
+- 每次全頁重載後，必須重新確認 `localStorage['xuanwu_last_active_account']`
+- 組織功能測試：在 SPA 已載入狀態下切換，勿重載
+
+## workspaceId 前提
+
+以下頁面的 CTA 需要 `activeWorkspaceId` 非空：
+- `/knowledge-base/articles`（新增文章）
+- `/knowledge-base/articles/[id]`（編輯文章）
+
+測試前先在 `/workspace` 選擇工作區。
+
+## Console 錯誤義務
+
+每次測試結束前，必須呼叫：
+```
+mcp_playwright-mc_browser_console_messages
+```
+並在報告中記錄錯誤（即使為零也要寫「無錯誤」）。
+
+## 截圖義務
+
+每個主要測試步驟（初始狀態、操作後、最終狀態）必須截圖：
+```
+mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
+```
+
+## 測試報告格式
+
+輸出遵循 SKILL.md「測試報告格式」區塊的模板，包含：
+- URL + 帳號情境 + 日期 + 狀態
+- 截圖證據清單
+- 操作步驟記錄
+- 發現問題（含優先級）
+- Console 錯誤
+- 建議修復
+
+## 工具搭配規則
+
+| 情境 | 必用工具 |
+|------|---------|
+| 確認元件 API | `mcp_shadcn_view_items_in_registries` |
+| 不確定 Playwright API | `mcp_context7_resolve-library-id "playwright"` |
+| 找 Server Action | `mcp_io_github_ver_nextjs_call get_server_action_by_id` |
+| 找元件 props | `mcp_oraios_serena_find_symbol` |
+| 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
+
+Tags: #use skill playwright-mcp-testing
+````
+
 ## File: .github/instructions/prompt-engineering.instructions.md
 ````markdown
 ---
@@ -2498,6 +2544,359 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
+## File: .github/prompts/playwright-mcp-inspect.prompt.md
+````markdown
+---
+name: playwright-mcp-inspect
+description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
+agent: E2E QA Agent
+argument-hint: "<route-or-section> [--account org|personal] [--deep]"
+---
+
+# Playwright MCP UI 缺口偵測
+
+## 輸入參數
+
+- target: ${input:target:要巡覽的路由或功能模組，例如 /organization 或 knowledge-base}
+- account: ${input:account:帳號情境 personal 或 org（組織功能用 org）}
+- depth: ${input:depth:巡覽深度 shallow（主頁面）或 deep（進入子頁面）}
+
+## 目標
+
+扮演一位「第一次使用」的真實用戶，系統性地走過目標區域，找出：
+
+1. **功能缺口**：預期存在但找不到的操作入口（CRUD 缺少 Create？）
+2. **反直覺設計**：動作不符合用戶預期、按鈕位置奇怪、命名混淆
+3. **空狀態問題**：列表為空時無任何引導性說明或 CTA
+4. **Disabled 陷阱**：按鈕存在但 disabled 且無說明原因
+5. **導航死胡同**：進入後找不到返回路徑
+6. **Console 錯誤**：任何 JavaScript 錯誤或 API 失敗
+
+## 帳號情境設置
+
+**Personal 帳號**（預設）：
+- 直接導航到目標頁面
+- 確認 localStorage `xuanwu_last_active_account` = `dev-demo-user`
+
+**Organization 帳號**（需要 org 功能時）：
+1. 導航到 `/workspace`（確保 SPA 已載入）
+2. 點開帳號切換 dropdown（需 PointerDown 事件）
+3. 選擇 org 選項
+4. 確認 localStorage 更新為 org ID
+5. 點擊麵包屑或 Link（勿用全頁重載）導航到目標
+
+## 巡覽執行流程
+
+### Phase 1: 頁面初始化分析
+
+```
+1. mcp_playwright-mc_browser_navigate → 目標 URL
+2. mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
+3. mcp_playwright-mc_browser_take_screenshot → 初始截圖
+4. mcp_playwright-mc_browser_console_messages → 確認無初始錯誤
+```
+
+記錄頁面結構：
+- 頁面標題、小標、說明文字
+- 可見的操作按鈕（CTA）
+- 是否有資料列表或空狀態
+- 是否有 Nav/Breadcrumb 讓用戶知道自己在哪
+
+### Phase 2: CTA 完整性檢查
+
+針對每個功能模組，預期應有的 CRUD 操作入口：
+
+| 功能類型 | 預期 CTA | 缺口判斷 |
+|---------|---------|---------|
+| 列表頁 | 新增/建立按鈕 | 無「＋」或「新增」按鈕 |
+| 詳情頁 | 編輯/刪除按鈕 | 只能查看無法修改 |
+| 表單 | 送出/取消 | 送出後無任何反饋 |
+| 搜尋/篩選 | 清除/重設 | 無法清除已輸入的篩選 |
+
+### Phase 3: 互動測試（Shallow 模式）
+
+```
+1. 找到主要 CTA → snapshot ref → click
+2. 記錄 Dialog/Form 是否正確開啟
+3. 填入測試資料（snapshot find inputs → fill）
+4. 送出表單
+5. 驗證成功反饋（toast、列表更新）
+6. 截圖紀錄
+
+負面測試：
+1. 不填任何資料直接送出
+2. 確認 validation 錯誤提示出現
+3. 截圖記錄
+```
+
+### Phase 4: 子頁面巡覽（Deep 模式）
+
+```
+針對頁面上每個導航連結：
+1. 記錄 href
+2. click 進入
+3. 重複 Phase 1-3
+4. click 返回（找 Back Link 或 Breadcrumb）
+```
+
+### Phase 5: 錯誤狀態收集
+
+```
+mcp_playwright-mc_browser_console_messages → 收集所有 console 訊息
+mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors" → Next.js 錯誤
+```
+
+## 缺口評分標準
+
+| 嚴重度 | 說明 | 示例 |
+|-------|------|------|
+| 🔴 高 | 核心功能完全缺失 | 列表頁沒有建立入口 |
+| 🟡 中 | 功能存在但使用困難 | 按鈕 disabled 無說明 |
+| 🟢 低 | 體驗可改善 | 空狀態缺少引導文字 |
+
+## 輸出 UI 缺口報告
+
+```markdown
+## UI 缺口偵測報告：{target}
+
+**巡覽路徑**: {routes visited}
+**帳號情境**: personal / organization  
+**巡覽日期**: YYYY-MM-DD  
+**巡覽深度**: shallow / deep
+
+### 截圖索引
+1. [ss_initial.png] 初始狀態
+2. [ss_create_dialog.png] 建立流程
+...
+
+### 發現的缺口
+
+#### 🔴 高優先級
+- [ ] **路徑**: /route  
+  **問題**: 功能說明  
+  **影響**: 用戶無法完成 X  
+  **建議**: 在 Y 位置加入 Z 元件
+
+#### 🟡 中優先級
+...
+
+#### 🟢 低優先級
+...
+
+### Console 錯誤
+- 無 / 錯誤清單
+
+### 修復建議優先順序
+1. 最高影響 + 最低代價
+2. ...
+```
+
+## 與其他 MCP 的協作
+
+**找修復方案時**：
+- `mcp_shadcn_list_items_in_registries` → 查詢適合的 UI 元件
+- `mcp_shadcn_get_item_examples_from_registries` → 取得元件示例
+
+**確認 API 可用性**：
+- `mcp_oraios_serena_find_symbol` → 找對應的 use case / server action
+- `mcp_io_github_ver_nextjs_call get_routes` → 確認路由存在
+
+**查詢 UX 最佳實踐**：
+- `mcp_context7_resolve-library-id "shadcn/ui"` → 查元件文件
+
+Tags: #use skill playwright-mcp-testing
+#use skill shadcn
+#use skill context7
+#use skill serena-mcp
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/playwright-mcp-test.prompt.md
+````markdown
+---
+name: playwright-mcp-test
+description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
+agent: E2E QA Agent
+argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
+---
+
+# Playwright MCP 瀏覽器測試
+
+## 輸入參數
+
+- route: ${input:route:目標路由或完整 URL，例如 /organization/members}
+- flow: ${input:flow:要測試的用戶流程，例如「邀請成員」}
+- account: ${input:account:帳號情境 personal 或 org（預設 personal）}
+
+## 前置條件確認
+
+在開始前，執行以下確認步驟：
+
+1. **Dev server 狀態**  
+   確認 `http://localhost:3000` 可存取。若未啟動，提示用戶執行 `npm run dev`。
+
+2. **playwright-mcp 可用性**  
+   執行 `mcp_playwright-mc_browser_snapshot`（無參數）。
+   - 成功 → 使用 playwright-mcp 工具鏈
+   - 失敗（"closed"）→ 切換到 `mcp_io_github_ver_browser_eval` 備援模式
+
+3. **帳號情境切換（若需要 org 情境）**  
+   參照 SKILL.md 的「帳號切換」章節執行組織帳號切換。
+
+4. **工作區確認（若頁面需要 workspaceId）**  
+   先導航到 /workspace 選擇工作區，再前往目標頁面。
+
+## 測試執行流程
+
+### Step 1: 導航到目標路由
+
+```
+playwright-mcp 模式：
+  mcp_playwright-mc_browser_navigate → url: "http://localhost:3000{route}"
+  
+備援模式：
+  mcp_io_github_ver_browser_eval action:"navigate" → url: "http://localhost:3000{route}"
+```
+
+### Step 2: 取得初始快照
+
+```
+mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
+識別所有可交互元素（buttons、inputs、links、selects）
+確認主要 CTA 是否 enabled
+```
+
+### Step 3: 截圖（初始狀態）
+
+```
+mcp_playwright-mc_browser_take_screenshot → 初始狀態截圖
+儲存至 scratchpad/ 目錄並 view_image 檢視
+```
+
+### Step 4: 執行用戶流程
+
+依照 `{flow}` 執行具體操作，記錄每步驟的：
+- 找到的元素 ref
+- 執行的動作（click/fill/select）
+- 操作後的快照變化
+
+### Step 5: 驗證結果
+
+```
+成功路徑驗證：
+  - snapshot → 確認 UI 反映成功狀態（新項目出現、Dialog 關閉）
+  - console_messages → 確認無錯誤
+
+失敗路徑驗證（負面測試）：
+  - 故意送空表單 → 確認 validation 訊息出現
+  - 故意填錯格式 → 確認錯誤提示
+```
+
+### Step 6: 最終截圖
+
+```
+mcp_playwright-mc_browser_take_screenshot → 最終狀態截圖
+```
+
+### Step 7: Next.js 診斷（可選）
+
+```
+mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors"
+→ 確認無 Next.js build/runtime 錯誤
+```
+
+## 輸出測試報告
+
+使用以下模板輸出報告：
+
+```markdown
+## 測試結果：{flow} @ {route}
+
+**URL**: {route}  
+**帳號情境**: personal / organization  
+**測試日期**: YYYY-MM-DD  
+**狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
+
+### 截圖證據
+- [初始狀態截圖]
+- [操作後截圖]
+- [最終狀態截圖]
+
+### 操作步驟記錄
+1. 步驟描述 + ref + 結果
+2. ...
+
+### 發現問題
+- ❌ 問題描述（優先級：高/中/低）
+
+### Console 錯誤
+- 無 / 錯誤列表
+
+### 建議
+- [ ] 修復建議或增強建議
+```
+
+Tags: #use skill playwright-mcp-testing
+#use skill context7
+#use skill next-devtools-mcp
+#use skill serena-mcp
+````
+
+## File: .github/prompts/README.md
+````markdown
+# Prompts Index
+
+Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
+
+## DDD 領域建模 (IDDD)
+
+- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
+- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+
+## Planning
+
+- [plan-feature.prompt.md](plan-feature.prompt.md)
+- [plan-module.prompt.md](plan-module.prompt.md)
+- [plan-api.prompt.md](plan-api.prompt.md)
+
+## Implementation
+
+- [implement-feature.prompt.md](implement-feature.prompt.md)
+- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
+- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
+- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
+- [implement-server-action.prompt.md](implement-server-action.prompt.md)
+- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
+
+## Docs and RAG
+
+- [ingest-docs.prompt.md](ingest-docs.prompt.md)
+- [chunk-docs.prompt.md](chunk-docs.prompt.md)
+- [embedding-docs.prompt.md](embedding-docs.prompt.md)
+- [write-docs.prompt.md](write-docs.prompt.md)
+
+## Analysis and Debug
+
+- [analyze-repo.prompt.md](analyze-repo.prompt.md)
+- [debug-error.prompt.md](debug-error.prompt.md)
+
+## Refactor and Review
+
+- [refactor-module.prompt.md](refactor-module.prompt.md)
+- [refactor-api.prompt.md](refactor-api.prompt.md)
+- [review-code.prompt.md](review-code.prompt.md)
+- [review-architecture.prompt.md](review-architecture.prompt.md)
+- [review-performance.prompt.md](review-performance.prompt.md)
+- [review-security.prompt.md](review-security.prompt.md)
+
+## Testing
+
+- [write-tests.prompt.md](write-tests.prompt.md)
+- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
+- [playwright-mcp-test.prompt.md](playwright-mcp-test.prompt.md)
+- [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)
+````
+
 ## File: .github/prompts/refactor-api.prompt.md
 ````markdown
 ---
@@ -2689,325 +3088,6 @@ argument-hint: Provide module scope, behaviors to verify, and known regression r
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-testing-debugging-browser
 #use skill vscode-typescript-workbench
-````
-
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
-}
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
-````
-
-## File: CLAUDE.md
-````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
-````
-
-## File: CONTRIBUTING.md
-````markdown
-# Contributing to Xuanwu App
-
-Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
-
-## House Rules
-
-### 👥 Prevent Work Duplication
-
-Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
-
-### ✅ Work on Approved Issues
-
-For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
-
-### 🚫 One Concern per PR
-
-Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
-
-### 📚 Write for Future Readers
-
-Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
-
-### ✅ Summarize Your PR
-
-Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
-
-### 🧪 Describe What Was Tested
-
-Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Setup
-
-```bash
-npm install
-npm run dev      # Start Next.js dev server (port 3000)
-```
-
-### Validation
-
-Before pushing, ensure these all pass:
-
-```bash
-npm run lint     # ESLint — must have 0 errors
-npm run build    # Next.js production build + TypeScript type-check
-```
-
-For the Python worker:
-
-```bash
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
----
-
-## Architecture Conventions
-
-This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
-
-- [`.github/agents/README.md`](.github/agents/README.md) — rules index
-- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
-
-### Key Rules
-
-- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must be framework-free.
-- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
-- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
-
-### File Naming
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Domain entity | `PascalCase.ts` | `Organization.ts` |
-| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
-| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Use case | `my-use-case.ts` | `create-workspace.ts` |
-| Server Action | `*.actions.ts` | `workspace.actions.ts` |
-| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
-
----
-
-## Making a Pull Request
-
-1. Fork the repository and create a branch from `main`.
-2. Make focused, incremental changes.
-3. Ensure `npm run lint` and `npm run build` pass with no new errors.
-4. Fill out the PR description with intent, changes, and testing notes.
-5. Link related issues with `Closes #N` or `Refs #N`.
-6. Request a review.
-
----
-
-## Spec-Driven Development
-
-For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## AI Delivery Workflow
-
-For larger or cross-module changes, prefer the formal Copilot delivery workflow:
-
-- Plan first with [`docs/swarm.md`](docs/swarm.md)
-- Use the implementation plan as the execution contract for implementation, review, and QA
-- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: docs/beads.md
@@ -5397,6 +5477,249 @@ Workers discover available work via `bd ready`.
 [← Back to README](../README.md)
 ````
 
+## File: docs/hooks.md
+````markdown
+# Hooks
+
+Hooks run automatically at key points in Claude Code's lifecycle.
+
+## Built-in Hooks
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
+| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
+| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
+| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
+| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
+| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
+| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
+| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
+| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
+
+## Key Capabilities
+
+### File Locking (pre-tool-use-validator.sh)
+
+Prevents concurrent file edits in multi-agent swarm environments:
+- Atomic lock acquisition via `mkdir` (race-condition safe)
+- Lock auto-expires after 120 seconds
+- Session-based: locks are tied to the session that created them
+- Automatic release on session stop
+
+### Secret Detection (pre-tool-use-validator.sh)
+
+Scans Write/Edit content for 6 secret patterns:
+1. Generic API keys, passwords, tokens
+2. AWS access keys (`AKIA...`)
+3. JWT tokens
+4. Environment variable exports with secrets
+5. GitHub personal access tokens (`ghp_...`)
+6. Private keys (PEM format)
+
+Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
+
+### Protected Files (pre-tool-use-validator.sh)
+
+Blocks modifications to critical system files:
+- `.beads/beads.db`, `.beads/daemon`
+- `.git/`
+- `.env`
+- `.vscode/mcp.json`
+
+### Push Blocking (pre-push-main-blocker.sh)
+
+Enforces trunk-based development by blocking pushes to main/master:
+- Detects explicit pushes (`git push origin main`)
+- Detects implicit pushes (`git push` while on main branch)
+- Provides remediation instructions (create feature branch, push there, create PR)
+
+### Session Management (session-start-loader.sh + stop-validator.sh)
+
+- Tracks active sessions in `.claude/hooks/.state/`
+- Detects active swarm agents for coordination awareness
+- Supports handoff messages between sessions
+- Auto-cleans stale sessions older than 24 hours
+- Warns about uncommitted changes on session stop
+- Syncs Beads before exit
+
+## Creating a Hook
+
+1. Create `.claude/hooks/my-hook.sh`:
+
+```bash
+#!/bin/bash
+input=$(cat)
+# your logic
+echo '{"continue": true}'
+```
+
+2. Make executable:
+```bash
+chmod +x .claude/hooks/my-hook.sh
+```
+
+3. Register in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Write|Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
+        "timeout": 5
+      }]
+    }]
+  }
+}
+```
+
+See `.claude/templates/hook.template.sh` for the full template.
+
+## Hook Input
+
+Hooks receive JSON via stdin:
+
+```json
+{
+  "session_id": "abc123",
+  "cwd": "/workspace",
+  "prompt": "user message",
+  "tool_name": "Write",
+  "tool_input": {}
+}
+```
+
+## Hook Output
+
+For PreToolUse hooks, return a permission decision:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "permissionDecisionReason": "Explanation"
+  }
+}
+```
+
+## Runtime Directories
+
+| Directory | Purpose | Gitignored |
+|-----------|---------|------------|
+| `.claude/hooks/.state/` | Session tracking files | Yes |
+| `.claude/hooks/.locks/` | File lock files | Yes |
+
+## Tips
+
+- Keep hooks fast (< 5 seconds timeout)
+- Test with: `echo '{}' | ./my-hook.sh`
+- Override hooks via `settings.local.json`
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/mcp-servers.md
+````markdown
+# MCP Servers
+
+Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
+
+## Included Servers
+
+### Sequential Thinking
+Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
+
+**Best for:** Architecture decisions, debugging complex issues, planning
+
+### Chrome DevTools
+Browser automation with deep debugging — performance traces, network inspection, console access.
+
+**Best for:** QA testing, frontend debugging, performance analysis
+
+### Context7
+Up-to-date documentation and code examples for any library via Context7.
+
+**Best for:** Researching library APIs, finding code examples, validating implementation patterns
+
+### Filesystem
+File system operations beyond the workspace boundary.
+
+**Best for:** Cross-project file access, operations outside the working directory
+
+## Setup
+
+The servers are configured in `.vscode/mcp.json`. Most work out of the box.
+
+## Adding More Servers
+
+Edit `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "new-server": {
+      "command": "npx",
+      "args": ["@example/mcp-server"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    }
+  }
+}
+```
+
+## Recommended Additions
+
+| Server | Purpose | When to Add |
+|--------|---------|-------------|
+| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
+| PostgreSQL | Database queries | Working with Postgres |
+| Brave Search | Web search | Research-heavy work |
+| Slack | Team messaging | Team coordination |
+| Linear | Issue tracking | If you use Linear |
+
+### GitHub Example
+
+```json
+"github": {
+  "command": "npx",
+  "args": ["@anthropic-ai/mcp-server-github"],
+  "env": {
+    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+  }
+}
+```
+
+## Troubleshooting
+
+### Server not starting
+
+Check logs:
+```bash
+claude mcp list
+```
+
+### Permission denied
+
+MCP servers run as your user. Check file permissions and API tokens.
+
+## Resources
+
+- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+- [MCP.so Directory](https://mcp.so/)
+
+---
+
+[← Back to README](../README.md)
+````
+
 ## File: docs/personas.md
 ````markdown
 # Commands
@@ -6061,6 +6384,57 @@ interface AccountPolicyUpdatedEvent {
 | `accountId` | `userId`（帳戶層應使用 accountId） |
 ````
 
+## File: modules/ai/AGENT.md
+````markdown
+# AGENT.md — ai BC
+
+## 模組定位
+
+`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
+| `IngestionDocument` | Document、File（在此 BC 內）|
+| `IngestionChunk` | Chunk、VectorChunk |
+| `IngestionStatus` | Status, JobStatus |
+
+## 棄用檔案守衛
+
+以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
+- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { aiApi } from "@/modules/ai/api";
+import type { IngestionJobDTO } from "@/modules/ai/api";
+```
+
+### ❌ 禁止
+```typescript
+import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
+import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
+```
+
+## Runtime 邊界規則
+
+- `ai` 模組只在 Next.js 端做 Job 協調
+- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
 ## File: modules/ai/aggregates.md
 ````markdown
 # Aggregates — ai
@@ -6561,6 +6935,269 @@ identityApi.listenToTokenRefresh()
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
 ````
 
+## File: modules/knowledge-base/aggregates.md
+````markdown
+# knowledge-base — 聚合根摘要
+
+> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+
+## Article（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `title`, `content` | 文章標題與主體 |
+| `status` | `draft` / `published` / `archived` |
+| `verificationState` | `verified` / `needs_review` / `unverified` |
+| `ownerId` | 文章負責人（ArticleOwner） |
+| `linkedArticleIds` | Backlink 引用列表 |
+| `categoryId` | 所屬分類 |
+| `tags` | 標籤列表 |
+
+## Category（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `name`, `slug` | 分類名稱與 URL 識別碼 |  
+| `parentCategoryId` | 父分類（null = 根節點） |
+| `depth` | 層級深度（最大 5）|
+| `articleIds` | 直屬文章 ID 列表 |
+````
+
+## File: modules/knowledge-base/domain-services.md
+````markdown
+# knowledge-base — Domain Services
+
+> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+
+- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
+- `ArticleSlugService` — title → URL-safe slug 轉換
+- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+````
+
+## File: modules/knowledge-base/repositories.md
+````markdown
+# knowledge-base — Repositories
+
+> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
+
+- `IArticleRepository` — CRUD + search + backlink 反查
+- `ICategoryRepository` — 層級樹操作 + articleIds 管理
+
+**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
+````
+
+## File: modules/knowledge-base/ubiquitous-language.md
+````markdown
+# knowledge-base — 通用語言
+
+> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
+
+## 核心術語速查
+
+| 術語 | 定義 |
+|---|---|
+| **Article** | 組織級知識文章（SOP / Wiki） |
+| **Category** | 層級分類目錄（max 5 層） |
+| **VerificationState** | `verified` / `needs_review` / `unverified` |
+| **ArticleOwner** | 負責維護文章準確性的使用者 |
+| **Backlink** | `[[Article Title]]` 解析的反向引用 |
+| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
+````
+
+## File: modules/knowledge-collaboration/AGENT.md
+````markdown
+# knowledge-collaboration — DDD Agent
+
+**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
+
+為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
+
+→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+````
+
+## File: modules/knowledge-collaboration/aggregates.md
+````markdown
+**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
+**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
+**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
+
+→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
+````
+
+## File: modules/knowledge-collaboration/application-services.md
+````markdown
+Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
+Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
+Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
+
+→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
+````
+
+## File: modules/knowledge-collaboration/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
+下游消費者: `notification`, `workspace-feed`, `workspace-audit`
+
+→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
+````
+
+## File: modules/knowledge-collaboration/domain-events.md
+````markdown
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
+````
+
+## File: modules/knowledge-collaboration/domain-services.md
+````markdown
+- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
+- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
+
+→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
+````
+
+## File: modules/knowledge-collaboration/README.md
+````markdown
+# knowledge-collaboration — DDD Reference
+
+> **Domain Type:** Supporting Subdomain + Generic Subdomain
+> **Module:** `modules/knowledge-collaboration/`
+> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+
+## 戰略定位
+
+`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
+
+## 核心聚合
+
+- **Comment** — 線程式留言，透過 `contentId` 引用內容
+- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
+- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
+
+## 主要領域事件
+
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Comment** | 針對 contentId 的留言（root 或 reply） |
+| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
+| **Version** | immutable Block 快照 |
+| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
+| **contentId** | opaque reference 到任意知識內容 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity` | Conformist |
+| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
+````
+
+## File: modules/knowledge-collaboration/repositories.md
+````markdown
+ICommentRepository, IPermissionRepository, IVersionRepository
+
+Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
+
+→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
+````
+
+## File: modules/knowledge-collaboration/ubiquitous-language.md
+````markdown
+| Comment | 留言（≠ Note, Message） |
+| Permission | 存取授權（≠ Role） |
+| PermissionLevel | view < comment < edit < full |
+| Version | Block 快照（≠ Revision, History） |
+| NamedVersion | 附標籤的具名版本（不自動刪除） |
+| contentId | opaque ID 跨 BC 引用 |
+| PageLock | 防並發的暫時鎖定 |
+
+→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
+````
+
+## File: modules/knowledge-database/AGENT.md
+````markdown
+# knowledge-database — DDD Agent
+
+**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
+
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
+
+→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
+````
+
+## File: modules/knowledge-database/aggregates.md
+````markdown
+**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
+**Record** — databaseId + properties(Map<fieldId, value>) + order
+**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
+
+→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
+````
+
+## File: modules/knowledge-database/application-services.md
+````markdown
+Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
+View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
+Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
+
+→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
+````
+
+## File: modules/knowledge-database/domain-events.md
+````markdown
+- `knowledge-database.database_created` / `database_renamed`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
+````
+
+## File: modules/knowledge-database/domain-services.md
+````markdown
+- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
+- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
+
+→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
+````
+
+## File: modules/knowledge-database/repositories.md
+````markdown
+IDatabaseRepository, IRecordRepository, IViewRepository
+
+Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
+
+→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
+````
+
+## File: modules/knowledge-database/ubiquitous-language.md
+````markdown
+| Database | 結構化資料容器（≠ KnowledgeCollection） |
+| Field | 欄位定義（≠ Column）|
+| Record | 資料行（≠ Row, Item, Entry）|
+| Property | 某 Field 的具體值（Map） |
+| View | 視圖配置 — 不持有資料 |
+| ViewType | table/board/list/calendar/timeline/gallery |
+| Relation | 跨 Database 的 Record 連結欄位 |
+
+→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
+````
+
 ## File: modules/notebook/AGENT.md
 ````markdown
 # AGENT.md — notebook BC
@@ -6905,6 +7542,47 @@ Application layer 只負責：
 3. 通知推送給對應的 recipientId
 
 這是典型的 **Published Language** 模式，notification 作為 Conformist 消費者。
+````
+
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/notification/ubiquitous-language.md
@@ -7263,6 +7941,47 @@ Application layer 只負責：
 - 模組 README：`../../../modules/search/README.md`
 - 模組 AGENT：`../../../modules/search/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/search/application-services.md`
+````
+
+## File: modules/search/README.md
+````markdown
+# search — 語意檢索上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/search/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
+
+## 與其他 Bounded Context 協作
+
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
+
+## 核心聚合 / 核心概念
+
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/shared/AGENT.md
@@ -7749,6 +8468,47 @@ Application layer 只負責：
 |---------|------|------|
 | `ai` | `source.upload_completed` | 建立 IngestionJob，啟動 RAG 攝入管線 |
 | `knowledge` | `source.upload_completed` | 文件關聯知識頁面通知（可選） |
+````
+
+## File: modules/source/README.md
+````markdown
+# source — 文件來源上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
+
+## 核心聚合 / 核心概念
+
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/source/ubiquitous-language.md
@@ -9401,154 +10161,6 @@ import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-
 - When ownership shifts, update contracts and architecture docs in the same change.
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
-
-## Purpose
-
-- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
-
-## Authoritative Sources
-
-Read these in order before making non-trivial decisions:
-
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
-2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
-6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
-
-## DDD Reference Authority
-
-DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
-
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
-| Context terminology | `modules/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
-| Context domain events | `modules/<context>/domain-events.md` |
-| Context map | `modules/<context>/context-map.md` |
-| Context repositories | `modules/<context>/repositories.md` |
-| Context application services | `modules/<context>/application-services.md` |
-| Context domain services | `modules/<context>/domain-services.md` |
-
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
-
-## Workspace-Wide Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
-
-## Architecture Guardrails
-
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-
-## Copilot Customization Design Rules
-
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
-
-## Serena MCP
-
-Serena MCP is **mandatory for every session**. There are no exceptions.
-
-### Session-Start Protocol (Required)
-
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
-
-### Session-End Protocol (Required)
-
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
-
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
-
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
-
-### Hard Prohibitions
-
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
-
-## Context7 Documentation Query
-
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
-
-### Trigger Conditions
-
-Any of the following require a context7 lookup before proceeding:
-
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
-
-### Required Steps
-
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
-
-### Guardrails
-
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
-
-## Skill And Agent Routing
-
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
-
-## Validation
-
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
-
-## Terminology
-
-- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
 ## File: .github/instructions/doc-governance.instructions.md
 ````markdown
 ---
@@ -9852,106 +10464,69 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
-## File: .github/instructions/playwright-mcp-testing.instructions.md
+## File: .github/instructions/README.md
 ````markdown
----
-description: >
-  Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
-  截圖存證、表單操作自動化、Console 錯誤偵測時適用。
-applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
----
+# Instructions Index
 
-# Playwright MCP Testing Rules
+Repository instruction index for `applyTo`-scoped Copilot rules.
 
-## 工具優先順序
+## DDD 戰略與戰術設計 (IDDD)
 
-1. **主要**：`mcp_playwright-mc_*` 工具鏈（snapshot → ref → action）
-2. **備援**：`mcp_io_github_ver_browser_eval`（playwright-mcp 失效時）
-3. **永遠不用**：在備援模式下呼叫 playwright-mcp（會得到 closed 錯誤）
+- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
+- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
+- [domain-modeling.instructions.md](domain-modeling.instructions.md)
+- [event-driven-state.instructions.md](event-driven-state.instructions.md)
 
-## Snapshot-First 原則
+## Architecture
 
-**禁止** 在未取得 snapshot ref 的情況下直接 click 或 fill。
+- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
+- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
+- [architecture-modules.instructions.md](architecture-modules.instructions.md)
+- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
 
-```
-✅ 正確：snapshot → 找 ref → click(ref: "...")
-❌ 錯誤：直接 click(selector: "button.create")
-```
+## Delivery Process
 
-## evaluate 限制（備援模式）
+- [branching-strategy.instructions.md](branching-strategy.instructions.md)
+- [ci-cd.instructions.md](ci-cd.instructions.md)
+- [commit-convention.instructions.md](commit-convention.instructions.md)
+- [lint-format.instructions.md](lint-format.instructions.md)
 
-以下表達式在 `mcp_io_github_ver_browser_eval evaluate` 中會失敗：
+## Platform and Runtime
 
-- 包含 `new Event()`、`new PointerEvent()` 的鏈式表達式
-- 包含 `Array.from()` + 方法鏈的複合表達式
-- 包含 for loop 的表達式
+- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
+- [cloud-functions.instructions.md](cloud-functions.instructions.md)
+- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
+- [firestore-schema.instructions.md](firestore-schema.instructions.md)
+- [security-rules.instructions.md](security-rules.instructions.md)
 
-解法：拆分為多個單一表達式呼叫。
+## AI and RAG
 
-## SPA 導航規則
+- [genkit-flow.instructions.md](genkit-flow.instructions.md)
+- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
+- [rag-architecture.instructions.md](rag-architecture.instructions.md)
+- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
 
-**全頁重載導致 React 狀態重置**（activeAccount 被清空）。
+## Next.js and UI
 
-```
-✅ 允許：點擊 Link 的 ref（SPA 路由）
-✅ 允許：點擊麵包屑 a[href="/target"] 的 ref
-❌ 禁止：瀏覽器導航到新 URL（重置 activeAccount）
-❌ 禁止：evaluate window.location.href = '...'
-```
+- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
+- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
+- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
+- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
+- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
 
-## Radix UI Dropdown 開啟規則
+## Testing
 
-Radix DropdownMenu 需要 `PointerEvent` 才能觸發。使用 snapshot 找到 trigger 的 ref，然後 click 它（playwright-mcp 的 click 自動發送正確事件）。
+- [testing-unit.instructions.md](testing-unit.instructions.md)
+- [testing-e2e.instructions.md](testing-e2e.instructions.md)
+- [playwright-mcp-testing.instructions.md](playwright-mcp-testing.instructions.md)
 
-## 帳號情境一致性
+## DDD Navigation
 
-- 每次全頁重載後，必須重新確認 `localStorage['xuanwu_last_active_account']`
-- 組織功能測試：在 SPA 已載入狀態下切換，勿重載
+Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
 
-## workspaceId 前提
-
-以下頁面的 CTA 需要 `activeWorkspaceId` 非空：
-- `/knowledge-base/articles`（新增文章）
-- `/knowledge-base/articles/[id]`（編輯文章）
-
-測試前先在 `/workspace` 選擇工作區。
-
-## Console 錯誤義務
-
-每次測試結束前，必須呼叫：
-```
-mcp_playwright-mc_browser_console_messages
-```
-並在報告中記錄錯誤（即使為零也要寫「無錯誤」）。
-
-## 截圖義務
-
-每個主要測試步驟（初始狀態、操作後、最終狀態）必須截圖：
-```
-mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
-```
-
-## 測試報告格式
-
-輸出遵循 SKILL.md「測試報告格式」區塊的模板，包含：
-- URL + 帳號情境 + 日期 + 狀態
-- 截圖證據清單
-- 操作步驟記錄
-- 發現問題（含優先級）
-- Console 錯誤
-- 建議修復
-
-## 工具搭配規則
-
-| 情境 | 必用工具 |
-|------|---------|
-| 確認元件 API | `mcp_shadcn_view_items_in_registries` |
-| 不確定 Playwright API | `mcp_context7_resolve-library-id "playwright"` |
-| 找 Server Action | `mcp_io_github_ver_nextjs_call get_server_action_by_id` |
-| 找元件 props | `mcp_oraios_serena_find_symbol` |
-| 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
-
-Tags: #use skill playwright-mcp-testing
+- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
+- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
+- `../../modules/<context>/*.md` for bounded-context details
 ````
 
 ## File: .github/instructions/ubiquitous-language.instructions.md
@@ -9996,357 +10571,223 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
-## File: .github/prompts/playwright-mcp-inspect.prompt.md
+## File: .github/prompts/serena-ddd-refactor.prompt.md
 ````markdown
 ---
-name: playwright-mcp-inspect
-description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
-agent: E2E QA Agent
-argument-hint: "<route-or-section> [--account org|personal] [--deep]"
+
+name: serena-ddd-refactor
+description: Scan large files, refactor to follow Vaughn Vernon Implementing Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
+agent: copilot
+argument-hint: <project-root>
+-----------------------------
+
+# Serena DDD Refactor Prompt
+
+## Objective
+
+Identify oversized files in the project, verify whether they violate Domain-Driven Design layering principles from Vaughn Vernon, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
+
 ---
 
-# Playwright MCP UI 缺口偵測
+# Step 1 — Start Serena MCP
 
-## 輸入參數
-
-- target: ${input:target:要巡覽的路由或功能模組，例如 /organization 或 knowledge-base}
-- account: ${input:account:帳號情境 personal 或 org（組織功能用 org）}
-- depth: ${input:depth:巡覽深度 shallow（主頁面）或 deep（進入子頁面）}
-
-## 目標
-
-扮演一位「第一次使用」的真實用戶，系統性地走過目標區域，找出：
-
-1. **功能缺口**：預期存在但找不到的操作入口（CRUD 缺少 Create？）
-2. **反直覺設計**：動作不符合用戶預期、按鈕位置奇怪、命名混淆
-3. **空狀態問題**：列表為空時無任何引導性說明或 CTA
-4. **Disabled 陷阱**：按鈕存在但 disabled 且無說明原因
-5. **導航死胡同**：進入後找不到返回路徑
-6. **Console 錯誤**：任何 JavaScript 錯誤或 API 失敗
-
-## 帳號情境設置
-
-**Personal 帳號**（預設）：
-- 直接導航到目標頁面
-- 確認 localStorage `xuanwu_last_active_account` = `dev-demo-user`
-
-**Organization 帳號**（需要 org 功能時）：
-1. 導航到 `/workspace`（確保 SPA 已載入）
-2. 點開帳號切換 dropdown（需 PointerDown 事件）
-3. 選擇 org 選項
-4. 確認 localStorage 更新為 org ID
-5. 點擊麵包屑或 Link（勿用全頁重載）導航到目標
-
-## 巡覽執行流程
-
-### Phase 1: 頁面初始化分析
+If Serena MCP is not running:
 
 ```
-1. mcp_playwright-mc_browser_navigate → 目標 URL
-2. mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
-3. mcp_playwright-mc_browser_take_screenshot → 初始截圖
-4. mcp_playwright-mc_browser_console_messages → 確認無初始錯誤
+serena start-mcp-server
 ```
 
-記錄頁面結構：
-- 頁面標題、小標、說明文字
-- 可見的操作按鈕（CTA）
-- 是否有資料列表或空狀態
-- 是否有 Nav/Breadcrumb 讓用戶知道自己在哪
-
-### Phase 2: CTA 完整性檢查
-
-針對每個功能模組，預期應有的 CRUD 操作入口：
-
-| 功能類型 | 預期 CTA | 缺口判斷 |
-|---------|---------|---------|
-| 列表頁 | 新增/建立按鈕 | 無「＋」或「新增」按鈕 |
-| 詳情頁 | 編輯/刪除按鈕 | 只能查看無法修改 |
-| 表單 | 送出/取消 | 送出後無任何反饋 |
-| 搜尋/篩選 | 清除/重設 | 無法清除已輸入的篩選 |
-
-### Phase 3: 互動測試（Shallow 模式）
+Activate project and load memory:
 
 ```
-1. 找到主要 CTA → snapshot ref → click
-2. 記錄 Dialog/Form 是否正確開啟
-3. 填入測試資料（snapshot find inputs → fill）
-4. 送出表單
-5. 驗證成功反饋（toast、列表更新）
-6. 截圖紀錄
-
-負面測試：
-1. 不填任何資料直接送出
-2. 確認 validation 錯誤提示出現
-3. 截圖記錄
-```
-
-### Phase 4: 子頁面巡覽（Deep 模式）
-
-```
-針對頁面上每個導航連結：
-1. 記錄 href
-2. click 進入
-3. 重複 Phase 1-3
-4. click 返回（找 Back Link 或 Breadcrumb）
-```
-
-### Phase 5: 錯誤狀態收集
-
-```
-mcp_playwright-mc_browser_console_messages → 收集所有 console 訊息
-mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors" → Next.js 錯誤
-```
-
-## 缺口評分標準
-
-| 嚴重度 | 說明 | 示例 |
-|-------|------|------|
-| 🔴 高 | 核心功能完全缺失 | 列表頁沒有建立入口 |
-| 🟡 中 | 功能存在但使用困難 | 按鈕 disabled 無說明 |
-| 🟢 低 | 體驗可改善 | 空狀態缺少引導文字 |
-
-## 輸出 UI 缺口報告
-
-```markdown
-## UI 缺口偵測報告：{target}
-
-**巡覽路徑**: {routes visited}
-**帳號情境**: personal / organization  
-**巡覽日期**: YYYY-MM-DD  
-**巡覽深度**: shallow / deep
-
-### 截圖索引
-1. [ss_initial.png] 初始狀態
-2. [ss_create_dialog.png] 建立流程
-...
-
-### 發現的缺口
-
-#### 🔴 高優先級
-- [ ] **路徑**: /route  
-  **問題**: 功能說明  
-  **影響**: 用戶無法完成 X  
-  **建議**: 在 Y 位置加入 Z 元件
-
-#### 🟡 中優先級
-...
-
-#### 🟢 低優先級
-...
-
-### Console 錯誤
-- 無 / 錯誤清單
-
-### 修復建議優先順序
-1. 最高影響 + 最低代價
-2. ...
-```
-
-## 與其他 MCP 的協作
-
-**找修復方案時**：
-- `mcp_shadcn_list_items_in_registries` → 查詢適合的 UI 元件
-- `mcp_shadcn_get_item_examples_from_registries` → 取得元件示例
-
-**確認 API 可用性**：
-- `mcp_oraios_serena_find_symbol` → 找對應的 use case / server action
-- `mcp_io_github_ver_nextjs_call get_routes` → 確認路由存在
-
-**查詢 UX 最佳實踐**：
-- `mcp_context7_resolve-library-id "shadcn/ui"` → 查元件文件
-
-Tags: #use skill playwright-mcp-testing
-#use skill shadcn
+serena
+#use skill serena-mcp > activate_project
+list_memories
+read_memory
+#use skill xuanwu-app-markdown-skill
+#use skill xuanwu-app-skill
 #use skill context7
-#use skill serena-mcp
-#use skill next-devtools-mcp
-````
+```
 
-## File: .github/prompts/playwright-mcp-test.prompt.md
-````markdown
----
-name: playwright-mcp-test
-description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
-agent: E2E QA Agent
-argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
 ---
 
-# Playwright MCP 瀏覽器測試
+# Step 2 — Find Largest Files
 
-## 輸入參數
-
-- route: ${input:route:目標路由或完整 URL，例如 /organization/members}
-- flow: ${input:flow:要測試的用戶流程，例如「邀請成員」}
-- account: ${input:account:帳號情境 personal 或 org（預設 personal）}
-
-## 前置條件確認
-
-在開始前，執行以下確認步驟：
-
-1. **Dev server 狀態**  
-   確認 `http://localhost:3000` 可存取。若未啟動，提示用戶執行 `npm run dev`。
-
-2. **playwright-mcp 可用性**  
-   執行 `mcp_playwright-mc_browser_snapshot`（無參數）。
-   - 成功 → 使用 playwright-mcp 工具鏈
-   - 失敗（"closed"）→ 切換到 `mcp_io_github_ver_browser_eval` 備援模式
-
-3. **帳號情境切換（若需要 org 情境）**  
-   參照 SKILL.md 的「帳號切換」章節執行組織帳號切換。
-
-4. **工作區確認（若頁面需要 workspaceId）**  
-   先導航到 /workspace 選擇工作區，再前往目標頁面。
-
-## 測試執行流程
-
-### Step 1: 導航到目標路由
+Run PowerShell to locate largest files:
 
 ```
-playwright-mcp 模式：
-  mcp_playwright-mc_browser_navigate → url: "http://localhost:3000{route}"
-  
-備援模式：
-  mcp_io_github_ver_browser_eval action:"navigate" → url: "http://localhost:3000{route}"
+$folders = @("app","modules","packages","py_fn\src")
+
+Get-ChildItem $folders -Recurse -File |
+Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
+Sort-Object Length -Descending |
+Select-Object -First 33 FullName, Length
 ```
 
-### Step 2: 取得初始快照
+Focus refactoring on these large files first.
+
+---
+
+# Step 3 — DDD Refactor Rules (Vaughn Vernon)
+
+Refactor files that violate these rules:
+
+## Application Service must NOT contain
+
+* Business logic
+* Repository query logic
+* DTO mapping logic
+* Entity creation logic
+* Infrastructure calls
+
+Application Service should only:
 
 ```
-mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
-識別所有可交互元素（buttons、inputs、links、selects）
-確認主要 CTA 是否 enabled
+Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
 ```
 
-### Step 3: 截圖（初始狀態）
+## Aggregate must NOT contain
+
+* Repository
+* Firebase / Database
+* HTTP / API calls
+* UI / DTO
+* Infrastructure logic
+
+Aggregate should contain only:
 
 ```
-mcp_playwright-mc_browser_take_screenshot → 初始狀態截圖
-儲存至 scratchpad/ 目錄並 view_image 檢視
+Entities
+Value Objects
+Domain Logic
+Domain Events
 ```
 
-### Step 4: 執行用戶流程
+## Repository must NOT contain
 
-依照 `{flow}` 執行具體操作，記錄每步驟的：
-- 找到的元素 ref
-- 執行的動作（click/fill/select）
-- 操作後的快照變化
+* Business logic
+* Domain rules
+* Complex query logic
+* Application logic
 
-### Step 5: 驗證結果
-
-```
-成功路徑驗證：
-  - snapshot → 確認 UI 反映成功狀態（新項目出現、Dialog 關閉）
-  - console_messages → 確認無錯誤
-
-失敗路徑驗證（負面測試）：
-  - 故意送空表單 → 確認 validation 訊息出現
-  - 故意填錯格式 → 確認錯誤提示
-```
-
-### Step 6: 最終截圖
+Repository should only:
 
 ```
-mcp_playwright-mc_browser_take_screenshot → 最終狀態截圖
+Save
+Get
+Delete
 ```
 
-### Step 7: Next.js 診斷（可選）
+## Domain Service usage
+
+Create Domain Service only when:
+
+* Logic does not belong to a single Entity
+* Requires multiple Aggregates
+* Pure business logic
+* No infrastructure dependency
+
+---
+
+# Step 4 — File Splitting Structure
+
+When splitting large files, use this structure:
 
 ```
-mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors"
-→ 確認無 Next.js build/runtime 錯誤
+domain/
+  aggregates/
+  entities/
+  value-objects/
+  domain-events/
+  domain-services/
+
+application/
+  services/
+  commands/
+  queries/
+
+infrastructure/
+  repositories/
+  firebase/
+  external-services/
+
+interface/
+  controllers/
+  dto/
+  routes/
 ```
 
-## 輸出測試報告
+---
 
-使用以下模板輸出報告：
+# Step 5 — File Size Guidelines
 
-```markdown
-## 測試結果：{flow} @ {route}
+Recommended file sizes:
 
-**URL**: {route}  
-**帳號情境**: personal / organization  
-**測試日期**: YYYY-MM-DD  
-**狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
-
-### 截圖證據
-- [初始狀態截圖]
-- [操作後截圖]
-- [最終狀態截圖]
-
-### 操作步驟記錄
-1. 步驟描述 + ref + 結果
-2. ...
-
-### 發現問題
-- ❌ 問題描述（優先級：高/中/低）
-
-### Console 錯誤
-- 無 / 錯誤列表
-
-### 建議
-- [ ] 修復建議或增強建議
+```
+Entity < 150 lines
+Aggregate < 300 lines
+Application Service < 150 lines
+Repository < 120 lines
+Controller < 120 lines
+Domain Service < 150 lines
 ```
 
-Tags: #use skill playwright-mcp-testing
-#use skill context7
-#use skill next-devtools-mcp
-#use skill serena-mcp
-````
+Files exceeding ~300 lines likely indicate boundary or responsibility problems.
 
-## File: .github/prompts/README.md
-````markdown
-# Prompts Index
+---
 
-Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
+# Step 6 — After Refactor Update Serena
 
-## DDD 領域建模 (IDDD)
+After modifications:
 
-- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
-- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+```
+#sym:update_memory
+#sym:prune_index
+```
 
-## Planning
+Purpose:
 
-- [plan-feature.prompt.md](plan-feature.prompt.md)
-- [plan-module.prompt.md](plan-module.prompt.md)
-- [plan-api.prompt.md](plan-api.prompt.md)
+```
+update_memory → sync new architecture and symbols
+prune_index → remove outdated symbols
+```
 
-## Implementation
+---
 
-- [implement-feature.prompt.md](implement-feature.prompt.md)
-- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
-- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
-- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
-- [implement-server-action.prompt.md](implement-server-action.prompt.md)
-- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
+# Full Workflow Checklist
 
-## Docs and RAG
+```
+1. serena start-mcp-server
+2. activate_project
+3. list_memories
+4. read_memory
+5. Find largest files
+6. Check DDD violations
+7. Refactor and split files
+8. Ensure functionality still works
+9. #sym:update_memory
+10. #sym:prune_index
+```
 
-- [ingest-docs.prompt.md](ingest-docs.prompt.md)
-- [chunk-docs.prompt.md](chunk-docs.prompt.md)
-- [embedding-docs.prompt.md](embedding-docs.prompt.md)
-- [write-docs.prompt.md](write-docs.prompt.md)
+---
 
-## Analysis and Debug
+# Core Principle
 
-- [analyze-repo.prompt.md](analyze-repo.prompt.md)
-- [debug-error.prompt.md](debug-error.prompt.md)
+DDD refactoring goal is not smaller files, but correct boundaries:
 
-## Refactor and Review
+```
+Controller → Application Service → Domain → Repository
+```
 
-- [refactor-module.prompt.md](refactor-module.prompt.md)
-- [refactor-api.prompt.md](refactor-api.prompt.md)
-- [review-code.prompt.md](review-code.prompt.md)
-- [review-architecture.prompt.md](review-architecture.prompt.md)
-- [review-performance.prompt.md](review-performance.prompt.md)
-- [review-security.prompt.md](review-security.prompt.md)
+Domain layer must not depend on:
 
-## Testing
-
-- [write-tests.prompt.md](write-tests.prompt.md)
-- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
-- [playwright-mcp-test.prompt.md](playwright-mcp-test.prompt.md)
-- [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)
+```
+Database
+Firebase
+HTTP
+UI
+Framework
+```
 ````
 
 ## File: .github/README.md
@@ -10418,6 +10859,115 @@ Use this file as the stable glossary entry point referenced by `.github/*` custo
 - [`workspace-scheduling`](../modules/workspace-scheduling/ubiquitous-language.md)
 
 When a term is shared across contexts, prefer the local bounded-context glossary first and then reconcile with [`subdomains.md`](../docs/ddd/subdomains.md) and [`bounded-contexts.md`](../docs/ddd/bounded-contexts.md).
+````
+
+## File: docs/ddd/bounded-contexts.md
+````markdown
+# Bounded Contexts
+
+This page is the canonical bounded-context map for Xuanwu.
+
+Xuanwu is implemented as a modular monolith. Each context owns its own ubiquitous language, domain model, application logic, and infrastructure adapters. Cross-context collaboration happens through public API surfaces or published domain events.
+
+## Current Inventory
+
+| Domain Type | Context | Ownership | Reference |
+|---|---|---|---|
+| Core Domain | `knowledge` | Knowledge pages, content blocks, versions, approvals, and collection-level content lifecycle. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
+| Core Domain | `knowledge-base` | Organizational articles, categories, wiki-grade publishing, verification, and shared knowledge assets. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
+| Supporting Subdomain | `ai` | Ingestion jobs, parsing/chunking handoff, and indexing preparation. | [modules/ai/README.md](../../modules/ai/README.md) |
+| Supporting Subdomain | `knowledge-collaboration` | Comments, permissions, and immutable version snapshots for knowledge content. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
+| Supporting Subdomain | `knowledge-database` | Structured database schemas, records, views, and relation-oriented data work. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
+| Supporting Subdomain | `notebook` | Workspace-scoped research, ask/cite, summary, and knowledge-generation flows. | [modules/notebook/README.md](../../modules/notebook/README.md) |
+| Supporting Subdomain | `search` | Retrieval, ranking, citation context, and semantic query support. | [modules/search/README.md](../../modules/search/README.md) |
+| Supporting Subdomain | `source` | External files, source collections, ingestion handoff, and source governance. | [modules/source/README.md](../../modules/source/README.md) |
+| Supporting Subdomain | `workspace-audit` | Audit logging and governance traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
+| Supporting Subdomain | `workspace-feed` | Activity stream, replies, reactions, and collaboration visibility. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
+| Supporting Subdomain | `workspace-flow` | Task, issue, and invoice workflow state machines derived from knowledge and operational policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
+| Supporting Subdomain | `workspace-scheduling` | Scheduling windows, work demands, and capacity allocation. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
+| Generic Subdomain | `identity` | Authentication and verified user identity. | [modules/identity/README.md](../../modules/identity/README.md) |
+| Generic Subdomain | `account` | User account semantics, policy, profile, and personalization. | [modules/account/README.md](../../modules/account/README.md) |
+| Generic Subdomain | `organization` | Multi-tenant organization governance, teams, and member relationships. | [modules/organization/README.md](../../modules/organization/README.md) |
+| Generic Subdomain | `workspace` | Workspace container, workspace membership, and workspace-scoped composition. | [modules/workspace/README.md](../../modules/workspace/README.md) |
+| Generic Subdomain | `notification` | Notification preferences and outbound signals. | [modules/notification/README.md](../../modules/notification/README.md) |
+| Shared Kernel | `shared` | Shared events, slug utilities, and cross-context domain primitives. | [modules/shared/README.md](../../modules/shared/README.md) |
+
+## Communication Model
+
+- Synchronous collaboration must go through the target context's public `api/` surface.
+- Asynchronous collaboration must go through published domain events or other explicit contracts.
+- External models must be translated at the edge through anti-corruption adapters instead of entering the domain layer unchanged.
+
+## Product-Level Reading Path
+
+1. Read [subdomains.md](./subdomains.md) for strategic classification.
+2. Use this page to find context ownership.
+3. Read the corresponding `modules/<context>/README.md` and companion markdown files for ubiquitous language, aggregates, events, repositories, and context maps.
+
+## Historical Notes
+
+- `wiki` is no longer a standalone bounded context.
+- `knowledge-graph`, `retrieval`, `agent`, `content`, and `asset` should only appear as historical migration context unless a document explicitly states otherwise.
+- `modules/system.ts` remains a composition root and is excluded from the bounded-context inventory.
+````
+
+## File: docs/ddd/subdomains.md
+````markdown
+# Subdomains
+
+This page is the strategic classification entry point for Xuanwu's Module-Driven Domain Design model.
+
+Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
+
+## Strategic Classification
+
+### Core Domains
+
+| Context | Why it differentiates Xuanwu | Detail |
+|---|---|---|
+| `knowledge` | Owns the Notion-like knowledge content lifecycle: pages, blocks, versions, approval, and collection-level content structure. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
+| `knowledge-base` | Owns organizational wiki, SOP, and article-grade knowledge assets that are shareable, verifiable, and category-driven. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
+
+### Supporting Subdomains
+
+| Context | Role | Detail |
+|---|---|---|
+| `ai` | Ingestion orchestration, chunk preparation, and indexing handoff for downstream retrieval and reasoning. | [modules/ai/README.md](../../modules/ai/README.md) |
+| `knowledge-collaboration` | Comments, permissions, and version snapshots for knowledge-centric collaboration. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
+| `knowledge-database` | Structured database capability for schema, records, and multi-view exploration. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
+| `notebook` | Research, ask/cite, summary, and knowledge-generation workflow over retrieved context. | [modules/notebook/README.md](../../modules/notebook/README.md) |
+| `search` | Semantic retrieval and answer-context assembly with traceable citations. | [modules/search/README.md](../../modules/search/README.md) |
+| `source` | External document and source ingestion entrypoint. | [modules/source/README.md](../../modules/source/README.md) |
+| `workspace-audit` | Append-only audit trail for governability and traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
+| `workspace-feed` | Activity stream and social visibility layer for workspace collaboration. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
+| `workspace-flow` | Task, issue, and invoice materialization from approved knowledge and workflow policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
+| `workspace-scheduling` | Scheduling, time windows, and capacity coordination for work demands. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
+
+### Generic Subdomains
+
+| Context | Role | Detail |
+|---|---|---|
+| `identity` | Authentication and token lifecycle. | [modules/identity/README.md](../../modules/identity/README.md) |
+| `account` | User profile, account policy, and personalization semantics. | [modules/account/README.md](../../modules/account/README.md) |
+| `organization` | Tenant, team, member, and organization-level governance boundary. | [modules/organization/README.md](../../modules/organization/README.md) |
+| `workspace` | Primary collaboration container for all knowledge, sources, activity, and workflow state. | [modules/workspace/README.md](../../modules/workspace/README.md) |
+| `notification` | Notification delivery and preference-controlled signaling. | [modules/notification/README.md](../../modules/notification/README.md) |
+
+### Shared Kernel
+
+| Context | Role | Detail |
+|---|---|---|
+| `shared` | Shared domain primitives such as events, slugs, and common contracts used across bounded contexts. | [modules/shared/README.md](../../modules/shared/README.md) |
+
+## External Integration Boundary
+
+Xuanwu does not allow external system models to flow directly into the core domains. External files, document systems, storage events, and AI service contracts enter through source-facing workflows and per-context infrastructure adapters that act as anti-corruption boundaries.
+
+## Historical Notes
+
+- The historical `wiki` module was decomposed. Current responsibilities are distributed across `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `search`, and `notebook` depending on ownership.
+- The historical `event` and `namespace` modules were folded into `shared`.
+- `modules/system.ts` is a composition root, not a bounded context.
 ````
 
 ## File: docs/development/modules-implementation-guide.md
@@ -10612,243 +11162,60 @@ This section contains repository-local implementation guidance for Xuanwu contri
 - Python worker: `cd py_fn && python -m compileall -q .`, `cd py_fn && python -m pytest tests/ -v`
 ````
 
-## File: docs/hooks.md
+## File: docs/getting-started.md
 ````markdown
-# Hooks
+# Getting Started
 
-Hooks run automatically at key points in Claude Code's lifecycle.
+This guide gets a contributor from clone to a working local Xuanwu environment.
 
-## Built-in Hooks
+## Prerequisites
 
-| Hook | Event | Purpose |
-|------|-------|---------|
-| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
-| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
-| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
-| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
-| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
-| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
-| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
-| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
-| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
+- Node.js 24
+- npm
+- Python environment compatible with `py_fn/requirements.txt` if you need to run worker validation
 
-## Key Capabilities
-
-### File Locking (pre-tool-use-validator.sh)
-
-Prevents concurrent file edits in multi-agent swarm environments:
-- Atomic lock acquisition via `mkdir` (race-condition safe)
-- Lock auto-expires after 120 seconds
-- Session-based: locks are tied to the session that created them
-- Automatic release on session stop
-
-### Secret Detection (pre-tool-use-validator.sh)
-
-Scans Write/Edit content for 6 secret patterns:
-1. Generic API keys, passwords, tokens
-2. AWS access keys (`AKIA...`)
-3. JWT tokens
-4. Environment variable exports with secrets
-5. GitHub personal access tokens (`ghp_...`)
-6. Private keys (PEM format)
-
-Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
-
-### Protected Files (pre-tool-use-validator.sh)
-
-Blocks modifications to critical system files:
-- `.beads/beads.db`, `.beads/daemon`
-- `.git/`
-- `.env`
-- `.vscode/mcp.json`
-
-### Push Blocking (pre-push-main-blocker.sh)
-
-Enforces trunk-based development by blocking pushes to main/master:
-- Detects explicit pushes (`git push origin main`)
-- Detects implicit pushes (`git push` while on main branch)
-- Provides remediation instructions (create feature branch, push there, create PR)
-
-### Session Management (session-start-loader.sh + stop-validator.sh)
-
-- Tracks active sessions in `.claude/hooks/.state/`
-- Detects active swarm agents for coordination awareness
-- Supports handoff messages between sessions
-- Auto-cleans stale sessions older than 24 hours
-- Warns about uncommitted changes on session stop
-- Syncs Beads before exit
-
-## Creating a Hook
-
-1. Create `.claude/hooks/my-hook.sh`:
+## Install Dependencies
 
 ```bash
-#!/bin/bash
-input=$(cat)
-# your logic
-echo '{"continue": true}'
+npm install
 ```
 
-2. Make executable:
+## Start the App
+
 ```bash
-chmod +x .claude/hooks/my-hook.sh
+npm run dev
 ```
 
-3. Register in `.claude/settings.json`:
+The default development surface is the Next.js app. The authenticated shell is workspace-first and routes users into knowledge, source, knowledge-base, knowledge-database, and notebook workflows.
 
-```json
-{
-  "hooks": {
-    "PostToolUse": [{
-      "matcher": "Write|Edit",
-      "hooks": [{
-        "type": "command",
-        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
-        "timeout": 5
-      }]
-    }]
-  }
-}
-```
+## Validate the Repository
 
-See `.claude/templates/hook.template.sh` for the full template.
+Run the web validation commands:
 
-## Hook Input
-
-Hooks receive JSON via stdin:
-
-```json
-{
-  "session_id": "abc123",
-  "cwd": "/workspace",
-  "prompt": "user message",
-  "tool_name": "Write",
-  "tool_input": {}
-}
-```
-
-## Hook Output
-
-For PreToolUse hooks, return a permission decision:
-
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow|deny|ask",
-    "permissionDecisionReason": "Explanation"
-  }
-}
-```
-
-## Runtime Directories
-
-| Directory | Purpose | Gitignored |
-|-----------|---------|------------|
-| `.claude/hooks/.state/` | Session tracking files | Yes |
-| `.claude/hooks/.locks/` | File lock files | Yes |
-
-## Tips
-
-- Keep hooks fast (< 5 seconds timeout)
-- Test with: `echo '{}' | ./my-hook.sh`
-- Override hooks via `settings.local.json`
-
----
-
-[← Back to README](../README.md)
-````
-
-## File: docs/mcp-servers.md
-````markdown
-# MCP Servers
-
-Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
-
-## Included Servers
-
-### Sequential Thinking
-Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
-
-**Best for:** Architecture decisions, debugging complex issues, planning
-
-### Chrome DevTools
-Browser automation with deep debugging — performance traces, network inspection, console access.
-
-**Best for:** QA testing, frontend debugging, performance analysis
-
-### Context7
-Up-to-date documentation and code examples for any library via Context7.
-
-**Best for:** Researching library APIs, finding code examples, validating implementation patterns
-
-### Filesystem
-File system operations beyond the workspace boundary.
-
-**Best for:** Cross-project file access, operations outside the working directory
-
-## Setup
-
-The servers are configured in `.vscode/mcp.json`. Most work out of the box.
-
-## Adding More Servers
-
-Edit `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "new-server": {
-      "command": "npx",
-      "args": ["@example/mcp-server"],
-      "env": {
-        "API_KEY": "${API_KEY}"
-      }
-    }
-  }
-}
-```
-
-## Recommended Additions
-
-| Server | Purpose | When to Add |
-|--------|---------|-------------|
-| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
-| PostgreSQL | Database queries | Working with Postgres |
-| Brave Search | Web search | Research-heavy work |
-| Slack | Team messaging | Team coordination |
-| Linear | Issue tracking | If you use Linear |
-
-### GitHub Example
-
-```json
-"github": {
-  "command": "npx",
-  "args": ["@anthropic-ai/mcp-server-github"],
-  "env": {
-    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-  }
-}
-```
-
-## Troubleshooting
-
-### Server not starting
-
-Check logs:
 ```bash
-claude mcp list
+npm run lint
+npm run build
 ```
 
-### Permission denied
+Run the Python worker checks when your change touches `py_fn/` or ingestion-related contracts:
 
-MCP servers run as your user. Check file permissions and API tokens.
+```bash
+cd py_fn
+python -m compileall -q .
+python -m pytest tests/ -v
+```
 
-## Resources
+## Read the Right Docs First
 
-- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
-- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
-- [MCP.so Directory](https://mcp.so/)
+1. [../README.md](../README.md) for product and architecture summary
+2. [ddd/subdomains.md](./ddd/subdomains.md) for strategic domain classification
+3. [ddd/bounded-contexts.md](./ddd/bounded-contexts.md) for the current bounded-context inventory
+4. [architecture/README.md](./architecture/README.md) for cross-context architecture reading paths
+5. [development/README.md](./development/README.md) for repository-local implementation guidance
+
+## Internal AI Delivery Docs
+
+Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization.md](./customization.md) document the repository's internal AI delivery workflow. They are useful for maintainers, but they are not the product entrypoint for understanding Xuanwu itself.
 
 ---
 
@@ -11110,57 +11477,6 @@ This document defines the documentation routing model for Xuanwu.
 - `../../../modules/account/aggregates.md`
 ````
 
-## File: modules/ai/AGENT.md
-````markdown
-# AGENT.md — ai BC
-
-## 模組定位
-
-`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
-| `IngestionDocument` | Document、File（在此 BC 內）|
-| `IngestionChunk` | Chunk、VectorChunk |
-| `IngestionStatus` | Status, JobStatus |
-
-## 棄用檔案守衛
-
-以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { aiApi } from "@/modules/ai/api";
-import type { IngestionJobDTO } from "@/modules/ai/api";
-```
-
-### ❌ 禁止
-```typescript
-import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
-import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
-```
-
-## Runtime 邊界規則
-
-- `ai` 模組只在 Next.js 端做 Job 協調
-- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: modules/ai/domain-services.md
 ````markdown
 # ai — Domain Services
@@ -11217,6 +11533,17 @@ npm run build
 
 - `../../../modules/ai/repositories.md`
 - `../../../modules/ai/aggregates.md`
+````
+
+## File: modules/bounded-contexts.md
+````markdown
+# Modules Bounded Contexts（Canonical Link）
+
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+
+- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
+- 若需調整界限上下文內容，請只編輯 canonical 檔案。
+- 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
 ````
 
 ## File: modules/identity/domain-services.md
@@ -11277,267 +11604,170 @@ npm run build
 - `../../../modules/identity/aggregates.md`
 ````
 
-## File: modules/knowledge-base/aggregates.md
+## File: modules/knowledge-base/AGENT.md
 ````markdown
-# knowledge-base — 聚合根摘要
+# knowledge-base — DDD Agent
 
-> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+## 戰略分類
 
-## Article（聚合根）
-
-| 欄位 | 說明 |
+| 屬性 | 值 |
 |---|---|
-| `id` | 唯一識別碼 |
-| `title`, `content` | 文章標題與主體 |
-| `status` | `draft` / `published` / `archived` |
-| `verificationState` | `verified` / `needs_review` / `unverified` |
-| `ownerId` | 文章負責人（ArticleOwner） |
-| `linkedArticleIds` | Backlink 引用列表 |
-| `categoryId` | 所屬分類 |
-| `tags` | 標籤列表 |
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
 
-## Category（聚合根）
+## 為何是 Core Domain
 
-| 欄位 | 說明 |
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+
+## 關鍵設計決策
+
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
+
+## 詳細實作文件
+
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+````
+
+## File: modules/knowledge-base/application-services.md
+````markdown
+# knowledge-base — Application Services
+
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
+
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
+````
+
+## File: modules/knowledge-base/domain-events.md
+````markdown
+# knowledge-base — 領域事件
+
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+
+## 事件清單
+
+| 事件 | 觸發條件 |
 |---|---|
-| `id` | 唯一識別碼 |
-| `name`, `slug` | 分類名稱與 URL 識別碼 |  
-| `parentCategoryId` | 父分類（null = 根節點） |
-| `depth` | 層級深度（最大 5）|
-| `articleIds` | 直屬文章 ID 列表 |
+| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
+
+## 訂閱事件（D3 Promote 協議）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
 ````
 
-## File: modules/knowledge-base/domain-services.md
+## File: modules/knowledge-database/context-map.md
 ````markdown
-# knowledge-base — Domain Services
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
+下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
 
-> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
 
-- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
-- `ArticleSlugService` — title → URL-safe slug 轉換
-- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
 ````
 
-## File: modules/knowledge-base/repositories.md
+## File: modules/knowledge/application-services.md
 ````markdown
-# knowledge-base — Repositories
+# knowledge — Application Services
 
-> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
 
-- `IArticleRepository` — CRUD + search + backlink 反查
-- `ICategoryRepository` — 層級樹操作 + articleIds 管理
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
 
-**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
-````
+## Application Layer 職責
 
-## File: modules/knowledge-base/ubiquitous-language.md
-````markdown
-# knowledge-base — 通用語言
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
 
-> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
 
-## 核心術語速查
+## 實際檔案
 
-| 術語 | 定義 |
-|---|---|
-| **Article** | 組織級知識文章（SOP / Wiki） |
-| **Category** | 層級分類目錄（max 5 層） |
-| **VerificationState** | `verified` / `needs_review` / `unverified` |
-| **ArticleOwner** | 負責維護文章準確性的使用者 |
-| **Backlink** | `[[Article Title]]` 解析的反向引用 |
-| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
-````
+- `application/block-service.ts`
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
 
-## File: modules/knowledge-collaboration/AGENT.md
-````markdown
-# knowledge-collaboration — DDD Agent
+## Use Cases 清單
 
-**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
-
-為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
-
-→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-````
-
-## File: modules/knowledge-collaboration/aggregates.md
-````markdown
-**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
-**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
-**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
-
-→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
-````
-
-## File: modules/knowledge-collaboration/application-services.md
-````markdown
-Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
-Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
-Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
-
-→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
-````
-
-## File: modules/knowledge-collaboration/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
-下游消費者: `notification`, `workspace-feed`, `workspace-audit`
-
-→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
-````
-
-## File: modules/knowledge-collaboration/domain-events.md
-````markdown
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
-````
-
-## File: modules/knowledge-collaboration/domain-services.md
-````markdown
-- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
-- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
-
-→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
-````
-
-## File: modules/knowledge-collaboration/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
-
-> **Domain Type:** Supporting Subdomain + Generic Subdomain
-> **Module:** `modules/knowledge-collaboration/`
-> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-
-## 戰略定位
-
-`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
-
-## 核心聚合
-
-- **Comment** — 線程式留言，透過 `contentId` 引用內容
-- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
-- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
-
-## 主要領域事件
-
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Comment** | 針對 contentId 的留言（root 或 reply） |
-| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
-| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
-| **Version** | immutable Block 快照 |
-| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
-| **contentId** | opaque reference 到任意知識內容 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
+| Use Case 類別 | 操作 | UI 入口 |
 |---|---|---|
-| 上游 | `workspace`, `identity` | Conformist |
-| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+
+## 設計對齊
+
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
 ````
 
-## File: modules/knowledge-collaboration/repositories.md
+## File: modules/knowledge/domain-services.md
 ````markdown
-ICommentRepository, IPermissionRepository, IVersionRepository
+# knowledge — Domain Services
 
-Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
 
-→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
-````
+本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
 
-## File: modules/knowledge-collaboration/ubiquitous-language.md
-````markdown
-| Comment | 留言（≠ Note, Message） |
-| Permission | 存取授權（≠ Role） |
-| PermissionLevel | view < comment < edit < full |
-| Version | Block 快照（≠ Revision, History） |
-| NamedVersion | 附標籤的具名版本（不自動刪除） |
-| contentId | opaque ID 跨 BC 引用 |
-| PageLock | 防並發的暫時鎖定 |
+## Domain Services 檔案
 
-→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
-````
+- 目前沒有獨立的 `domain/services/*` 檔案。
 
-## File: modules/knowledge-database/AGENT.md
-````markdown
-# knowledge-database — DDD Agent
+## 設計規則
 
-**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
 
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
+## 模組內對應文件
 
-→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
-````
-
-## File: modules/knowledge-database/aggregates.md
-````markdown
-**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
-**Record** — databaseId + properties(Map<fieldId, value>) + order
-**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
-
-→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
-````
-
-## File: modules/knowledge-database/application-services.md
-````markdown
-Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
-View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
-Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
-
-→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
-````
-
-## File: modules/knowledge-database/domain-events.md
-````markdown
-- `knowledge-database.database_created` / `database_renamed`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
-
-→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
-````
-
-## File: modules/knowledge-database/domain-services.md
-````markdown
-- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
-- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
-
-→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
-````
-
-## File: modules/knowledge-database/repositories.md
-````markdown
-IDatabaseRepository, IRecordRepository, IViewRepository
-
-Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
-
-→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
-````
-
-## File: modules/knowledge-database/ubiquitous-language.md
-````markdown
-| Database | 結構化資料容器（≠ KnowledgeCollection） |
-| Field | 欄位定義（≠ Column）|
-| Record | 資料行（≠ Row, Item, Entry）|
-| Property | 某 Field 的具體值（Map） |
-| View | 視圖配置 — 不持有資料 |
-| ViewType | table/board/list/calendar/timeline/gallery |
-| Relation | 跨 Database 的 Record 連結欄位 |
-
-→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
+- `../../../modules/knowledge/domain-services.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: modules/notebook/context-map.md
@@ -11729,47 +11959,6 @@ Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
 
 - `../../../modules/notification/domain-services.md`
 - `../../../modules/notification/aggregates.md`
-````
-
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/notification/repositories.md
@@ -12007,47 +12196,6 @@ const result = await searchApi.answerRagQuery({
 - `../../../modules/search/aggregates.md`
 ````
 
-## File: modules/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/search/repositories.md
 ````markdown
 # search — Repositories
@@ -12199,47 +12347,6 @@ const result = await searchApi.answerRagQuery({
 - `../../../modules/source/aggregates.md`
 ````
 
-## File: modules/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/source/repositories.md
 ````markdown
 # source — Repositories
@@ -12273,6 +12380,17 @@ const result = await searchApi.answerRagQuery({
 
 - `../../../modules/source/repositories.md`
 - `../../../modules/source/aggregates.md`
+````
+
+## File: modules/subdomains.md
+````markdown
+# Modules Subdomains（Canonical Link）
+
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+
+- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
+- 若需調整子域分類內容，請只編輯 canonical 檔案。
+- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
 ````
 
 ## File: modules/workspace-audit/domain-services.md
@@ -12961,238 +13079,316 @@ knowledge.page_approved ──► KnowledgeToWorkflowMaterializer
 - `../../../modules/workspace/aggregates.md`
 ````
 
-## File: .github/instructions/README.md
+## File: README.md
 ````markdown
-# Instructions Index
-
-Repository instruction index for `applyTo`-scoped Copilot rules.
-
-## DDD 戰略與戰術設計 (IDDD)
-
-- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
-- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
-- [domain-modeling.instructions.md](domain-modeling.instructions.md)
-- [event-driven-state.instructions.md](event-driven-state.instructions.md)
-
-## Architecture
-
-- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
-- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
-- [architecture-modules.instructions.md](architecture-modules.instructions.md)
-- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
-
-## Delivery Process
-
-- [branching-strategy.instructions.md](branching-strategy.instructions.md)
-- [ci-cd.instructions.md](ci-cd.instructions.md)
-- [commit-convention.instructions.md](commit-convention.instructions.md)
-- [lint-format.instructions.md](lint-format.instructions.md)
-
-## Platform and Runtime
-
-- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
-- [cloud-functions.instructions.md](cloud-functions.instructions.md)
-- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
-- [firestore-schema.instructions.md](firestore-schema.instructions.md)
-- [security-rules.instructions.md](security-rules.instructions.md)
-
-## AI and RAG
-
-- [genkit-flow.instructions.md](genkit-flow.instructions.md)
-- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
-- [rag-architecture.instructions.md](rag-architecture.instructions.md)
-- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
-
-## Next.js and UI
-
-- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
-- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
-- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
-- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
-- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
-
-## Testing
-
-- [testing-unit.instructions.md](testing-unit.instructions.md)
-- [testing-e2e.instructions.md](testing-e2e.instructions.md)
-- [playwright-mcp-testing.instructions.md](playwright-mcp-testing.instructions.md)
-
-## DDD Navigation
-
-Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
-
-- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
-- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
-- `../../modules/<context>/*.md` for bounded-context details
-````
-
-## File: docs/ddd/bounded-contexts.md
-````markdown
-# Bounded Contexts
-
-This page is the canonical bounded-context map for Xuanwu.
-
-Xuanwu is implemented as a modular monolith. Each context owns its own ubiquitous language, domain model, application logic, and infrastructure adapters. Cross-context collaboration happens through public API surfaces or published domain events.
-
-## Current Inventory
-
-| Domain Type | Context | Ownership | Reference |
-|---|---|---|---|
-| Core Domain | `knowledge` | Knowledge pages, content blocks, versions, approvals, and collection-level content lifecycle. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
-| Core Domain | `knowledge-base` | Organizational articles, categories, wiki-grade publishing, verification, and shared knowledge assets. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
-| Supporting Subdomain | `ai` | Ingestion jobs, parsing/chunking handoff, and indexing preparation. | [modules/ai/README.md](../../modules/ai/README.md) |
-| Supporting Subdomain | `knowledge-collaboration` | Comments, permissions, and immutable version snapshots for knowledge content. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
-| Supporting Subdomain | `knowledge-database` | Structured database schemas, records, views, and relation-oriented data work. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
-| Supporting Subdomain | `notebook` | Workspace-scoped research, ask/cite, summary, and knowledge-generation flows. | [modules/notebook/README.md](../../modules/notebook/README.md) |
-| Supporting Subdomain | `search` | Retrieval, ranking, citation context, and semantic query support. | [modules/search/README.md](../../modules/search/README.md) |
-| Supporting Subdomain | `source` | External files, source collections, ingestion handoff, and source governance. | [modules/source/README.md](../../modules/source/README.md) |
-| Supporting Subdomain | `workspace-audit` | Audit logging and governance traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
-| Supporting Subdomain | `workspace-feed` | Activity stream, replies, reactions, and collaboration visibility. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
-| Supporting Subdomain | `workspace-flow` | Task, issue, and invoice workflow state machines derived from knowledge and operational policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
-| Supporting Subdomain | `workspace-scheduling` | Scheduling windows, work demands, and capacity allocation. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
-| Generic Subdomain | `identity` | Authentication and verified user identity. | [modules/identity/README.md](../../modules/identity/README.md) |
-| Generic Subdomain | `account` | User account semantics, policy, profile, and personalization. | [modules/account/README.md](../../modules/account/README.md) |
-| Generic Subdomain | `organization` | Multi-tenant organization governance, teams, and member relationships. | [modules/organization/README.md](../../modules/organization/README.md) |
-| Generic Subdomain | `workspace` | Workspace container, workspace membership, and workspace-scoped composition. | [modules/workspace/README.md](../../modules/workspace/README.md) |
-| Generic Subdomain | `notification` | Notification preferences and outbound signals. | [modules/notification/README.md](../../modules/notification/README.md) |
-| Shared Kernel | `shared` | Shared events, slug utilities, and cross-context domain primitives. | [modules/shared/README.md](../../modules/shared/README.md) |
-
-## Communication Model
-
-- Synchronous collaboration must go through the target context's public `api/` surface.
-- Asynchronous collaboration must go through published domain events or other explicit contracts.
-- External models must be translated at the edge through anti-corruption adapters instead of entering the domain layer unchanged.
-
-## Product-Level Reading Path
-
-1. Read [subdomains.md](./subdomains.md) for strategic classification.
-2. Use this page to find context ownership.
-3. Read the corresponding `modules/<context>/README.md` and companion markdown files for ubiquitous language, aggregates, events, repositories, and context maps.
-
-## Historical Notes
-
-- `wiki` is no longer a standalone bounded context.
-- `knowledge-graph`, `retrieval`, `agent`, `content`, and `asset` should only appear as historical migration context unless a document explicitly states otherwise.
-- `modules/system.ts` remains a composition root and is excluded from the bounded-context inventory.
-````
-
-## File: docs/ddd/subdomains.md
-````markdown
-# Subdomains
-
-This page is the strategic classification entry point for Xuanwu's Module-Driven Domain Design model.
+# Xuanwu App
 
 Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
 
-## Strategic Classification
+The system is built as a modular monolith with Module-Driven Domain Design. `knowledge` and `knowledge-base` are the core domains: `knowledge` owns the Notion-like content lifecycle, while `knowledge-base` owns organization-grade wiki, SOP, and article assets. `workspace` and `organization` provide collaboration and governance boundaries. `source` plus integration adapters form the anti-corruption boundary for external content. `ai`, `search`, and `notebook` provide ingestion, retrieval, reasoning, and research workflows on top of that knowledge base.
 
-### Core Domains
+## Product Capabilities
 
-| Context | Why it differentiates Xuanwu | Detail |
-|---|---|---|
-| `knowledge` | Owns the Notion-like knowledge content lifecycle: pages, blocks, versions, approval, and collection-level content structure. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
-| `knowledge-base` | Owns organizational wiki, SOP, and article-grade knowledge assets that are shareable, verifiable, and category-driven. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
+- Knowledge pages, block-based editing, versioning, and approval
+- Organizational knowledge-base articles, categories, and verification workflows
+- Structured databases with records, schema, and multi-view exploration
+- External document/source ingestion with workspace-scoped governance
+- Ask/Cite, retrieval, summarization, and notebook-style knowledge generation
+- Workspace, organization, audit, feed, workflow, and scheduling support for execution
 
-### Supporting Subdomains
+## Architecture At A Glance
 
-| Context | Role | Detail |
-|---|---|---|
-| `ai` | Ingestion orchestration, chunk preparation, and indexing handoff for downstream retrieval and reasoning. | [modules/ai/README.md](../../modules/ai/README.md) |
-| `knowledge-collaboration` | Comments, permissions, and version snapshots for knowledge-centric collaboration. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
-| `knowledge-database` | Structured database capability for schema, records, and multi-view exploration. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
-| `notebook` | Research, ask/cite, summary, and knowledge-generation workflow over retrieved context. | [modules/notebook/README.md](../../modules/notebook/README.md) |
-| `search` | Semantic retrieval and answer-context assembly with traceable citations. | [modules/search/README.md](../../modules/search/README.md) |
-| `source` | External document and source ingestion entrypoint. | [modules/source/README.md](../../modules/source/README.md) |
-| `workspace-audit` | Append-only audit trail for governability and traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
-| `workspace-feed` | Activity stream and social visibility layer for workspace collaboration. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
-| `workspace-flow` | Task, issue, and invoice materialization from approved knowledge and workflow policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
-| `workspace-scheduling` | Scheduling, time windows, and capacity coordination for work demands. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
+- Architecture style: Modular Monolith + Module-Driven Domain Design
+- Boundary model: bounded contexts with local ubiquitous language and domain model ownership
+- Cross-context collaboration: public `api/` surfaces and published domain events
+- Runtime split:
+	- `Next.js` owns UI, auth/session orchestration, route composition, and server-side application flow
+	- `py_fn/` owns parsing, chunking, embedding, and worker-style ingestion tasks
+- Anti-corruption boundary: external systems are translated through source workflows and infrastructure adapters before entering core domains
 
-### Generic Subdomains
+## Current Domain Shape
 
-| Context | Role | Detail |
-|---|---|---|
-| `identity` | Authentication and token lifecycle. | [modules/identity/README.md](../../modules/identity/README.md) |
-| `account` | User profile, account policy, and personalization semantics. | [modules/account/README.md](../../modules/account/README.md) |
-| `organization` | Tenant, team, member, and organization-level governance boundary. | [modules/organization/README.md](../../modules/organization/README.md) |
-| `workspace` | Primary collaboration container for all knowledge, sources, activity, and workflow state. | [modules/workspace/README.md](../../modules/workspace/README.md) |
-| `notification` | Notification delivery and preference-controlled signaling. | [modules/notification/README.md](../../modules/notification/README.md) |
+- Core domains: `knowledge`, `knowledge-base`
+- Supporting domains: `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`
+- Generic domains: `identity`, `account`, `organization`, `workspace`, `notification`
+- Shared kernel: `shared`
 
-### Shared Kernel
+See [docs/ddd/subdomains.md](docs/ddd/subdomains.md) and [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md) for the canonical strategic map.
 
-| Context | Role | Detail |
-|---|---|---|
-| `shared` | Shared domain primitives such as events, slugs, and common contracts used across bounded contexts. | [modules/shared/README.md](../../modules/shared/README.md) |
+## Documentation Entry Points
 
-## External Integration Boundary
+- [docs/getting-started.md](docs/getting-started.md): local setup and validation flow
+- [docs/ddd/subdomains.md](docs/ddd/subdomains.md): strategic subdomain classification
+- [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md): bounded-context inventory
+- [docs/reference/specification/system-overview.md](docs/reference/specification/system-overview.md): system overview specification
+- [AGENTS.md](AGENTS.md): repository-wide operating rules and validation commands
+- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot workspace baseline
 
-Xuanwu does not allow external system models to flow directly into the core domains. External files, document systems, storage events, and AI service contracts enter through source-facing workflows and per-context infrastructure adapters that act as anti-corruption boundaries.
-
-## Historical Notes
-
-- The historical `wiki` module was decomposed. Current responsibilities are distributed across `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `search`, and `notebook` depending on ownership.
-- The historical `event` and `namespace` modules were folded into `shared`.
-- `modules/system.ts` is a composition root, not a bounded context.
-````
-
-## File: docs/getting-started.md
-````markdown
-# Getting Started
-
-This guide gets a contributor from clone to a working local Xuanwu environment.
-
-## Prerequisites
-
-- Node.js 24
-- npm
-- Python environment compatible with `py_fn/requirements.txt` if you need to run worker validation
-
-## Install Dependencies
+## Development Quick Start
 
 ```bash
 npm install
-```
-
-## Start the App
-
-```bash
 npm run dev
 ```
 
-The default development surface is the Next.js app. The authenticated shell is workspace-first and routes users into knowledge, source, knowledge-base, knowledge-database, and notebook workflows.
-
-## Validate the Repository
-
-Run the web validation commands:
+Validation commands:
 
 ```bash
 npm run lint
 npm run build
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
 ```
 
-Run the Python worker checks when your change touches `py_fn/` or ingestion-related contracts:
+## Repository Notes
+
+- `modules/` contains bounded contexts and their local markdown reference sets
+- `docs/ddd/` contains strategic DDD entrypoints
+- `.github/` contains Copilot customizations, instructions, and repomix-generated skills
+- `docs/swarm.md`, `docs/beads.md`, and related files document internal AI delivery workflow, not the product surface itself
+````
+
+## File: .github/agents/commands.md
+````markdown
+# Build, Lint & Development Commands
+
+## Development
+
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
+
+## Lint & Type Check
+
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
+
+## Firebase Deployment
+
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
+
+## Repomix (AI Skill Generation)
+
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
+
+## Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
+
+## Environment Setup
+
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
+````
+
+## File: CLAUDE.md
+````markdown
+# CLAUDE.md — Xuanwu App Context
+
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
+
+## Context
+
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
+
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
+
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first.
+- Serena remains the orchestration lead and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+- Repository orchestration memory and index updates must use Serena tools; do not replace them with direct `.serena/` edits.
+
+## Coordination
+
+- Serena MCP is mandatory for every conversation and remains the orchestration lead.
+- Start with Serena to understand the request, gather the needed context, and decide whether subagents are required.
+- This file is a Claude compatibility quick reference, not a separate repository governance source. Repo-wide rules live in `AGENTS.md` and `.github/*`.
+- When a task touches Claude Code workflow, consult `.claude/settings.json` for hooks and permissions, `.claude/rules/tech-strategy.md` for technology policy, and `.claude/hooks/*` for automation and guards.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+
+## Quick Commands
 
 ```bash
-cd py_fn
-python -m compileall -q .
-python -m pytest tests/ -v
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
 ```
 
-## Read the Right Docs First
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
 
-1. [../README.md](../README.md) for product and architecture summary
-2. [ddd/subdomains.md](./ddd/subdomains.md) for strategic domain classification
-3. [ddd/bounded-contexts.md](./ddd/bounded-contexts.md) for the current bounded-context inventory
-4. [architecture/README.md](./architecture/README.md) for cross-context architecture reading paths
-5. [development/README.md](./development/README.md) for repository-local implementation guidance
+## Key Principles
 
-## Internal AI Delivery Docs
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
 
-Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization.md](./customization.md) document the repository's internal AI delivery workflow. They are useful for maintainers, but they are not the product entrypoint for understanding Xuanwu itself.
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
+````
+
+## File: CONTRIBUTING.md
+````markdown
+# Contributing to Xuanwu App
+
+Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
+
+## House Rules
+
+### 👥 Prevent Work Duplication
+
+Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
+
+### ✅ Work on Approved Issues
+
+For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
+
+### 🚫 One Concern per PR
+
+Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
+
+### 📚 Write for Future Readers
+
+Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
+
+### ✅ Summarize Your PR
+
+Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
+
+### 🧪 Describe What Was Tested
+
+Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
 
 ---
 
-[← Back to README](../README.md)
+## Development
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Setup
+
+```bash
+npm install
+npm run dev      # Start Next.js dev server (port 3000)
+```
+
+### Validation
+
+Before pushing, ensure these all pass:
+
+```bash
+npm run lint     # ESLint — must have 0 errors
+npm run test     # Vitest unit tests
+npm run build    # Next.js production build + TypeScript type-check
+```
+
+For the Python worker:
+
+```bash
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+---
+
+## Architecture Conventions
+
+This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
+
+- [`.github/agents/README.md`](.github/agents/README.md) — rules index
+- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
+
+### Key Rules
+
+- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must be framework-free.
+- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
+- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
+
+### File Naming
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Domain entity | `PascalCase.ts` | `Organization.ts` |
+| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
+| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
+| Use case | `my-use-case.ts` | `create-workspace.ts` |
+| Server Action | `*.actions.ts` | `workspace.actions.ts` |
+| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
+
+---
+
+## Making a Pull Request
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused, incremental changes.
+3. Ensure `npm run lint` and `npm run build` pass with no new errors.
+4. Fill out the PR description with intent, changes, and testing notes.
+5. Link related issues with `Closes #N` or `Refs #N`.
+6. Request a review.
+
+---
+
+## Spec-Driven Development
+
+For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/swarm.md`](docs/swarm.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: docs/guides/explanation/architecture-domain.md
@@ -13342,164 +13538,6 @@ Next.js 不承接 parse/chunk/embed 的 worker 邏輯；`py_fn/` 不承接頁面
 本文件的目的是把產品概念與現行 bounded-context 拓樸對齊，而不是維護一份脫離程式碼的「理想模組表」。當實作演進時，應優先更新 `docs/ddd/` root maps 與對應 module docs，再回來同步這份 explanation。
 ````
 
-## File: modules/knowledge-base/AGENT.md
-````markdown
-# knowledge-base — DDD Agent
-
-## 戰略分類
-
-| 屬性 | 值 |
-|---|---|
-| **Domain Type** | **Core Domain** — 產品差異化核心 |
-| **Module** | `modules/knowledge-base/` |
-| **Aggregates** | Article, Category |
-| **Key Events** | article_created / published / verified, category_created |
-
-## 為何是 Core Domain
-
-組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
-
-## 關鍵設計決策
-
-1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
-2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
-3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
-4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
-5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
-
-## 詳細實作文件
-
-→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
-````
-
-## File: modules/knowledge-base/application-services.md
-````markdown
-# knowledge-base — Application Services
-
-> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
-
-**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
-
-**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
-````
-
-## File: modules/knowledge-base/domain-events.md
-````markdown
-# knowledge-base — 領域事件
-
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
-
-## 事件清單
-
-| 事件 | 觸發條件 |
-|---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
-
-## 訂閱事件（D3 Promote 協議）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
-````
-
-## File: modules/knowledge-database/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
-下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
-
-> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
-
-→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
-````
-
-## File: README.md
-````markdown
-# Xuanwu App
-
-Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
-
-The system is built as a modular monolith with Module-Driven Domain Design. `knowledge` and `knowledge-base` are the core domains: `knowledge` owns the Notion-like content lifecycle, while `knowledge-base` owns organization-grade wiki, SOP, and article assets. `workspace` and `organization` provide collaboration and governance boundaries. `source` plus integration adapters form the anti-corruption boundary for external content. `ai`, `search`, and `notebook` provide ingestion, retrieval, reasoning, and research workflows on top of that knowledge base.
-
-## Product Capabilities
-
-- Knowledge pages, block-based editing, versioning, and approval
-- Organizational knowledge-base articles, categories, and verification workflows
-- Structured databases with records, schema, and multi-view exploration
-- External document/source ingestion with workspace-scoped governance
-- Ask/Cite, retrieval, summarization, and notebook-style knowledge generation
-- Workspace, organization, audit, feed, workflow, and scheduling support for execution
-
-## Architecture At A Glance
-
-- Architecture style: Modular Monolith + Module-Driven Domain Design
-- Boundary model: bounded contexts with local ubiquitous language and domain model ownership
-- Cross-context collaboration: public `api/` surfaces and published domain events
-- Runtime split:
-	- `Next.js` owns UI, auth/session orchestration, route composition, and server-side application flow
-	- `py_fn/` owns parsing, chunking, embedding, and worker-style ingestion tasks
-- Anti-corruption boundary: external systems are translated through source workflows and infrastructure adapters before entering core domains
-
-## Current Domain Shape
-
-- Core domains: `knowledge`, `knowledge-base`
-- Supporting domains: `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`
-- Generic domains: `identity`, `account`, `organization`, `workspace`, `notification`
-- Shared kernel: `shared`
-
-See [docs/ddd/subdomains.md](docs/ddd/subdomains.md) and [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md) for the canonical strategic map.
-
-## Documentation Entry Points
-
-- [docs/getting-started.md](docs/getting-started.md): local setup and validation flow
-- [docs/ddd/subdomains.md](docs/ddd/subdomains.md): strategic subdomain classification
-- [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md): bounded-context inventory
-- [docs/reference/specification/system-overview.md](docs/reference/specification/system-overview.md): system overview specification
-- [AGENTS.md](AGENTS.md): repository-wide operating rules and validation commands
-- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot workspace baseline
-
-## Development Quick Start
-
-```bash
-npm install
-npm run dev
-```
-
-Validation commands:
-
-```bash
-npm run lint
-npm run build
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Repository Notes
-
-- `modules/` contains bounded contexts and their local markdown reference sets
-- `docs/ddd/` contains strategic DDD entrypoints
-- `.github/` contains Copilot customizations, instructions, and repomix-generated skills
-- `docs/swarm.md`, `docs/beads.md`, and related files document internal AI delivery workflow, not the product surface itself
-````
-
-## File: modules/bounded-contexts.md
-````markdown
-# Modules Bounded Contexts（Canonical Link）
-
-本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
-
-- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
-- 若需調整界限上下文內容，請只編輯 canonical 檔案。
-- 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
-````
-
 ## File: modules/knowledge-base/context-map.md
 ````markdown
 # knowledge-base — Context Map
@@ -13637,105 +13675,6 @@ cd py_fn && python -m pytest tests/ -v
 | 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
 | 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
 | 下游 | `workspace-feed`, `notification` | Published Language |
-````
-
-## File: modules/knowledge/application-services.md
-````markdown
-# knowledge — Application Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
-
-## Use Cases 清單
-
-| Use Case 類別 | 操作 | UI 入口 |
-|---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
-
-## 設計對齊
-
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
-````
-
-## File: modules/knowledge/domain-services.md
-````markdown
-# knowledge — Domain Services
-
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
-
-本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/knowledge/domain-services.md`
-- `../../../modules/knowledge/aggregates.md`
-````
-
-## File: modules/subdomains.md
-````markdown
-# Modules Subdomains（Canonical Link）
-
-本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
-
-- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
-- 若需調整子域分類內容，請只編輯 canonical 檔案。
-- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
 ````
 
 ## File: modules/knowledge/README.md
@@ -13913,6 +13852,173 @@ Application layer 只負責：
 
 > `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
+
+## Purpose
+
+- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
+
+## Authoritative Sources
+
+Read these in order before making non-trivial decisions:
+
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
+2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+
+## DDD Reference Authority
+
+DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+
+| Query | Canonical Document |
+|-------|-------------------|
+| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Context terminology | `modules/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
+| Context domain events | `modules/<context>/domain-events.md` |
+| Context map | `modules/<context>/context-map.md` |
+| Context repositories | `modules/<context>/repositories.md` |
+| Context application services | `modules/<context>/application-services.md` |
+| Context domain services | `modules/<context>/domain-services.md` |
+
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+
+## Workspace-Wide Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
+
+## Architecture Guardrails
+
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+
+## Copilot Customization Design Rules
+
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+
+## Serena MCP
+
+Serena MCP is **mandatory for every session**. There are no exceptions.
+
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
+
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
+
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Claude Compatibility Layer
+
+`.claude/` is a supported Claude Code compatibility surface.
+
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
+
+## Skill And Agent Routing
+
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
+
+## Validation
+
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
+
+## Terminology
+
+- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
 ## File: modules/knowledge/AGENT.md
@@ -14275,4 +14381,172 @@ interface KnowledgePagePromotedEvent {
 | `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
 | `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
 | `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
+````
+
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
+- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
+
+## Orchestration Protocol
+
+- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
+- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
+- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run test         # Vitest unit test baseline
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````

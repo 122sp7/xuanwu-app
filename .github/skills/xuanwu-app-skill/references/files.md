@@ -150,62 +150,6 @@ handoffs:
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 ````
 
-## File: .github/agents/commands.md
-````markdown
-# Build, Lint & Development Commands
-
-## Development
-
-- `npm run dev` — Start Next.js development server (App Router, port 3000)
-- `npm run build` — Production build (Next.js + TypeScript type-check)
-- `npm run start` — Start production server from build output
-
-## Lint & Type Check
-
-- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
-- TypeScript type-checking is included in `npm run build`
-
-## Firebase Deployment
-
-- `npm run deploy:firebase` — Deploy all Firebase resources
-- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
-- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
-- `npm run deploy:storage:rules` — Deploy Storage security rules only
-- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
-- `npm run deploy:apphosting` — Deploy App Hosting configuration
-- `npm run deploy:functions` — Deploy Cloud Functions (Python)
-- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
-- `npm run deploy:functions:all` — Deploy all Cloud Functions
-
-## Repomix (AI Skill Generation)
-
-- `npm run repomix:skill` — Generate a repomix skill from the full codebase
-- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
-- `npm run repomix:local` — Generate a skill from a local directory
-
-## Key Configuration Files
-
-| File | Purpose |
-|------|---------|
-| `next.config.ts` | Next.js 16 App Router configuration |
-| `tsconfig.json` | TypeScript config with `@alias` path mappings |
-| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
-| `tailwind.config.ts` | Tailwind CSS 4 configuration |
-| `firebase.json` | Firebase project configuration |
-| `firestore.rules` | Firestore security rules |
-| `firestore.indexes.json` | Firestore composite indexes |
-| `storage.rules` | Cloud Storage security rules |
-| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
-| `apphosting.yaml` | Firebase App Hosting configuration |
-
-## Environment Setup
-
-- **Node.js**: Version 24 required (see `engines` in `package.json`)
-- **Package manager**: npm
-- Install dependencies: `npm install`
-- Firebase CLI: `npx firebase` (no global install required)
-````
-
 ## File: .github/agents/doc-ingest.agent.md
 ````markdown
 ---
@@ -1839,6 +1783,108 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vercel-react-best-practices
 ````
 
+## File: .github/instructions/playwright-mcp-testing.instructions.md
+````markdown
+---
+description: >
+  Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
+  截圖存證、表單操作自動化、Console 錯誤偵測時適用。
+applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
+---
+
+# Playwright MCP Testing Rules
+
+## 工具優先順序
+
+1. **主要**：`mcp_playwright-mc_*` 工具鏈（snapshot → ref → action）
+2. **備援**：`mcp_io_github_ver_browser_eval`（playwright-mcp 失效時）
+3. **永遠不用**：在備援模式下呼叫 playwright-mcp（會得到 closed 錯誤）
+
+## Snapshot-First 原則
+
+**禁止** 在未取得 snapshot ref 的情況下直接 click 或 fill。
+
+```
+✅ 正確：snapshot → 找 ref → click(ref: "...")
+❌ 錯誤：直接 click(selector: "button.create")
+```
+
+## evaluate 限制（備援模式）
+
+以下表達式在 `mcp_io_github_ver_browser_eval evaluate` 中會失敗：
+
+- 包含 `new Event()`、`new PointerEvent()` 的鏈式表達式
+- 包含 `Array.from()` + 方法鏈的複合表達式
+- 包含 for loop 的表達式
+
+解法：拆分為多個單一表達式呼叫。
+
+## SPA 導航規則
+
+**全頁重載導致 React 狀態重置**（activeAccount 被清空）。
+
+```
+✅ 允許：點擊 Link 的 ref（SPA 路由）
+✅ 允許：點擊麵包屑 a[href="/target"] 的 ref
+❌ 禁止：瀏覽器導航到新 URL（重置 activeAccount）
+❌ 禁止：evaluate window.location.href = '...'
+```
+
+## Radix UI Dropdown 開啟規則
+
+Radix DropdownMenu 需要 `PointerEvent` 才能觸發。使用 snapshot 找到 trigger 的 ref，然後 click 它（playwright-mcp 的 click 自動發送正確事件）。
+
+## 帳號情境一致性
+
+- 每次全頁重載後，必須重新確認 `localStorage['xuanwu_last_active_account']`
+- 組織功能測試：在 SPA 已載入狀態下切換，勿重載
+
+## workspaceId 前提
+
+以下頁面的 CTA 需要 `activeWorkspaceId` 非空：
+- `/knowledge-base/articles`（新增文章）
+- `/knowledge-base/articles/[id]`（編輯文章）
+
+測試前先在 `/workspace` 選擇工作區。
+
+## Console 錯誤義務
+
+每次測試結束前，必須呼叫：
+```
+mcp_playwright-mc_browser_console_messages
+```
+並在報告中記錄錯誤（即使為零也要寫「無錯誤」）。
+
+## 截圖義務
+
+每個主要測試步驟（初始狀態、操作後、最終狀態）必須截圖：
+```
+mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
+```
+
+## 測試報告格式
+
+輸出遵循 SKILL.md「測試報告格式」區塊的模板，包含：
+- URL + 帳號情境 + 日期 + 狀態
+- 截圖證據清單
+- 操作步驟記錄
+- 發現問題（含優先級）
+- Console 錯誤
+- 建議修復
+
+## 工具搭配規則
+
+| 情境 | 必用工具 |
+|------|---------|
+| 確認元件 API | `mcp_shadcn_view_items_in_registries` |
+| 不確定 Playwright API | `mcp_context7_resolve-library-id "playwright"` |
+| 找 Server Action | `mcp_io_github_ver_nextjs_call get_server_action_by_id` |
+| 找元件 props | `mcp_oraios_serena_find_symbol` |
+| 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
+
+Tags: #use skill playwright-mcp-testing
+````
+
 ## File: .github/instructions/prompt-engineering.instructions.md
 ````markdown
 ---
@@ -2518,6 +2564,359 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
+## File: .github/prompts/playwright-mcp-inspect.prompt.md
+````markdown
+---
+name: playwright-mcp-inspect
+description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
+agent: E2E QA Agent
+argument-hint: "<route-or-section> [--account org|personal] [--deep]"
+---
+
+# Playwright MCP UI 缺口偵測
+
+## 輸入參數
+
+- target: ${input:target:要巡覽的路由或功能模組，例如 /organization 或 knowledge-base}
+- account: ${input:account:帳號情境 personal 或 org（組織功能用 org）}
+- depth: ${input:depth:巡覽深度 shallow（主頁面）或 deep（進入子頁面）}
+
+## 目標
+
+扮演一位「第一次使用」的真實用戶，系統性地走過目標區域，找出：
+
+1. **功能缺口**：預期存在但找不到的操作入口（CRUD 缺少 Create？）
+2. **反直覺設計**：動作不符合用戶預期、按鈕位置奇怪、命名混淆
+3. **空狀態問題**：列表為空時無任何引導性說明或 CTA
+4. **Disabled 陷阱**：按鈕存在但 disabled 且無說明原因
+5. **導航死胡同**：進入後找不到返回路徑
+6. **Console 錯誤**：任何 JavaScript 錯誤或 API 失敗
+
+## 帳號情境設置
+
+**Personal 帳號**（預設）：
+- 直接導航到目標頁面
+- 確認 localStorage `xuanwu_last_active_account` = `dev-demo-user`
+
+**Organization 帳號**（需要 org 功能時）：
+1. 導航到 `/workspace`（確保 SPA 已載入）
+2. 點開帳號切換 dropdown（需 PointerDown 事件）
+3. 選擇 org 選項
+4. 確認 localStorage 更新為 org ID
+5. 點擊麵包屑或 Link（勿用全頁重載）導航到目標
+
+## 巡覽執行流程
+
+### Phase 1: 頁面初始化分析
+
+```
+1. mcp_playwright-mc_browser_navigate → 目標 URL
+2. mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
+3. mcp_playwright-mc_browser_take_screenshot → 初始截圖
+4. mcp_playwright-mc_browser_console_messages → 確認無初始錯誤
+```
+
+記錄頁面結構：
+- 頁面標題、小標、說明文字
+- 可見的操作按鈕（CTA）
+- 是否有資料列表或空狀態
+- 是否有 Nav/Breadcrumb 讓用戶知道自己在哪
+
+### Phase 2: CTA 完整性檢查
+
+針對每個功能模組，預期應有的 CRUD 操作入口：
+
+| 功能類型 | 預期 CTA | 缺口判斷 |
+|---------|---------|---------|
+| 列表頁 | 新增/建立按鈕 | 無「＋」或「新增」按鈕 |
+| 詳情頁 | 編輯/刪除按鈕 | 只能查看無法修改 |
+| 表單 | 送出/取消 | 送出後無任何反饋 |
+| 搜尋/篩選 | 清除/重設 | 無法清除已輸入的篩選 |
+
+### Phase 3: 互動測試（Shallow 模式）
+
+```
+1. 找到主要 CTA → snapshot ref → click
+2. 記錄 Dialog/Form 是否正確開啟
+3. 填入測試資料（snapshot find inputs → fill）
+4. 送出表單
+5. 驗證成功反饋（toast、列表更新）
+6. 截圖紀錄
+
+負面測試：
+1. 不填任何資料直接送出
+2. 確認 validation 錯誤提示出現
+3. 截圖記錄
+```
+
+### Phase 4: 子頁面巡覽（Deep 模式）
+
+```
+針對頁面上每個導航連結：
+1. 記錄 href
+2. click 進入
+3. 重複 Phase 1-3
+4. click 返回（找 Back Link 或 Breadcrumb）
+```
+
+### Phase 5: 錯誤狀態收集
+
+```
+mcp_playwright-mc_browser_console_messages → 收集所有 console 訊息
+mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors" → Next.js 錯誤
+```
+
+## 缺口評分標準
+
+| 嚴重度 | 說明 | 示例 |
+|-------|------|------|
+| 🔴 高 | 核心功能完全缺失 | 列表頁沒有建立入口 |
+| 🟡 中 | 功能存在但使用困難 | 按鈕 disabled 無說明 |
+| 🟢 低 | 體驗可改善 | 空狀態缺少引導文字 |
+
+## 輸出 UI 缺口報告
+
+```markdown
+## UI 缺口偵測報告：{target}
+
+**巡覽路徑**: {routes visited}
+**帳號情境**: personal / organization  
+**巡覽日期**: YYYY-MM-DD  
+**巡覽深度**: shallow / deep
+
+### 截圖索引
+1. [ss_initial.png] 初始狀態
+2. [ss_create_dialog.png] 建立流程
+...
+
+### 發現的缺口
+
+#### 🔴 高優先級
+- [ ] **路徑**: /route  
+  **問題**: 功能說明  
+  **影響**: 用戶無法完成 X  
+  **建議**: 在 Y 位置加入 Z 元件
+
+#### 🟡 中優先級
+...
+
+#### 🟢 低優先級
+...
+
+### Console 錯誤
+- 無 / 錯誤清單
+
+### 修復建議優先順序
+1. 最高影響 + 最低代價
+2. ...
+```
+
+## 與其他 MCP 的協作
+
+**找修復方案時**：
+- `mcp_shadcn_list_items_in_registries` → 查詢適合的 UI 元件
+- `mcp_shadcn_get_item_examples_from_registries` → 取得元件示例
+
+**確認 API 可用性**：
+- `mcp_oraios_serena_find_symbol` → 找對應的 use case / server action
+- `mcp_io_github_ver_nextjs_call get_routes` → 確認路由存在
+
+**查詢 UX 最佳實踐**：
+- `mcp_context7_resolve-library-id "shadcn/ui"` → 查元件文件
+
+Tags: #use skill playwright-mcp-testing
+#use skill shadcn
+#use skill context7
+#use skill serena-mcp
+#use skill next-devtools-mcp
+````
+
+## File: .github/prompts/playwright-mcp-test.prompt.md
+````markdown
+---
+name: playwright-mcp-test
+description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
+agent: E2E QA Agent
+argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
+---
+
+# Playwright MCP 瀏覽器測試
+
+## 輸入參數
+
+- route: ${input:route:目標路由或完整 URL，例如 /organization/members}
+- flow: ${input:flow:要測試的用戶流程，例如「邀請成員」}
+- account: ${input:account:帳號情境 personal 或 org（預設 personal）}
+
+## 前置條件確認
+
+在開始前，執行以下確認步驟：
+
+1. **Dev server 狀態**  
+   確認 `http://localhost:3000` 可存取。若未啟動，提示用戶執行 `npm run dev`。
+
+2. **playwright-mcp 可用性**  
+   執行 `mcp_playwright-mc_browser_snapshot`（無參數）。
+   - 成功 → 使用 playwright-mcp 工具鏈
+   - 失敗（"closed"）→ 切換到 `mcp_io_github_ver_browser_eval` 備援模式
+
+3. **帳號情境切換（若需要 org 情境）**  
+   參照 SKILL.md 的「帳號切換」章節執行組織帳號切換。
+
+4. **工作區確認（若頁面需要 workspaceId）**  
+   先導航到 /workspace 選擇工作區，再前往目標頁面。
+
+## 測試執行流程
+
+### Step 1: 導航到目標路由
+
+```
+playwright-mcp 模式：
+  mcp_playwright-mc_browser_navigate → url: "http://localhost:3000{route}"
+  
+備援模式：
+  mcp_io_github_ver_browser_eval action:"navigate" → url: "http://localhost:3000{route}"
+```
+
+### Step 2: 取得初始快照
+
+```
+mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
+識別所有可交互元素（buttons、inputs、links、selects）
+確認主要 CTA 是否 enabled
+```
+
+### Step 3: 截圖（初始狀態）
+
+```
+mcp_playwright-mc_browser_take_screenshot → 初始狀態截圖
+儲存至 scratchpad/ 目錄並 view_image 檢視
+```
+
+### Step 4: 執行用戶流程
+
+依照 `{flow}` 執行具體操作，記錄每步驟的：
+- 找到的元素 ref
+- 執行的動作（click/fill/select）
+- 操作後的快照變化
+
+### Step 5: 驗證結果
+
+```
+成功路徑驗證：
+  - snapshot → 確認 UI 反映成功狀態（新項目出現、Dialog 關閉）
+  - console_messages → 確認無錯誤
+
+失敗路徑驗證（負面測試）：
+  - 故意送空表單 → 確認 validation 訊息出現
+  - 故意填錯格式 → 確認錯誤提示
+```
+
+### Step 6: 最終截圖
+
+```
+mcp_playwright-mc_browser_take_screenshot → 最終狀態截圖
+```
+
+### Step 7: Next.js 診斷（可選）
+
+```
+mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors"
+→ 確認無 Next.js build/runtime 錯誤
+```
+
+## 輸出測試報告
+
+使用以下模板輸出報告：
+
+```markdown
+## 測試結果：{flow} @ {route}
+
+**URL**: {route}  
+**帳號情境**: personal / organization  
+**測試日期**: YYYY-MM-DD  
+**狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
+
+### 截圖證據
+- [初始狀態截圖]
+- [操作後截圖]
+- [最終狀態截圖]
+
+### 操作步驟記錄
+1. 步驟描述 + ref + 結果
+2. ...
+
+### 發現問題
+- ❌ 問題描述（優先級：高/中/低）
+
+### Console 錯誤
+- 無 / 錯誤列表
+
+### 建議
+- [ ] 修復建議或增強建議
+```
+
+Tags: #use skill playwright-mcp-testing
+#use skill context7
+#use skill next-devtools-mcp
+#use skill serena-mcp
+````
+
+## File: .github/prompts/README.md
+````markdown
+# Prompts Index
+
+Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
+
+## DDD 領域建模 (IDDD)
+
+- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
+- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+
+## Planning
+
+- [plan-feature.prompt.md](plan-feature.prompt.md)
+- [plan-module.prompt.md](plan-module.prompt.md)
+- [plan-api.prompt.md](plan-api.prompt.md)
+
+## Implementation
+
+- [implement-feature.prompt.md](implement-feature.prompt.md)
+- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
+- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
+- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
+- [implement-server-action.prompt.md](implement-server-action.prompt.md)
+- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
+
+## Docs and RAG
+
+- [ingest-docs.prompt.md](ingest-docs.prompt.md)
+- [chunk-docs.prompt.md](chunk-docs.prompt.md)
+- [embedding-docs.prompt.md](embedding-docs.prompt.md)
+- [write-docs.prompt.md](write-docs.prompt.md)
+
+## Analysis and Debug
+
+- [analyze-repo.prompt.md](analyze-repo.prompt.md)
+- [debug-error.prompt.md](debug-error.prompt.md)
+
+## Refactor and Review
+
+- [refactor-module.prompt.md](refactor-module.prompt.md)
+- [refactor-api.prompt.md](refactor-api.prompt.md)
+- [review-code.prompt.md](review-code.prompt.md)
+- [review-architecture.prompt.md](review-architecture.prompt.md)
+- [review-performance.prompt.md](review-performance.prompt.md)
+- [review-security.prompt.md](review-security.prompt.md)
+
+## Testing
+
+- [write-tests.prompt.md](write-tests.prompt.md)
+- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
+- [playwright-mcp-test.prompt.md](playwright-mcp-test.prompt.md)
+- [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)
+````
+
 ## File: .github/prompts/refactor-api.prompt.md
 ````markdown
 ---
@@ -2711,155 +3110,86 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill vscode-typescript-workbench
 ````
 
-## File: AGENTS.md
-````markdown
-# Agent Guide — Xuanwu App
-
-This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
-
-## Development Status Workflow
-
-Use the following status flow for issues, tasks, and features:
-
-| Order | Status | Emoji | Description |
-|------|--------|-------|-------------|
-| 0 | Idea | 💡 | Initial idea or feature request |
-| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
-| 2 | Planned | 📅 | Planned and scheduled |
-| 3 | Designing | 🎨 | Architecture / UI / schema design |
-| 4 | Ready | 🟢 | Ready for development |
-| 5 | Developing | 🚧 | Active development |
-| 6 | Midway | 🏗️ | Development partially completed |
-| 7 | Testing | 🧪 | Testing / QA |
-| 8 | Fixing | 🔧 | Bug fixing |
-| 9 | Review | 🔍 | Code review / acceptance review |
-|10 | Staging | 🚀 | Staging / pre-production |
-|11 | Done | ✅ | Development completed |
-|12 | Delivered | 📦 | Delivered / deployed to production |
-|13 | Archived | 🗄️ | Archived / closed / inactive |
-
-## Quick Start
-
-1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
-2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
-4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
-
-## Key Rules
-
-### Architecture
-
-- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
-- Treat every `modules/<module-name>/` as an isolated bounded context.
-- Cross-module interaction must go through `modules/<module-name>/api/` only.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
-- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
-- Import shared code through `@alias` package aliases, never with relative paths across modules.
-
-### Import Aliases
-
-```ts
-import type { CommandResult } from "@shared-types";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { getFirebaseFirestore } from "@integration-firebase";
-```
-
-Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
-
-### Runtime Boundary
-
-- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
-- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
-- Do not add chat streaming or auth logic to `py_fn/`.
-
-## Validation Commands
-
-```bash
-npm install          # Install dependencies
-npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
-npm run build        # Next.js production build + TypeScript type-check
-
-# Python worker
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
-## Common Patterns
-
-### Server Action (write-side)
-
-```ts
-"use server";
-export async function myAction(input: MyInput): Promise<CommandResult> {
-  // validate → use case → return CommandResult
+## File: .mcp.json
+````json
+{
+  "mcpServers": {
+    "sequential-thinking": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"]
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["@upstash/context7-mcp@1.0.31"],
+      "env": {
+        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
+      }
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": ["-y", "mongodb-mcp-server@latest", "--readOnly"],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "${MDB_MCP_CONNECTION_STRING}"
+      }
+    },
+    "next-devtools": {
+      "command": "npx",
+      "args": ["next-devtools-mcp@0.3.6"]
+    },
+    "mcp-run-python": {
+      "command": "uvx",
+      "args": ["mcp-run-python", "stdio"]
+    },
+    "supabase-mcp": {
+      "command": "npx",
+      "args": [
+        "--project-ref",
+        "${project-ref}",
+        "--read-only",
+        "${read-only}",
+        "--features",
+        "${features}",
+        "--api-url",
+        "${api-url}",
+        "--registry",
+        "https://registry.npmjs.org",
+        "@supabase/mcp-server-supabase@0.7.0"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
+      }
+    },
+    "markitdown": {
+      "command": "uvx",
+      "args": ["markitdown-mcp@0.0.1a4"]
+    },
+    "playwright-mcp": {
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"]
+    },
+    "serena": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server"
+      ]
+    }
+  }
 }
-```
-
-### Use Case
-
-```ts
-// modules/<context>/application/use-cases/MyUseCase.ts
-export class MyUseCase {
-  constructor(private readonly repo: MyRepository) {}
-  async execute(input: MyInput): Promise<CommandResult> { ... }
-}
-```
-
-### Repository
-
-- Interface in `domain/repositories/`.
-- Firebase implementation in `infrastructure/firebase/`.
-
-## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
-
-本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
-
-### DDD 審查 Agent
-
-- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
-
-### DDD 指令文件 (Instructions)
-
-| 文件 | 用途 |
-|------|------|
-| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
-| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
-| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
-| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
-
-### DDD Prompt 模板
-
-- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
-- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
-
-### DDD 術語表
-
-DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
-
-## Spec-Driven Development
-
-When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## Copilot Delivery Workflow
-
-This repository also maintains a formal Copilot delivery chain for non-trivial work:
-
-1. Planner
-2. Implementer
-3. Reviewer
-4. QA
-
-Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
-
-## Permissions
-
-For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
-
-## Full Rules
-
-See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: agents/agents
@@ -6312,6 +6642,207 @@ export default function OrganizationMembersPage() {
 }
 ````
 
+## File: app/(shell)/organization/page.tsx
+````typescript
+"use client";
+
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/account/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
+
+export default function OrganizationPage() {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
+
+  const orgList = Object.values(accounts);
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace("/workspace");
+  }
+
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、Wiki、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Quick-access dashboard — visible only when an org context is active */}
+      {activeOrganizationId && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">組織功能</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
+              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
+              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-sm">{item.title}</CardTitle>
+                    <CardDescription className="text-xs">{item.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
+        </div>
+      )}
+
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
+                </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/permissions/page.tsx
 ````typescript
 "use client";
@@ -7737,55 +8268,6 @@ env:
     value: "45000"
 ````
 
-## File: CLAUDE.md
-````markdown
-# CLAUDE.md — Xuanwu App Context
-
-Quick reference for Claude working in this Next.js 16 + MDDD repository.
-
-## Context
-
-**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
-
-**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
-
-**Essential**: Read AGENTS.md for rules, commands, and patterns.
-
-## Quick Commands
-
-```bash
-npm run lint      # ESLint (0 errors)
-npm run build     # Type-check + Next.js build
-cd py_fn && python -m pytest tests/ -v
-```
-
-See [.github/agents/commands.md](.github/agents/commands.md) for full list.
-
-## Key Principles
-
-1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
-2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
-3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
-4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
-
-## Common Patterns (See AGENTS.md for full examples)
-
-```ts
-// Server Action: orchestrate use case, return CommandResult
-"use server";
-export async function action(input) { return useCase.execute(input); }
-
-// Use Case: `application/use-cases/*.ts` orchestrates domain
-// Repository: interface in `domain/`, impl in `infrastructure/`
-```
-
-## Full Reference
-
-- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
-- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
-````
-
 ## File: components.json
 ````json
 {
@@ -7813,125 +8295,6 @@ export async function action(input) { return useCase.execute(input); }
   "menuAccent": "subtle",
   "registries": {}
 }
-````
-
-## File: CONTRIBUTING.md
-````markdown
-# Contributing to Xuanwu App
-
-Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
-
-## House Rules
-
-### 👥 Prevent Work Duplication
-
-Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
-
-### ✅ Work on Approved Issues
-
-For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
-
-### 🚫 One Concern per PR
-
-Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
-
-### 📚 Write for Future Readers
-
-Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
-
-### ✅ Summarize Your PR
-
-Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
-
-### 🧪 Describe What Was Tested
-
-Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
-
----
-
-## Development
-
-### Prerequisites
-
-- Node.js 24
-- npm
-
-### Setup
-
-```bash
-npm install
-npm run dev      # Start Next.js dev server (port 3000)
-```
-
-### Validation
-
-Before pushing, ensure these all pass:
-
-```bash
-npm run lint     # ESLint — must have 0 errors
-npm run build    # Next.js production build + TypeScript type-check
-```
-
-For the Python worker:
-
-```bash
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
-
----
-
-## Architecture Conventions
-
-This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
-
-- [`.github/agents/README.md`](.github/agents/README.md) — rules index
-- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
-- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
-
-### Key Rules
-
-- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
-- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
-- `domain/` must be framework-free.
-- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
-- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
-
-### File Naming
-
-| Type | Pattern | Example |
-|------|---------|---------|
-| Domain entity | `PascalCase.ts` | `Organization.ts` |
-| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
-| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
-| Use case | `my-use-case.ts` | `create-workspace.ts` |
-| Server Action | `*.actions.ts` | `workspace.actions.ts` |
-| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
-
----
-
-## Making a Pull Request
-
-1. Fork the repository and create a branch from `main`.
-2. Make focused, incremental changes.
-3. Ensure `npm run lint` and `npm run build` pass with no new errors.
-4. Fill out the PR description with intent, changes, and testing notes.
-5. Link related issues with `Closes #N` or `Refs #N`.
-6. Request a review.
-
----
-
-## Spec-Driven Development
-
-For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
-
-## AI Delivery Workflow
-
-For larger or cross-module changes, prefer the formal Copilot delivery workflow:
-
-- Plan first with [`docs/swarm.md`](docs/swarm.md)
-- Use the implementation plan as the execution contract for implementation, review, and QA
-- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: docs/beads.md
@@ -10321,6 +10684,249 @@ Workers discover available work via `bd ready`.
 [← Back to README](../README.md)
 ````
 
+## File: docs/hooks.md
+````markdown
+# Hooks
+
+Hooks run automatically at key points in Claude Code's lifecycle.
+
+## Built-in Hooks
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
+| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
+| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
+| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
+| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
+| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
+| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
+| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
+| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
+
+## Key Capabilities
+
+### File Locking (pre-tool-use-validator.sh)
+
+Prevents concurrent file edits in multi-agent swarm environments:
+- Atomic lock acquisition via `mkdir` (race-condition safe)
+- Lock auto-expires after 120 seconds
+- Session-based: locks are tied to the session that created them
+- Automatic release on session stop
+
+### Secret Detection (pre-tool-use-validator.sh)
+
+Scans Write/Edit content for 6 secret patterns:
+1. Generic API keys, passwords, tokens
+2. AWS access keys (`AKIA...`)
+3. JWT tokens
+4. Environment variable exports with secrets
+5. GitHub personal access tokens (`ghp_...`)
+6. Private keys (PEM format)
+
+Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
+
+### Protected Files (pre-tool-use-validator.sh)
+
+Blocks modifications to critical system files:
+- `.beads/beads.db`, `.beads/daemon`
+- `.git/`
+- `.env`
+- `.vscode/mcp.json`
+
+### Push Blocking (pre-push-main-blocker.sh)
+
+Enforces trunk-based development by blocking pushes to main/master:
+- Detects explicit pushes (`git push origin main`)
+- Detects implicit pushes (`git push` while on main branch)
+- Provides remediation instructions (create feature branch, push there, create PR)
+
+### Session Management (session-start-loader.sh + stop-validator.sh)
+
+- Tracks active sessions in `.claude/hooks/.state/`
+- Detects active swarm agents for coordination awareness
+- Supports handoff messages between sessions
+- Auto-cleans stale sessions older than 24 hours
+- Warns about uncommitted changes on session stop
+- Syncs Beads before exit
+
+## Creating a Hook
+
+1. Create `.claude/hooks/my-hook.sh`:
+
+```bash
+#!/bin/bash
+input=$(cat)
+# your logic
+echo '{"continue": true}'
+```
+
+2. Make executable:
+```bash
+chmod +x .claude/hooks/my-hook.sh
+```
+
+3. Register in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [{
+      "matcher": "Write|Edit",
+      "hooks": [{
+        "type": "command",
+        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
+        "timeout": 5
+      }]
+    }]
+  }
+}
+```
+
+See `.claude/templates/hook.template.sh` for the full template.
+
+## Hook Input
+
+Hooks receive JSON via stdin:
+
+```json
+{
+  "session_id": "abc123",
+  "cwd": "/workspace",
+  "prompt": "user message",
+  "tool_name": "Write",
+  "tool_input": {}
+}
+```
+
+## Hook Output
+
+For PreToolUse hooks, return a permission decision:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "permissionDecisionReason": "Explanation"
+  }
+}
+```
+
+## Runtime Directories
+
+| Directory | Purpose | Gitignored |
+|-----------|---------|------------|
+| `.claude/hooks/.state/` | Session tracking files | Yes |
+| `.claude/hooks/.locks/` | File lock files | Yes |
+
+## Tips
+
+- Keep hooks fast (< 5 seconds timeout)
+- Test with: `echo '{}' | ./my-hook.sh`
+- Override hooks via `settings.local.json`
+
+---
+
+[← Back to README](../README.md)
+````
+
+## File: docs/mcp-servers.md
+````markdown
+# MCP Servers
+
+Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
+
+## Included Servers
+
+### Sequential Thinking
+Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
+
+**Best for:** Architecture decisions, debugging complex issues, planning
+
+### Chrome DevTools
+Browser automation with deep debugging — performance traces, network inspection, console access.
+
+**Best for:** QA testing, frontend debugging, performance analysis
+
+### Context7
+Up-to-date documentation and code examples for any library via Context7.
+
+**Best for:** Researching library APIs, finding code examples, validating implementation patterns
+
+### Filesystem
+File system operations beyond the workspace boundary.
+
+**Best for:** Cross-project file access, operations outside the working directory
+
+## Setup
+
+The servers are configured in `.vscode/mcp.json`. Most work out of the box.
+
+## Adding More Servers
+
+Edit `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "new-server": {
+      "command": "npx",
+      "args": ["@example/mcp-server"],
+      "env": {
+        "API_KEY": "${API_KEY}"
+      }
+    }
+  }
+}
+```
+
+## Recommended Additions
+
+| Server | Purpose | When to Add |
+|--------|---------|-------------|
+| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
+| PostgreSQL | Database queries | Working with Postgres |
+| Brave Search | Web search | Research-heavy work |
+| Slack | Team messaging | Team coordination |
+| Linear | Issue tracking | If you use Linear |
+
+### GitHub Example
+
+```json
+"github": {
+  "command": "npx",
+  "args": ["@anthropic-ai/mcp-server-github"],
+  "env": {
+    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
+  }
+}
+```
+
+## Troubleshooting
+
+### Server not starting
+
+Check logs:
+```bash
+claude mcp list
+```
+
+### Permission denied
+
+MCP servers run as your user. Check file permissions and API tokens.
+
+## Resources
+
+- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
+- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
+- [MCP.so Directory](https://mcp.so/)
+
+---
+
+[← Back to README](../README.md)
+````
+
 ## File: docs/personas.md
 ````markdown
 # Commands
@@ -11229,6 +11835,101 @@ service cloud.firestore {
     }
   }
 }
+````
+
+## File: llms.txt
+````
+# Xuanwu App
+
+Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
+
+This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
+
+## Primary repository truths
+
+- AGENTS.md: repository-wide operating rules
+- .github/copilot-instructions.md: Copilot delivery baseline
+- .github/agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
+- .github/agents/commands.md: build, lint, test, and deployment commands
+- docs/README.md: documentation root index
+- docs/SOURCE-OF-TRUTH.md: documentation structure source
+- docs/ddd/bounded-contexts.md: bounded-context map
+- docs/ddd/subdomains.md: subdomain classification
+
+## Documentation reading order
+
+Read from high level to detail:
+
+1. docs/README.md
+2. docs/SOURCE-OF-TRUTH.md
+3. .github/agents/knowledge-base.md
+4. .github/agents/commands.md
+5. docs/ddd/bounded-contexts.md
+6. docs/ddd/subdomains.md
+5. the nearest docs README in the relevant subfolder
+6. the specific contract, guide, or architecture page
+7. diagrams or ADRs only after the relevant higher-level page is identified
+
+## Topic routing
+
+- Repository rules and contribution workflow:
+  - AGENTS.md
+  - CONTRIBUTING.md
+  - .github/agents/README.md
+- Architecture and module boundaries:
+  - .github/agents/knowledge-base.md
+  - docs/ddd/
+  - docs/architecture/
+- Development workflows and implementation rules:
+  - .github/agents/commands.md
+  - docs/development/
+  - docs/guides/
+- Contract-governed workflows:
+  - docs/reference/
+  - specific contract or specification pages under docs/reference/ and docs/templates/
+- AI workflow and Copilot customization assets:
+  - .github/copilot-instructions.md
+  - .github/skills/
+  - docs/skills.md
+  - docs/mcp-servers.md
+  - docs/customization.md
+- Diagrams and explanatory support:
+  - diagrams/
+  - docs/diagrams/
+  - docs/guides/explanation/
+
+## Document layers
+
+- High layer:
+  - docs/README.md
+  - docs/SOURCE-OF-TRUTH.md
+  - .github/agents/knowledge-base.md
+- Mid layer:
+  - folder READMEs
+  - docs/development/
+  - docs/guides/
+  - docs/reference/
+- Low layer:
+  - detailed diagrams
+  - templates
+  - deep technical explanations
+
+Use the smallest useful layer first.
+
+## Documentation organization rule
+
+When adding or changing docs:
+
+1. keep one canonical file per topic,
+2. add a short summary near the top,
+3. use clear headings for section-based chunking,
+4. update the nearest README index,
+5. update docs/README.md or this file if routing changes.
+
+## AI working rule
+
+If a question is broad, inspect summaries and README indexes before opening detailed files.
+If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
 ````
 
 ## File: modules/account/AGENT.md
@@ -12881,6 +13582,57 @@ export function subscribeToAccountsForUser(
 
 ````
 
+## File: modules/ai/AGENT.md
+````markdown
+# AGENT.md — ai BC
+
+## 模組定位
+
+`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
+| `IngestionDocument` | Document、File（在此 BC 內）|
+| `IngestionChunk` | Chunk、VectorChunk |
+| `IngestionStatus` | Status, JobStatus |
+
+## 棄用檔案守衛
+
+以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
+- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
+- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { aiApi } from "@/modules/ai/api";
+import type { IngestionJobDTO } from "@/modules/ai/api";
+```
+
+### ❌ 禁止
+```typescript
+import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
+import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
+```
+
+## Runtime 邊界規則
+
+- `ai` 模組只在 Next.js 端做 Job 協調
+- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
 ## File: modules/ai/aggregates.md
 ````markdown
 # Aggregates — ai
@@ -14411,6 +15163,36 @@ export function useTokenRefreshListener(accountId: string | null | undefined): v
 | `TokenRefreshSignal` | `RefreshToken`, `TokenEvent` |
 ````
 
+## File: modules/knowledge-base/aggregates.md
+````markdown
+# knowledge-base — 聚合根摘要
+
+> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+
+## Article（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `title`, `content` | 文章標題與主體 |
+| `status` | `draft` / `published` / `archived` |
+| `verificationState` | `verified` / `needs_review` / `unverified` |
+| `ownerId` | 文章負責人（ArticleOwner） |
+| `linkedArticleIds` | Backlink 引用列表 |
+| `categoryId` | 所屬分類 |
+| `tags` | 標籤列表 |
+
+## Category（聚合根）
+
+| 欄位 | 說明 |
+|---|---|
+| `id` | 唯一識別碼 |
+| `name`, `slug` | 分類名稱與 URL 識別碼 |  
+| `parentCategoryId` | 父分類（null = 根節點） |
+| `depth` | 層級深度（最大 5）|
+| `articleIds` | 直屬文章 ID 列表 |
+````
+
 ## File: modules/knowledge-base/api/index.ts
 ````typescript
 /**
@@ -14542,6 +15324,17 @@ export const DeleteCategorySchema = z.object({
   id: z.string().min(1),
   accountId: z.string().min(1),
 });
+````
+
+## File: modules/knowledge-base/domain-services.md
+````markdown
+# knowledge-base — Domain Services
+
+> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+
+- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
+- `ArticleSlugService` — title → URL-safe slug 轉換
+- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
 ````
 
 ## File: modules/knowledge-base/domain/entities/article.entity.ts
@@ -14706,6 +15499,65 @@ export async function getBacklinks(accountId: string, articleId: string): Promis
 }
 ````
 
+## File: modules/knowledge-base/repositories.md
+````markdown
+# knowledge-base — Repositories
+
+> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
+
+- `IArticleRepository` — CRUD + search + backlink 反查
+- `ICategoryRepository` — 層級樹操作 + articleIds 管理
+
+**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
+````
+
+## File: modules/knowledge-base/ubiquitous-language.md
+````markdown
+# knowledge-base — 通用語言
+
+> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
+
+## 核心術語速查
+
+| 術語 | 定義 |
+|---|---|
+| **Article** | 組織級知識文章（SOP / Wiki） |
+| **Category** | 層級分類目錄（max 5 層） |
+| **VerificationState** | `verified` / `needs_review` / `unverified` |
+| **ArticleOwner** | 負責維護文章準確性的使用者 |
+| **Backlink** | `[[Article Title]]` 解析的反向引用 |
+| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
+````
+
+## File: modules/knowledge-collaboration/AGENT.md
+````markdown
+# knowledge-collaboration — DDD Agent
+
+**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
+
+為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
+
+→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+````
+
+## File: modules/knowledge-collaboration/aggregates.md
+````markdown
+**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
+**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
+**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
+
+→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
+````
+
+## File: modules/knowledge-collaboration/application-services.md
+````markdown
+Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
+Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
+Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
+
+→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
+````
+
 ## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
 ````typescript
 /**
@@ -14754,6 +15606,32 @@ export class ListVersionsUseCase {
     return this.repo.listByContent(accountId, contentId);
   }
 }
+````
+
+## File: modules/knowledge-collaboration/context-map.md
+````markdown
+上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
+下游消費者: `notification`, `workspace-feed`, `workspace-audit`
+
+→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
+````
+
+## File: modules/knowledge-collaboration/domain-events.md
+````markdown
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
+````
+
+## File: modules/knowledge-collaboration/domain-services.md
+````markdown
+- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
+- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
+
+→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
 ````
 
 ## File: modules/knowledge-collaboration/domain/entities/version.entity.ts
@@ -14995,6 +15873,121 @@ export function VersionHistoryPanel({ accountId, contentId, currentUserId }: Ver
     </div>
   );
 }
+````
+
+## File: modules/knowledge-collaboration/README.md
+````markdown
+# knowledge-collaboration — DDD Reference
+
+> **Domain Type:** Supporting Subdomain + Generic Subdomain
+> **Module:** `modules/knowledge-collaboration/`
+> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
+
+## 戰略定位
+
+`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
+
+## 核心聚合
+
+- **Comment** — 線程式留言，透過 `contentId` 引用內容
+- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
+- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
+
+## 主要領域事件
+
+- `knowledge-collaboration.comment_created` / `comment_resolved`
+- `knowledge-collaboration.permission_granted` / `permission_revoked`
+- `knowledge-collaboration.version_created` / `version_restored`
+- `knowledge-collaboration.page_locked`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Comment** | 針對 contentId 的留言（root 或 reply） |
+| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
+| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
+| **Version** | immutable Block 快照 |
+| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
+| **contentId** | opaque reference 到任意知識內容 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity` | Conformist |
+| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
+| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
+````
+
+## File: modules/knowledge-collaboration/repositories.md
+````markdown
+ICommentRepository, IPermissionRepository, IVersionRepository
+
+Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
+
+→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
+````
+
+## File: modules/knowledge-collaboration/ubiquitous-language.md
+````markdown
+| Comment | 留言（≠ Note, Message） |
+| Permission | 存取授權（≠ Role） |
+| PermissionLevel | view < comment < edit < full |
+| Version | Block 快照（≠ Revision, History） |
+| NamedVersion | 附標籤的具名版本（不自動刪除） |
+| contentId | opaque ID 跨 BC 引用 |
+| PageLock | 防並發的暫時鎖定 |
+
+→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
+````
+
+## File: modules/knowledge-database/AGENT.md
+````markdown
+# knowledge-database — DDD Agent
+
+**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
+
+提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
+
+→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
+````
+
+## File: modules/knowledge-database/aggregates.md
+````markdown
+**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
+**Record** — databaseId + properties(Map<fieldId, value>) + order
+**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
+
+→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
+````
+
+## File: modules/knowledge-database/application-services.md
+````markdown
+Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
+View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
+Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
+
+→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
+````
+
+## File: modules/knowledge-database/domain-events.md
+````markdown
+- `knowledge-database.database_created` / `database_renamed`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
+````
+
+## File: modules/knowledge-database/domain-services.md
+````markdown
+- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
+- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
+
+→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
 ````
 
 ## File: modules/knowledge-database/domain/entities/database.entity.ts
@@ -15702,6 +16695,28 @@ export async function getViews(accountId: string, databaseId: string): Promise<V
   const repo = new FirebaseViewRepository();
   return repo.listByDatabase(accountId, databaseId);
 }
+````
+
+## File: modules/knowledge-database/repositories.md
+````markdown
+IDatabaseRepository, IRecordRepository, IViewRepository
+
+Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
+
+→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
+````
+
+## File: modules/knowledge-database/ubiquitous-language.md
+````markdown
+| Database | 結構化資料容器（≠ KnowledgeCollection） |
+| Field | 欄位定義（≠ Column）|
+| Record | 資料行（≠ Row, Item, Entry）|
+| Property | 某 Field 的具體值（Map） |
+| View | 視圖配置 — 不持有資料 |
+| ViewType | table/board/list/calendar/timeline/gallery |
+| Relation | 跨 Database 的 Record 連結欄位 |
+
+→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
 ````
 
 ## File: modules/knowledge/api/events.ts
@@ -16925,14 +17940,6 @@ export type {
 } from "@/modules/search/api";
 ````
 
-## File: modules/notebook/index.ts
-````typescript
-export * from "./domain";
-export * from "./application";
-export * from "./infrastructure";
-export * from "./interfaces";
-````
-
 ## File: modules/notebook/infrastructure/firebase/FirebaseRagRetrievalRepository.ts
 ````typescript
 /**
@@ -17725,6 +18732,47 @@ export async function getNotificationsForRecipient(
 
 ````
 
+## File: modules/notification/README.md
+````markdown
+# notification — 通知上下文
+
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/notification/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
+| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
+| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
+- `account` 提供使用者偏好與收件對象語意。
+
+## 核心聚合 / 核心概念
+
+- **`NotificationEntity`**
+- **`NotificationPayload`**
+- **`NotificationPreference`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/notification/ubiquitous-language.md
 ````markdown
 # Ubiquitous Language — notification
@@ -17836,104 +18884,6 @@ npm run build
 | `OrganizationRepository` | `save()`, `findById()`, `findByMemberId()` |
 ````
 
-## File: modules/organization/api/index.ts
-````typescript
-/**
- * organization 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
- */
-
-import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
-
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
-
-/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
-export interface OrganizationMemberDTO {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
-  presence: "active" | "away" | "offline";
-  isExternal?: boolean;
-}
-
-/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
-export interface OrganizationTeamDTO {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const organizationApi = {
-  /**
-   * 取得指定組織的所有成員清單。
-   */
-  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
-    const members = await orgRepo.getMembers(organizationId);
-    return members.map((m) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-      presence: m.presence,
-      isExternal: m.isExternal,
-    }));
-  },
-
-  /**
-   * 取得指定組織的所有團隊清單。
-   */
-  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
-    const teams = await orgRepo.getTeams(organizationId);
-    return teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      memberIds: t.memberIds,
-    }));
-  },
-} as const;
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "../interfaces/_actions/organization.actions";
-
-// ─── Query Functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "../interfaces/queries/organization.queries";
-````
-
 ## File: modules/organization/application-services.md
 ````markdown
 # organization — Application Services
@@ -17963,361 +18913,6 @@ Application layer 只負責：
 - 模組 README：`../../../modules/organization/README.md`
 - 模組 AGENT：`../../../modules/organization/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/organization/application-services.md`
-````
-
-## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
-````typescript
-/**
- * Organization Policy Use Cases — pure business workflows.
- * Org policy changes flow through event bus to update workspace org-policy cache downstream.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-
-// ─── Create Org Policy ────────────────────────────────────────────────────────
-
-export class CreateOrgPolicyUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
-    try {
-      const policy = await this.orgRepo.createPolicy(input);
-      return commandSuccess(policy.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create org policy",
-      );
-    }
-  }
-}
-
-// ─── Update Org Policy ────────────────────────────────────────────────────────
-
-export class UpdateOrgPolicyUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-    try {
-      await this.orgRepo.updatePolicy(policyId, data);
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update org policy",
-      );
-    }
-  }
-}
-
-// ─── Delete Org Policy ────────────────────────────────────────────────────────
-
-export class DeleteOrgPolicyUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(policyId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.deletePolicy(policyId);
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to delete org policy",
-      );
-    }
-  }
-}
-````
-
-## File: modules/organization/application/use-cases/organization.use-cases.ts
-````typescript
-/**
- * Organization Use Cases — pure business workflows.
- * Covers: org lifecycle, members, teams, partners.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type {
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-} from "../../domain/entities/Organization";
-
-// ─── Org Lifecycle ────────────────────────────────────────────────────────────
-
-export class CreateOrganizationUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(command: CreateOrganizationCommand): Promise<CommandResult> {
-    try {
-      const orgId = await this.orgRepo.create(command);
-      return commandSuccess(orgId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ORGANIZATION_FAILED",
-        err instanceof Error ? err.message : "Failed to create organization",
-      );
-    }
-  }
-}
-
-export class CreateOrganizationWithTeamUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    command: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> {
-    try {
-      const organizationId = await this.orgRepo.create(command);
-      await this.orgRepo.createTeam({
-        organizationId,
-        name: teamName,
-        description: "",
-        type: teamType,
-      });
-      return commandSuccess(organizationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SETUP_ORGANIZATION_WITH_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to setup organization with team",
-      );
-    }
-  }
-}
-
-export class UpdateOrganizationSettingsUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(command: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-    try {
-      await this.orgRepo.updateSettings(command);
-      return commandSuccess(command.organizationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ORGANIZATION_SETTINGS_FAILED",
-        err instanceof Error ? err.message : "Failed to update organization settings",
-      );
-    }
-  }
-}
-
-export class DeleteOrganizationUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.delete(organizationId);
-      return commandSuccess(organizationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ORGANIZATION_FAILED",
-        err instanceof Error ? err.message : "Failed to delete organization",
-      );
-    }
-  }
-}
-
-// ─── Members ─────────────────────────────────────────────────────────────────
-
-export class InviteMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: InviteMemberInput): Promise<CommandResult> {
-    try {
-      const inviteId = await this.orgRepo.inviteMember(input);
-      return commandSuccess(inviteId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "INVITE_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to invite member",
-      );
-    }
-  }
-}
-
-export class RecruitMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-  ): Promise<CommandResult> {
-    try {
-      await this.orgRepo.recruitMember(organizationId, memberId, name, email);
-      return commandSuccess(memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RECRUIT_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to recruit member",
-      );
-    }
-  }
-}
-
-export class RemoveMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string, memberId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.removeMember(organizationId, memberId);
-      return commandSuccess(memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REMOVE_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to remove member",
-      );
-    }
-  }
-}
-
-export class UpdateMemberRoleUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: UpdateMemberRoleInput): Promise<CommandResult> {
-    try {
-      await this.orgRepo.updateMemberRole(input);
-      return commandSuccess(input.memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_MEMBER_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to update member role",
-      );
-    }
-  }
-}
-
-// ─── Teams ───────────────────────────────────────────────────────────────────
-
-export class CreateTeamUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.orgRepo.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to create team",
-      );
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to delete team",
-      );
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.orgRepo.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.orgRepo.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_TEAM_MEMBERS_FAILED",
-        err instanceof Error ? err.message : "Failed to update team members",
-      );
-    }
-  }
-}
-
-// ─── Partners ─────────────────────────────────────────────────────────────────
-
-export class CreatePartnerGroupUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string, groupName: string): Promise<CommandResult> {
-    try {
-      const teamId = await this.orgRepo.createTeam({
-        organizationId,
-        name: groupName,
-        description: "",
-        type: "external",
-      });
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_PARTNER_GROUP_FAILED",
-        err instanceof Error ? err.message : "Failed to create partner group",
-      );
-    }
-  }
-}
-
-export class SendPartnerInviteUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    email: string,
-  ): Promise<CommandResult> {
-    try {
-      const inviteId = await this.orgRepo.sendPartnerInvite(organizationId, teamId, email);
-      return commandSuccess(inviteId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SEND_PARTNER_INVITE_FAILED",
-        err instanceof Error ? err.message : "Failed to send partner invite",
-      );
-    }
-  }
-}
-
-export class DismissPartnerMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<CommandResult> {
-    try {
-      await this.orgRepo.dismissPartnerMember(organizationId, teamId, memberId);
-      return commandSuccess(memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DISMISS_PARTNER_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to dismiss partner member",
-      );
-    }
-  }
-}
 ````
 
 ## File: modules/organization/context-map.md
@@ -18527,199 +19122,6 @@ export interface UpdateOrgPolicyInput {
   rules?: OrgPolicyRule[];
   scope?: OrgPolicyScope;
   isActive?: boolean;
-}
-````
-
-## File: modules/organization/domain/repositories/OrganizationRepository.ts
-````typescript
-/**
- * OrganizationRepository — Port for organization persistence.
- * Domain defines the interface; Infrastructure implements it.
- */
-
-import type {
-  OrganizationEntity,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  MemberReference,
-  Team,
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-  PartnerInvite,
-} from "../entities/Organization";
-
-export type Unsubscribe = () => void;
-
-export interface OrganizationRepository {
-  // ─── Org Lifecycle ─────────────────────────────────────────────────────────
-  create(command: CreateOrganizationCommand): Promise<string>;
-  findById(id: string): Promise<OrganizationEntity | null>;
-  save(org: OrganizationEntity): Promise<void>;
-  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
-  delete(organizationId: string): Promise<void>;
-
-  // ─── Members ───────────────────────────────────────────────────────────────
-  inviteMember(input: InviteMemberInput): Promise<string>;
-  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
-  removeMember(organizationId: string, memberId: string): Promise<void>;
-  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
-  getMembers(organizationId: string): Promise<MemberReference[]>;
-  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
-
-  // ─── Teams ─────────────────────────────────────────────────────────────────
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
-
-  // ─── Partners ──────────────────────────────────────────────────────────────
-  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
-  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
-
-  // ─── Policy ────────────────────────────────────────────────────────────────
-  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
-  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
-  deletePolicy(policyId: string): Promise<void>;
-  getPolicies(orgId: string): Promise<OrgPolicy[]>;
-}
-````
-
-## File: modules/organization/index.ts
-````typescript
-/**
- * organization module public API
- */
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  OrgPolicy,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "./domain/entities/Organization";
-export type { OrganizationRepository, Unsubscribe } from "./domain/repositories/OrganizationRepository";
-// Use Cases
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "./application/use-cases/organization.use-cases";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "./application/use-cases/organization-policy.use-cases";
-// Infrastructure
-export { FirebaseOrganizationRepository } from "./infrastructure/firebase/FirebaseOrganizationRepository";
-// Server Actions
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "./interfaces/_actions/organization.actions";
-// Read Queries
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "./interfaces/queries/organization.queries";
-````
-
-## File: modules/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Read Queries — thin wrappers for real-time subscription and one-shot reads.
- * Callable from React components/hooks, NOT server actions.
- */
-
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type { MemberReference, Team, PartnerInvite, OrgPolicy } from "../../domain/entities/Organization";
-import type { Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── Members ─────────────────────────────────────────────────────────────────
-
-export async function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return orgRepo.getMembers(organizationId);
-}
-
-export function subscribeToOrganizationMembers(
-  organizationId: string,
-  onUpdate: (members: MemberReference[]) => void,
-): Unsubscribe {
-  return orgRepo.subscribeToMembers(organizationId, onUpdate);
-}
-
-// ─── Teams ───────────────────────────────────────────────────────────────────
-
-export async function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return orgRepo.getTeams(organizationId);
-}
-
-export function subscribeToOrganizationTeams(
-  organizationId: string,
-  onUpdate: (teams: Team[]) => void,
-): Unsubscribe {
-  return orgRepo.subscribeToTeams(organizationId, onUpdate);
-}
-
-// ─── Partners ─────────────────────────────────────────────────────────────────
-
-export async function getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-  return orgRepo.getPartnerInvites(organizationId);
-}
-
-// ─── Policy ───────────────────────────────────────────────────────────────────
-
-export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return orgRepo.getPolicies(orgId);
 }
 ````
 
@@ -20153,6 +20555,47 @@ export function RagQueryView({ workspaceId }: RagQueryViewProps) {
 }
 ````
 
+## File: modules/search/README.md
+````markdown
+# search — 語意檢索上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/search/`  
+> **開發狀態:** 🏗️ Midway
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 向量檢索 | 執行語意相似度搜尋與結果排序 |
+| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
+| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
+
+## 與其他 Bounded Context 協作
+
+- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
+- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
+
+## 核心聚合 / 核心概念
+
+- **`RagQuery`**
+- **`RagQueryFeedback`**
+- **`VectorStore`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/shared/AGENT.md
 ````markdown
 # AGENT.md — shared BC
@@ -20838,105 +21281,6 @@ RAG 文件的邏輯集合容器，對應使用者在 UI 看到的「知識庫」
 | `WikiLibraryRepository` | `save()`, `findByWorkspaceId()` |
 ````
 
-## File: modules/source/api/index.ts
-````typescript
-/**
- * Module: source
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the source domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
- */
-
-// --- Core entity types -------------------------------------------------------
-
-export type { File, FileStatus } from "../domain/entities/File";
-export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
-
-// --- Wiki library entity types (owned by source domain) -------------------
-
-export type {
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryFieldType,
-  WikiLibraryRow,
-  WikiLibraryStatus,
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-} from "../domain/entities/wiki-library.types";
-
-// --- Wiki library use-cases ------------------------------------------------
-
-import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
-import {
-  addWikiLibraryField as _addWikiLibraryField,
-  createWikiLibrary as _createWikiLibrary,
-  createWikiLibraryRow as _createWikiLibraryRow,
-  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
-  listWikiLibraries as _listWikiLibraries,
-} from "../application/use-cases/wiki-libraries.use-case";
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../domain/entities/wiki-library.types";
-import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
-
-export type { WikiLibrarySnapshot };
-
-const _defaultLibraryRepository = new FirebaseWikiLibraryRepository();
-
-export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
-  return _addWikiLibraryField(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
-  return _createWikiLibrary(input, _defaultLibraryRepository);
-}
-
-export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
-  return _createWikiLibraryRow(input, _defaultLibraryRepository);
-}
-
-export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
-  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
-}
-
-export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
-  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
-}
-
-// --- Document snapshot types --------------------------------------------------
-
-export type {
-  SourceDocument,
-  SourceLiveDocument,
-  AssetDocument,
-  AssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
-export {
-  useDocumentsSnapshot,
-  mapToSourceLiveDocument,
-  mapToAssetLiveDocument,
-} from "../interfaces/hooks/useDocumentsSnapshot";
-
-// --- Query functions ---------------------------------------------------------
-
-export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
-
-// --- UI components (cross-module public) -------------------------------------
-
-export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
-export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
-export { LibrariesView } from "../interfaces/components/LibrariesView";
-export { LibraryTableView } from "../interfaces/components/LibraryTableView";
-````
-
 ## File: modules/source/application-services.md
 ````markdown
 # source — Application Services
@@ -21615,249 +21959,6 @@ export class UploadInitFileUseCase {
       },
     };
   }
-}
-````
-
-## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
-````typescript
-/**
- * Module: source
- * Layer: application/use-cases
- * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
- *          Direct-function API for the source module's wiki-facing library
- *          management surface.
- */
-
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  deriveSlugCandidate,
-  isValidSlug,
-} from "@/modules/shared/api";
-
-import type {
-  AddWikiLibraryFieldInput,
-  CreateWikiLibraryInput,
-  CreateWikiLibraryRowInput,
-  WikiLibrary,
-  WikiLibraryField,
-  WikiLibraryRow,
-} from "../../domain/entities/wiki-library.types";
-import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
-const defaultEventPublisher = new PublishDomainEventUseCase(
-  new InMemoryEventStoreRepository(),
-  new NoopEventBusRepository(),
-);
-
-function generateId(): string {
-  const randomUUID = globalThis.crypto?.randomUUID;
-  if (typeof randomUUID === "function") {
-    return randomUUID.call(globalThis.crypto);
-  }
-  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
-}
-
-function normalizeName(name: string): string {
-  const value = name.trim();
-  if (!value) {
-    throw new Error("library name is required");
-  }
-  return value.slice(0, 80);
-}
-
-function normalizeFieldKey(key: string): string {
-  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-  if (!normalized) {
-    throw new Error("field key is required");
-  }
-  return normalized.slice(0, 48);
-}
-
-function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
-  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
-  const existing = new Set(libraries.map((library) => library.slug));
-  if (!existing.has(normalizedBase)) {
-    return normalizedBase;
-  }
-
-  let index = 2;
-  while (index < 5000) {
-    const candidate = `${normalizedBase}-${index}`;
-    if (!existing.has(candidate) && isValidSlug(candidate)) {
-      return candidate;
-    }
-    index += 1;
-  }
-
-  throw new Error("cannot allocate a unique slug for this library name");
-}
-
-export async function listWikiLibraries(
-  accountId: string,
-  workspaceId: string | undefined,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary[]> {
-  if (!accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const libraries = await libraryRepository.listByAccountId(accountId);
-  const activeLibraries = libraries.filter((library) => library.status === "active");
-  if (!workspaceId) {
-    return activeLibraries;
-  }
-  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
-}
-
-export async function createWikiLibrary(
-  input: CreateWikiLibraryInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrary> {
-  if (!input.accountId) {
-    throw new Error("accountId is required");
-  }
-
-  const name = normalizeName(input.name);
-  const libraries = await libraryRepository.listByAccountId(input.accountId);
-  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
-
-  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
-  const now = new Date();
-  const library: WikiLibrary = {
-    id: generateId(),
-    accountId: input.accountId,
-    workspaceId: input.workspaceId,
-    name,
-    slug,
-    status: "active",
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.create(library);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_created",
-    aggregateType: "asset-library",
-    aggregateId: library.id,
-    payload: {
-      accountId: library.accountId,
-      workspaceId: library.workspaceId,
-      slug: library.slug,
-    },
-  });
-
-  return library;
-}
-
-export async function addWikiLibraryField(
-  input: AddWikiLibraryFieldInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryField> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const key = normalizeFieldKey(input.key);
-  const label = normalizeName(input.label);
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  if (fields.some((field) => field.key === key)) {
-    throw new Error(`field key "${key}" already exists`);
-  }
-
-  const field: WikiLibraryField = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    key,
-    label,
-    type: input.type,
-    required: input.required ?? false,
-    options: input.options,
-    createdAt: new Date(),
-  };
-
-  await libraryRepository.createField(input.accountId, field);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_field_added",
-    aggregateType: "asset-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      fieldKey: field.key,
-      fieldType: field.type,
-    },
-  });
-
-  return field;
-}
-
-export async function createWikiLibraryRow(
-  input: CreateWikiLibraryRowInput,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibraryRow> {
-  const library = await libraryRepository.findById(input.accountId, input.libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
-  const requiredFields = fields.filter((field) => field.required);
-  for (const field of requiredFields) {
-    if (!(field.key in input.values)) {
-      throw new Error(`missing required field: ${field.key}`);
-    }
-  }
-
-  const now = new Date();
-  const row: WikiLibraryRow = {
-    id: generateId(),
-    libraryId: input.libraryId,
-    values: input.values,
-    createdAt: now,
-    updatedAt: now,
-  };
-
-  await libraryRepository.createRow(input.accountId, row);
-  await defaultEventPublisher.execute({
-    id: generateId(),
-    eventName: "source.library_row_created",
-    aggregateType: "asset-library",
-    aggregateId: input.libraryId,
-    payload: {
-      accountId: input.accountId,
-      rowId: row.id,
-      fields: Object.keys(row.values),
-    },
-  });
-
-  return row;
-}
-
-export interface WikiLibrarySnapshot {
-  library: WikiLibrary;
-  fields: WikiLibraryField[];
-  rows: WikiLibraryRow[];
-}
-
-export async function getWikiLibrarySnapshot(
-  accountId: string,
-  libraryId: string,
-  libraryRepository: WikiLibraryRepository,
-): Promise<WikiLibrarySnapshot> {
-  const library = await libraryRepository.findById(accountId, libraryId);
-  if (!library) {
-    throw new Error("library not found");
-  }
-
-  const [fields, rows] = await Promise.all([
-    libraryRepository.listFields(accountId, libraryId),
-    libraryRepository.listRows(accountId, libraryId),
-  ]);
-
-  return { library, fields, rows };
 }
 ````
 
@@ -23076,104 +23177,6 @@ export class InMemoryWikiLibraryRepository implements WikiLibraryRepository {
 }
 ````
 
-## File: modules/source/interfaces/_actions/file.actions.ts
-````typescript
-"use server";
-
-import type {
-  UploadCompleteFileInputDto,
-  UploadCompleteFileOutputDto,
-  UploadInitFileInputDto,
-  UploadInitFileOutputDto,
-} from "../../application/dto/file.dto";
-import type {
-  RegisterUploadedRagDocumentInputDto,
-  RegisterUploadedRagDocumentResult,
-} from "../../application/dto/rag-document.dto";
-import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-uploaded-rag-document.use-case";
-import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-complete-file.use-case";
-import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import { KnowledgeIngestionApi } from "@/modules/ai/api";
-import type { FileCommandResult } from "../contracts/file-command-result";
-
-const knowledgeIngestionApi = new KnowledgeIngestionApi();
-
-function createCommandId(idempotencyKey?: string) {
-  const normalized = idempotencyKey?.trim();
-  if (normalized) {
-    return normalized;
-  }
-
-  return `file-upload-init-${crypto.randomUUID()}`;
-}
-
-export async function uploadInitFile(
-  input: UploadInitFileInputDto,
-): Promise<FileCommandResult<UploadInitFileOutputDto>> {
-  const commandId = createCommandId(input.idempotencyKey);
-  const useCase = new UploadInitFileUseCase(new FirebaseFileRepository());
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-
-export async function uploadCompleteFile(
-  input: UploadCompleteFileInputDto,
-): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
-  const fileRepository = new FirebaseFileRepository();
-  const useCase = new UploadCompleteFileUseCase(
-    fileRepository,
-    new FirebaseRagDocumentRepository(),
-  );
-  const commandId = createCommandId(input.versionId);
-  const result = await useCase.execute(input);
-
-  // Best-effort handoff: upload completion can proceed even if ingestion registration fails.
-  if (result.ok) {
-    const file = await fileRepository.findById(input.fileId);
-
-    const registration = await knowledgeIngestionApi.registerDocument({
-      organizationId: input.organizationId,
-      workspaceId: input.workspaceId,
-      sourceFileId: input.fileId,
-      title: file?.name ?? `uploaded-file-${input.fileId}`,
-      mimeType: file?.mimeType ?? "application/octet-stream",
-    });
-
-    if (!registration.ok && process.env.NODE_ENV !== "production") {
-      console.warn(
-        "[uploadCompleteFile] Knowledge ingestion registration failed:",
-        registration.error.code,
-        registration.error.message,
-      );
-    }
-  }
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-
-export async function registerUploadedRagDocument(
-  input: RegisterUploadedRagDocumentInputDto,
-): Promise<RegisterUploadedRagDocumentResult> {
-  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentRepository());
-  const commandId = createCommandId(input.storagePath);
-  const result = await useCase.execute(input);
-
-  return {
-    ...result,
-    commandId,
-  };
-}
-````
-
 ## File: modules/source/interfaces/components/LibrariesView.tsx
 ````typescript
 "use client";
@@ -24240,6 +24243,47 @@ export async function getWorkspaceRagDocuments(
     workspaceId: workspace.id,
   });
 }
+````
+
+## File: modules/source/README.md
+````markdown
+# source — 文件來源上下文
+
+> **Domain Type:** Supporting Subdomain（支援域）  
+> **模組路徑:** `modules/source/`  
+> **開發狀態:** 🚧 Developing
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
+| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
+| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
+- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
+
+## 核心聚合 / 核心概念
+
+- **`SourceDocument`**
+- **`SourceCollection`**
+- **`WikiLibrary`**
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
 ````
 
 ## File: modules/source/ubiquitous-language.md
@@ -25486,227 +25530,6 @@ export const ListAccountFeedSchema = AccountScopeSchema.extend({
 });
 
 export type ListAccountFeedDto = z.infer<typeof ListAccountFeedSchema>;
-````
-
-## File: modules/workspace-feed/application/use-cases/workspace-feed.use-cases.ts
-````typescript
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
-import type {
-  WorkspaceFeedInteractionRepository,
-  WorkspaceFeedPostRepository,
-} from "../../domain/repositories/workspace-feed.repositories";
-import {
-  CreateWorkspaceFeedPostSchema,
-  type CreateWorkspaceFeedPostDto,
-  FeedInteractionSchema,
-  ListAccountFeedSchema,
-  type ListAccountFeedDto,
-  ListWorkspaceFeedSchema,
-  type ListWorkspaceFeedDto,
-  ReplyWorkspaceFeedPostSchema,
-  type ReplyWorkspaceFeedPostDto,
-  RepostWorkspaceFeedPostSchema,
-  type RepostWorkspaceFeedPostDto,
-} from "../dto/workspace-feed.dto";
-
-export class CreateWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.repo.createPost(parsed.data);
-    return commandSuccess(post.id, Date.now());
-  }
-}
-
-export class ReplyWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
-    if (!parent) {
-      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
-    }
-    if (parent.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
-    }
-
-    const reply = await this.repo.createReply(parsed.data);
-    return commandSuccess(reply.id, Date.now());
-  }
-}
-
-export class RepostWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
-    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
-    if (!source) {
-      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
-    }
-    if (source.workspaceId !== parsed.data.workspaceId) {
-      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
-    }
-
-    const repost = await this.repo.createRepost(parsed.data);
-    if (!repost) {
-      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
-    }
-
-    return commandSuccess(repost.id, Date.now());
-  }
-}
-
-export class LikeWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const liked = await this.interactionRepo.like(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (liked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class BookmarkWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    const bookmarked = await this.interactionRepo.bookmark(
-      parsed.data.accountId,
-      parsed.data.postId,
-      parsed.data.actorAccountId,
-    );
-    if (bookmarked) {
-      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
-    }
-
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ViewWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class ShareWorkspaceFeedPostUseCase {
-  constructor(
-    private readonly postRepo: WorkspaceFeedPostRepository,
-    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
-  ) {}
-
-  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
-    const parsed = FeedInteractionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
-    }
-
-    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
-    if (!post) {
-      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
-    }
-
-    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
-    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
-    return commandSuccess(parsed.data.postId, Date.now());
-  }
-}
-
-export class GetWorkspaceFeedPostUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
-    if (!accountId.trim() || !postId.trim()) return null;
-    return this.repo.findById(accountId, postId);
-  }
-}
-
-export class ListWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListWorkspaceFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
-  }
-}
-
-export class ListAccountWorkspaceFeedUseCase {
-  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
-
-  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
-    const parsed = ListAccountFeedSchema.safeParse(input);
-    if (!parsed.success) return [];
-    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
-  }
-}
 ````
 
 ## File: modules/workspace-feed/context-map.md
@@ -29618,213 +29441,6 @@ export class FetchWorkspaceMembersUseCase {
 
   execute(workspaceId: string): Promise<WorkspaceMemberView[]> {
     return this.workspaceQueryRepo.getWorkspaceMembers(workspaceId);
-  }
-}
-````
-
-## File: modules/workspace/application/use-cases/workspace.use-cases.ts
-````typescript
-/**
- * Workspace Use Cases — pure business workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-  WorkspaceGrant,
-  WorkspaceLocation,
-} from "../../domain/entities/Workspace";
-
-// ─── Create Workspace ─────────────────────────────────────────────────────────
-
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspaceId = await this.workspaceRepo.save({
-        id: crypto.randomUUID(),
-        name: command.name,
-        accountId: command.accountId,
-        accountType: command.accountType,
-        lifecycleState: "preparatory",
-        visibility: "visible",
-        capabilities: [],
-        grants: [],
-        teamIds: [],
-        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-      });
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
-    }
-  }
-}
-
-// ─── Create Workspace with Capabilities ──────────────────────────────────────
-
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspaceId = await this.workspaceRepo.save({
-        id: crypto.randomUUID(),
-        name: command.name,
-        accountId: command.accountId,
-        accountType: command.accountType,
-        lifecycleState: "preparatory",
-        visibility: "visible",
-        capabilities: [],
-        grants: [],
-        teamIds: [],
-        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-      });
-      if (capabilities.length > 0) {
-        await this.workspaceRepo.mountCapabilities(workspaceId, capabilities);
-      }
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
-}
-
-// ─── Update Settings ──────────────────────────────────────────────────────────
-
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!workspace) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-      await this.workspaceRepo.updateSettings(command);
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
-  }
-}
-
-// ─── Delete Workspace ─────────────────────────────────────────────────────────
-
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-      await this.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
-
-// ─── Mount Capabilities ───────────────────────────────────────────────────────
-
-export class MountCapabilitiesUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
-    try {
-      await this.workspaceRepo.mountCapabilities(workspaceId, capabilities);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CAPABILITIES_MOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to mount capabilities",
-      );
-    }
-  }
-}
-
-// ─── Grant Team Access ────────────────────────────────────────────────────────
-
-export class GrantTeamAccessUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.workspaceRepo.grantTeamAccess(workspaceId, teamId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_TEAM_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant team access",
-      );
-    }
-  }
-}
-
-// ─── Grant Individual Access ──────────────────────────────────────────────────
-
-export class GrantIndividualAccessUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
-    try {
-      await this.workspaceRepo.grantIndividualAccess(workspaceId, grant);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_GRANT_FAILED",
-        err instanceof Error ? err.message : "Failed to grant individual access",
-      );
-    }
-  }
-}
-
-// ─── Create Location ──────────────────────────────────────────────────────────
-
-export class CreateWorkspaceLocationUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<CommandResult> {
-    try {
-      const locationId = await this.workspaceRepo.createLocation(workspaceId, location);
-      return commandSuccess(locationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_LOCATION_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace location",
-      );
-    }
   }
 }
 ````
@@ -39531,649 +39147,6 @@ def allow_rag_query_rate_limit(
     )
 ````
 
-## File: py_fn/src/application/use_cases/__init__.py
-````python
-"""Application use cases."""
-
-from application.dto import RagIngestionResult
-from application.use_cases.rag_query import execute_rag_query
-from application.use_cases.rag_ingestion import (
-    clean_text,
-    chunk_text,
-    detect_language_hint,
-    ingest_document_for_rag,
-)
-
-__all__ = [
-    "execute_rag_query",
-    "RagIngestionResult",
-    "clean_text",
-    "chunk_text",
-    "detect_language_hint",
-    "ingest_document_for_rag",
-]
-````
-
-## File: py_fn/src/application/use_cases/rag_ingestion.py
-````python
-"""
-RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
-"""
-
-from __future__ import annotations
-
-import logging
-import re
-from datetime import UTC, datetime
-from typing import Any
-
-from application.dto import RagIngestionResult
-from core.config import (
-    OPENAI_EMBEDDING_DIMENSIONS,
-    OPENAI_EMBEDDING_MODEL,
-    RAG_DOC_CACHE_TTL_SECONDS,
-    RAG_CHUNK_OVERLAP_CHARS,
-    RAG_CHUNK_SIZE_CHARS,
-    RAG_REDIS_PREFIX,
-    RAG_VECTOR_NAMESPACE,
-)
-from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
-
-logger = logging.getLogger(__name__)
-
-
-def detect_language_hint(text: str) -> str:
-    """粗略語系判斷：cjk / latin / mixed。"""
-    cjk_count = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
-    latin_count = len(re.findall(r"[A-Za-z]", text))
-    if cjk_count > latin_count * 1.2:
-        return "cjk"
-    if latin_count > cjk_count * 1.2:
-        return "latin"
-    return "mixed"
-
-
-def clean_text(raw_text: str) -> str:
-    """Step 1: Normalization v2，保留段落與可引用性。"""
-    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
-    text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
-    text = text.replace("\u3000", " ")
-    text = re.sub(r"[\t ]+", " ", text)
-    text = re.sub(r"\n[\t ]+", "\n", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    return text.strip()
-
-
-def chunk_text(text: str, chunk_size: int, overlap: int) -> list[dict[str, Any]]:
-    """Step 2 + Step 3: 分塊並建立 chunk metadata。"""
-    if not text:
-        return []
-
-    if chunk_size <= 0:
-        chunk_size = 1200
-    if overlap < 0:
-        overlap = 0
-    if overlap >= chunk_size:
-        overlap = max(0, chunk_size // 4)
-
-    chunks: list[dict[str, Any]] = []
-    start = 0
-    text_len = len(text)
-
-    while start < text_len:
-        end = min(start + chunk_size, text_len)
-        content = text[start:end].strip()
-        if content:
-            chunks.append(
-                {
-                    "text": content,
-                    "char_start": start,
-                    "char_end": end,
-                }
-            )
-        if end >= text_len:
-            break
-        start = end - overlap
-
-    return chunks
-
-
-def ingest_document_for_rag(
-    *,
-    doc_id: str,
-    filename: str,
-    source_gcs_uri: str,
-    json_gcs_uri: str,
-    text: str,
-    page_count: int,
-    account_id: str,
-    workspace_id: str,
-    taxonomy: str = "general",
-    gateway: RagIngestionGateway | None = None,
-) -> RagIngestionResult:
-    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
-    gateway = gateway or get_rag_ingestion_gateway()
-
-    if not account_id:
-        raise ValueError("account_id is required")
-    if not workspace_id:
-        raise ValueError("workspace_id is required")
-
-    raw_chars = len(text or "")
-    normalized = clean_text(text or "")
-    normalized_chars = len(normalized)
-    normalization_version = "v2"
-    language_hint = detect_language_hint(normalized)
-
-    base_chunks = chunk_text(
-        normalized,
-        chunk_size=RAG_CHUNK_SIZE_CHARS,
-        overlap=RAG_CHUNK_OVERLAP_CHARS,
-    )
-    if not base_chunks:
-        return RagIngestionResult(
-            chunk_count=0,
-            vector_count=0,
-            embedding_model=OPENAI_EMBEDDING_MODEL,
-            embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
-            raw_chars=raw_chars,
-            normalized_chars=normalized_chars,
-            normalization_version=normalization_version,
-            language_hint=language_hint,
-        )
-
-    texts = [item["text"] for item in base_chunks]
-    vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
-
-    now_iso = datetime.now(UTC).isoformat()
-    payload: list[dict[str, Any]] = []
-
-    for i, (chunk, vec) in enumerate(zip(base_chunks, vectors)):
-        chunk_id = f"{doc_id}:{i:04d}"
-        payload.append(
-            {
-                "id": chunk_id,
-                "vector": vec,
-                "data": chunk["text"],
-                "metadata": {
-                    "vector_namespace": RAG_VECTOR_NAMESPACE,
-                    "doc_id": doc_id,
-                    "chunk_id": chunk_id,
-                    "chunk_index": i,
-                    "chunk_count": len(base_chunks),
-                    "filename": filename,
-                    "original_filename": filename,
-                    "display_name": filename,
-                    "source_gcs_uri": source_gcs_uri,
-                    "json_gcs_uri": json_gcs_uri,
-                    "account_id": account_id,
-                    "workspace_id": workspace_id,
-                    "taxonomy": taxonomy,
-                    "semantic_class": taxonomy,
-                    "processing_status": "ready",
-                    "page_count": page_count,
-                    "char_start": chunk["char_start"],
-                    "char_end": chunk["char_end"],
-                    "text": chunk["text"],
-                    "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
-                    "raw_chars": raw_chars,
-                    "normalized_chars": normalized_chars,
-                    "normalization_version": normalization_version,
-                    "language_hint": language_hint,
-                    "indexed_at": now_iso,
-                    "ingestion_pipeline": "rag-v2",
-                },
-            }
-        )
-
-    gateway.upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
-
-    # Best effort: keep Upstash Search in sync with vector chunks.
-    try:
-        search_docs = [
-            {
-                "id": item["id"],
-                "content": {
-                    "text": item["metadata"].get("text", ""),
-                    "filename": item["metadata"].get("filename", ""),
-                    "doc_id": item["metadata"].get("doc_id", ""),
-                    "taxonomy": item["metadata"].get("taxonomy", ""),
-                },
-                "metadata": item["metadata"],
-            }
-            for item in payload
-        ]
-        gateway.upsert_search_documents(search_docs)
-    except Exception as exc:
-        logger.warning("search index upsert skipped for %s: %s", doc_id, exc)
-
-    # 文件索引摘要寫入 Redis，方便後續檢視與治理。
-    try:
-        gateway.redis_set_json(
-            key=f"{RAG_REDIS_PREFIX}:doc:{doc_id}:latest",
-            value={
-                "doc_id": doc_id,
-                "filename": filename,
-                "chunk_count": len(base_chunks),
-                "vector_count": len(payload),
-                "account_id": account_id,
-                "embedding_model": OPENAI_EMBEDDING_MODEL,
-                "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
-                "normalization_version": normalization_version,
-                "language_hint": language_hint,
-                "indexed_at": now_iso,
-            },
-            ttl_seconds=RAG_DOC_CACHE_TTL_SECONDS,
-        )
-    except Exception as exc:
-        logger.warning("redis doc summary write failed for %s: %s", doc_id, exc)
-
-    return RagIngestionResult(
-        chunk_count=len(base_chunks),
-        vector_count=len(payload),
-        embedding_model=OPENAI_EMBEDDING_MODEL,
-        embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
-        raw_chars=raw_chars,
-        normalized_chars=normalized_chars,
-        normalization_version=normalization_version,
-        language_hint=language_hint,
-    )
-````
-
-## File: py_fn/src/application/use_cases/rag_query.py
-````python
-from __future__ import annotations
-
-import logging
-import json
-from datetime import UTC, datetime, timedelta
-from typing import Any
-
-from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
-from domain.repositories import RagQueryGateway, get_rag_query_gateway
-from domain.value_objects import RagCitation, RagQueryInput, RagQueryResult
-
-logger = logging.getLogger(__name__)
-
-
-def _normalize_metadata(value: Any) -> dict[str, Any]:
-    if isinstance(value, dict):
-        return value
-    if isinstance(value, str):
-        raw = value.strip()
-        if not raw:
-            return {}
-        try:
-            parsed = json.loads(raw)
-            if isinstance(parsed, dict):
-                return parsed
-        except Exception:
-            return {}
-    return {}
-
-
-def _match_account(metadata: dict[str, Any], account_scope: str) -> bool:
-    candidates = (
-        metadata.get("account_id"),
-        metadata.get("accountId"),
-        metadata.get("account"),
-        metadata.get("account_scope"),
-    )
-    return any(str(value or "").strip() == account_scope for value in candidates)
-
-
-def _match_workspace(metadata: dict[str, Any], workspace_scope: str) -> bool:
-    candidates = (
-        metadata.get("workspace_id"),
-        metadata.get("workspaceId"),
-        metadata.get("space_id"),
-        metadata.get("spaceId"),
-    )
-    return any(str(value or "").strip() == workspace_scope for value in candidates)
-
-
-def _match_ready_status(metadata: dict[str, Any], require_ready: bool) -> bool:
-    if not require_ready:
-        return True
-    candidates = (
-        metadata.get("processing_status"),
-        metadata.get("rag_status"),
-        metadata.get("status"),
-    )
-    return any(str(value or "").strip().lower() == "ready" for value in candidates)
-
-
-def _parse_datetime(value: Any) -> datetime | None:
-    if isinstance(value, datetime):
-        return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
-    raw = str(value or "").strip()
-    if not raw:
-        return None
-    try:
-        normalized = raw.replace("Z", "+00:00")
-        parsed = datetime.fromisoformat(normalized)
-        return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
-    except Exception:
-        return None
-
-
-def _match_freshness(metadata: dict[str, Any], max_age_days: int) -> bool:
-    if max_age_days <= 0:
-        return True
-
-    candidates = (
-        metadata.get("indexed_at"),
-        metadata.get("parsed_at"),
-        metadata.get("uploaded_at"),
-    )
-
-    timestamp = next((dt for dt in (_parse_datetime(value) for value in candidates) if dt is not None), None)
-    if timestamp is None:
-        return False
-
-    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
-    return timestamp >= cutoff
-
-
-def _match_taxonomy(metadata: dict[str, Any], taxonomy_filters: tuple[str, ...]) -> bool:
-    if not taxonomy_filters:
-        return True
-
-    normalized_filters = {item.lower() for item in taxonomy_filters if item}
-    if not normalized_filters:
-        return True
-
-    candidates = {
-        str(metadata.get("taxonomy") or "").strip().lower(),
-        str(metadata.get("semantic_class") or "").strip().lower(),
-        str(metadata.get("semantic_type") or "").strip().lower(),
-    }
-
-    tags = metadata.get("tags")
-    if isinstance(tags, list):
-        candidates.update(str(item or "").strip().lower() for item in tags)
-
-    candidates.discard("")
-    return bool(candidates.intersection(normalized_filters))
-
-
-def _extract_text_candidate(value: Any) -> str:
-    if isinstance(value, str):
-        return value.strip()
-
-    if isinstance(value, dict):
-        candidates = (
-            value.get("text"),
-            value.get("content"),
-            value.get("chunk_text"),
-        )
-        for candidate in candidates:
-            snippet = str(candidate or "").strip()
-            if snippet:
-                return snippet
-
-    return ""
-
-
-def _extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
-    candidates = (
-        hit.get("data"),
-        metadata.get("text"),
-        metadata.get("chunk_text"),
-        metadata.get("content"),
-        hit.get("text"),
-        hit.get("content"),
-    )
-    for candidate in candidates:
-        snippet = _extract_text_candidate(candidate)
-        if snippet:
-            return snippet
-    return ""
-
-
-def _resolve_filename(metadata: dict[str, Any], fallback: str | None = None) -> str | None:
-    candidates = (
-        metadata.get("filename"),
-        metadata.get("display_name"),
-        metadata.get("original_filename"),
-        metadata.get("title"),
-        fallback,
-    )
-    for value in candidates:
-        name = str(value or "").strip()
-        if name:
-            return name
-    return None
-
-
-def execute_rag_query(
-    *,
-    query: str,
-    account_scope: str,
-    workspace_scope: str,
-    top_k: int | None,
-    taxonomy_filters: list[str] | tuple[str, ...] | None,
-    max_age_days: int | None,
-    require_ready: bool,
-    gateway: RagQueryGateway | None = None,
-) -> dict:
-    """Application use case for RAG query orchestration."""
-    gateway = gateway or get_rag_query_gateway()
-
-    request = RagQueryInput.from_raw(
-        query=query,
-        account_scope=account_scope,
-        workspace_scope=workspace_scope,
-        top_k=top_k,
-        taxonomy_filters=taxonomy_filters,
-        max_age_days=max_age_days,
-        require_ready=require_ready,
-        default_top_k=RAG_QUERY_TOP_K,
-        default_max_age_days=RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
-    )
-    if not request.has_query:
-        return {
-            "answer": "",
-            "citations": [],
-            "cache": "miss",
-            "vector_hits": 0,
-            "search_hits": 0,
-            "account_scope": request.account_scope,
-            "workspace_scope": request.workspace_scope,
-            "taxonomy_filters": list(request.taxonomy_filters),
-            "max_age_days": request.max_age_days,
-            "require_ready": request.require_ready,
-        }
-
-    cache_key = gateway.build_query_cache_key(
-        account_scope=request.account_scope,
-        query=(
-            f"workspace={request.workspace_scope};"
-            f"taxonomy={','.join(request.taxonomy_filters)};"
-            f"maxAge={request.max_age_days};"
-            f"ready={request.require_ready};"
-            f"q={request.query}"
-        ),
-        top_k=request.top_k,
-    )
-    try:
-        cached = gateway.get_query_cache(cache_key)
-        if cached and isinstance(cached.get("answer"), str):
-            return {
-                "answer": cached.get("answer", ""),
-                "citations": cached.get("citations", []),
-                "cache": "hit",
-                "vector_hits": int(cached.get("vector_hits") or 0),
-                "search_hits": int(cached.get("search_hits") or 0),
-                "account_scope": cached.get("account_scope") or request.account_scope,
-                "workspace_scope": cached.get("workspace_scope") or request.workspace_scope,
-            }
-    except Exception as exc:
-        logger.warning("redis query cache read failed: %s", exc)
-
-    retrieval_top_k = request.retrieval_top_k()
-    vector = gateway.to_query_vector(request.query)
-    vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
-    search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
-
-    contexts: list[str] = []
-    citations: list[RagCitation] = []
-    seen_snippets: set[str] = set()
-
-    raw_vector_hits = len(vector_hits_raw)
-    raw_search_hits = len(search_hits_raw)
-    dropped_by_workspace = 0
-    dropped_by_status = 0
-    dropped_by_freshness = 0
-    dropped_by_taxonomy = 0
-
-    for hit in vector_hits_raw:
-        if not isinstance(hit, dict):
-            continue
-        metadata = _normalize_metadata(hit.get("metadata"))
-        if not metadata:
-            continue
-        if not _match_account(metadata, request.account_scope):
-            continue
-        if not _match_workspace(metadata, request.workspace_scope):
-            dropped_by_workspace += 1
-            continue
-        if not _match_ready_status(metadata, request.require_ready):
-            dropped_by_status += 1
-            continue
-        if not _match_freshness(metadata, request.max_age_days):
-            dropped_by_freshness += 1
-            continue
-        if not _match_taxonomy(metadata, request.taxonomy_filters):
-            dropped_by_taxonomy += 1
-            continue
-
-        snippet = _extract_snippet(hit, metadata)
-        if not snippet or snippet in seen_snippets:
-            continue
-
-        seen_snippets.add(snippet)
-        contexts.append(snippet)
-        citations.append(
-            RagCitation(
-                provider="vector",
-                doc_id=metadata.get("doc_id"),
-                chunk_id=metadata.get("chunk_id"),
-                score=hit.get("score") if isinstance(hit, dict) else None,
-                filename=_resolve_filename(metadata),
-                json_gcs_uri=metadata.get("json_gcs_uri"),
-                account_id=metadata.get("account_id") or "",
-                workspace_id=metadata.get("workspace_id") or metadata.get("space_id") or "",
-                taxonomy=metadata.get("taxonomy") or metadata.get("semantic_class") or "",
-                processing_status=metadata.get("processing_status") or metadata.get("status") or "",
-                indexed_at=metadata.get("indexed_at") or "",
-            )
-        )
-
-    for hit in search_hits_raw:
-        if not isinstance(hit, dict):
-            continue
-        metadata = _normalize_metadata(hit.get("metadata"))
-        if not _match_account(metadata, request.account_scope):
-            continue
-        if not _match_workspace(metadata, request.workspace_scope):
-            dropped_by_workspace += 1
-            continue
-        if not _match_ready_status(metadata, request.require_ready):
-            dropped_by_status += 1
-            continue
-        if not _match_freshness(metadata, request.max_age_days):
-            dropped_by_freshness += 1
-            continue
-        if not _match_taxonomy(metadata, request.taxonomy_filters):
-            dropped_by_taxonomy += 1
-            continue
-
-        snippet = _extract_snippet(hit, metadata)
-        if not snippet or snippet in seen_snippets:
-            continue
-
-        seen_snippets.add(snippet)
-        contexts.append(snippet)
-        citations.append(
-            RagCitation(
-                provider="search",
-                doc_id=metadata.get("doc_id"),
-                chunk_id=metadata.get("chunk_id"),
-                score=hit.get("score"),
-                filename=_resolve_filename(metadata),
-                json_gcs_uri=metadata.get("json_gcs_uri"),
-                search_id=hit.get("id"),
-                account_id=metadata.get("account_id") or "",
-                workspace_id=metadata.get("workspace_id") or metadata.get("space_id") or "",
-                taxonomy=metadata.get("taxonomy") or metadata.get("semantic_class") or "",
-                processing_status=metadata.get("processing_status") or metadata.get("status") or "",
-                indexed_at=metadata.get("indexed_at") or "",
-            )
-        )
-
-    vector_hit_count = len([c for c in citations if c.provider == "vector"])
-    search_hit_count = len([c for c in citations if c.provider == "search"])
-
-    context_block = "\n\n---\n\n".join(contexts[:request.top_k])
-    if not context_block:
-        return RagQueryResult(
-            answer="找不到足夠的相關內容。",
-            citations=(),
-            cache="miss",
-            vector_hits=raw_vector_hits,
-            search_hits=raw_search_hits,
-            account_scope=request.account_scope,
-            workspace_scope=request.workspace_scope,
-            taxonomy_filters=request.taxonomy_filters,
-            max_age_days=request.max_age_days,
-            require_ready=request.require_ready,
-            debug={
-                "vector_candidates": raw_vector_hits,
-                "search_candidates": raw_search_hits,
-                "retrieval_top_k": retrieval_top_k,
-                "workspace_scope": request.workspace_scope,
-                "taxonomy_filters": list(request.taxonomy_filters),
-                "max_age_days": request.max_age_days,
-                "require_ready": request.require_ready,
-                "dropped_by_workspace": dropped_by_workspace,
-                "dropped_by_status": dropped_by_status,
-                "dropped_by_freshness": dropped_by_freshness,
-                "dropped_by_taxonomy": dropped_by_taxonomy,
-                "reason": "no-context-after-scope-or-text-filter",
-            },
-        ).to_dict()
-
-    answer = gateway.generate_answer(query=request.query, context_block=context_block)
-    result = RagQueryResult(
-        answer=answer,
-        citations=tuple(citations),
-        cache="miss",
-        vector_hits=vector_hit_count,
-        search_hits=search_hit_count,
-        account_scope=request.account_scope,
-        workspace_scope=request.workspace_scope,
-        taxonomy_filters=request.taxonomy_filters,
-        max_age_days=request.max_age_days,
-        require_ready=request.require_ready,
-    ).to_dict()
-
-    try:
-        gateway.save_query_cache(cache_key, result)
-    except Exception as exc:
-        logger.warning("redis query cache write failed: %s", exc)
-
-    gateway.publish_query_audit(
-        query=request.query,
-        top_k=request.top_k,
-        citation_count=len(citations),
-        vector_hits=vector_hit_count,
-        search_hits=search_hit_count,
-    )
-
-    return result
-````
-
 ## File: py_fn/src/core/__init__.py
 ````python
 """Core layer package."""
@@ -40493,11 +39466,6 @@ def get_document_pipeline_gateway() -> DocumentPipelineGateway:
     if _document_pipeline_gateway is None:
         raise RuntimeError("DocumentPipelineGateway is not registered")
     return _document_pipeline_gateway
-````
-
-## File: py_fn/src/domain/services/__init__.py
-````python
-"""Domain services."""
 ````
 
 ## File: py_fn/src/domain/services/.gitkeep
@@ -41071,548 +40039,6 @@ def generate_answer(*, query: str, context_block: str) -> str:
 """Upstash integration (Vector / Redis / Search / QStash)."""
 ````
 
-## File: py_fn/src/infrastructure/external/upstash/clients.py
-````python
-"""
-Upstash clients — 使用官方 Python SDK 建立 Vector / Redis / QStash 客戶端。
-"""
-
-from __future__ import annotations
-
-import importlib
-import json
-import logging
-from urllib import error as urlerror
-from urllib import request as urlrequest
-from typing import Any
-
-from core.config import (
-    QSTASH_CURRENT_SIGNING_KEY,
-    QSTASH_NEXT_SIGNING_KEY,
-    QSTASH_TOKEN,
-    QSTASH_URL,
-    UPSTASH_REDIS_REST_TOKEN,
-    UPSTASH_REDIS_REST_URL,
-    UPSTASH_SEARCH_REST_TOKEN,
-    UPSTASH_SEARCH_REST_URL,
-    UPSTASH_SEARCH_INDEX,
-    UPSTASH_SEARCH_TIMEOUT_SECONDS,
-    UPSTASH_VECTOR_REST_TOKEN,
-    UPSTASH_VECTOR_REST_URL,
-)
-
-_VECTOR_INDEX: Any | None = None
-_REDIS_CLIENT: Any | None = None
-_QSTASH_CLIENT: Any | None = None
-_SEARCH_INDEX: Any | None = None
-
-logger = logging.getLogger(__name__)
-
-
-class UpstashConfigError(RuntimeError):
-    """Upstash 配置缺失。"""
-
-
-class UpstashSdkError(RuntimeError):
-    """Upstash SDK 載入失敗。"""
-
-
-def _require(value: str, name: str) -> str:
-    if not value:
-        raise UpstashConfigError(f"{name} is not set")
-    return value
-
-
-def _import_module(module_name: str, install_hint: str):
-    try:
-        return importlib.import_module(module_name)
-    except ImportError as exc:
-        raise UpstashSdkError(f"Missing dependency: {install_hint}") from exc
-
-
-def get_vector_index() -> Any:
-    """取得 Upstash Vector 官方 SDK Index 實例（單例）。"""
-    global _VECTOR_INDEX
-    if _VECTOR_INDEX is None:
-        mod = _import_module("upstash_vector", "pip install upstash-vector")
-        index_cls = getattr(mod, "Index", None)
-        if index_cls is None:
-            raise UpstashSdkError("upstash_vector.Index not found")
-        _VECTOR_INDEX = index_cls(
-            url=_require(UPSTASH_VECTOR_REST_URL, "UPSTASH_VECTOR_REST_URL"),
-            token=_require(UPSTASH_VECTOR_REST_TOKEN, "UPSTASH_VECTOR_REST_TOKEN"),
-        )
-    return _VECTOR_INDEX
-
-
-def get_redis_client() -> Any:
-    """取得 Upstash Redis 官方 SDK client（單例）。"""
-    global _REDIS_CLIENT
-    if _REDIS_CLIENT is None:
-        mod = _import_module("upstash_redis", "pip install upstash-redis")
-        redis_cls = getattr(mod, "Redis", None)
-        if redis_cls is None:
-            raise UpstashSdkError("upstash_redis.Redis not found")
-        _REDIS_CLIENT = redis_cls(
-            url=_require(UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL"),
-            token=_require(UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN"),
-        )
-    return _REDIS_CLIENT
-
-
-def get_qstash_client() -> Any:
-    """取得 QStash 官方 SDK client（單例）。"""
-    global _QSTASH_CLIENT
-    if _QSTASH_CLIENT is None:
-        mod = _import_module("qstash", "pip install qstash")
-        client_cls = getattr(mod, "QStash", None)
-        if client_cls is None:
-            raise UpstashSdkError("qstash.QStash not found")
-
-        # 新舊 SDK 參數名稱兼容
-        kwargs: dict[str, Any] = {
-            "token": _require(QSTASH_TOKEN, "QSTASH_TOKEN"),
-        }
-        if QSTASH_URL:
-            kwargs["base_url"] = QSTASH_URL
-        if QSTASH_CURRENT_SIGNING_KEY:
-            kwargs["current_signing_key"] = QSTASH_CURRENT_SIGNING_KEY
-        if QSTASH_NEXT_SIGNING_KEY:
-            kwargs["next_signing_key"] = QSTASH_NEXT_SIGNING_KEY
-
-        try:
-            _QSTASH_CLIENT = client_cls(**kwargs)
-        except TypeError:
-            # 退回最小初始化方式
-            _QSTASH_CLIENT = client_cls(token=_require(QSTASH_TOKEN, "QSTASH_TOKEN"))
-
-    return _QSTASH_CLIENT
-
-
-def get_search_index() -> Any:
-    """取得 Upstash Search 官方 SDK index（單例）。"""
-    global _SEARCH_INDEX
-    if _SEARCH_INDEX is None:
-        mod = _import_module("upstash_search", "pip install upstash-search")
-        search_cls = getattr(mod, "Search", None)
-        if search_cls is None:
-            raise UpstashSdkError("upstash_search.Search not found")
-
-        index_name = UPSTASH_SEARCH_INDEX or "default"
-        client = search_cls(
-            url=_require(UPSTASH_SEARCH_REST_URL, "UPSTASH_SEARCH_REST_URL"),
-            token=_require(UPSTASH_SEARCH_REST_TOKEN, "UPSTASH_SEARCH_REST_TOKEN"),
-            allow_telemetry=False,
-        )
-        _SEARCH_INDEX = client.index(index_name)
-    return _SEARCH_INDEX
-
-
-def _normalize_vector_item(item: Any) -> dict[str, Any]:
-    if isinstance(item, dict):
-        return {
-            "id": item.get("id"),
-            "score": item.get("score"),
-            "metadata": item.get("metadata"),
-            "data": item.get("data"),
-        }
-
-    return {
-        "id": getattr(item, "id", None),
-        "score": getattr(item, "score", None),
-        "metadata": getattr(item, "metadata", None),
-        "data": getattr(item, "data", None),
-    }
-
-
-def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
-    """
-    批次 upsert 向量資料到 Upstash Vector。
-
-    items 每筆至少包含：
-      - id: str
-      - vector: list[float]
-      - metadata: dict[str, Any]
-    """
-    index = get_vector_index()
-    sdk_payload = [
-        {
-            "id": item["id"],
-            "vector": item["vector"],
-            "metadata": item.get("metadata", {}),
-            "data": item.get("data"),
-        }
-        for item in items
-    ]
-    tuples_payload = [
-        (item["id"], item["vector"], item.get("metadata", {}))
-        for item in items
-    ]
-
-    try:
-        return index.upsert(vectors=sdk_payload, namespace=namespace)
-    except TypeError:
-        try:
-            return index.upsert(sdk_payload, namespace=namespace)
-        except TypeError:
-            try:
-                return index.upsert(tuples_payload, namespace=namespace)
-            except TypeError:
-                return index.upsert(items, namespace=namespace)
-
-
-def query_vectors(
-    vector: list[float],
-    top_k: int,
-    include_metadata: bool = True,
-    include_data: bool = True,
-    namespace: str = "",
-    filter: str = "",
-) -> list[dict[str, Any]]:
-    """查詢 Upstash Vector，統一輸出為 list[dict]。"""
-    index = get_vector_index()
-
-    try:
-        result = index.query(
-            vector=vector,
-            top_k=top_k,
-            include_metadata=include_metadata,
-            include_data=include_data,
-            namespace=namespace,
-            filter=filter,
-        )
-    except TypeError:
-        try:
-            result = index.query(
-                vector,
-                top_k=top_k,
-                include_metadata=include_metadata,
-                include_data=include_data,
-                namespace=namespace,
-                filter=filter,
-            )
-        except TypeError:
-            result = index.query(vector=vector, top_k=top_k, namespace=namespace)
-
-    if isinstance(result, list):
-        return [_normalize_vector_item(item) for item in result]
-
-    if isinstance(result, dict):
-        candidates = result.get("result") or result.get("matches") or result.get("data") or []
-        if isinstance(candidates, list):
-            return [_normalize_vector_item(item) for item in candidates]
-
-    if hasattr(result, "data") and isinstance(result.data, list):
-        return [_normalize_vector_item(item) for item in result.data]
-
-    return []
-
-
-def redis_get_json(key: str) -> dict[str, Any] | None:
-    """從 Upstash Redis 讀取 JSON 字串並反序列化。"""
-    client = get_redis_client()
-    raw = client.get(key)
-    if raw is None:
-        return None
-
-    if isinstance(raw, (bytes, bytearray)):
-        raw_text = raw.decode("utf-8", errors="ignore")
-    else:
-        raw_text = str(raw)
-
-    if not raw_text:
-        return None
-
-    try:
-        parsed = json.loads(raw_text)
-        return parsed if isinstance(parsed, dict) else None
-    except Exception:
-        logger.warning("redis_get_json: invalid json at key=%s", key)
-        return None
-
-
-def redis_set_json(key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None:
-    """將 dict 寫入 Upstash Redis；可選擇 TTL。"""
-    client = get_redis_client()
-    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
-
-    if ttl_seconds > 0:
-        try:
-            client.set(key, payload, ex=ttl_seconds)
-            return
-        except TypeError:
-            pass
-        except Exception:
-            logger.exception("redis_set_json set(ex=) failed: key=%s", key)
-            raise
-
-        try:
-            client.setex(key, ttl_seconds, payload)
-            return
-        except Exception:
-            logger.exception("redis_set_json setex failed: key=%s", key)
-            raise
-
-    client.set(key, payload)
-
-
-def redis_fixed_window_allow(
-    key: str,
-    max_requests: int,
-    window_seconds: int,
-) -> tuple[bool, int]:
-    """固定窗限流：回傳 (allowed, remaining)。"""
-    if max_requests <= 0 or window_seconds <= 0:
-        return True, max_requests
-
-    client = get_redis_client()
-    current = int(client.incr(key) or 0)
-    if current == 1:
-        client.expire(key, window_seconds)
-
-    allowed = current <= max_requests
-    remaining = max(0, max_requests - current)
-    return allowed, remaining
-
-
-def upsert_search_documents(documents: list[dict[str, Any]]) -> int:
-    """批次寫入 Upstash Search index（best effort，不拋出上層）。"""
-    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
-        return 0
-
-    if not documents:
-        return 0
-
-    normalized: list[dict[str, Any]] = []
-    for item in documents:
-        if not isinstance(item, dict):
-            continue
-        doc_id = str(item.get("id") or "").strip()
-        if not doc_id:
-            continue
-
-        content = item.get("content") if isinstance(item.get("content"), dict) else {}
-        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-        normalized.append({
-            "id": doc_id,
-            "content": content,
-            "metadata": metadata,
-        })
-
-    if not normalized:
-        return 0
-
-    try:
-        index = get_search_index()
-        try:
-            index.upsert(documents=normalized)
-        except TypeError:
-            index.upsert(normalized)
-        return len(normalized)
-    except Exception as exc:
-        logger.warning("upsert_search_documents failed: %s", exc)
-        return 0
-
-
-def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
-    """
-    以 Upstash Search REST 進行補充檢索（best effort）。
-
-    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
-    """
-    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
-        return []
-
-    if not query.strip() or top_k <= 0:
-        return []
-
-    # Prefer official SDK first; fallback to REST probing for compatibility.
-    try:
-        index = get_search_index()
-        result = index.search(query=query, limit=top_k)
-        normalized: list[dict[str, Any]] = []
-
-        if isinstance(result, list):
-            items = result
-        elif isinstance(result, dict):
-            items = (
-                result.get("result")
-                or result.get("matches")
-                or result.get("hits")
-                or result.get("data")
-                or []
-            )
-        else:
-            items = getattr(result, "results", None) or getattr(result, "data", None) or []
-
-        if isinstance(items, list):
-            for item in items:
-                if not isinstance(item, dict):
-                    try:
-                        item = dict(item)
-                    except Exception:
-                        continue
-
-                metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-                content = item.get("content") if isinstance(item.get("content"), dict) else {}
-                text = str(
-                    item.get("text")
-                    or content.get("text")
-                    or content.get("content")
-                    or metadata.get("text")
-                    or item.get("content")
-                    or ""
-                ).strip()
-                if not text:
-                    continue
-
-                normalized.append(
-                    {
-                        "id": item.get("id"),
-                        "score": item.get("score"),
-                        "text": text,
-                        "metadata": metadata,
-                        "source": "upstash-search-sdk",
-                    }
-                )
-
-        if normalized:
-            return normalized
-    except Exception as exc:
-        logger.debug("query_search_documents sdk path failed, fallback to REST: %s", exc)
-
-    endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
-    body_candidates = [
-        {"query": query, "topK": top_k},
-        {"query": query, "top_k": top_k},
-        {"q": query, "limit": top_k},
-    ]
-    path_candidates = ["/query", "/search"]
-
-    for path in path_candidates:
-        url = f"{endpoint_base}{path}"
-        for body in body_candidates:
-            raw = None
-            try:
-                req = urlrequest.Request(
-                    url=url,
-                    method="POST",
-                    headers={
-                        "Authorization": f"Bearer {UPSTASH_SEARCH_REST_TOKEN}",
-                        "Content-Type": "application/json",
-                    },
-                    data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
-                )
-                with urlrequest.urlopen(req, timeout=UPSTASH_SEARCH_TIMEOUT_SECONDS) as resp:
-                    raw = resp.read().decode("utf-8", errors="ignore")
-            except urlerror.HTTPError as exc:
-                logger.debug("query_search_documents http error: %s %s", url, exc)
-                continue
-            except Exception as exc:
-                logger.debug("query_search_documents request failed: %s", exc)
-                continue
-
-            if not raw:
-                continue
-
-            try:
-                payload = json.loads(raw)
-            except Exception:
-                logger.debug("query_search_documents invalid json from %s", url)
-                continue
-
-            candidates = []
-            if isinstance(payload, dict):
-                candidates = (
-                    payload.get("result")
-                    or payload.get("matches")
-                    or payload.get("hits")
-                    or payload.get("data")
-                    or []
-                )
-            elif isinstance(payload, list):
-                candidates = payload
-
-            if not isinstance(candidates, list):
-                continue
-
-            normalized: list[dict[str, Any]] = []
-            for item in candidates:
-                if isinstance(item, dict):
-                    metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
-                    text = str(
-                        item.get("text")
-                        or metadata.get("text")
-                        or item.get("content")
-                        or ""
-                    ).strip()
-                    if not text:
-                        continue
-                    normalized.append(
-                        {
-                            "id": item.get("id"),
-                            "score": item.get("score"),
-                            "text": text,
-                            "metadata": metadata,
-                            "source": "upstash-search",
-                        }
-                    )
-            if normalized:
-                return normalized
-
-    return []
-
-
-def publish_qstash_json(url: str, body: dict[str, Any], delay: str | None = None) -> bool:
-    """透過 QStash 投遞 JSON 訊息（best effort）。"""
-    target_url = url.strip()
-    if not target_url:
-        return False
-
-    try:
-        client = get_qstash_client()
-    except Exception as exc:
-        logger.debug("publish_qstash_json skip: %s", exc)
-        return False
-
-    try:
-        kwargs: dict[str, Any] = {
-            "url": target_url,
-            "body": body,
-        }
-        if delay:
-            kwargs["delay"] = delay
-
-        publish_json = getattr(client, "publish_json", None)
-        if callable(publish_json):
-            publish_json(**kwargs)
-            return True
-
-        publish = getattr(client, "publish", None)
-        if callable(publish):
-            publish(**kwargs)
-            return True
-
-        return False
-    except TypeError:
-        try:
-            publish_json = getattr(client, "publish_json", None)
-            if callable(publish_json):
-                publish_json(target_url, body)
-                return True
-            publish = getattr(client, "publish", None)
-            if callable(publish):
-                publish(target_url, body)
-                return True
-            return False
-        except Exception:
-            logger.debug("publish_qstash_json fallback failed", exc_info=True)
-            return False
-    except Exception:
-        logger.debug("publish_qstash_json failed", exc_info=True)
-        return False
-````
-
 ## File: py_fn/src/infrastructure/external/upstash/rag_query.py
 ````python
 from __future__ import annotations
@@ -42016,525 +40442,6 @@ __all__ = [
 	"handle_rag_query",
 	"handle_rag_reindex_document",
 ]
-````
-
-## File: py_fn/src/interface/handlers/https.py
-````python
-"""
-HTTPS Callable 觸發器 — 供前端主動觸發 Document AI 解析。
-
-接受 GCS 檔案路徑，直接呼叫 Document AI（無記憶體複製），
-解析全文寫回 GCS JSON，Firestore 僅存索引。
-
-請求格式：
-    {
-        "account_id": "acc-123",
-        "gcs_uri": "gs://my-bucket/uploads/my-doc.pdf",
-        "size_bytes": 102400  # 選填
-    }
-
-Document AI 會直接從 GCS 讀取檔案，無須下載到 Python 函數記憶體。
-結果會保存為：
-    - GCS: files/.../*.json（完整解析）
-    - Firestore: accounts/{account_id}/documents/{doc_id}（索引）
-
-回應格式（立即返回）：
-    {
-        "doc_id": "my-doc",
-        "status": "processing"  // 實際解析在後台進行（通醫 2-5 秒）
-    }
-
-前端應監聽 Firestore 文件狀態變化以追蹤進度。
-"""
-
-import logging
-import os
-import time
-import json
-from typing import Any
-
-from firebase_functions import https_fn
-import firebase_admin.firestore as fb_firestore
-
-from application.services.document_pipeline import allow_rag_query_rate_limit, get_document_pipeline
-from application.use_cases import execute_rag_query
-from application.use_cases.rag_ingestion import ingest_document_for_rag
-from core.config import (
-    RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
-    RAG_QUERY_REQUIRE_READY_STATUS,
-    RAG_QUERY_RATE_LIMIT_MAX,
-    RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
-)
-
-logger = logging.getLogger(__name__)
-
-
-def _extract_auth_uid(req: https_fn.CallableRequest) -> str:
-    auth = getattr(req, "auth", None)
-    if auth is None:
-        return ""
-    if isinstance(auth, dict):
-        return str(auth.get("uid", "")).strip()
-    uid = str(getattr(auth, "uid", "")).strip()
-    if uid:
-        return uid
-    token = getattr(auth, "token", None)
-    if isinstance(token, dict):
-        return str(token.get("uid", "")).strip()
-    return ""
-
-
-def _assert_account_access(uid: str, account_id: str) -> None:
-    if uid == account_id:
-        return
-
-    db = fb_firestore.client()
-    snap = db.collection("accounts").document(account_id).get()
-    if not snap.exists:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
-            "account not found or inaccessible",
-        )
-
-    data = snap.to_dict() or {}
-    owner_id = str(data.get("ownerId", "")).strip()
-    member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
-    member_set = {str(item or "").strip() for item in member_ids}
-    if owner_id == uid or uid in member_set:
-        return
-
-    raise https_fn.HttpsError(
-        https_fn.FunctionsErrorCode.PERMISSION_DENIED,
-        "you do not have access to this account scope",
-    )
-
-
-def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None:
-    db = fb_firestore.client()
-    snap = db.collection("workspaces").document(workspace_id).get()
-    if not snap.exists:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace not found",
-        )
-
-    data = snap.to_dict() or {}
-    bound_account_id = str(data.get("accountId", "")).strip()
-    if bound_account_id != account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
-            "workspace does not belong to account scope",
-        )
-
-
-def _parse_taxonomy_filters(raw_value: Any) -> list[str]:
-    if not isinstance(raw_value, list):
-        return []
-    return [str(item or "").strip().lower() for item in raw_value if str(item or "").strip()]
-
-
-def _to_bool(raw_value: Any, default_value: bool) -> bool:
-    if isinstance(raw_value, bool):
-        return raw_value
-    raw = str(raw_value or "").strip().lower()
-    if not raw:
-        return default_value
-    if raw in {"1", "true", "yes", "on"}:
-        return True
-    if raw in {"0", "false", "no", "off"}:
-        return False
-    return default_value
-
-
-def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
-    if not gs_uri.startswith("gs://"):
-        raise ValueError("gcs uri must start with gs://")
-    path_part = gs_uri.split("gs://", 1)[1]
-    if "/" not in path_part:
-        raise ValueError("gcs uri must include object path")
-    bucket_name, object_path = path_part.split("/", 1)
-    return bucket_name, object_path
-
-
-def handle_parse_document(req: https_fn.CallableRequest) -> dict:
-    """
-    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
-
-    輸入 GCS URI，Document AI 直接從 Cloud Storage 讀取並解析。
-    Firestore 會記錄完整的 lifecycle（processing → completed/error）。
-
-    Args:
-        req.data: {
-            "account_id": "acc-123",                # 必填
-            "gcs_uri": "gs://bucket/path/file.pdf",  # 必填
-            "mime_type": "application/pdf",           # 選填；如果省略則由副檔名推測
-            "size_bytes": 102400                       # 選填
-        }
-
-    Returns:
-        dict: {
-            "doc_id": "file",
-            "status": "processing"
-        }
-
-    Raises:
-        https_fn.HttpsError: 缺少必填欄位時。
-    """
-    runtime = get_document_pipeline()
-    data: dict = req.data or {}
-    account_id = str(data.get("account_id", "")).strip()
-    workspace_id = str(data.get("workspace_id", "")).strip()
-    if not account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "account_id 為必填欄位",
-        )
-    if not workspace_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace_id 為必填欄位",
-        )
-
-    gcs_uri: str = data.get("gcs_uri", "").strip()
-    if not gcs_uri or not gcs_uri.startswith("gs://"):
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "gcs_uri 為必填欄位（格式：gs://bucket/path）",
-        )
-
-    # 解析 GCS URI 得到儲存檔名，用於 doc_id。
-    path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
-    storage_filename = os.path.basename(path_part)     # "file.pdf"
-    doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
-    filename = (
-        str(data.get("filename", "")).strip()
-        or str(data.get("original_filename", "")).strip()
-        or str(data.get("display_name", "")).strip()
-        or storage_filename
-    )
-
-    # 推測 MIME 類型
-    mime_type = data.get("mime_type", "").strip()
-    if not mime_type:
-        _mime_map = {
-            ".pdf": "application/pdf",
-            ".tiff": "image/tiff",
-            ".tif": "image/tiff",
-            ".png": "image/png",
-            ".jpg": "image/jpeg",
-            ".jpeg": "image/jpeg",
-        }
-        mime_type = _mime_map.get(ext.lower())
-        if mime_type is None:
-            raise https_fn.HttpsError(
-                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-                f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
-            )
-
-    size_bytes = data.get("size_bytes", 0)
-    logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
-
-    # ── 初始化 Firestore document ───────────────────────────────────────────
-    try:
-        runtime.init_document(
-            doc_id=doc_id,
-            gcs_uri=gcs_uri,
-            filename=filename,
-            size_bytes=int(size_bytes),
-            mime_type=mime_type,
-            account_id=account_id,
-            workspace_id=workspace_id,
-        )
-    except Exception as exc:
-        logger.exception("Failed to init document %s: %s", doc_id, exc)
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INTERNAL,
-            "Failed to initialize document",
-        ) from exc
-
-    # 解析 gs://bucket/path，取得 bucket 與 object_path
-    bucket_name, object_path = path_part.split("/", 1)
-
-    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
-    start_time = time.time()
-    try:
-        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
-        extraction_ms = int((time.time() - start_time) * 1000)
-
-        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
-        json_object_path = runtime.parsed_json_path(object_path)
-        json_gcs_uri = runtime.upload_json(
-            bucket_name=bucket_name,
-            object_path=json_object_path,
-            data={
-                "doc_id": doc_id,
-                "account_id": account_id,
-                "workspace_id": workspace_id,
-                "source_gcs_uri": gcs_uri,
-                "filename": filename,
-                "display_name": filename,
-                "original_filename": filename,
-                "page_count": parsed.page_count,
-                "extraction_ms": extraction_ms,
-                "text": parsed.text,
-            },
-        )
-
-        runtime.update_parsed(
-            doc_id=doc_id,
-            json_gcs_uri=json_gcs_uri,
-            page_count=parsed.page_count,
-            extraction_ms=extraction_ms,
-            account_id=account_id,
-        )
-
-        # Step 5/6: RAG ingestion（embed + vector + ready）
-        try:
-            rag = ingest_document_for_rag(
-                doc_id=doc_id,
-                filename=filename,
-                source_gcs_uri=gcs_uri,
-                json_gcs_uri=json_gcs_uri,
-                text=parsed.text,
-                page_count=parsed.page_count,
-                account_id=account_id,
-                workspace_id=workspace_id,
-            )
-            runtime.mark_rag_ready(
-                doc_id=doc_id,
-                chunk_count=rag.chunk_count,
-                vector_count=rag.vector_count,
-                embedding_model=rag.embedding_model,
-                embedding_dimensions=rag.embedding_dimensions,
-                raw_chars=rag.raw_chars,
-                normalized_chars=rag.normalized_chars,
-                normalization_version=rag.normalization_version,
-                language_hint=rag.language_hint,
-                account_id=account_id,
-            )
-        except Exception as rag_exc:
-            logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
-
-        logger.info(
-            "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
-            doc_id,
-            parsed.page_count,
-            extraction_ms,
-            json_gcs_uri,
-        )
-    except Exception as exc:
-        logger.exception("parse_document failed for %s: %s", doc_id, exc)
-        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
-
-    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
-    return {
-        "account_scope": account_id,
-        "doc_id": doc_id,
-        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
-    }
-
-
-def handle_rag_query(req: https_fn.CallableRequest) -> dict:
-    """HTTPS Callable：RAG 查詢（Step 7）。"""
-    uid = _extract_auth_uid(req)
-    if not uid:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
-            "需先登入才能執行 RAG 查詢",
-        )
-
-    data: dict = req.data or {}
-    query = str(data.get("query", "")).strip()
-    account_id = str(data.get("account_id", "")).strip()
-    workspace_id = str(data.get("workspace_id", "")).strip()
-    if not account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "account_id 為必填欄位",
-        )
-    if not query:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "query 為必填欄位",
-        )
-    if not workspace_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "workspace_id 為必填欄位",
-        )
-
-    _assert_account_access(uid, account_id)
-    _assert_workspace_belongs_account(account_id, workspace_id)
-
-    top_k = data.get("top_k")
-    try:
-        top_k_int = int(top_k) if top_k is not None else None
-    except Exception:
-        top_k_int = None
-
-    try:
-        max_age_days = int(data.get("max_age_days")) if data.get("max_age_days") is not None else None
-    except Exception:
-        max_age_days = None
-
-    taxonomy_filters = _parse_taxonomy_filters(data.get("taxonomy_filters"))
-    require_ready = _to_bool(data.get("require_ready"), RAG_QUERY_REQUIRE_READY_STATUS)
-
-    try:
-        allowed, remaining = allow_rag_query_rate_limit(
-            account_id=account_id,
-            max_requests=RAG_QUERY_RATE_LIMIT_MAX,
-            window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
-        )
-    except Exception as exc:
-        logger.warning("rag_query rate-limit skipped: %s", exc)
-        allowed, remaining = True, -1
-
-    if not allowed:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED,
-            "RAG query rate limit exceeded, please try again later.",
-        )
-
-    result = execute_rag_query(
-        query=query,
-        top_k=top_k_int,
-        account_scope=account_id,
-        workspace_scope=workspace_id,
-        taxonomy_filters=taxonomy_filters,
-        max_age_days=max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
-        require_ready=require_ready,
-    )
-    response = {
-        "answer": result.get("answer", ""),
-        "citations": result.get("citations", []),
-        "cache": result.get("cache", "miss"),
-        "vector_hits": result.get("vector_hits", 0),
-        "search_hits": result.get("search_hits", 0),
-        "account_scope": result.get("account_scope", account_id),
-        "workspace_scope": result.get("workspace_scope", workspace_id),
-        "taxonomy_filters": result.get("taxonomy_filters", taxonomy_filters),
-        "max_age_days": result.get("max_age_days", max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS),
-        "require_ready": result.get("require_ready", require_ready),
-        "rate_limit_remaining": remaining,
-    }
-    if isinstance(result.get("debug"), dict):
-        response["debug"] = result["debug"]
-    return response
-
-
-def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
-    """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
-    runtime = get_document_pipeline()
-    data: dict = req.data or {}
-
-    account_id = str(data.get("account_id", "")).strip()
-    doc_id = str(data.get("doc_id", "")).strip()
-    json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
-    source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
-    workspace_id = str(data.get("workspace_id", "")).strip()
-    filename = (
-        str(data.get("filename", "")).strip()
-        or str(data.get("display_name", "")).strip()
-        or str(data.get("original_filename", "")).strip()
-        or doc_id
-    )
-
-    if not account_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "account_id 為必填欄位",
-        )
-
-    if not doc_id:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "doc_id 為必填欄位",
-        )
-    if not json_gcs_uri:
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-            "json_gcs_uri 為必填欄位",
-        )
-
-    try:
-        page_count = int(data.get("page_count", 0) or 0)
-    except Exception:
-        page_count = 0
-
-    try:
-        bucket_name, object_path = _parse_gs_uri(json_gcs_uri)
-        json_bytes = runtime.download_bytes(bucket_name=bucket_name, object_path=object_path)
-        parsed_payload = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
-
-        text = str(parsed_payload.get("text", "")).strip()
-        if not text:
-            raise ValueError("json 內容缺少 text")
-
-        if not source_gcs_uri:
-            source_gcs_uri = str(parsed_payload.get("source_gcs_uri", "")).strip()
-        if not workspace_id:
-            workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
-        if not workspace_id:
-            workspace_id = str((parsed_payload.get("metadata") or {}).get("space_id", "")).strip()
-        if not filename:
-            filename = (
-                str(parsed_payload.get("filename", "")).strip()
-                or str(parsed_payload.get("display_name", "")).strip()
-                or str(parsed_payload.get("original_filename", "")).strip()
-                or doc_id
-            )
-        if page_count <= 0:
-            page_count = int(parsed_payload.get("page_count", 0) or 0)
-        if not workspace_id:
-            raise https_fn.HttpsError(
-                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
-                "workspace_id 為必填欄位",
-            )
-
-        rag = ingest_document_for_rag(
-            doc_id=doc_id,
-            filename=filename,
-            source_gcs_uri=source_gcs_uri,
-            json_gcs_uri=json_gcs_uri,
-            text=text,
-            page_count=page_count,
-            account_id=account_id,
-            workspace_id=workspace_id,
-        )
-
-        runtime.mark_rag_ready(
-            doc_id=doc_id,
-            chunk_count=rag.chunk_count,
-            vector_count=rag.vector_count,
-            embedding_model=rag.embedding_model,
-            embedding_dimensions=rag.embedding_dimensions,
-            raw_chars=rag.raw_chars,
-            normalized_chars=rag.normalized_chars,
-            normalization_version=rag.normalization_version,
-            language_hint=rag.language_hint,
-            account_id=account_id,
-        )
-
-        return {
-            "account_scope": account_id,
-            "doc_id": doc_id,
-            "status": "ready",
-            "chunk_count": rag.chunk_count,
-            "vector_count": rag.vector_count,
-            "raw_chars": rag.raw_chars,
-            "normalized_chars": rag.normalized_chars,
-            "normalization_version": rag.normalization_version,
-            "language_hint": rag.language_hint,
-        }
-    except Exception as exc:
-        logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
-        runtime.record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
-        raise https_fn.HttpsError(
-            https_fn.FunctionsErrorCode.INTERNAL,
-            f"rag_reindex_document 失敗：{str(exc)[:200]}",
-        ) from exc
 ````
 
 ## File: py_fn/src/interface/handlers/storage.py
@@ -43074,6 +40981,502 @@ def test_applicationGatewayShim_AfterDomainRegistration_ReturnsIdenticalInstance
 }
 ````
 
+## File: scripts/init-framework.sh
+````bash
+#!/bin/bash
+# Claude Agentic Framework - Initialization Script
+# Usage: ./init-framework.sh [/path/to/your/project]
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Repository URL for cloning when run via curl
+REPO_URL="https://github.com/dralgorhythm/claude-agentic-framework.git"
+
+# Determine framework source directory
+# When run via curl | bash, BASH_SOURCE[0] is not a valid file path
+if [ -f "${BASH_SOURCE[0]}" ]; then
+    # Running from local file
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    FRAMEWORK_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
+    TEMP_CLONE=""
+else
+    # Running via curl | bash - need to clone the repo
+    echo "Downloading framework from repository..."
+    TEMP_CLONE="$(mktemp -d)"
+    git clone --depth 1 --quiet "$REPO_URL" "$TEMP_CLONE"
+    FRAMEWORK_DIR="$TEMP_CLONE"
+fi
+
+# Cleanup function for temp directory
+cleanup() {
+    if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
+        rm -rf "$TEMP_CLONE"
+    fi
+}
+trap cleanup EXIT
+
+# Target directory (default: current directory)
+TARGET_DIR="${1:-.}"
+TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || echo "$TARGET_DIR")"
+
+# Function to print colored output
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ${NC} $1"
+}
+
+# Function to prompt user for confirmation
+confirm() {
+    local prompt="$1"
+    local response
+    read -r -p "$prompt [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Function to show diff between two files
+show_file_diff() {
+    local existing="$1"
+    local new="$2"
+    local name="$3"
+
+    if command -v diff &>/dev/null; then
+        echo ""
+        echo -e "${BLUE}--- Diff for ${name} ---${NC}"
+        # Use color diff if available, otherwise plain diff
+        if diff --color=auto /dev/null /dev/null 2>/dev/null; then
+            diff --color=auto -u "$existing" "$new" 2>/dev/null || true
+        else
+            diff -u "$existing" "$new" 2>/dev/null || true
+        fi
+        echo -e "${BLUE}--- End diff ---${NC}"
+        echo ""
+    fi
+}
+
+# Function to show diff summary for directories
+show_dir_diff() {
+    local existing="$1"
+    local new="$2"
+    local name="$3"
+
+    if command -v diff &>/dev/null; then
+        echo ""
+        echo -e "${BLUE}--- Changes in ${name}/ ---${NC}"
+
+        # Show new files
+        local new_files
+        new_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $new" | sed "s|Only in $new[^:]*: |  + |" || true)
+        if [ -n "$new_files" ]; then
+            echo -e "${GREEN}New files:${NC}"
+            echo "$new_files"
+        fi
+
+        # Show removed files
+        local removed_files
+        removed_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $existing" | sed "s|Only in $existing[^:]*: |  - |" || true)
+        if [ -n "$removed_files" ]; then
+            echo -e "${RED}Files only in existing:${NC}"
+            echo "$removed_files"
+        fi
+
+        # Show modified files
+        local modified_files
+        modified_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "^Files .* differ$" | sed -E 's/Files (.*) and .* differ/  ~ \1/' || true)
+        if [ -n "$modified_files" ]; then
+            echo -e "${YELLOW}Modified files:${NC}"
+            echo "$modified_files"
+        fi
+
+        # Count changes
+        local total_changes
+        total_changes=$(diff -rq "$existing" "$new" 2>/dev/null | wc -l | tr -d ' ')
+        echo ""
+        echo "Total: $total_changes file(s) differ"
+        echo -e "${BLUE}--- End summary ---${NC}"
+        echo ""
+    fi
+}
+
+# Function to copy file with diff prompt
+copy_file_with_diff() {
+    local src="$1"
+    local dst="$2"
+    local name="$3"
+    local optional="${4:-false}"
+
+    if [ ! -f "$src" ]; then
+        if [ "$optional" = "true" ]; then
+            return 0
+        fi
+        print_error "Source file not found: $src"
+        return 1
+    fi
+
+    if [ -f "$dst" ]; then
+        # Check if files are identical
+        if diff -q "$dst" "$src" &>/dev/null; then
+            print_info "$name is already up to date"
+            return 0
+        fi
+
+        print_warning "$name already exists with differences"
+        show_file_diff "$dst" "$src" "$name"
+
+        if confirm "  Overwrite $name?"; then
+            cp "$src" "$dst"
+            print_success "$name updated"
+        else
+            print_info "Skipped $name"
+        fi
+    else
+        print_info "Copying $name..."
+        cp "$src" "$dst"
+        print_success "$name installed"
+    fi
+}
+
+# Function to copy directory with diff prompt
+copy_dir_with_diff() {
+    local src="$1"
+    local dst="$2"
+    local name="$3"
+    local optional="${4:-false}"
+
+    if [ ! -d "$src" ]; then
+        if [ "$optional" = "true" ]; then
+            return 0
+        fi
+        print_error "Source directory not found: $src"
+        return 1
+    fi
+
+    if [ -d "$dst" ]; then
+        # Check if directories are identical
+        if diff -rq "$dst" "$src" &>/dev/null; then
+            print_info "$name/ is already up to date"
+            return 0
+        fi
+
+        print_warning "$name/ already exists with differences"
+        show_dir_diff "$dst" "$src" "$name"
+
+        if confirm "  Overwrite $name/?"; then
+            rm -rf "$dst"
+            cp -r "$src" "$dst"
+            print_success "$name/ updated"
+        else
+            print_info "Skipped $name/"
+        fi
+    else
+        print_info "Copying $name/..."
+        cp -r "$src" "$dst"
+        print_success "$name/ installed"
+    fi
+}
+
+# Validate target directory
+if [ ! -d "$TARGET_DIR" ]; then
+    print_error "Target directory does not exist: $TARGET_DIR"
+    exit 1
+fi
+
+# Detect project name (prefer GitHub repo name, fallback to directory name)
+detect_project_name() {
+    local dir="$1"
+
+    # Try to get GitHub repo name from git remote
+    if [ -d "$dir/.git" ] || git -C "$dir" rev-parse --git-dir &>/dev/null; then
+        local remote_url
+        remote_url=$(git -C "$dir" remote get-url origin 2>/dev/null || echo "")
+
+        if [ -n "$remote_url" ]; then
+            # Extract repo name from various URL formats:
+            # https://github.com/user/repo.git -> repo
+            # git@github.com:user/repo.git -> repo
+            # https://github.com/user/repo -> repo
+            local repo_name
+            repo_name=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
+
+            if [ -n "$repo_name" ]; then
+                echo "$repo_name"
+                return
+            fi
+        fi
+    fi
+
+    # Fallback to directory name
+    basename "$dir"
+}
+
+PROJECT_NAME="$(detect_project_name "$TARGET_DIR")"
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Claude Agentic Framework - Initialization"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+print_info "Framework source: $FRAMEWORK_DIR"
+print_info "Target directory: $TARGET_DIR"
+print_info "Project name: $PROJECT_NAME"
+echo ""
+
+# Copy core directories with diff support
+copy_dir_with_diff "$FRAMEWORK_DIR/.claude" "$TARGET_DIR/.claude" ".claude"
+
+# Create artifacts directory if it doesn't exist
+if [ ! -d "$TARGET_DIR/artifacts" ]; then
+    print_info "Creating artifacts directory..."
+    mkdir -p "$TARGET_DIR/artifacts"
+    print_success "artifacts directory created"
+else
+    print_info "artifacts directory already exists"
+fi
+
+# Copy config files with diff support
+copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
+mkdir -p "$TARGET_DIR/.vscode"
+if [ -f "$FRAMEWORK_DIR/.vscode/mcp.json" ]; then
+    copy_file_with_diff "$FRAMEWORK_DIR/.vscode/mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
+elif [ -f "$FRAMEWORK_DIR/.mcp.json" ]; then
+    print_warning "Using legacy .mcp.json source; installing it as .vscode/mcp.json"
+    copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
+else
+    print_warning "No MCP configuration file found in framework source"
+fi
+
+# Initialize Beads issue tracking (required for swarm coordination)
+if [ ! -d "$TARGET_DIR/.beads" ]; then
+    if command -v bd &>/dev/null; then
+        print_info "Initializing Beads issue tracking..."
+        if (cd "$TARGET_DIR" && bd init 2>/dev/null); then
+            print_success "Beads initialized"
+        else
+            print_warning "Beads initialization failed. Run 'bd init' manually for swarm coordination."
+        fi
+    else
+        print_warning "Beads CLI not found — required for swarm coordination"
+        print_info "  Install: curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+        print_info "  Then: cd $TARGET_DIR && bd init"
+    fi
+else
+    print_info ".beads/ already initialized"
+fi
+
+# Copy CLAUDE.md and AGENTS.md with diff support
+copy_file_with_diff "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
+copy_file_with_diff "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md" "AGENTS.md"
+
+# Copy README.md with diff support (optional for existing projects)
+if [ ! -f "$TARGET_DIR/README.md" ]; then
+    print_warning "README.md does not exist"
+    if confirm "  Create README.md from framework template?"; then
+        cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
+        print_success "README.md created"
+    else
+        print_info "Skipped README.md"
+    fi
+else
+    # Only show diff for README if user wants to see framework updates
+    if ! diff -q "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" &>/dev/null; then
+        print_info "README.md exists (differs from framework template)"
+        if confirm "  View diff and optionally update?"; then
+            show_file_diff "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" "README.md"
+            if confirm "  Overwrite README.md with framework template?"; then
+                cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
+                print_success "README.md updated"
+            else
+                print_info "Kept existing README.md"
+            fi
+        else
+            print_info "Skipped README.md"
+        fi
+    else
+        print_info "README.md is already up to date"
+    fi
+fi
+
+# Create or update .gitignore (append mode for existing files)
+GITIGNORE_ENTRIES=(
+    "# Dependencies"
+    "node_modules/"
+    ".pnpm-store/"
+    "__pycache__/"
+    "*.pyc"
+    ".venv/"
+    "venv/"
+    "# Build outputs"
+    "dist/"
+    "build/"
+    "*.o"
+    "*.so"
+    "*.exe"
+    "# IDE"
+    ".vscode/"
+    ".idea/"
+    "*.swp"
+    "*.swo"
+    "*~"
+    "# OS"
+    ".DS_Store"
+    "Thumbs.db"
+    "# Environment"
+    ".env"
+    ".env.local"
+    "*.local"
+    "# Logs"
+    "*.log"
+    "npm-debug.log*"
+    "# Claude Framework"
+    "scratchpad/"
+)
+
+if [ ! -f "$TARGET_DIR/.gitignore" ]; then
+    print_warning ".gitignore does not exist"
+    if confirm "  Create basic .gitignore?"; then
+        printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > "$TARGET_DIR/.gitignore"
+        print_success ".gitignore created"
+    else
+        print_info "Skipped .gitignore"
+    fi
+else
+    # Find missing entries (excluding comments)
+    MISSING_ENTRIES=()
+    for entry in "${GITIGNORE_ENTRIES[@]}"; do
+        # Skip comment lines for matching
+        if [[ "$entry" == \#* ]]; then
+            continue
+        fi
+        # Check if entry exists in current .gitignore (exact line match)
+        if ! grep -Fxq "$entry" "$TARGET_DIR/.gitignore" 2>/dev/null; then
+            MISSING_ENTRIES+=("$entry")
+        fi
+    done
+
+    if [ ${#MISSING_ENTRIES[@]} -eq 0 ]; then
+        print_info ".gitignore already contains all framework entries"
+    else
+        print_warning ".gitignore is missing ${#MISSING_ENTRIES[@]} framework entries"
+        echo ""
+        echo -e "${BLUE}--- Entries to append ---${NC}"
+        for entry in "${MISSING_ENTRIES[@]}"; do
+            echo -e "${GREEN}  + $entry${NC}"
+        done
+        echo -e "${BLUE}--- End entries ---${NC}"
+        echo ""
+
+        if confirm "  Append missing entries to .gitignore?"; then
+            # Add a blank line separator if file doesn't end with newline
+            if [ -s "$TARGET_DIR/.gitignore" ] && [ "$(tail -c1 "$TARGET_DIR/.gitignore" | wc -l)" -eq 0 ]; then
+                echo "" >> "$TARGET_DIR/.gitignore"
+            fi
+            # Add framework section header
+            echo "" >> "$TARGET_DIR/.gitignore"
+            echo "# Claude Agentic Framework" >> "$TARGET_DIR/.gitignore"
+            for entry in "${MISSING_ENTRIES[@]}"; do
+                echo "$entry" >> "$TARGET_DIR/.gitignore"
+            done
+            print_success ".gitignore updated (${#MISSING_ENTRIES[@]} entries appended)"
+        else
+            print_info "Kept existing .gitignore"
+        fi
+    fi
+fi
+
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+print_success "Framework initialization complete!"
+echo ""
+
+# Create hook runtime directories
+mkdir -p "$TARGET_DIR/.claude/hooks/.state" "$TARGET_DIR/.claude/hooks/.locks"
+print_success "Hook runtime directories created (.state, .locks)"
+
+# Make hook scripts executable
+if [ -d "$TARGET_DIR/.claude/hooks" ]; then
+    chmod +x "$TARGET_DIR/.claude/hooks"/*.sh 2>/dev/null || true
+    print_success "Hook scripts made executable"
+fi
+
+# Install hook dependencies if needed
+if [ -f "$TARGET_DIR/.claude/hooks/package.json" ]; then
+    print_info "Installing hook dependencies..."
+    echo ""
+
+    INSTALL_OK=false
+    if command -v pnpm &> /dev/null; then
+        (cd "$TARGET_DIR/.claude/hooks" && pnpm install --silent) && INSTALL_OK=true
+    elif command -v npm &> /dev/null; then
+        (cd "$TARGET_DIR/.claude/hooks" && npm install --silent) && INSTALL_OK=true
+    else
+        print_warning "Neither pnpm nor npm found - skipping dependency installation"
+        print_info "Install Node.js and run: cd .claude/hooks && npm install"
+    fi
+
+    if [ "$INSTALL_OK" = "true" ]; then
+        print_success "Hook dependencies installed"
+    fi
+
+    echo ""
+fi
+
+# Print next steps
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "  Next Steps"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "1. Customize CLAUDE.md with your project-specific context"
+echo ""
+echo "2. Review tech strategy in .claude/rules/tech-strategy.md"
+echo "   Update to match your organization's standards"
+echo ""
+echo "3. Start using commands via slash commands:"
+echo "   /architect       - System design and ADRs"
+echo "   /builder         - Code implementation"
+echo "   /qa-engineer     - Test strategy and quality"
+echo "   /security-auditor - Security reviews"
+echo "   /ui-ux-designer  - Interface design"
+echo ""
+echo "   Swarm orchestration commands:"
+echo "   /swarm-plan      - Plan with parallel exploration"
+echo "   /swarm-execute   - Execute with parallel workers"
+echo "   /swarm-review    - Adversarial multi-perspective review"
+echo "   /swarm-research  - Deep investigation"
+echo "   /code-check      - SOLID, DRY, consistency audit"
+echo ""
+echo "4. If Beads was not initialized above, install it for swarm coordination:"
+echo "   curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
+echo "   cd $TARGET_DIR && bd init"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+````
+
 ## File: SPEC-WORKFLOW.md
 ````markdown
 # Spec-Driven Development Workflow
@@ -43507,154 +41910,6 @@ import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-
 - When ownership shifts, update contracts and architecture docs in the same change.
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
-
-## Purpose
-
-- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
-
-## Authoritative Sources
-
-Read these in order before making non-trivial decisions:
-
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
-2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
-6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
-
-## DDD Reference Authority
-
-DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
-
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
-| Context terminology | `modules/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
-| Context domain events | `modules/<context>/domain-events.md` |
-| Context map | `modules/<context>/context-map.md` |
-| Context repositories | `modules/<context>/repositories.md` |
-| Context application services | `modules/<context>/application-services.md` |
-| Context domain services | `modules/<context>/domain-services.md` |
-
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
-
-## Workspace-Wide Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
-
-## Architecture Guardrails
-
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-
-## Copilot Customization Design Rules
-
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
-
-## Serena MCP
-
-Serena MCP is **mandatory for every session**. There are no exceptions.
-
-### Session-Start Protocol (Required)
-
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
-
-### Session-End Protocol (Required)
-
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
-
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
-
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
-
-### Hard Prohibitions
-
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
-
-## Context7 Documentation Query
-
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing or suggesting code.
-
-### Trigger Conditions
-
-Any of the following require a context7 lookup before proceeding:
-
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
-
-### Required Steps
-
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
-
-### Guardrails
-
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
-
-## Skill And Agent Routing
-
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
-
-## Validation
-
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
-
-## Terminology
-
-- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
 ## File: .github/instructions/doc-governance.instructions.md
 ````markdown
 ---
@@ -43958,106 +42213,69 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
-## File: .github/instructions/playwright-mcp-testing.instructions.md
+## File: .github/instructions/README.md
 ````markdown
----
-description: >
-  Playwright MCP 瀏覽器測試執行規則。凡涉及用戶流程驗證、UI 功能測試、
-  截圖存證、表單操作自動化、Console 錯誤偵測時適用。
-applyTo: '{app,modules,debug}/**/*.{ts,tsx}'
----
+# Instructions Index
 
-# Playwright MCP Testing Rules
+Repository instruction index for `applyTo`-scoped Copilot rules.
 
-## 工具優先順序
+## DDD 戰略與戰術設計 (IDDD)
 
-1. **主要**：`mcp_playwright-mc_*` 工具鏈（snapshot → ref → action）
-2. **備援**：`mcp_io_github_ver_browser_eval`（playwright-mcp 失效時）
-3. **永遠不用**：在備援模式下呼叫 playwright-mcp（會得到 closed 錯誤）
+- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
+- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
+- [domain-modeling.instructions.md](domain-modeling.instructions.md)
+- [event-driven-state.instructions.md](event-driven-state.instructions.md)
 
-## Snapshot-First 原則
+## Architecture
 
-**禁止** 在未取得 snapshot ref 的情況下直接 click 或 fill。
+- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
+- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
+- [architecture-modules.instructions.md](architecture-modules.instructions.md)
+- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
 
-```
-✅ 正確：snapshot → 找 ref → click(ref: "...")
-❌ 錯誤：直接 click(selector: "button.create")
-```
+## Delivery Process
 
-## evaluate 限制（備援模式）
+- [branching-strategy.instructions.md](branching-strategy.instructions.md)
+- [ci-cd.instructions.md](ci-cd.instructions.md)
+- [commit-convention.instructions.md](commit-convention.instructions.md)
+- [lint-format.instructions.md](lint-format.instructions.md)
 
-以下表達式在 `mcp_io_github_ver_browser_eval evaluate` 中會失敗：
+## Platform and Runtime
 
-- 包含 `new Event()`、`new PointerEvent()` 的鏈式表達式
-- 包含 `Array.from()` + 方法鏈的複合表達式
-- 包含 for loop 的表達式
+- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
+- [cloud-functions.instructions.md](cloud-functions.instructions.md)
+- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
+- [firestore-schema.instructions.md](firestore-schema.instructions.md)
+- [security-rules.instructions.md](security-rules.instructions.md)
 
-解法：拆分為多個單一表達式呼叫。
+## AI and RAG
 
-## SPA 導航規則
+- [genkit-flow.instructions.md](genkit-flow.instructions.md)
+- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
+- [rag-architecture.instructions.md](rag-architecture.instructions.md)
+- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
 
-**全頁重載導致 React 狀態重置**（activeAccount 被清空）。
+## Next.js and UI
 
-```
-✅ 允許：點擊 Link 的 ref（SPA 路由）
-✅ 允許：點擊麵包屑 a[href="/target"] 的 ref
-❌ 禁止：瀏覽器導航到新 URL（重置 activeAccount）
-❌ 禁止：evaluate window.location.href = '...'
-```
+- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
+- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
+- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
+- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
+- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
 
-## Radix UI Dropdown 開啟規則
+## Testing
 
-Radix DropdownMenu 需要 `PointerEvent` 才能觸發。使用 snapshot 找到 trigger 的 ref，然後 click 它（playwright-mcp 的 click 自動發送正確事件）。
+- [testing-unit.instructions.md](testing-unit.instructions.md)
+- [testing-e2e.instructions.md](testing-e2e.instructions.md)
+- [playwright-mcp-testing.instructions.md](playwright-mcp-testing.instructions.md)
 
-## 帳號情境一致性
+## DDD Navigation
 
-- 每次全頁重載後，必須重新確認 `localStorage['xuanwu_last_active_account']`
-- 組織功能測試：在 SPA 已載入狀態下切換，勿重載
+Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
 
-## workspaceId 前提
-
-以下頁面的 CTA 需要 `activeWorkspaceId` 非空：
-- `/knowledge-base/articles`（新增文章）
-- `/knowledge-base/articles/[id]`（編輯文章）
-
-測試前先在 `/workspace` 選擇工作區。
-
-## Console 錯誤義務
-
-每次測試結束前，必須呼叫：
-```
-mcp_playwright-mc_browser_console_messages
-```
-並在報告中記錄錯誤（即使為零也要寫「無錯誤」）。
-
-## 截圖義務
-
-每個主要測試步驟（初始狀態、操作後、最終狀態）必須截圖：
-```
-mcp_playwright-mc_browser_take_screenshot → 儲存至 scratchpad/
-```
-
-## 測試報告格式
-
-輸出遵循 SKILL.md「測試報告格式」區塊的模板，包含：
-- URL + 帳號情境 + 日期 + 狀態
-- 截圖證據清單
-- 操作步驟記錄
-- 發現問題（含優先級）
-- Console 錯誤
-- 建議修復
-
-## 工具搭配規則
-
-| 情境 | 必用工具 |
-|------|---------|
-| 確認元件 API | `mcp_shadcn_view_items_in_registries` |
-| 不確定 Playwright API | `mcp_context7_resolve-library-id "playwright"` |
-| 找 Server Action | `mcp_io_github_ver_nextjs_call get_server_action_by_id` |
-| 找元件 props | `mcp_oraios_serena_find_symbol` |
-| 輸出測試報告 | `mcp_markitdown_convert_to_markdown` |
-
-Tags: #use skill playwright-mcp-testing
+- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
+- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
+- `../../modules/<context>/*.md` for bounded-context details
 ````
 
 ## File: .github/instructions/ubiquitous-language.instructions.md
@@ -44102,357 +42320,223 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill xuanwu-mddd-boundaries
 ````
 
-## File: .github/prompts/playwright-mcp-inspect.prompt.md
+## File: .github/prompts/serena-ddd-refactor.prompt.md
 ````markdown
 ---
-name: playwright-mcp-inspect
-description: 以用戶視角巡覽目標路由，自動偵測 UI 功能缺口、反直覺設計、空狀態引導缺失與 Console 錯誤。
-agent: E2E QA Agent
-argument-hint: "<route-or-section> [--account org|personal] [--deep]"
+
+name: serena-ddd-refactor
+description: Scan large files, refactor to follow Vaughn Vernon Implementing Domain-Driven Design without breaking functionality, then update Serena MCP memory and index.
+agent: copilot
+argument-hint: <project-root>
+-----------------------------
+
+# Serena DDD Refactor Prompt
+
+## Objective
+
+Identify oversized files in the project, verify whether they violate Domain-Driven Design layering principles from Vaughn Vernon, refactor them without breaking functionality, then update Serena MCP memory and symbol index.
+
 ---
 
-# Playwright MCP UI 缺口偵測
+# Step 1 — Start Serena MCP
 
-## 輸入參數
-
-- target: ${input:target:要巡覽的路由或功能模組，例如 /organization 或 knowledge-base}
-- account: ${input:account:帳號情境 personal 或 org（組織功能用 org）}
-- depth: ${input:depth:巡覽深度 shallow（主頁面）或 deep（進入子頁面）}
-
-## 目標
-
-扮演一位「第一次使用」的真實用戶，系統性地走過目標區域，找出：
-
-1. **功能缺口**：預期存在但找不到的操作入口（CRUD 缺少 Create？）
-2. **反直覺設計**：動作不符合用戶預期、按鈕位置奇怪、命名混淆
-3. **空狀態問題**：列表為空時無任何引導性說明或 CTA
-4. **Disabled 陷阱**：按鈕存在但 disabled 且無說明原因
-5. **導航死胡同**：進入後找不到返回路徑
-6. **Console 錯誤**：任何 JavaScript 錯誤或 API 失敗
-
-## 帳號情境設置
-
-**Personal 帳號**（預設）：
-- 直接導航到目標頁面
-- 確認 localStorage `xuanwu_last_active_account` = `dev-demo-user`
-
-**Organization 帳號**（需要 org 功能時）：
-1. 導航到 `/workspace`（確保 SPA 已載入）
-2. 點開帳號切換 dropdown（需 PointerDown 事件）
-3. 選擇 org 選項
-4. 確認 localStorage 更新為 org ID
-5. 點擊麵包屑或 Link（勿用全頁重載）導航到目標
-
-## 巡覽執行流程
-
-### Phase 1: 頁面初始化分析
+If Serena MCP is not running:
 
 ```
-1. mcp_playwright-mc_browser_navigate → 目標 URL
-2. mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
-3. mcp_playwright-mc_browser_take_screenshot → 初始截圖
-4. mcp_playwright-mc_browser_console_messages → 確認無初始錯誤
+serena start-mcp-server
 ```
 
-記錄頁面結構：
-- 頁面標題、小標、說明文字
-- 可見的操作按鈕（CTA）
-- 是否有資料列表或空狀態
-- 是否有 Nav/Breadcrumb 讓用戶知道自己在哪
-
-### Phase 2: CTA 完整性檢查
-
-針對每個功能模組，預期應有的 CRUD 操作入口：
-
-| 功能類型 | 預期 CTA | 缺口判斷 |
-|---------|---------|---------|
-| 列表頁 | 新增/建立按鈕 | 無「＋」或「新增」按鈕 |
-| 詳情頁 | 編輯/刪除按鈕 | 只能查看無法修改 |
-| 表單 | 送出/取消 | 送出後無任何反饋 |
-| 搜尋/篩選 | 清除/重設 | 無法清除已輸入的篩選 |
-
-### Phase 3: 互動測試（Shallow 模式）
+Activate project and load memory:
 
 ```
-1. 找到主要 CTA → snapshot ref → click
-2. 記錄 Dialog/Form 是否正確開啟
-3. 填入測試資料（snapshot find inputs → fill）
-4. 送出表單
-5. 驗證成功反饋（toast、列表更新）
-6. 截圖紀錄
-
-負面測試：
-1. 不填任何資料直接送出
-2. 確認 validation 錯誤提示出現
-3. 截圖記錄
-```
-
-### Phase 4: 子頁面巡覽（Deep 模式）
-
-```
-針對頁面上每個導航連結：
-1. 記錄 href
-2. click 進入
-3. 重複 Phase 1-3
-4. click 返回（找 Back Link 或 Breadcrumb）
-```
-
-### Phase 5: 錯誤狀態收集
-
-```
-mcp_playwright-mc_browser_console_messages → 收集所有 console 訊息
-mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors" → Next.js 錯誤
-```
-
-## 缺口評分標準
-
-| 嚴重度 | 說明 | 示例 |
-|-------|------|------|
-| 🔴 高 | 核心功能完全缺失 | 列表頁沒有建立入口 |
-| 🟡 中 | 功能存在但使用困難 | 按鈕 disabled 無說明 |
-| 🟢 低 | 體驗可改善 | 空狀態缺少引導文字 |
-
-## 輸出 UI 缺口報告
-
-```markdown
-## UI 缺口偵測報告：{target}
-
-**巡覽路徑**: {routes visited}
-**帳號情境**: personal / organization  
-**巡覽日期**: YYYY-MM-DD  
-**巡覽深度**: shallow / deep
-
-### 截圖索引
-1. [ss_initial.png] 初始狀態
-2. [ss_create_dialog.png] 建立流程
-...
-
-### 發現的缺口
-
-#### 🔴 高優先級
-- [ ] **路徑**: /route  
-  **問題**: 功能說明  
-  **影響**: 用戶無法完成 X  
-  **建議**: 在 Y 位置加入 Z 元件
-
-#### 🟡 中優先級
-...
-
-#### 🟢 低優先級
-...
-
-### Console 錯誤
-- 無 / 錯誤清單
-
-### 修復建議優先順序
-1. 最高影響 + 最低代價
-2. ...
-```
-
-## 與其他 MCP 的協作
-
-**找修復方案時**：
-- `mcp_shadcn_list_items_in_registries` → 查詢適合的 UI 元件
-- `mcp_shadcn_get_item_examples_from_registries` → 取得元件示例
-
-**確認 API 可用性**：
-- `mcp_oraios_serena_find_symbol` → 找對應的 use case / server action
-- `mcp_io_github_ver_nextjs_call get_routes` → 確認路由存在
-
-**查詢 UX 最佳實踐**：
-- `mcp_context7_resolve-library-id "shadcn/ui"` → 查元件文件
-
-Tags: #use skill playwright-mcp-testing
-#use skill shadcn
+serena
+#use skill serena-mcp > activate_project
+list_memories
+read_memory
+#use skill xuanwu-app-markdown-skill
+#use skill xuanwu-app-skill
 #use skill context7
-#use skill serena-mcp
-#use skill next-devtools-mcp
-````
+```
 
-## File: .github/prompts/playwright-mcp-test.prompt.md
-````markdown
----
-name: playwright-mcp-test
-description: 執行 Playwright MCP 瀏覽器測試，驗證指定路由的用戶流程並輸出帶截圖的測試報告。
-agent: E2E QA Agent
-argument-hint: "<route-or-url> <user-flow-description> [--account org|personal]"
 ---
 
-# Playwright MCP 瀏覽器測試
+# Step 2 — Find Largest Files
 
-## 輸入參數
-
-- route: ${input:route:目標路由或完整 URL，例如 /organization/members}
-- flow: ${input:flow:要測試的用戶流程，例如「邀請成員」}
-- account: ${input:account:帳號情境 personal 或 org（預設 personal）}
-
-## 前置條件確認
-
-在開始前，執行以下確認步驟：
-
-1. **Dev server 狀態**  
-   確認 `http://localhost:3000` 可存取。若未啟動，提示用戶執行 `npm run dev`。
-
-2. **playwright-mcp 可用性**  
-   執行 `mcp_playwright-mc_browser_snapshot`（無參數）。
-   - 成功 → 使用 playwright-mcp 工具鏈
-   - 失敗（"closed"）→ 切換到 `mcp_io_github_ver_browser_eval` 備援模式
-
-3. **帳號情境切換（若需要 org 情境）**  
-   參照 SKILL.md 的「帳號切換」章節執行組織帳號切換。
-
-4. **工作區確認（若頁面需要 workspaceId）**  
-   先導航到 /workspace 選擇工作區，再前往目標頁面。
-
-## 測試執行流程
-
-### Step 1: 導航到目標路由
+Run PowerShell to locate largest files:
 
 ```
-playwright-mcp 模式：
-  mcp_playwright-mc_browser_navigate → url: "http://localhost:3000{route}"
-  
-備援模式：
-  mcp_io_github_ver_browser_eval action:"navigate" → url: "http://localhost:3000{route}"
+$folders = @("app","modules","packages","py_fn\src")
+
+Get-ChildItem $folders -Recurse -File |
+Where-Object { $_.FullName -notmatch "node_modules|\.next|\.git|dist|build|__pycache__" } |
+Sort-Object Length -Descending |
+Select-Object -First 33 FullName, Length
 ```
 
-### Step 2: 取得初始快照
+Focus refactoring on these large files first.
+
+---
+
+# Step 3 — DDD Refactor Rules (Vaughn Vernon)
+
+Refactor files that violate these rules:
+
+## Application Service must NOT contain
+
+* Business logic
+* Repository query logic
+* DTO mapping logic
+* Entity creation logic
+* Infrastructure calls
+
+Application Service should only:
 
 ```
-mcp_playwright-mc_browser_snapshot → 取得完整 a11y 樹
-識別所有可交互元素（buttons、inputs、links、selects）
-確認主要 CTA 是否 enabled
+Receive request → Load Aggregate → Call Domain → Save Aggregate → Publish Event
 ```
 
-### Step 3: 截圖（初始狀態）
+## Aggregate must NOT contain
+
+* Repository
+* Firebase / Database
+* HTTP / API calls
+* UI / DTO
+* Infrastructure logic
+
+Aggregate should contain only:
 
 ```
-mcp_playwright-mc_browser_take_screenshot → 初始狀態截圖
-儲存至 scratchpad/ 目錄並 view_image 檢視
+Entities
+Value Objects
+Domain Logic
+Domain Events
 ```
 
-### Step 4: 執行用戶流程
+## Repository must NOT contain
 
-依照 `{flow}` 執行具體操作，記錄每步驟的：
-- 找到的元素 ref
-- 執行的動作（click/fill/select）
-- 操作後的快照變化
+* Business logic
+* Domain rules
+* Complex query logic
+* Application logic
 
-### Step 5: 驗證結果
-
-```
-成功路徑驗證：
-  - snapshot → 確認 UI 反映成功狀態（新項目出現、Dialog 關閉）
-  - console_messages → 確認無錯誤
-
-失敗路徑驗證（負面測試）：
-  - 故意送空表單 → 確認 validation 訊息出現
-  - 故意填錯格式 → 確認錯誤提示
-```
-
-### Step 6: 最終截圖
+Repository should only:
 
 ```
-mcp_playwright-mc_browser_take_screenshot → 最終狀態截圖
+Save
+Get
+Delete
 ```
 
-### Step 7: Next.js 診斷（可選）
+## Domain Service usage
+
+Create Domain Service only when:
+
+* Logic does not belong to a single Entity
+* Requires multiple Aggregates
+* Pure business logic
+* No infrastructure dependency
+
+---
+
+# Step 4 — File Splitting Structure
+
+When splitting large files, use this structure:
 
 ```
-mcp_io_github_ver_nextjs_call port:3000 toolName:"get_errors"
-→ 確認無 Next.js build/runtime 錯誤
+domain/
+  aggregates/
+  entities/
+  value-objects/
+  domain-events/
+  domain-services/
+
+application/
+  services/
+  commands/
+  queries/
+
+infrastructure/
+  repositories/
+  firebase/
+  external-services/
+
+interface/
+  controllers/
+  dto/
+  routes/
 ```
 
-## 輸出測試報告
+---
 
-使用以下模板輸出報告：
+# Step 5 — File Size Guidelines
 
-```markdown
-## 測試結果：{flow} @ {route}
+Recommended file sizes:
 
-**URL**: {route}  
-**帳號情境**: personal / organization  
-**測試日期**: YYYY-MM-DD  
-**狀態**: ✅ 通過 / ❌ 失敗 / ⚠️ 部分通過
-
-### 截圖證據
-- [初始狀態截圖]
-- [操作後截圖]
-- [最終狀態截圖]
-
-### 操作步驟記錄
-1. 步驟描述 + ref + 結果
-2. ...
-
-### 發現問題
-- ❌ 問題描述（優先級：高/中/低）
-
-### Console 錯誤
-- 無 / 錯誤列表
-
-### 建議
-- [ ] 修復建議或增強建議
+```
+Entity < 150 lines
+Aggregate < 300 lines
+Application Service < 150 lines
+Repository < 120 lines
+Controller < 120 lines
+Domain Service < 150 lines
 ```
 
-Tags: #use skill playwright-mcp-testing
-#use skill context7
-#use skill next-devtools-mcp
-#use skill serena-mcp
-````
+Files exceeding ~300 lines likely indicate boundary or responsibility problems.
 
-## File: .github/prompts/README.md
-````markdown
-# Prompts Index
+---
 
-Repository prompt set for repeatable planning, implementation, review, and documentation tasks.
+# Step 6 — After Refactor Update Serena
 
-## DDD 領域建模 (IDDD)
+After modifications:
 
-- [generate-aggregate.prompt.md](generate-aggregate.prompt.md)
-- [generate-domain-event.prompt.md](generate-domain-event.prompt.md)
+```
+#sym:update_memory
+#sym:prune_index
+```
 
-## Planning
+Purpose:
 
-- [plan-feature.prompt.md](plan-feature.prompt.md)
-- [plan-module.prompt.md](plan-module.prompt.md)
-- [plan-api.prompt.md](plan-api.prompt.md)
+```
+update_memory → sync new architecture and symbols
+prune_index → remove outdated symbols
+```
 
-## Implementation
+---
 
-- [implement-feature.prompt.md](implement-feature.prompt.md)
-- [implement-firestore-schema.prompt.md](implement-firestore-schema.prompt.md)
-- [implement-genkit-flow.prompt.md](implement-genkit-flow.prompt.md)
-- [implement-security-rules.prompt.md](implement-security-rules.prompt.md)
-- [implement-server-action.prompt.md](implement-server-action.prompt.md)
-- [implement-ui-component.prompt.md](implement-ui-component.prompt.md)
+# Full Workflow Checklist
 
-## Docs and RAG
+```
+1. serena start-mcp-server
+2. activate_project
+3. list_memories
+4. read_memory
+5. Find largest files
+6. Check DDD violations
+7. Refactor and split files
+8. Ensure functionality still works
+9. #sym:update_memory
+10. #sym:prune_index
+```
 
-- [ingest-docs.prompt.md](ingest-docs.prompt.md)
-- [chunk-docs.prompt.md](chunk-docs.prompt.md)
-- [embedding-docs.prompt.md](embedding-docs.prompt.md)
-- [write-docs.prompt.md](write-docs.prompt.md)
+---
 
-## Analysis and Debug
+# Core Principle
 
-- [analyze-repo.prompt.md](analyze-repo.prompt.md)
-- [debug-error.prompt.md](debug-error.prompt.md)
+DDD refactoring goal is not smaller files, but correct boundaries:
 
-## Refactor and Review
+```
+Controller → Application Service → Domain → Repository
+```
 
-- [refactor-module.prompt.md](refactor-module.prompt.md)
-- [refactor-api.prompt.md](refactor-api.prompt.md)
-- [review-code.prompt.md](review-code.prompt.md)
-- [review-architecture.prompt.md](review-architecture.prompt.md)
-- [review-performance.prompt.md](review-performance.prompt.md)
-- [review-security.prompt.md](review-security.prompt.md)
+Domain layer must not depend on:
 
-## Testing
-
-- [write-tests.prompt.md](write-tests.prompt.md)
-- [write-e2e-tests.prompt.md](write-e2e-tests.prompt.md)
-- [playwright-mcp-test.prompt.md](playwright-mcp-test.prompt.md)
-- [playwright-mcp-inspect.prompt.md](playwright-mcp-inspect.prompt.md)
+```
+Database
+Firebase
+HTTP
+UI
+Framework
+```
 ````
 
 ## File: .github/README.md
@@ -44603,88 +42687,6 @@ venv/
 .beads-credential-key
 .playwright-mcp
 .tmp-eslint*.json
-````
-
-## File: .mcp.json
-````json
-{
-  "mcpServers": {
-    "sequential-thinking": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"]
-    },
-    "chrome-devtools": {
-      "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp"]
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
-    },
-    "context7": {
-      "command": "npx",
-      "args": ["@upstash/context7-mcp@1.0.31"],
-      "env": {
-        "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}"
-      }
-    },
-    "shadcn": {
-      "command": "npx",
-      "args": ["shadcn@latest", "mcp"]
-    },
-    "mongodb": {
-      "command": "npx",
-      "args": ["-y", "mongodb-mcp-server@latest", "--readOnly"],
-      "env": {
-        "MDB_MCP_CONNECTION_STRING": "${MDB_MCP_CONNECTION_STRING}"
-      }
-    },
-    "next-devtools": {
-      "command": "npx",
-      "args": ["next-devtools-mcp@0.3.6"]
-    },
-    "mcp-run-python": {
-      "command": "uvx",
-      "args": ["mcp-run-python", "stdio"]
-    },
-    "supabase-mcp": {
-      "command": "npx",
-      "args": [
-        "--project-ref",
-        "${project-ref}",
-        "--read-only",
-        "${read-only}",
-        "--features",
-        "${features}",
-        "--api-url",
-        "${api-url}",
-        "--registry",
-        "https://registry.npmjs.org",
-        "@supabase/mcp-server-supabase@0.7.0"
-      ],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}"
-      }
-    },
-    "markitdown": {
-      "command": "uvx",
-      "args": ["markitdown-mcp@0.0.1a4"]
-    },
-    "playwright-mcp": {
-      "command": "npx",
-      "args": ["@playwright/mcp@latest"]
-    },
-    "serena": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/oraios/serena",
-        "serena",
-        "start-mcp-server"
-      ]
-    }
-  }
-}
 ````
 
 ## File: app/(public)/page.tsx
@@ -46564,202 +44566,208 @@ export default function NotebookRagQueryPage() {
 }
 ````
 
-## File: app/(shell)/organization/page.tsx
+## File: app/(shell)/organization/workspaces/page.tsx
 ````typescript
 "use client";
 
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/account/api";
+import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { isOrganizationAccount } from "../_utils";
 
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export default function OrganizationPage() {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
-
-  const orgList = Object.values(accounts);
+export default function OrganizationWorkspacesPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
+  const [workspaces, setWorkspaces] = useState<
+    Awaited<ReturnType<typeof getWorkspacesForAccount>>
+  >([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadWorkspaces(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getWorkspacesForAccount(organizationId);
+      setWorkspaces(data);
+      setLoadState("loaded");
+    } catch {
+      setWorkspaces([]);
+      setLoadState("error");
+    }
   }
 
-  function handleSwitchToPersonal() {
-    if (!user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getWorkspacesForAccount(organizationId);
+        if (!cancelled) {
+          setWorkspaces(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setWorkspaces([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreating(true);
+    setCreateError(null);
+    const result = await createWorkspace({
+      name: newName.trim(),
+      accountId: activeOrganizationId,
+      accountType: "organization",
+    });
+    setCreating(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      void loadWorkspaces(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message ?? "建立失敗，請稍後再試。");
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+          </p>
+        </div>
+        <Button size="sm" onClick={() => { setCreateOpen(true); setCreateError(null); setNewName(""); }}>
+          建立工作區
+        </Button>
       </div>
 
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Recommended flow</h2>
-        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>
-            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、Wiki、Notebook / AI。
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
-          </Button>
-          {activeOrganizationId && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Quick-access dashboard — visible only when an org context is active */}
-      {activeOrganizationId && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">組織功能</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-sm">{item.title}</CardTitle>
-                    <CardDescription className="text-xs">{item.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
+      {/* Create Workspace Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立工作區</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="ws-name">工作區名稱</Label>
+              <Input
+                id="ws-name"
+                placeholder="例：行銷專案"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
+              />
+            </div>
+            {createError && <p className="text-xs text-destructive">{createError}</p>}
           </div>
-        </section>
-      )}
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)}>取消</Button>
+            <Button onClick={() => void handleCreate()} disabled={creating || !newName.trim()}>
+              {creating ? "建立中…" : "建立"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Workspaces</CardTitle>
+          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
           )}
-        </div>
-      </section>
-
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
-
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
+          )}
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
+          )}
+          {loadState === "loaded" &&
+            workspaces.map((workspace) => (
+              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                    </Button>
+                    <Badge
+                      variant={
+                        workspace.lifecycleState === "active"
+                          ? "default"
+                          : workspace.lifecycleState === "preparatory"
+                            ? "secondary"
+                            : "outline"
+                      }
+                    >
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
+                    </Button>
+                  </div>
                 </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
+                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
+              </div>
             ))}
-          </ul>
-        )}
-      </section>
-
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
-        </p>
-      )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -46979,6 +44987,115 @@ export default function WorkspaceFeedPage() {
 }
 ````
 
+## File: docs/ddd/bounded-contexts.md
+````markdown
+# Bounded Contexts
+
+This page is the canonical bounded-context map for Xuanwu.
+
+Xuanwu is implemented as a modular monolith. Each context owns its own ubiquitous language, domain model, application logic, and infrastructure adapters. Cross-context collaboration happens through public API surfaces or published domain events.
+
+## Current Inventory
+
+| Domain Type | Context | Ownership | Reference |
+|---|---|---|---|
+| Core Domain | `knowledge` | Knowledge pages, content blocks, versions, approvals, and collection-level content lifecycle. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
+| Core Domain | `knowledge-base` | Organizational articles, categories, wiki-grade publishing, verification, and shared knowledge assets. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
+| Supporting Subdomain | `ai` | Ingestion jobs, parsing/chunking handoff, and indexing preparation. | [modules/ai/README.md](../../modules/ai/README.md) |
+| Supporting Subdomain | `knowledge-collaboration` | Comments, permissions, and immutable version snapshots for knowledge content. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
+| Supporting Subdomain | `knowledge-database` | Structured database schemas, records, views, and relation-oriented data work. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
+| Supporting Subdomain | `notebook` | Workspace-scoped research, ask/cite, summary, and knowledge-generation flows. | [modules/notebook/README.md](../../modules/notebook/README.md) |
+| Supporting Subdomain | `search` | Retrieval, ranking, citation context, and semantic query support. | [modules/search/README.md](../../modules/search/README.md) |
+| Supporting Subdomain | `source` | External files, source collections, ingestion handoff, and source governance. | [modules/source/README.md](../../modules/source/README.md) |
+| Supporting Subdomain | `workspace-audit` | Audit logging and governance traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
+| Supporting Subdomain | `workspace-feed` | Activity stream, replies, reactions, and collaboration visibility. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
+| Supporting Subdomain | `workspace-flow` | Task, issue, and invoice workflow state machines derived from knowledge and operational policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
+| Supporting Subdomain | `workspace-scheduling` | Scheduling windows, work demands, and capacity allocation. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
+| Generic Subdomain | `identity` | Authentication and verified user identity. | [modules/identity/README.md](../../modules/identity/README.md) |
+| Generic Subdomain | `account` | User account semantics, policy, profile, and personalization. | [modules/account/README.md](../../modules/account/README.md) |
+| Generic Subdomain | `organization` | Multi-tenant organization governance, teams, and member relationships. | [modules/organization/README.md](../../modules/organization/README.md) |
+| Generic Subdomain | `workspace` | Workspace container, workspace membership, and workspace-scoped composition. | [modules/workspace/README.md](../../modules/workspace/README.md) |
+| Generic Subdomain | `notification` | Notification preferences and outbound signals. | [modules/notification/README.md](../../modules/notification/README.md) |
+| Shared Kernel | `shared` | Shared events, slug utilities, and cross-context domain primitives. | [modules/shared/README.md](../../modules/shared/README.md) |
+
+## Communication Model
+
+- Synchronous collaboration must go through the target context's public `api/` surface.
+- Asynchronous collaboration must go through published domain events or other explicit contracts.
+- External models must be translated at the edge through anti-corruption adapters instead of entering the domain layer unchanged.
+
+## Product-Level Reading Path
+
+1. Read [subdomains.md](./subdomains.md) for strategic classification.
+2. Use this page to find context ownership.
+3. Read the corresponding `modules/<context>/README.md` and companion markdown files for ubiquitous language, aggregates, events, repositories, and context maps.
+
+## Historical Notes
+
+- `wiki` is no longer a standalone bounded context.
+- `knowledge-graph`, `retrieval`, `agent`, `content`, and `asset` should only appear as historical migration context unless a document explicitly states otherwise.
+- `modules/system.ts` remains a composition root and is excluded from the bounded-context inventory.
+````
+
+## File: docs/ddd/subdomains.md
+````markdown
+# Subdomains
+
+This page is the strategic classification entry point for Xuanwu's Module-Driven Domain Design model.
+
+Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
+
+## Strategic Classification
+
+### Core Domains
+
+| Context | Why it differentiates Xuanwu | Detail |
+|---|---|---|
+| `knowledge` | Owns the Notion-like knowledge content lifecycle: pages, blocks, versions, approval, and collection-level content structure. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
+| `knowledge-base` | Owns organizational wiki, SOP, and article-grade knowledge assets that are shareable, verifiable, and category-driven. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
+
+### Supporting Subdomains
+
+| Context | Role | Detail |
+|---|---|---|
+| `ai` | Ingestion orchestration, chunk preparation, and indexing handoff for downstream retrieval and reasoning. | [modules/ai/README.md](../../modules/ai/README.md) |
+| `knowledge-collaboration` | Comments, permissions, and version snapshots for knowledge-centric collaboration. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
+| `knowledge-database` | Structured database capability for schema, records, and multi-view exploration. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
+| `notebook` | Research, ask/cite, summary, and knowledge-generation workflow over retrieved context. | [modules/notebook/README.md](../../modules/notebook/README.md) |
+| `search` | Semantic retrieval and answer-context assembly with traceable citations. | [modules/search/README.md](../../modules/search/README.md) |
+| `source` | External document and source ingestion entrypoint. | [modules/source/README.md](../../modules/source/README.md) |
+| `workspace-audit` | Append-only audit trail for governability and traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
+| `workspace-feed` | Activity stream and social visibility layer for workspace collaboration. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
+| `workspace-flow` | Task, issue, and invoice materialization from approved knowledge and workflow policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
+| `workspace-scheduling` | Scheduling, time windows, and capacity coordination for work demands. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
+
+### Generic Subdomains
+
+| Context | Role | Detail |
+|---|---|---|
+| `identity` | Authentication and token lifecycle. | [modules/identity/README.md](../../modules/identity/README.md) |
+| `account` | User profile, account policy, and personalization semantics. | [modules/account/README.md](../../modules/account/README.md) |
+| `organization` | Tenant, team, member, and organization-level governance boundary. | [modules/organization/README.md](../../modules/organization/README.md) |
+| `workspace` | Primary collaboration container for all knowledge, sources, activity, and workflow state. | [modules/workspace/README.md](../../modules/workspace/README.md) |
+| `notification` | Notification delivery and preference-controlled signaling. | [modules/notification/README.md](../../modules/notification/README.md) |
+
+### Shared Kernel
+
+| Context | Role | Detail |
+|---|---|---|
+| `shared` | Shared domain primitives such as events, slugs, and common contracts used across bounded contexts. | [modules/shared/README.md](../../modules/shared/README.md) |
+
+## External Integration Boundary
+
+Xuanwu does not allow external system models to flow directly into the core domains. External files, document systems, storage events, and AI service contracts enter through source-facing workflows and per-context infrastructure adapters that act as anti-corruption boundaries.
+
+## Historical Notes
+
+- The historical `wiki` module was decomposed. Current responsibilities are distributed across `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `search`, and `notebook` depending on ownership.
+- The historical `event` and `namespace` modules were folded into `shared`.
+- `modules/system.ts` is a composition root, not a bounded context.
+````
+
 ## File: docs/development/modules-implementation-guide.md
 ````markdown
 # Modules Implementation Guide
@@ -47171,243 +45288,60 @@ This section contains repository-local implementation guidance for Xuanwu contri
 - Python worker: `cd py_fn && python -m compileall -q .`, `cd py_fn && python -m pytest tests/ -v`
 ````
 
-## File: docs/hooks.md
+## File: docs/getting-started.md
 ````markdown
-# Hooks
+# Getting Started
 
-Hooks run automatically at key points in Claude Code's lifecycle.
+This guide gets a contributor from clone to a working local Xuanwu environment.
 
-## Built-in Hooks
+## Prerequisites
 
-| Hook | Event | Purpose |
-|------|-------|---------|
-| `session-start-loader.sh` | SessionStart | Load Beads status, detect active swarm agents, process handoffs, cleanup stale sessions |
-| `skill-activation-prompt.sh` | UserPromptSubmit | Suggest relevant skills based on context |
-| `pre-tool-use-validator.sh` | PreToolUse | File locking, secret detection, protected file enforcement |
-| `dangerous-command-guard.sh` | PreToolUse (Bash) | Guard against dangerous shell commands (force push, rm -rf, etc.) |
-| `pre-push-main-blocker.sh` | PreToolUse (Bash) | Block direct pushes to main/master branch |
-| `pre-commit-verification.sh` | PreToolUse (Bash) | Pre-commit quality checks |
-| `post-tool-use-tracker.sh` | PostToolUse | Track file changes and sync with Beads |
-| `stop-validator.sh` | Stop | Release file locks, cleanup session state, warn about uncommitted changes |
-| `subagent-stop-validator.sh` | SubagentStop | Log swarm worker completion |
+- Node.js 24
+- npm
+- Python environment compatible with `py_fn/requirements.txt` if you need to run worker validation
 
-## Key Capabilities
-
-### File Locking (pre-tool-use-validator.sh)
-
-Prevents concurrent file edits in multi-agent swarm environments:
-- Atomic lock acquisition via `mkdir` (race-condition safe)
-- Lock auto-expires after 120 seconds
-- Session-based: locks are tied to the session that created them
-- Automatic release on session stop
-
-### Secret Detection (pre-tool-use-validator.sh)
-
-Scans Write/Edit content for 6 secret patterns:
-1. Generic API keys, passwords, tokens
-2. AWS access keys (`AKIA...`)
-3. JWT tokens
-4. Environment variable exports with secrets
-5. GitHub personal access tokens (`ghp_...`)
-6. Private keys (PEM format)
-
-Test files (`*.test.ts`, `*.spec.ts`, etc.) are excluded to reduce false positives.
-
-### Protected Files (pre-tool-use-validator.sh)
-
-Blocks modifications to critical system files:
-- `.beads/beads.db`, `.beads/daemon`
-- `.git/`
-- `.env`
-- `.vscode/mcp.json`
-
-### Push Blocking (pre-push-main-blocker.sh)
-
-Enforces trunk-based development by blocking pushes to main/master:
-- Detects explicit pushes (`git push origin main`)
-- Detects implicit pushes (`git push` while on main branch)
-- Provides remediation instructions (create feature branch, push there, create PR)
-
-### Session Management (session-start-loader.sh + stop-validator.sh)
-
-- Tracks active sessions in `.claude/hooks/.state/`
-- Detects active swarm agents for coordination awareness
-- Supports handoff messages between sessions
-- Auto-cleans stale sessions older than 24 hours
-- Warns about uncommitted changes on session stop
-- Syncs Beads before exit
-
-## Creating a Hook
-
-1. Create `.claude/hooks/my-hook.sh`:
+## Install Dependencies
 
 ```bash
-#!/bin/bash
-input=$(cat)
-# your logic
-echo '{"continue": true}'
+npm install
 ```
 
-2. Make executable:
+## Start the App
+
 ```bash
-chmod +x .claude/hooks/my-hook.sh
+npm run dev
 ```
 
-3. Register in `.claude/settings.json`:
+The default development surface is the Next.js app. The authenticated shell is workspace-first and routes users into knowledge, source, knowledge-base, knowledge-database, and notebook workflows.
 
-```json
-{
-  "hooks": {
-    "PostToolUse": [{
-      "matcher": "Write|Edit",
-      "hooks": [{
-        "type": "command",
-        "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/my-hook.sh",
-        "timeout": 5
-      }]
-    }]
-  }
-}
-```
+## Validate the Repository
 
-See `.claude/templates/hook.template.sh` for the full template.
+Run the web validation commands:
 
-## Hook Input
-
-Hooks receive JSON via stdin:
-
-```json
-{
-  "session_id": "abc123",
-  "cwd": "/workspace",
-  "prompt": "user message",
-  "tool_name": "Write",
-  "tool_input": {}
-}
-```
-
-## Hook Output
-
-For PreToolUse hooks, return a permission decision:
-
-```json
-{
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "allow|deny|ask",
-    "permissionDecisionReason": "Explanation"
-  }
-}
-```
-
-## Runtime Directories
-
-| Directory | Purpose | Gitignored |
-|-----------|---------|------------|
-| `.claude/hooks/.state/` | Session tracking files | Yes |
-| `.claude/hooks/.locks/` | File lock files | Yes |
-
-## Tips
-
-- Keep hooks fast (< 5 seconds timeout)
-- Test with: `echo '{}' | ./my-hook.sh`
-- Override hooks via `settings.local.json`
-
----
-
-[← Back to README](../README.md)
-````
-
-## File: docs/mcp-servers.md
-````markdown
-# MCP Servers
-
-Model Context Protocol servers extend Claude's capabilities. The framework includes a curated set.
-
-## Included Servers
-
-### Sequential Thinking
-Structured workspace for multi-step reasoning. Makes Claude's thought process visible and auditable.
-
-**Best for:** Architecture decisions, debugging complex issues, planning
-
-### Chrome DevTools
-Browser automation with deep debugging — performance traces, network inspection, console access.
-
-**Best for:** QA testing, frontend debugging, performance analysis
-
-### Context7
-Up-to-date documentation and code examples for any library via Context7.
-
-**Best for:** Researching library APIs, finding code examples, validating implementation patterns
-
-### Filesystem
-File system operations beyond the workspace boundary.
-
-**Best for:** Cross-project file access, operations outside the working directory
-
-## Setup
-
-The servers are configured in `.vscode/mcp.json`. Most work out of the box.
-
-## Adding More Servers
-
-Edit `.vscode/mcp.json`:
-
-```json
-{
-  "servers": {
-    "new-server": {
-      "command": "npx",
-      "args": ["@example/mcp-server"],
-      "env": {
-        "API_KEY": "${API_KEY}"
-      }
-    }
-  }
-}
-```
-
-## Recommended Additions
-
-| Server | Purpose | When to Add |
-|--------|---------|-------------|
-| GitHub | PRs, issues, code search | GitHub-heavy workflows (requires `GITHUB_TOKEN`) |
-| PostgreSQL | Database queries | Working with Postgres |
-| Brave Search | Web search | Research-heavy work |
-| Slack | Team messaging | Team coordination |
-| Linear | Issue tracking | If you use Linear |
-
-### GitHub Example
-
-```json
-"github": {
-  "command": "npx",
-  "args": ["@anthropic-ai/mcp-server-github"],
-  "env": {
-    "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-  }
-}
-```
-
-## Troubleshooting
-
-### Server not starting
-
-Check logs:
 ```bash
-claude mcp list
+npm run lint
+npm run build
 ```
 
-### Permission denied
+Run the Python worker checks when your change touches `py_fn/` or ingestion-related contracts:
 
-MCP servers run as your user. Check file permissions and API tokens.
+```bash
+cd py_fn
+python -m compileall -q .
+python -m pytest tests/ -v
+```
 
-## Resources
+## Read the Right Docs First
 
-- [Official MCP Servers](https://github.com/modelcontextprotocol/servers)
-- [Awesome MCP Servers](https://github.com/punkpeye/awesome-mcp-servers)
-- [MCP.so Directory](https://mcp.so/)
+1. [../README.md](../README.md) for product and architecture summary
+2. [ddd/subdomains.md](./ddd/subdomains.md) for strategic domain classification
+3. [ddd/bounded-contexts.md](./ddd/bounded-contexts.md) for the current bounded-context inventory
+4. [architecture/README.md](./architecture/README.md) for cross-context architecture reading paths
+5. [development/README.md](./development/README.md) for repository-local implementation guidance
+
+## Internal AI Delivery Docs
+
+Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization.md](./customization.md) document the repository's internal AI delivery workflow. They are useful for maintainers, but they are not the product entrypoint for understanding Xuanwu itself.
 
 ---
 
@@ -47609,101 +45543,6 @@ This document defines the documentation routing model for Xuanwu.
 - Internal AI delivery and agent workflow docs may live under `docs/`, but they should not replace product or architecture entrypoints.
 ````
 
-## File: llms.txt
-````
-# Xuanwu App
-
-Xuanwu App is a Next.js 16 and React 19 knowledge-management and AI-assisted workspace platform.
-
-This file is the AI-first documentation router for the repository. Read this before opening detailed docs.
-
-## Primary repository truths
-
-- AGENTS.md: repository-wide operating rules
-- .github/copilot-instructions.md: Copilot delivery baseline
-- .github/agents/knowledge-base.md: MDDD architecture, module boundaries, package aliases
-- .github/agents/commands.md: build, lint, test, and deployment commands
-- docs/README.md: documentation root index
-- docs/SOURCE-OF-TRUTH.md: documentation structure source
-- docs/ddd/bounded-contexts.md: bounded-context map
-- docs/ddd/subdomains.md: subdomain classification
-
-## Documentation reading order
-
-Read from high level to detail:
-
-1. docs/README.md
-2. docs/SOURCE-OF-TRUTH.md
-3. .github/agents/knowledge-base.md
-4. .github/agents/commands.md
-5. docs/ddd/bounded-contexts.md
-6. docs/ddd/subdomains.md
-5. the nearest docs README in the relevant subfolder
-6. the specific contract, guide, or architecture page
-7. diagrams or ADRs only after the relevant higher-level page is identified
-
-## Topic routing
-
-- Repository rules and contribution workflow:
-  - AGENTS.md
-  - CONTRIBUTING.md
-  - .github/agents/README.md
-- Architecture and module boundaries:
-  - .github/agents/knowledge-base.md
-  - docs/ddd/
-  - docs/architecture/
-- Development workflows and implementation rules:
-  - .github/agents/commands.md
-  - docs/development/
-  - docs/guides/
-- Contract-governed workflows:
-  - docs/reference/
-  - specific contract or specification pages under docs/reference/ and docs/templates/
-- AI workflow and Copilot customization assets:
-  - .github/copilot-instructions.md
-  - .github/skills/
-  - docs/skills.md
-  - docs/mcp-servers.md
-  - docs/customization.md
-- Diagrams and explanatory support:
-  - diagrams/
-  - docs/diagrams/
-  - docs/guides/explanation/
-
-## Document layers
-
-- High layer:
-  - docs/README.md
-  - docs/SOURCE-OF-TRUTH.md
-  - .github/agents/knowledge-base.md
-- Mid layer:
-  - folder READMEs
-  - docs/development/
-  - docs/guides/
-  - docs/reference/
-- Low layer:
-  - detailed diagrams
-  - templates
-  - deep technical explanations
-
-Use the smallest useful layer first.
-
-## Documentation organization rule
-
-When adding or changing docs:
-
-1. keep one canonical file per topic,
-2. add a short summary near the top,
-3. use clear headings for section-based chunking,
-4. update the nearest README index,
-5. update docs/README.md or this file if routing changes.
-
-## AI working rule
-
-If a question is broad, inspect summaries and README indexes before opening detailed files.
-If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
-````
-
 ## File: modules/account/domain-services.md
 ````markdown
 # account — Domain Services
@@ -47764,57 +45603,6 @@ If multiple files appear to overlap, identify the canonical file and treat other
 - `../../../modules/account/aggregates.md`
 ````
 
-## File: modules/ai/AGENT.md
-````markdown
-# AGENT.md — ai BC
-
-## 模組定位
-
-`ai` 是 RAG 攝入管線的 Job 協調支援域。管理 IngestionJob 生命週期，協調 py_fn/ Python worker。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `IngestionJob` | Job、Task（在此 BC 內）、ParseJob |
-| `IngestionDocument` | Document、File（在此 BC 內）|
-| `IngestionChunk` | Chunk、VectorChunk |
-| `IngestionStatus` | Status, JobStatus |
-
-## 棄用檔案守衛
-
-以下檔案都是 `@deprecated` stubs，已在重構期間移除，**絕對不要** import：
-- `modules/ai/domain/entities/graph-node.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/entities/link.ts` → 已刪除（圖譜功能已移除）
-- `modules/ai/domain/repositories/GraphRepository.ts` → 已刪除（圖譜功能已移除）
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { aiApi } from "@/modules/ai/api";
-import type { IngestionJobDTO } from "@/modules/ai/api";
-```
-
-### ❌ 禁止
-```typescript
-import { IngestionJob } from "@/modules/ai/domain/entities/IngestionJob";
-import { graph-node } from "@/modules/ai/domain/entities/graph-node"; // deprecated stub
-```
-
-## Runtime 邊界規則
-
-- `ai` 模組只在 Next.js 端做 Job 協調
-- Embedding 生成在 `py_fn/` 執行，不要在 `ai` module 加入 heavy ML 邏輯
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: modules/ai/domain-services.md
 ````markdown
 # ai — Domain Services
@@ -47871,6 +45659,17 @@ npm run build
 
 - `../../../modules/ai/repositories.md`
 - `../../../modules/ai/aggregates.md`
+````
+
+## File: modules/bounded-contexts.md
+````markdown
+# Modules Bounded Contexts（Canonical Link）
+
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+
+- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
+- 若需調整界限上下文內容，請只編輯 canonical 檔案。
+- 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
 ````
 
 ## File: modules/identity/domain-services.md
@@ -47931,34 +45730,45 @@ npm run build
 - `../../../modules/identity/aggregates.md`
 ````
 
-## File: modules/knowledge-base/aggregates.md
+## File: modules/knowledge-base/AGENT.md
 ````markdown
-# knowledge-base — 聚合根摘要
+# knowledge-base — DDD Agent
 
-> 詳細設計見 [`modules/knowledge-base/aggregates.md`](../../modules/knowledge-base/aggregates.md)
+## 戰略分類
 
-## Article（聚合根）
-
-| 欄位 | 說明 |
+| 屬性 | 值 |
 |---|---|
-| `id` | 唯一識別碼 |
-| `title`, `content` | 文章標題與主體 |
-| `status` | `draft` / `published` / `archived` |
-| `verificationState` | `verified` / `needs_review` / `unverified` |
-| `ownerId` | 文章負責人（ArticleOwner） |
-| `linkedArticleIds` | Backlink 引用列表 |
-| `categoryId` | 所屬分類 |
-| `tags` | 標籤列表 |
+| **Domain Type** | **Core Domain** — 產品差異化核心 |
+| **Module** | `modules/knowledge-base/` |
+| **Aggregates** | Article, Category |
+| **Key Events** | article_created / published / verified, category_created |
 
-## Category（聚合根）
+## 為何是 Core Domain
 
-| 欄位 | 說明 |
-|---|---|
-| `id` | 唯一識別碼 |
-| `name`, `slug` | 分類名稱與 URL 識別碼 |  
-| `parentCategoryId` | 父分類（null = 根節點） |
-| `depth` | 層級深度（最大 5）|
-| `articleIds` | 直屬文章 ID 列表 |
+組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+
+## 關鍵設計決策
+
+1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
+2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
+3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
+4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
+5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
+
+## 詳細實作文件
+
+→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+````
+
+## File: modules/knowledge-base/application-services.md
+````markdown
+# knowledge-base — Application Services
+
+> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+
+**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
+
+**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
 ````
 
 ## File: modules/knowledge-base/application/use-cases/article.use-cases.ts
@@ -48251,15 +46061,31 @@ export class ListCategoriesUseCase {
 }
 ````
 
-## File: modules/knowledge-base/domain-services.md
+## File: modules/knowledge-base/domain-events.md
 ````markdown
-# knowledge-base — Domain Services
+# knowledge-base — 領域事件
 
-> 詳細實作見 [`modules/knowledge-base/domain-services.md`](../../modules/knowledge-base/domain-services.md)
+> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
 
-- `BacklinkExtractorService` — 從 article content 解析 `[[wikilink]]` 標題
-- `ArticleSlugService` — title → URL-safe slug 轉換
-- `CategoryDepthValidator` — 驗證分類層級不超過 5 層
+## 事件清單
+
+| 事件 | 觸發條件 |
+|---|---|
+| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
+| `knowledge-base.article_updated` | 文章內容更新 |
+| `knowledge-base.article_published` | draft → published |
+| `knowledge-base.article_archived` | 文章封存 |
+| `knowledge-base.article_verified` | 知識管理員驗證文章 |
+| `knowledge-base.article_review_requested` | 標記為 needs_review |
+| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
+| `knowledge-base.category_created` | 建立分類目錄 |
+| `knowledge-base.category_moved` | 分類移動到新父節點 |
+
+## 訂閱事件（D3 Promote 協議）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
 ````
 
 ## File: modules/knowledge-base/infrastructure/firebase/FirebaseArticleRepository.ts
@@ -48819,56 +46645,6 @@ export function ArticleDialog({
 }
 ````
 
-## File: modules/knowledge-base/repositories.md
-````markdown
-# knowledge-base — Repositories
-
-> 詳細介面見 [`modules/knowledge-base/repositories.md`](../../modules/knowledge-base/repositories.md)
-
-- `IArticleRepository` — CRUD + search + backlink 反查
-- `ICategoryRepository` — 層級樹操作 + articleIds 管理
-
-**Firestore:** `knowledge_base_articles` / `knowledge_base_categories`
-````
-
-## File: modules/knowledge-base/ubiquitous-language.md
-````markdown
-# knowledge-base — 通用語言
-
-> 詳細定義見 [`modules/knowledge-base/ubiquitous-language.md`](../../modules/knowledge-base/ubiquitous-language.md)
-
-## 核心術語速查
-
-| 術語 | 定義 |
-|---|---|
-| **Article** | 組織級知識文章（SOP / Wiki） |
-| **Category** | 層級分類目錄（max 5 層） |
-| **VerificationState** | `verified` / `needs_review` / `unverified` |
-| **ArticleOwner** | 負責維護文章準確性的使用者 |
-| **Backlink** | `[[Article Title]]` 解析的反向引用 |
-| **Promote** | Page（知識）升級為 Article（知識庫）的跨 BC 協議 |
-````
-
-## File: modules/knowledge-collaboration/AGENT.md
-````markdown
-# knowledge-collaboration — DDD Agent
-
-**Domain Type:** Supporting + Generic Subdomain | **Module:** `modules/knowledge-collaboration/`
-
-為 `knowledge` 和 `knowledge-base` 提供協作能力（Comment / Permission / Version）。不擁有知識內容，透過 `contentId` opaque reference 與內容 BC 協作。
-
-→ 詳細文件: [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-````
-
-## File: modules/knowledge-collaboration/aggregates.md
-````markdown
-**Comment** — contentId + authorId + body，支援 parentCommentId（一層 thread）
-**Permission** — subjectId + principalId + level（view/comment/edit/full），upsert 語意
-**Version** — contentId + snapshotBlocks，immutable，最多 100 筆（具名版本除外）
-
-→ 詳細設計: [`modules/knowledge-collaboration/aggregates.md`](../../modules/knowledge-collaboration/aggregates.md)
-````
-
 ## File: modules/knowledge-collaboration/api/index.ts
 ````typescript
 /**
@@ -48921,15 +46697,6 @@ export {
 // ── UI Components ─────────────────────────────────────────────────────────────
 export { CommentPanel } from "../interfaces/components/CommentPanel";
 export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
-````
-
-## File: modules/knowledge-collaboration/application-services.md
-````markdown
-Comment: CreateComment, UpdateComment, DeleteComment, ResolveComment, ListComments
-Permission: GrantPermission, RevokePermission, CheckPermission, ListPermissions
-Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
-
-→ 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
 ````
 
 ## File: modules/knowledge-collaboration/application/use-cases/comment.use-cases.ts
@@ -49065,32 +46832,6 @@ export class ListPermissionsBySubjectUseCase {
 }
 ````
 
-## File: modules/knowledge-collaboration/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge`, `knowledge-base`, `knowledge-database`
-下游消費者: `notification`, `workspace-feed`, `workspace-audit`
-
-→ 詳細設計: [`modules/knowledge-collaboration/context-map.md`](../../modules/knowledge-collaboration/context-map.md)
-````
-
-## File: modules/knowledge-collaboration/domain-events.md
-````markdown
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-→ 詳細設計: [`modules/knowledge-collaboration/domain-events.md`](../../modules/knowledge-collaboration/domain-events.md)
-````
-
-## File: modules/knowledge-collaboration/domain-services.md
-````markdown
-- `PermissionLevelComparator` — view < comment < edit < full 比較, 防止超授
-- `VersionRetentionPolicy` — 保留最多 100 個版本，具名版本不刪
-
-→ [`modules/knowledge-collaboration/domain-services.md`](../../modules/knowledge-collaboration/domain-services.md)
-````
-
 ## File: modules/knowledge-collaboration/domain/entities/comment.entity.ts
 ````typescript
 export interface SelectionRange {
@@ -49158,49 +46899,6 @@ export interface Permission {
 }
 ````
 
-## File: modules/knowledge-collaboration/domain/repositories/ICommentRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: domain/repositories
- */
-
-import type { Comment, SelectionRange } from "../entities/comment.entity";
-
-export interface CreateCommentInput {
-  readonly contentId: string;
-  readonly contentType: "page" | "article";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly authorId: string;
-  readonly body: string;
-  readonly parentCommentId?: string | null;
-  readonly blockId?: string | null;
-  readonly selectionRange?: SelectionRange | null;
-}
-
-export interface UpdateCommentInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly body: string;
-}
-
-export interface ResolveCommentInput {
-  readonly id: string;
-  readonly accountId: string;
-  readonly resolvedByUserId: string;
-}
-
-export interface ICommentRepository {
-  create(input: CreateCommentInput): Promise<Comment>;
-  update(input: UpdateCommentInput): Promise<Comment | null>;
-  resolve(input: ResolveCommentInput): Promise<Comment | null>;
-  delete(accountId: string, commentId: string): Promise<void>;
-  findById(accountId: string, commentId: string): Promise<Comment | null>;
-  listByContent(accountId: string, contentId: string): Promise<Comment[]>;
-}
-````
-
 ## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
 ````typescript
 /**
@@ -49229,134 +46927,6 @@ export interface IPermissionRepository {
   findById(accountId: string, permissionId: string): Promise<Permission | null>;
   listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
   listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
-}
-````
-
-## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationComments/{commentId}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Comment } from "../../domain/entities/comment.entity";
-import type {
-  ICommentRepository,
-  CreateCommentInput,
-  UpdateCommentInput,
-  ResolveCommentInput,
-} from "../../domain/repositories/ICommentRepository";
-
-function commentsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationComments");
-}
-
-function commentDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationComments", id);
-}
-
-function toComment(id: string, data: Record<string, unknown>): Comment {
-  return {
-    id,
-    contentId: typeof data.contentId === "string" ? data.contentId : "",
-    contentType: data.contentType === "article" ? "article" : "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    authorId: typeof data.authorId === "string" ? data.authorId : "",
-    body: typeof data.body === "string" ? data.body : "",
-    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
-    blockId: typeof data.blockId === "string" ? data.blockId : null,
-    selectionRange: (
-      data.selectionRange !== null &&
-      typeof data.selectionRange === "object" &&
-      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
-      typeof (data.selectionRange as Record<string, unknown>).to === "number"
-    )
-      ? {
-          from: (data.selectionRange as Record<string, unknown>).from as number,
-          to: (data.selectionRange as Record<string, unknown>).to as number,
-        }
-      : null,
-    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
-    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseCommentRepository implements ICommentRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateCommentInput): Promise<Comment> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      contentId: input.contentId,
-      contentType: input.contentType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      authorId: input.authorId,
-      body: input.body,
-      parentCommentId: input.parentCommentId ?? null,
-      blockId: input.blockId ?? null,
-      selectionRange: input.selectionRange ?? null,
-      resolvedAt: null,
-      resolvedByUserId: null,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(commentDoc(db, input.accountId, id), data);
-    return toComment(id, data);
-  }
-
-  async update(input: UpdateCommentInput): Promise<Comment | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    await updateDoc(ref, { body: input.body, updatedAtISO: now });
-    return toComment(snap.id, { ...snap.data(), body: input.body, updatedAtISO: now });
-  }
-
-  async resolve(input: ResolveCommentInput): Promise<Comment | null> {
-    const db = this.db();
-    const ref = commentDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    await updateDoc(ref, { resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
-    return toComment(snap.id, { ...snap.data(), resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
-  }
-
-  async delete(accountId: string, commentId: string): Promise<void> {
-    const db = this.db();
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(commentDoc(db, accountId, commentId));
-  }
-
-  async findById(accountId: string, commentId: string): Promise<Comment | null> {
-    const db = this.db();
-    const snap = await getDoc(commentDoc(db, accountId, commentId));
-    if (!snap.exists()) return null;
-    return toComment(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByContent(accountId: string, contentId: string): Promise<Comment[]> {
-    const db = this.db();
-    const q = query(commentsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "asc"));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>));
-  }
 }
 ````
 
@@ -49747,186 +47317,6 @@ function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: Comme
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/queries
- */
-
-import {
-  collection,
-  getFirestore,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { Comment } from "../../domain/entities/comment.entity";
-import type { Version } from "../../domain/entities/version.entity";
-import type { Permission } from "../../domain/entities/permission.entity";
-import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
-import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
-import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-
-export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
-  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
-}
-
-export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
-  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
-}
-
-export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
-  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
-}
-
-/**
- * Subscribe to real-time comment updates for a content document.
- * Returns an unsubscribe function — call it in a useEffect cleanup.
- */
-export function subscribeComments(
-  accountId: string,
-  contentId: string,
-  onUpdate: (comments: Comment[]) => void,
-): () => void {
-  const db = getFirestore(firebaseClientApp);
-  const col = collection(db, "accounts", accountId, "collaborationComments");
-  const q = query(
-    col,
-    where("contentId", "==", contentId),
-    orderBy("createdAtISO", "asc"),
-  );
-  return onSnapshot(q, (snap) => {
-    const comments: Comment[] = snap.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        accountId: typeof data.accountId === "string" ? data.accountId : accountId,
-        workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-        contentId: typeof data.contentId === "string" ? data.contentId : contentId,
-        contentType: (data.contentType as Comment["contentType"]) ?? "page",
-        authorId: typeof data.authorId === "string" ? data.authorId : "",
-        body: typeof data.body === "string" ? data.body : "",
-        parentCommentId:
-          typeof data.parentCommentId === "string" ? data.parentCommentId : null,
-        blockId:
-          typeof data.blockId === "string" ? data.blockId : null,
-        selectionRange: null,
-        resolvedAt:
-          typeof data.resolvedAt === "string" ? data.resolvedAt : null,
-        resolvedByUserId:
-          typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
-        createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
-        updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
-      };
-    });
-    onUpdate(comments);
-  });
-}
-````
-
-## File: modules/knowledge-collaboration/README.md
-````markdown
-# knowledge-collaboration — DDD Reference
-
-> **Domain Type:** Supporting Subdomain + Generic Subdomain
-> **Module:** `modules/knowledge-collaboration/`
-> **詳細模組文件:** [`modules/knowledge-collaboration/`](../../modules/knowledge-collaboration/)
-
-## 戰略定位
-
-`knowledge-collaboration` 為 `knowledge` 和 `knowledge-base` 提供協作基礎設施：留言討論、細粒度存取權限、版本快照。它不擁有知識內容，只提供協作能力。
-
-## 核心聚合
-
-- **Comment** — 線程式留言，透過 `contentId` 引用內容
-- **Permission** — `(subjectId, principalId)` 的存取授權，級別：view < comment < edit < full
-- **Version** — Block 快照，immutable，最多保留 100 個（具名版本除外）
-
-## 主要領域事件
-
-- `knowledge-collaboration.comment_created` / `comment_resolved`
-- `knowledge-collaboration.permission_granted` / `permission_revoked`
-- `knowledge-collaboration.version_created` / `version_restored`
-- `knowledge-collaboration.page_locked`
-
-## 通用語言
-
-| 術語 | 定義 |
-|---|---|
-| **Comment** | 針對 contentId 的留言（root 或 reply） |
-| **Permission** | 單一 (subject, principal) 的存取授權記錄 |
-| **PermissionLevel** | `view` < `comment` < `edit` < `full` |
-| **Version** | immutable Block 快照 |
-| **NamedVersion** | 具有人工標籤的具名版本（不自動刪除） |
-| **contentId** | opaque reference 到任意知識內容 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity` | Conformist |
-| 上游 | `knowledge`, `knowledge-base`, `knowledge-database` | Customer/Supplier |
-| 下游 | `notification`, `workspace-feed`, `workspace-audit` | Published Language |
-````
-
-## File: modules/knowledge-collaboration/repositories.md
-````markdown
-ICommentRepository, IPermissionRepository, IVersionRepository
-
-Firestore: `knowledge_comments` / `knowledge_permissions` / `knowledge_versions`
-
-→ [`modules/knowledge-collaboration/repositories.md`](../../modules/knowledge-collaboration/repositories.md)
-````
-
-## File: modules/knowledge-collaboration/ubiquitous-language.md
-````markdown
-| Comment | 留言（≠ Note, Message） |
-| Permission | 存取授權（≠ Role） |
-| PermissionLevel | view < comment < edit < full |
-| Version | Block 快照（≠ Revision, History） |
-| NamedVersion | 附標籤的具名版本（不自動刪除） |
-| contentId | opaque ID 跨 BC 引用 |
-| PageLock | 防並發的暫時鎖定 |
-
-→ [`modules/knowledge-collaboration/ubiquitous-language.md`](../../modules/knowledge-collaboration/ubiquitous-language.md)
-````
-
-## File: modules/knowledge-database/AGENT.md
-````markdown
-# knowledge-database — DDD Agent
-
-**Domain Type:** Supporting Subdomain | **Module:** `modules/knowledge-database/`
-
-提供結構化資料庫能力（Database / Record / View）。對應 Notion Database。不擁有知識文字內容，專注於結構化資料的 Schema 管理與多視圖展示。
-
-→ 詳細文件: [`modules/knowledge-database/`](../../modules/knowledge-database/)
-````
-
-## File: modules/knowledge-database/aggregates.md
-````markdown
-**Database** — name + fields(Schema) + viewIds; Schema 是 invariant 邊界
-**Record** — databaseId + properties(Map<fieldId, value>) + order
-**View** — databaseId + type(table/board/list/calendar/timeline/gallery) + filters + sorts + groupBy
-
-→ [`modules/knowledge-database/aggregates.md`](../../modules/knowledge-database/aggregates.md)
-````
-
-## File: modules/knowledge-database/application-services.md
-````markdown
-Database: CreateDatabase, RenameDatabase, AddField, UpdateField, DeleteField, ReorderFields
-View: CreateView, UpdateViewFilters, UpdateViewSorts, UpdateViewGroupBy, HideFieldsInView, DeleteView
-Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, QueryRecords
-
-→ [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
-````
-
 ## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
 ````typescript
 /**
@@ -50309,23 +47699,14 @@ export class ListViewsUseCase {
 }
 ````
 
-## File: modules/knowledge-database/domain-events.md
+## File: modules/knowledge-database/context-map.md
 ````markdown
-- `knowledge-database.database_created` / `database_renamed`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
+上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
+下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
 
-→ [`modules/knowledge-database/domain-events.md`](../../modules/knowledge-database/domain-events.md)
-````
+> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
 
-## File: modules/knowledge-database/domain-services.md
-````markdown
-- `FieldValueValidator` — 驗證 Record property 值符合 Field 類型規範
-- `ViewQueryBuilder` — 將 View filter/sort/groupBy 轉為查詢參數
-
-→ [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
+→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
 ````
 
 ## File: modules/knowledge-database/domain/entities/database-form.entity.ts
@@ -52052,28 +49433,6 @@ export async function getAutomations(
 }
 ````
 
-## File: modules/knowledge-database/repositories.md
-````markdown
-IDatabaseRepository, IRecordRepository, IViewRepository
-
-Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
-
-→ [`modules/knowledge-database/repositories.md`](../../modules/knowledge-database/repositories.md)
-````
-
-## File: modules/knowledge-database/ubiquitous-language.md
-````markdown
-| Database | 結構化資料容器（≠ KnowledgeCollection） |
-| Field | 欄位定義（≠ Column）|
-| Record | 資料行（≠ Row, Item, Entry）|
-| Property | 某 Field 的具體值（Map） |
-| View | 視圖配置 — 不持有資料 |
-| ViewType | table/board/list/calendar/timeline/gallery |
-| Relation | 跨 Database 的 Record 連結欄位 |
-
-→ [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
-````
-
 ## File: modules/knowledge/api/knowledge-facade.ts
 ````typescript
 /**
@@ -52235,6 +49594,68 @@ export class KnowledgeFacade {
 export const knowledgeFacade = new KnowledgeFacade();
 ````
 
+## File: modules/knowledge/application-services.md
+````markdown
+# knowledge — Application Services
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
+
+## Application Layer 職責
+
+管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
+- `application/block-service.ts`
+- `application/dto/knowledge.dto.ts`
+- `application/use-cases/knowledge-block.use-cases.ts`
+- `application/use-cases/knowledge-collection.use-cases.ts`
+- `application/use-cases/knowledge-page.use-cases.ts`
+- `application/use-cases/knowledge-version.use-cases.ts`
+
+## Use Cases 清單
+
+| Use Case 類別 | 操作 | UI 入口 |
+|---|---|---|
+| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
+| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
+| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
+| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
+| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
+| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
+| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
+| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
+| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
+| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
+| `GetKnowledgePageUseCase` | 取得單頁 |
+| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
+| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
+| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
+| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
+| `AddPageToCollectionUseCase` | 將頁面加入集合 |
+| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
+| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
+| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
+| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
+| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
+| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+
+## 設計對齊
+
+- 模組 README：`../../../modules/knowledge/README.md`
+- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+````
+
 ## File: modules/knowledge/application/block-service.ts
 ````typescript
 /**
@@ -52296,6 +49717,303 @@ export class BlockService {
 }
 
 export { KNOWLEDGE_UPDATED_EVENT_TYPE };
+````
+
+## File: modules/knowledge/application/dto/knowledge-block.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for KnowledgeBlock use cases.
+ */
+
+import { z } from "@lib-zod";
+import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
+
+export const BlockTypeSchema = z.enum(BLOCK_TYPES);
+
+export const BlockContentSchema = z.object({
+  type: BlockTypeSchema,
+  richText: z.array(z.unknown()).readonly(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type BlockContentDto = z.infer<typeof BlockContentSchema>;
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  content: BlockContentSchema,
+  index: z.number().int().nonnegative().optional(),
+  parentBlockId: z.string().min(1).nullable().optional(),
+});
+
+export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
+
+export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+  content: BlockContentSchema,
+});
+
+export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
+
+export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
+  blockId: z.string().min(1),
+});
+
+export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
+
+export const NestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  parentBlockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type NestKnowledgeBlockDto = z.infer<typeof NestKnowledgeBlockSchema>;
+
+export const UnnestKnowledgeBlockSchema = z.object({
+  accountId: z.string().min(1),
+  blockId: z.string().min(1),
+  index: z.number().int().min(0).optional(),
+});
+export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
+````
+
+## File: modules/knowledge/application/dto/knowledge-collection.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for KnowledgeCollection use cases.
+ */
+
+import { z } from "@lib-zod";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const CollectionColumnTypeSchema = z.enum([
+  "text",
+  "number",
+  "select",
+  "multi-select",
+  "date",
+  "checkbox",
+  "url",
+  "relation",
+]);
+
+export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
+
+export const CollectionColumnInputSchema = z.object({
+  name: z.string().min(1).max(100),
+  type: CollectionColumnTypeSchema,
+  options: z.array(z.string()).optional(),
+});
+
+export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
+
+export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  columns: z.array(CollectionColumnInputSchema).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
+
+export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  name: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
+
+export const AddPageToCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
+
+export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  pageId: z.string().min(1),
+});
+
+export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
+
+export const AddCollectionColumnSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+  column: CollectionColumnInputSchema,
+});
+
+export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
+
+export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
+  collectionId: z.string().min(1),
+});
+
+export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
+````
+
+## File: modules/knowledge/application/dto/knowledge-page.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for KnowledgePage lifecycle use cases.
+ */
+
+import { z } from "@lib-zod";
+import { KNOWLEDGE_PAGE_STATUSES } from "../../domain/entities/knowledge-page.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
+
+export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  title: z.string().min(1).max(300),
+  parentPageId: z.string().min(1).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
+
+export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  title: z.string().min(1).max(300),
+});
+
+export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
+
+export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  targetParentPageId: z.string().min(1).nullable(),
+});
+
+export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
+
+export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+});
+
+export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
+
+export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  label: z.string().max(100).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
+
+// ── Approve content page ──────────────────────────────────────────────────────
+
+export const ExtractedTaskSchema = z.object({
+  title: z.string().min(1).max(300),
+  dueDate: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export const ExtractedInvoiceSchema = z.object({
+  amount: z.number().positive(),
+  description: z.string().min(1),
+  currency: z.string().optional(),
+});
+
+export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  actorId: z.string().min(1),
+  causationId: z.string().min(1).optional(),
+  extractedTasks: z.array(ExtractedTaskSchema).default([]),
+  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
+  correlationId: z.string().optional(),
+  workspaceId: z.string().optional(),
+});
+
+export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
+
+export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  blockIds: z.array(z.string().min(1)),
+});
+
+export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
+````
+
+## File: modules/knowledge/application/dto/knowledge-wiki.dto.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/dto
+ * Purpose: Zod-validated input schemas for wiki / knowledge-base use cases
+ *          (verification, review, wiki spaces, page appearance).
+ */
+
+import { z } from "@lib-zod";
+import { PAGE_VERIFICATION_STATES } from "../../domain/entities/knowledge-page.entity";
+
+const AccountScopeSchema = z.object({
+  accountId: z.string().min(1),
+});
+
+export const PageVerificationStateSchema = z.enum(PAGE_VERIFICATION_STATES);
+
+export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  verifiedByUserId: z.string().min(1),
+  /** ISO 8601 — if set, page auto-transitions to "needs_review" after this date. */
+  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
+});
+
+export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
+
+export const RequestPageReviewSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  requestedByUserId: z.string().min(1),
+});
+
+export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
+
+export const AssignPageOwnerSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  ownerId: z.string().min(1),
+  assignedByUserId: z.string().min(1),
+});
+
+export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
+
+export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
+  workspaceId: z.string().min(1).optional(),
+  name: z.string().min(1).max(300),
+  description: z.string().max(1000).optional(),
+  createdByUserId: z.string().min(1),
+});
+
+export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
+
+export const UpdatePageIconSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  iconUrl: z.string().max(2000),
+});
+
+export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
+
+export const UpdatePageCoverSchema = AccountScopeSchema.extend({
+  pageId: z.string().min(1),
+  coverUrl: z.string().max(2000),
+});
+
+export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
 ````
 
 ## File: modules/knowledge/application/use-cases/backlink-index.use-cases.ts
@@ -52371,6 +50089,226 @@ export class GetPageBacklinksUseCase {
     return this.repo.findByTargetPage(accountId, targetPageId);
   }
 }
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-page-appearance.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Page appearance use cases — update icon, update cover.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  UpdatePageIconSchema,
+  type UpdatePageIconDto,
+  UpdatePageCoverSchema,
+  type UpdatePageCoverDto,
+} from "../dto/knowledge.dto";
+
+export class UpdatePageIconUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
+    const parsed = UpdatePageIconSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, pageId, iconUrl } = parsed.data;
+    const result = await this.repo.updateIcon({ accountId, pageId, iconUrl });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class UpdatePageCoverUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
+    const parsed = UpdatePageCoverSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, pageId, coverUrl } = parsed.data;
+    const result = await this.repo.updateCover({ accountId, pageId, coverUrl });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-page-review.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review-workflow use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import { v7 as generateId } from "@lib-uuid";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/knowledge.dto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: KnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    // causationId is set by the Server Action layer; generateId() is a safe fallback.
+    const causationId = inputCausationId ?? generateId();
+
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) {
+      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    }
+    if (page.status === "archived") {
+      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    }
+    if (page.approvalState === "approved") {
+      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+    }
+
+    const nowISO = new Date().toISOString();
+    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
+    if (!approved) {
+      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
+    }
+
+    const correlationId = inputCorrelationId ?? generateId();
+
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
+    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+````
+
+## File: modules/knowledge/domain-services.md
+````markdown
+# knowledge — Domain Services
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
+
+## Domain Services 檔案
+
+- 目前沒有獨立的 `domain/services/*` 檔案。
+
+## 設計規則
+
+- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
+- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
+- 若規則只屬於單一 aggregate，不應抽成 domain service
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/domain-services.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: modules/knowledge/domain/entities/backlink-index.entity.ts
@@ -52998,148 +50936,6 @@ export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollecti
     return await new ArchiveKnowledgeCollectionUseCase(makeCollectionRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom("COLLECTION_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/knowledge/interfaces/_actions/knowledge-page.actions.ts
-````typescript
-"use server";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-
-import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  ReorderKnowledgePageBlocksUseCase,
-  ApproveKnowledgePageUseCase,
-  VerifyKnowledgePageUseCase,
-  RequestPageReviewUseCase,
-  AssignPageOwnerUseCase,
-  UpdatePageIconUseCase,
-  UpdatePageCoverUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";
-import type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  ApproveKnowledgePageDto,
-  CreateKnowledgeVersionDto,
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  UpdatePageIconDto,
-  UpdatePageCoverDto,
-} from "../../application/dto/knowledge.dto";
-
-function makePageRepo() {
-  return new FirebaseKnowledgePageRepository();
-}
-
-export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_RENAME_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_MOVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-  try {
-    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_REORDER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function publishKnowledgeVersion(_input: CreateKnowledgeVersionDto): Promise<CommandResult> {
-  return commandFailureFrom("CONTENT_VERSION_NOT_IMPLEMENTED", "Version persistence is not yet implemented.");
-}
-
-export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-  try {
-    const causationId = input.causationId ?? generateId();
-    const eventBus = process.env.QSTASH_TOKEN
-      ? new QStashEventBusRepository()
-      : new NoopEventBusRepository();
-    return await new ApproveKnowledgePageUseCase(
-      makePageRepo(),
-      new InMemoryEventStoreRepository(),
-      eventBus,
-    ).execute({ ...input, causationId });
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-  try {
-    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_VERIFY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
-  try {
-    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_REVIEW_REQUEST_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
-  try {
-    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_ASSIGN_OWNER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
-  try {
-    return await new UpdatePageIconUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_ICON_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
-  try {
-    return await new UpdatePageCoverUseCase(makePageRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CONTENT_PAGE_COVER_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 ````
@@ -53926,6 +51722,17 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 - `../../../modules/notebook/aggregates.md`
 ````
 
+## File: modules/notebook/index.ts
+````typescript
+/**
+ * modules/notebook — aggregate public exports.
+ *
+ * Cross-module consumers should use the stable api/ surface only.
+ */
+
+export * from "./api";
+````
+
 ## File: modules/notebook/README.md
 ````markdown
 # notebook — Notebook 對話上下文
@@ -54262,47 +52069,6 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
 }
 ````
 
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/notification/repositories.md
 ````markdown
 # notification — Repositories
@@ -54333,6 +52099,425 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
 - `../../../modules/notification/aggregates.md`
 ````
 
+## File: modules/organization/application/use-cases/organization-lifecycle.use-cases.ts
+````typescript
+/**
+ * Organization Lifecycle Use Cases — org CRUD workflows.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+} from "../../domain/entities/Organization";
+
+export class CreateOrganizationUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(command: CreateOrganizationCommand): Promise<CommandResult> {
+    try {
+      const orgId = await this.orgRepo.create(command);
+      return commandSuccess(orgId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ORGANIZATION_FAILED",
+        err instanceof Error ? err.message : "Failed to create organization",
+      );
+    }
+  }
+}
+
+export class CreateOrganizationWithTeamUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    command: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> {
+    try {
+      const organizationId = await this.orgRepo.create(command);
+      await this.orgRepo.createTeam({
+        organizationId,
+        name: teamName,
+        description: "",
+        type: teamType,
+      });
+      return commandSuccess(organizationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "SETUP_ORGANIZATION_WITH_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to setup organization with team",
+      );
+    }
+  }
+}
+
+export class UpdateOrganizationSettingsUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(command: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+    try {
+      await this.orgRepo.updateSettings(command);
+      return commandSuccess(command.organizationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ORGANIZATION_SETTINGS_FAILED",
+        err instanceof Error ? err.message : "Failed to update organization settings",
+      );
+    }
+  }
+}
+
+export class DeleteOrganizationUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.delete(organizationId);
+      return commandSuccess(organizationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_ORGANIZATION_FAILED",
+        err instanceof Error ? err.message : "Failed to delete organization",
+      );
+    }
+  }
+}
+````
+
+## File: modules/organization/application/use-cases/organization-member.use-cases.ts
+````typescript
+/**
+ * Organization Member Use Cases — member lifecycle workflows.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type {
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+} from "../../domain/entities/Organization";
+
+export class InviteMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(input: InviteMemberInput): Promise<CommandResult> {
+    try {
+      const inviteId = await this.orgRepo.inviteMember(input);
+      return commandSuccess(inviteId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "INVITE_MEMBER_FAILED",
+        err instanceof Error ? err.message : "Failed to invite member",
+      );
+    }
+  }
+}
+
+export class RecruitMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    organizationId: string,
+    memberId: string,
+    name: string,
+    email: string,
+  ): Promise<CommandResult> {
+    try {
+      await this.orgRepo.recruitMember(organizationId, memberId, name, email);
+      return commandSuccess(memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "RECRUIT_MEMBER_FAILED",
+        err instanceof Error ? err.message : "Failed to recruit member",
+      );
+    }
+  }
+}
+
+export class RemoveMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, memberId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.removeMember(organizationId, memberId);
+      return commandSuccess(memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REMOVE_MEMBER_FAILED",
+        err instanceof Error ? err.message : "Failed to remove member",
+      );
+    }
+  }
+}
+
+export class UpdateMemberRoleUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(input: UpdateMemberRoleInput): Promise<CommandResult> {
+    try {
+      await this.orgRepo.updateMemberRole(input);
+      return commandSuccess(input.memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_MEMBER_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to update member role",
+      );
+    }
+  }
+}
+````
+
+## File: modules/organization/application/use-cases/organization-partner.use-cases.ts
+````typescript
+/**
+ * Organization Partner Use Cases — external partner group workflows.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+
+export class CreatePartnerGroupUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, groupName: string): Promise<CommandResult> {
+    try {
+      const teamId = await this.orgRepo.createTeam({
+        organizationId,
+        name: groupName,
+        description: "",
+        type: "external",
+      });
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_PARTNER_GROUP_FAILED",
+        err instanceof Error ? err.message : "Failed to create partner group",
+      );
+    }
+  }
+}
+
+export class SendPartnerInviteUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    email: string,
+  ): Promise<CommandResult> {
+    try {
+      const inviteId = await this.orgRepo.sendPartnerInvite(organizationId, teamId, email);
+      return commandSuccess(inviteId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "SEND_PARTNER_INVITE_FAILED",
+        err instanceof Error ? err.message : "Failed to send partner invite",
+      );
+    }
+  }
+}
+
+export class DismissPartnerMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<CommandResult> {
+    try {
+      await this.orgRepo.dismissPartnerMember(organizationId, teamId, memberId);
+      return commandSuccess(memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DISMISS_PARTNER_MEMBER_FAILED",
+        err instanceof Error ? err.message : "Failed to dismiss partner member",
+      );
+    }
+  }
+}
+````
+
+## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
+````typescript
+/**
+ * Organization Policy Use Cases — pure business workflows.
+ * Org policy changes flow through event bus to update workspace org-policy cache downstream.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+// ─── Create Org Policy ────────────────────────────────────────────────────────
+
+export class CreateOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
+    try {
+      const policy = await this.policyRepo.createPolicy(input);
+      return commandSuccess(policy.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ORG_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create org policy",
+      );
+    }
+  }
+}
+
+// ─── Update Org Policy ────────────────────────────────────────────────────────
+
+export class UpdateOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+    try {
+      await this.policyRepo.updatePolicy(policyId, data);
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ORG_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update org policy",
+      );
+    }
+  }
+}
+
+// ─── Delete Org Policy ────────────────────────────────────────────────────────
+
+export class DeleteOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(policyId: string): Promise<CommandResult> {
+    try {
+      await this.policyRepo.deletePolicy(policyId);
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_ORG_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to delete org policy",
+      );
+    }
+  }
+}
+````
+
+## File: modules/organization/application/use-cases/organization-team.use-cases.ts
+````typescript
+/**
+ * Organization Team Use Cases — internal team management workflows.
+ * No React, no Firebase, no UI framework.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
+
+export class CreateTeamUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.orgRepo.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to create team",
+      );
+    }
+  }
+}
+
+export class DeleteTeamUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_TEAM_FAILED",
+        err instanceof Error ? err.message : "Failed to delete team",
+      );
+    }
+  }
+}
+
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.orgRepo.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.orgRepo.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_TEAM_MEMBERS_FAILED",
+        err instanceof Error ? err.message : "Failed to update team members",
+      );
+    }
+  }
+}
+````
+
+## File: modules/organization/application/use-cases/organization.use-cases.ts
+````typescript
+/**
+ * Organization Use Cases — barrel re-export.
+ * Split into focused files per IDDD single-responsibility principle:
+ *  - organization-lifecycle.use-cases.ts  (org CRUD)
+ *  - organization-member.use-cases.ts     (member management)
+ *  - organization-team.use-cases.ts       (team management)
+ *  - organization-partner.use-cases.ts    (partner management)
+ */
+
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "./organization-lifecycle.use-cases";
+
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "./organization-member.use-cases";
+
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "./organization-team.use-cases";
+
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "./organization-partner.use-cases";
+````
+
 ## File: modules/organization/domain-services.md
 ````markdown
 # organization — Domain Services
@@ -54359,232 +52544,223 @@ export function NotificationBell({ recipientId }: NotificationBellProps) {
 - `../../../modules/organization/aggregates.md`
 ````
 
-## File: modules/organization/interfaces/_actions/organization.actions.ts
+## File: modules/organization/domain/repositories/OrganizationRepository.ts
 ````typescript
-"use server";
-
 /**
- * Organization Core Server Actions — thin adapter: Server Actions → Application Use Cases.
- * Covers: org lifecycle (create, update settings, delete).
+ * OrganizationRepository — Port for organization persistence.
+ * Domain defines the interface; Infrastructure implements it.
  */
 
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { InviteMemberInput } from "../../domain/entities/Organization";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../../application/use-cases/organization-policy.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
 import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
+  OrganizationEntity,
+  InviteMemberInput,
   UpdateMemberRoleInput,
   CreateTeamInput,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  MemberReference,
+  Team,
+  PartnerInvite,
+} from "../entities/Organization";
+
+export type Unsubscribe = () => void;
+
+export interface OrganizationRepository {
+  // ─── Org Lifecycle ─────────────────────────────────────────────────────────
+  create(command: CreateOrganizationCommand): Promise<string>;
+  findById(id: string): Promise<OrganizationEntity | null>;
+  save(org: OrganizationEntity): Promise<void>;
+  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
+  delete(organizationId: string): Promise<void>;
+
+  // ─── Members ───────────────────────────────────────────────────────────────
+  inviteMember(input: InviteMemberInput): Promise<string>;
+  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
+  removeMember(organizationId: string, memberId: string): Promise<void>;
+  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
+  getMembers(organizationId: string): Promise<MemberReference[]>;
+  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
+
+  // ─── Teams ─────────────────────────────────────────────────────────────────
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
+
+  // ─── Partners ──────────────────────────────────────────────────────────────
+  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
+  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
+}
+````
+
+## File: modules/organization/domain/repositories/OrgPolicyRepository.ts
+````typescript
+/**
+ * OrgPolicyRepository — Port for org-policy persistence.
+ *
+ * OrgPolicy lives in a top-level Firestore collection (`orgPolicies`) that is
+ * independent of the `organizations` collection.  Per IDDD, each aggregate root
+ * owns its own repository port.  Policy is therefore separated here from
+ * {@link OrganizationRepository}.
+ */
+
+import type {
+  OrgPolicy,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../entities/Organization";
+
+export interface OrgPolicyRepository {
+  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
+  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
+  deletePolicy(policyId: string): Promise<void>;
+  getPolicies(orgId: string): Promise<OrgPolicy[]>;
+}
+````
+
+## File: modules/organization/infrastructure/firebase/FirebaseOrgPolicyRepository.ts
+````typescript
+/**
+ * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
+ * Implements the OrgPolicyRepository port.
+ *
+ * OrgPolicy is a separate aggregate that lives in the top-level `orgPolicies`
+ * Firestore collection, independent of the `organizations` collection.
+ * Per IDDD, this warrants its own repository.
+ */
+
+import {
+  getFirestore,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type {
+  OrgPolicy,
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
 } from "../../domain/entities/Organization";
+import { toOrgPolicy } from "./organization-mappers";
+
+export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
+    const now = new Date().toISOString();
+    const ref = await addDoc(collection(this.db, "orgPolicies"), {
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      _createdAt: serverTimestamp(),
+    });
+    return {
+      id: ref.id,
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+      _updatedAt: serverTimestamp(),
+    };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.rules !== undefined) updates.rules = data.rules;
+    if (data.scope !== undefined) updates.scope = data.scope;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
+  }
+
+  async deletePolicy(policyId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "orgPolicies", policyId));
+  }
+
+  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
+    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/organization/interfaces/queries/organization.queries.ts
+````typescript
+/**
+ * Organization Read Queries — thin wrappers for real-time subscription and one-shot reads.
+ * Callable from React components/hooks, NOT server actions.
+ */
+
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
+import type { MemberReference, Team, PartnerInvite, OrgPolicy } from "../../domain/entities/Organization";
+import type { Unsubscribe } from "../../domain/repositories/OrganizationRepository";
 
 const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── Org Lifecycle ────────────────────────────────────────────────────────────
-
-export async function createOrganization(
-  command: CreateOrganizationCommand,
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createOrganizationWithTeam(
-  command: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
-  } catch (err) {
-    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrganizationSettings(
-  command: UpdateOrganizationSettingsCommand,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
+const policyRepo = new FirebaseOrgPolicyRepository();
 
 // ─── Members ─────────────────────────────────────────────────────────────────
 
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try {
-    return await new InviteMemberUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return orgRepo.getMembers(organizationId);
 }
 
-export async function recruitMember(
+export function subscribeToOrganizationMembers(
   organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
-  } catch (err) {
-    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissMember(
-  organizationId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try {
-    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (members: MemberReference[]) => void,
+): Unsubscribe {
+  return orgRepo.subscribeToMembers(organizationId, onUpdate);
 }
 
 // ─── Teams ───────────────────────────────────────────────────────────────────
 
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try {
-    return await new CreateTeamUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return orgRepo.getTeams(organizationId);
 }
 
-export async function deleteTeam(
+export function subscribeToOrganizationTeams(
   organizationId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try {
-    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+  onUpdate: (teams: Team[]) => void,
+): Unsubscribe {
+  return orgRepo.subscribeToTeams(organizationId, onUpdate);
 }
 
 // ─── Partners ─────────────────────────────────────────────────────────────────
 
-export async function createPartnerGroup(
-  organizationId: string,
-  groupName: string,
-): Promise<CommandResult> {
-  try {
-    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
-  } catch (err) {
-    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
-  } catch (err) {
-    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+  return orgRepo.getPartnerInvites(organizationId);
 }
 
 // ─── Policy ───────────────────────────────────────────────────────────────────
 
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try {
-    return await new CreateOrgPolicyUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrgPolicy(
-  policyId: string,
-  data: UpdateOrgPolicyInput,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrgPolicyUseCase(orgRepo).execute(policyId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrgPolicyUseCase(orgRepo).execute(policyId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
+export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return policyRepo.getPolicies(orgId);
 }
 ````
 
@@ -55654,148 +53830,6 @@ export function RagView({
 }
 ````
 
-## File: modules/search/interfaces/hooks/useDocumentOperations.ts
-````typescript
-"use client";
-
-import { useState } from "react";
-import { toast } from "sonner";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import type { SourceLiveDocument as WikiLiveDocument } from "@/modules/source/api";
-
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-
-interface UseDocumentOperationsOptions {
-  readonly activeAccountId: string;
-  readonly appendLog: (message: string) => void;
-}
-
-interface UseDocumentOperationsResult {
-  readonly deletingId: string | null;
-  readonly renamingId: string | null;
-  readonly handleDelete: (doc: WikiLiveDocument) => Promise<void>;
-  readonly handleRename: (doc: WikiLiveDocument) => Promise<void>;
-  readonly handleViewOriginal: (doc: WikiLiveDocument) => Promise<void>;
-}
-
-export function useDocumentOperations({
-  activeAccountId,
-  appendLog,
-}: UseDocumentOperationsOptions): UseDocumentOperationsResult {
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-
-  async function handleDelete(doc: WikiLiveDocument) {
-    if (!activeAccountId) return;
-    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
-
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      if (doc.sourceGcsUri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.sourceGcsUri)); } catch { /* not-found */ }
-      }
-      if (doc.jsonGcsUri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.jsonGcsUri)); } catch { /* not-found */ }
-      }
-      const db = getFirebaseFirestore();
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
-      toast.success("文件已刪除");
-      appendLog(`刪除文件：${doc.filename}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("刪除失敗");
-      appendLog(`刪除失敗：${doc.filename}`);
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleRename(doc: WikiLiveDocument) {
-    if (!activeAccountId) { toast.error("目前沒有 active account，無法更名"); return; }
-    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
-    if (!nextName || nextName === doc.filename) return;
-
-    setRenamingId(doc.id);
-    try {
-      const db = getFirebaseFirestore();
-      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), {
-        title: nextName,
-        "source.filename": nextName,
-        "metadata.filename": nextName,
-        updatedAt: firestoreApi.serverTimestamp(),
-      });
-      toast.success("文件名稱已更新");
-      appendLog(`更名文件：${doc.filename} -> ${nextName}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("更名失敗");
-      appendLog(`更名失敗：${doc.filename}`);
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  async function handleViewOriginal(doc: WikiLiveDocument) {
-    if (!doc.sourceGcsUri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
-      window.open(url, "_blank", "noopener,noreferrer");
-      appendLog(`開啟原始檔：${doc.filename}`);
-    } catch (error) {
-      console.error(error);
-      toast.error("無法開啟原始檔");
-      appendLog(`開啟原始檔失敗：${doc.filename}`);
-    }
-  }
-
-  return { deletingId, renamingId, handleDelete, handleRename, handleViewOriginal };
-}
-````
-
-## File: modules/search/README.md
-````markdown
-# search — 語意檢索上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/search/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`search` 是 NotebookLM-like 推理層的檢索核心，負責從向量索引與知識內容中擷取最相關的引用材料，為摘要、問答與洞察建立可追溯的語意上下文。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 向量檢索 | 執行語意相似度搜尋與結果排序 |
-| RAG Answer 組合 | 組合 retrieved chunks、引用與答案內容 |
-| 反饋收集 | 記錄 RagQueryFeedback 以改進檢索品質 |
-
-## 與其他 Bounded Context 協作
-
-- `ai` 提供索引就緒資料；`notebook` 是主要消費者。
-- `knowledge` 與 `knowledge-base` 提供被檢索的知識主體與結構資訊。
-
-## 核心聚合 / 核心概念
-
-- **`RagQuery`**
-- **`RagQueryFeedback`**
-- **`VectorStore`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/search/repositories.md
 ````markdown
 # search — Repositories
@@ -56038,6 +54072,29 @@ export function createKnowledgePageCreatedEvent(
 }
 ````
 
+## File: modules/shared/domain/slug-utils.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+
+import { deriveSlugCandidate, isValidSlug } from "./slug-utils";
+
+describe("slug-utils", () => {
+  it("normalizes display names into slug candidates", () => {
+    expect(deriveSlugCandidate("Hello__World / 測試")).toBe("hello-world");
+  });
+
+  it("caps slug candidates at 63 characters", () => {
+    expect(deriveSlugCandidate("a".repeat(80))).toHaveLength(63);
+  });
+
+  it("accepts valid slugs and rejects malformed ones", () => {
+    expect(isValidSlug("team-space-01")).toBe(true);
+    expect(isValidSlug("ab")).toBe(false);
+    expect(isValidSlug("-team-space")).toBe(false);
+  });
+});
+````
+
 ## File: modules/shared/infrastructure/InMemoryEventStoreRepository.ts
 ````typescript
 /**
@@ -56202,6 +54259,115 @@ export class QStashEventBusRepository implements IEventBusRepository {
 - `../../../modules/shared/aggregates.md`
 ````
 
+## File: modules/source/api/index.ts
+````typescript
+/**
+ * Module: source
+ * Layer: api/barrel
+ * Purpose: Public cross-module API boundary for the source domain.
+ *
+ * Other modules MUST import from here — never from domain/, application/,
+ * infrastructure/, or interfaces/ directly.
+ */
+
+// --- Core entity types -------------------------------------------------------
+
+export type { File, FileStatus } from "../domain/entities/File";
+export type { FileVersion, FileVersionStatus } from "../domain/entities/FileVersion";
+
+// --- Wiki library entity types (owned by source domain) -------------------
+
+export type {
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryFieldType,
+  WikiLibraryRow,
+  WikiLibraryStatus,
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+} from "../domain/entities/wiki-library.types";
+
+// --- Wiki library use-cases ------------------------------------------------
+
+import { FirebaseWikiLibraryRepository } from "../infrastructure/firebase/FirebaseWikiLibraryRepository";
+import {
+  addWikiLibraryField as _addWikiLibraryField,
+  createWikiLibrary as _createWikiLibrary,
+  createWikiLibraryRow as _createWikiLibraryRow,
+  getWikiLibrarySnapshot as _getWikiLibrarySnapshot,
+  listWikiLibraries as _listWikiLibraries,
+} from "../application/use-cases/wiki-libraries.use-case";
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../domain/entities/wiki-library.types";
+import type { WikiLibrarySnapshot } from "../application/use-cases/wiki-libraries.use-case";
+
+export type { WikiLibrarySnapshot };
+
+const _defaultLibraryRepository = new FirebaseWikiLibraryRepository();
+
+export function addWikiLibraryField(input: AddWikiLibraryFieldInput): Promise<WikiLibraryField> {
+  return _addWikiLibraryField(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibrary(input: CreateWikiLibraryInput): Promise<WikiLibrary> {
+  return _createWikiLibrary(input, _defaultLibraryRepository);
+}
+
+export function createWikiLibraryRow(input: CreateWikiLibraryRowInput): Promise<WikiLibraryRow> {
+  return _createWikiLibraryRow(input, _defaultLibraryRepository);
+}
+
+export function getWikiLibrarySnapshot(accountId: string, libraryId: string): Promise<WikiLibrarySnapshot> {
+  return _getWikiLibrarySnapshot(accountId, libraryId, _defaultLibraryRepository);
+}
+
+export function listWikiLibraries(accountId: string, workspaceId?: string): Promise<WikiLibrary[]> {
+  return _listWikiLibraries(accountId, workspaceId, _defaultLibraryRepository);
+}
+
+// --- Document snapshot types --------------------------------------------------
+
+export type {
+  SourceDocument,
+  SourceLiveDocument,
+  AssetDocument,
+  AssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+export {
+  useDocumentsSnapshot,
+  mapToSourceLiveDocument,
+  mapToAssetLiveDocument,
+} from "../interfaces/hooks/useDocumentsSnapshot";
+
+// --- Query functions ---------------------------------------------------------
+
+export { getWorkspaceFiles } from "../interfaces/queries/file.queries";
+
+// --- Server actions ----------------------------------------------------------
+
+export {
+  uploadInitFile,
+  uploadCompleteFile,
+  registerUploadedRagDocument,
+  deleteSourceDocument,
+  renameSourceDocument,
+} from "../interfaces/_actions/file.actions";
+
+// --- UI components (cross-module public) -------------------------------------
+
+export { WorkspaceFilesTab } from "../interfaces/components/WorkspaceFilesTab";
+export { SourceDocumentsView } from "../interfaces/components/SourceDocumentsView";
+export { LibrariesView } from "../interfaces/components/LibrariesView";
+export { LibraryTableView } from "../interfaces/components/LibraryTableView";
+````
+
 ## File: modules/source/domain-services.md
 ````markdown
 # source — Domain Services
@@ -56227,6 +54393,145 @@ export class QStashEventBusRepository implements IEventBusRepository {
 
 - `../../../modules/source/domain-services.md`
 - `../../../modules/source/aggregates.md`
+````
+
+## File: modules/source/interfaces/_actions/file.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type {
+  UploadCompleteFileInputDto,
+  UploadCompleteFileOutputDto,
+  UploadInitFileInputDto,
+  UploadInitFileOutputDto,
+} from "../../application/dto/file.dto";
+import type {
+  RegisterUploadedRagDocumentInputDto,
+  RegisterUploadedRagDocumentResult,
+} from "../../application/dto/rag-document.dto";
+import { RegisterUploadedRagDocumentUseCase } from "../../application/use-cases/register-uploaded-rag-document.use-case";
+import { UploadCompleteFileUseCase } from "../../application/use-cases/upload-complete-file.use-case";
+import { UploadInitFileUseCase } from "../../application/use-cases/upload-init-file.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import { KnowledgeIngestionApi } from "@/modules/ai/api";
+import type { FileCommandResult } from "../contracts/file-command-result";
+import { deleteDoc, doc, getFirestore, serverTimestamp, updateDoc } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+
+const knowledgeIngestionApi = new KnowledgeIngestionApi();
+
+function createCommandId(idempotencyKey?: string) {
+  const normalized = idempotencyKey?.trim();
+  if (normalized) {
+    return normalized;
+  }
+
+  return `file-upload-init-${crypto.randomUUID()}`;
+}
+
+export async function uploadInitFile(
+  input: UploadInitFileInputDto,
+): Promise<FileCommandResult<UploadInitFileOutputDto>> {
+  const commandId = createCommandId(input.idempotencyKey);
+  const useCase = new UploadInitFileUseCase(new FirebaseFileRepository());
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function uploadCompleteFile(
+  input: UploadCompleteFileInputDto,
+): Promise<FileCommandResult<UploadCompleteFileOutputDto>> {
+  const fileRepository = new FirebaseFileRepository();
+  const useCase = new UploadCompleteFileUseCase(
+    fileRepository,
+    new FirebaseRagDocumentRepository(),
+  );
+  const commandId = createCommandId(input.versionId);
+  const result = await useCase.execute(input);
+
+  // Best-effort handoff: upload completion can proceed even if ingestion registration fails.
+  if (result.ok) {
+    const file = await fileRepository.findById(input.fileId);
+
+    const registration = await knowledgeIngestionApi.registerDocument({
+      organizationId: input.organizationId,
+      workspaceId: input.workspaceId,
+      sourceFileId: input.fileId,
+      title: file?.name ?? `uploaded-file-${input.fileId}`,
+      mimeType: file?.mimeType ?? "application/octet-stream",
+    });
+
+    if (!registration.ok && process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[uploadCompleteFile] Knowledge ingestion registration failed:",
+        registration.error.code,
+        registration.error.message,
+      );
+    }
+  }
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function registerUploadedRagDocument(
+  input: RegisterUploadedRagDocumentInputDto,
+): Promise<RegisterUploadedRagDocumentResult> {
+  const useCase = new RegisterUploadedRagDocumentUseCase(new FirebaseRagDocumentRepository());
+  const commandId = createCommandId(input.storagePath);
+  const result = await useCase.execute(input);
+
+  return {
+    ...result,
+    commandId,
+  };
+}
+
+export async function deleteSourceDocument(
+  accountId: string,
+  documentId: string,
+): Promise<CommandResult> {
+  if (!accountId.trim() || !documentId.trim()) {
+    return commandFailureFrom("SOURCE_DOCUMENT_INVALID_INPUT", "accountId and documentId are required.");
+  }
+  try {
+    const db = getFirestore(firebaseClientApp);
+    await deleteDoc(doc(db, "accounts", accountId, "documents", documentId));
+    return commandSuccess(documentId, Date.now());
+  } catch (err) {
+    return commandFailureFrom("SOURCE_DOCUMENT_DELETE_FAILED", err instanceof Error ? err.message : "Delete failed.");
+  }
+}
+
+export async function renameSourceDocument(
+  accountId: string,
+  documentId: string,
+  newName: string,
+): Promise<CommandResult> {
+  if (!accountId.trim() || !documentId.trim() || !newName.trim()) {
+    return commandFailureFrom("SOURCE_DOCUMENT_INVALID_INPUT", "accountId, documentId and newName are required.");
+  }
+  try {
+    const db = getFirestore(firebaseClientApp);
+    await updateDoc(doc(db, "accounts", accountId, "documents", documentId), {
+      title: newName,
+      "source.filename": newName,
+      "metadata.filename": newName,
+      updatedAt: serverTimestamp(),
+    });
+    return commandSuccess(documentId, Date.now());
+  } catch (err) {
+    return commandFailureFrom("SOURCE_DOCUMENT_RENAME_FAILED", err instanceof Error ? err.message : "Rename failed.");
+  }
+}
 ````
 
 ## File: modules/source/interfaces/components/source-document-row.tsx
@@ -56362,271 +54667,6 @@ export function RagBadge({ doc }: { doc: SourceLiveDocument }) {
 }
 ````
 
-## File: modules/source/interfaces/components/SourceDocumentsView.tsx
-````typescript
-"use client";
-
-import { useRef, useState } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { toast } from "sonner";
-
-import { useApp } from "@/app/providers/app-provider";
-import { firestoreApi, getFirebaseFirestore } from "@integration-firebase/firestore";
-import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
-import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
-import { SourceDocumentRow } from "./source-document-row";
-
-const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
-const WATCH_PATH = "uploads/";
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif/.tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg/.jpeg",
-};
-const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-
-interface SourceDocumentsViewProps {
-  readonly workspaceId?: string;
-}
-
-/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
-export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
-  const { state: appState } = useApp();
-  const activeAccountId = appState.activeAccount?.id ?? "";
-  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
-
-  const { docs, loading, pendingDocs, addPending } = useDocumentsSnapshot(
-    activeAccountId,
-    effectiveWorkspaceId || undefined,
-  );
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [dragging, setDragging] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const allDocs = [
-    ...pendingDocs,
-    ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id)),
-  ].sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
-
-  function handleFileChange(file: File | null) {
-    if (!file) { setSelectedFile(null); return; }
-    if (!(file.type in ACCEPTED_MIME)) {
-      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setSelectedFile(file);
-  }
-
-  async function handleUpload() {
-    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
-    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
-
-    const ext = selectedFile.name.includes(".") ? `.${selectedFile.name.split(".").pop() ?? ""}` : "";
-    const docId = crypto.randomUUID();
-    const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
-
-    setUploading(true);
-    addPending({ id: docId, filename: selectedFile.name, workspaceId: effectiveWorkspaceId, sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`, jsonGcsUri: "", pageCount: 0, status: "processing", ragStatus: "", uploadedAt: new Date(), errorMessage: "", ragError: "", isClientPending: true });
-
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const fileRef = storageApi.ref(storage, uploadPath);
-      const customMetadata: Record<string, string> = { account_id: activeAccountId, filename: selectedFile.name, original_filename: selectedFile.name, display_name: selectedFile.name };
-      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
-      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
-      toast.success("上傳成功，背景已開始解析與入庫");
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } catch (error) {
-      console.error(error);
-      toast.error("上傳失敗");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function handleDelete(doc: SourceLiveDocument) {
-    if (!activeAccountId) return;
-    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
-    setDeletingId(doc.id);
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      for (const uri of [doc.sourceGcsUri, doc.jsonGcsUri].filter(Boolean)) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
-      }
-      const db = getFirebaseFirestore();
-      await firestoreApi.deleteDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id));
-      toast.success("文件已刪除");
-    } catch (error) {
-      console.error(error);
-      toast.error("刪除失敗");
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  async function handleRename(doc: SourceLiveDocument) {
-    if (!activeAccountId) return;
-    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
-    if (!nextName || nextName === doc.filename) return;
-    setRenamingId(doc.id);
-    try {
-      const db = getFirebaseFirestore();
-      await firestoreApi.updateDoc(firestoreApi.doc(db, "accounts", activeAccountId, "documents", doc.id), { title: nextName, "source.filename": nextName, "metadata.filename": nextName, updatedAt: firestoreApi.serverTimestamp() });
-      toast.success("文件名稱已更新");
-    } catch (error) {
-      console.error(error);
-      toast.error("更名失敗");
-    } finally {
-      setRenamingId(null);
-    }
-  }
-
-  async function handleViewOriginal(doc: SourceLiveDocument) {
-    if (!doc.sourceGcsUri) return;
-    try {
-      const storage = getFirebaseStorage(UPLOAD_BUCKET);
-      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
-      window.open(url, "_blank", "noopener,noreferrer");
-    } catch (error) {
-      console.error(error);
-      toast.error("無法開啟原始檔");
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Upload File</CardTitle>
-          <CardDescription>
-            {effectiveWorkspaceId ? `拖曳或選擇檔案上傳到 workspace：${effectiveWorkspaceId}` : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <label
-            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-            onDragLeave={() => setDragging(false)}
-            onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileChange(e.dataTransfer.files?.[0] ?? null); }}
-            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"}`}
-          >
-            <FileUp className="size-7 text-muted-foreground" />
-            <div className="text-center">
-              <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
-              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-            </div>
-            <input ref={fileInputRef} type="file" accept={Object.keys(ACCEPTED_MIME).join(",")} className="sr-only" onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
-          </label>
-          <div className="flex items-center gap-2">
-            <Button onClick={() => void handleUpload()} disabled={uploading || !selectedFile || !activeAccountId}>
-              {uploading && <Loader2 className="mr-2 size-4 animate-spin" />}
-              {uploading ? "上傳中..." : "上傳並啟動解析"}
-            </Button>
-            <Button variant="outline" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} disabled={uploading}>
-              清除
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>文件列表</CardTitle>
-          <CardDescription>
-            {effectiveWorkspaceId ? `workspace: ${effectiveWorkspaceId} — ${allDocs.length} 筆` : `account 全覽 — ${allDocs.length} 筆`}（即時更新）
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
-              <thead>
-                <tr className="border-b border-border/60 bg-muted/40">
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
-                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
-                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading && allDocs.length === 0 ? (
-                  <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">讀取中...</td></tr>
-                ) : allDocs.length === 0 ? (
-                  <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">目前沒有文件，試著上傳第一份檔案 ↑</td></tr>
-                ) : (
-                  allDocs.map((doc) => (
-                    <SourceDocumentRow
-                      key={doc.id}
-                      doc={doc}
-                      deletingId={deletingId}
-                      renamingId={renamingId}
-                      onDelete={() => void handleDelete(doc)}
-                      onRename={() => void handleRename(doc)}
-                      onViewOriginal={() => void handleViewOriginal(doc)}
-                    />
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: modules/source/README.md
-````markdown
-# source — 文件來源上下文
-
-> **Domain Type:** Supporting Subdomain（支援域）  
-> **模組路徑:** `modules/source/`  
-> **開發狀態:** 🚧 Developing
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`source` 是 Knowledge Platform 的文件入口，承接 Notion-like 內容系統之外的外部文件、附件與來源治理。它負責讓知識進入平台，並安全地交給 `ai` 攝入管線處理。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 來源文件生命週期 | 管理上傳初始化、上傳完成、版本快照與保留政策 |
-| 來源集合管理 | 維護文件集合、library 與 workspace 範圍的來源視圖 |
-| 攝入交接 | 把已完成上傳的來源資料交付 `ai` 進入攝入流程 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供來源文件的歸屬邊界；`knowledge` 可能引用或轉寫來源內容。
-- `ai` 接收來源文件並建立 ingestion job；`knowledge-base` 與 `search` 最終消費來源衍生的結構與索引。
-
-## 核心聚合 / 核心概念
-
-- **`SourceDocument`**
-- **`SourceCollection`**
-- **`WikiLibrary`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
 ## File: modules/source/repositories.md
 ````markdown
 # source — Repositories
@@ -56660,6 +54700,17 @@ export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
 
 - `../../../modules/source/repositories.md`
 - `../../../modules/source/aggregates.md`
+````
+
+## File: modules/subdomains.md
+````markdown
+# Modules Subdomains（Canonical Link）
+
+本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+
+- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
+- 若需調整子域分類內容，請只編輯 canonical 檔案。
+- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
 ````
 
 ## File: modules/workspace-audit/domain-services.md
@@ -59930,110 +57981,6 @@ export function userId(raw: string): UserId {
 }
 ````
 
-## File: modules/workspace-flow/index.ts
-````typescript
-/**
- * @module workspace-flow
- * @file index.ts
- * @description Local module barrel for workspace-flow.
- *
- * This file is for same-module convenience only.
- * Cross-module consumers MUST import from @/modules/workspace-flow/api instead.
- *
- * @author workspace-flow
- * @since 2026-03-24
- */
-
-// ── Domain: entities ──────────────────────────────────────────────────────────
-export type { Task, CreateTaskInput, UpdateTaskInput } from "./domain/entities/Task";
-export type { Issue, OpenIssueInput, UpdateIssueInput } from "./domain/entities/Issue";
-export type { Invoice, CreateInvoiceInput } from "./domain/entities/Invoice";
-export type { InvoiceItem, AddInvoiceItemInput } from "./domain/entities/InvoiceItem";
-
-// ── Domain: value objects (enum lists only — no XState helpers) ───────────────
-export type { TaskStatus } from "./domain/value-objects/TaskStatus";
-export { TASK_STATUSES } from "./domain/value-objects/TaskStatus";
-
-export type { IssueStatus } from "./domain/value-objects/IssueStatus";
-export { ISSUE_STATUSES } from "./domain/value-objects/IssueStatus";
-
-export type { IssueStage } from "./domain/value-objects/IssueStage";
-export { ISSUE_STAGES } from "./domain/value-objects/IssueStage";
-
-export type { InvoiceStatus } from "./domain/value-objects/InvoiceStatus";
-export { INVOICE_STATUSES } from "./domain/value-objects/InvoiceStatus";
-
-// ── Domain: repository interfaces ─────────────────────────────────────────────
-export type { TaskRepository } from "./domain/repositories/TaskRepository";
-export type { IssueRepository } from "./domain/repositories/IssueRepository";
-export type { InvoiceRepository } from "./domain/repositories/InvoiceRepository";
-
-// ── Domain: events ────────────────────────────────────────────────────────────
-export type { TaskEvent } from "./domain/events/TaskEvent";
-export type { IssueEvent } from "./domain/events/IssueEvent";
-export type { InvoiceEvent } from "./domain/events/InvoiceEvent";
-
-// ── Application: DTOs ─────────────────────────────────────────────────────────
-export type { CreateTaskDto } from "./application/dto/create-task.dto";
-export type { UpdateTaskDto } from "./application/dto/update-task.dto";
-export type { OpenIssueDto } from "./application/dto/open-issue.dto";
-export type { ResolveIssueDto } from "./application/dto/resolve-issue.dto";
-export type { AddInvoiceItemDto } from "./application/dto/add-invoice-item.dto";
-export type { UpdateInvoiceItemDto } from "./application/dto/update-invoice-item.dto";
-export type { RemoveInvoiceItemDto } from "./application/dto/remove-invoice-item.dto";
-export type { TaskQueryDto } from "./application/dto/task-query.dto";
-export type { IssueQueryDto } from "./application/dto/issue-query.dto";
-export type { InvoiceQueryDto } from "./application/dto/invoice-query.dto";
-export type { PaginationDto, PagedResult } from "./application/dto/pagination.dto";
-
-// ── API: Facade ───────────────────────────────────────────────────────────────
-export { WorkspaceFlowFacade } from "./api/workspace-flow.facade";
-
-// ── Infrastructure: repositories ──────────────────────────────────────────────
-export { FirebaseTaskRepository } from "./infrastructure/repositories/FirebaseTaskRepository";
-export { FirebaseIssueRepository } from "./infrastructure/repositories/FirebaseIssueRepository";
-export { FirebaseInvoiceRepository } from "./infrastructure/repositories/FirebaseInvoiceRepository";
-export { FirebaseInvoiceItemRepository } from "./infrastructure/repositories/FirebaseInvoiceItemRepository";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
-export {
-  wfCreateTask,
-  wfUpdateTask,
-  wfAssignTask,
-  wfSubmitTaskToQa,
-  wfPassTaskQa,
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfOpenIssue,
-  wfResolveIssue,
-  wfStartIssue,
-  wfFixIssue,
-  wfSubmitIssueRetest,
-  wfPassIssueRetest,
-  wfFailIssueRetest,
-  wfCloseIssue,
-  wfCreateInvoice,
-  wfAddInvoiceItem,
-  wfUpdateInvoiceItem,
-  wfRemoveInvoiceItem,
-  wfSubmitInvoice,
-  wfReviewInvoice,
-  wfApproveInvoice,
-  wfRejectInvoice,
-  wfPayInvoice,
-  wfCloseInvoice,
-} from "./interfaces/_actions/workspace-flow.actions";
-
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "./interfaces/queries/workspace-flow.queries";
-````
-
 ## File: modules/workspace-flow/infrastructure/firebase/invoice-item.converter.ts
 ````typescript
 /**
@@ -60788,1089 +58735,6 @@ export class FirebaseTaskRepository implements TaskRepository {
 }
 ````
 
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow.actions.ts
- * @description Server Actions for workspace-flow write operations.
- * @author workspace-flow
- * @since 2026-03-24
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { CreateTaskDto } from "../../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
-import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
-import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
-import { CreateTaskUseCase } from "../../application/use-cases/create-task.use-case";
-import { UpdateTaskUseCase } from "../../application/use-cases/update-task.use-case";
-import { AssignTaskUseCase } from "../../application/use-cases/assign-task.use-case";
-import { SubmitTaskToQaUseCase } from "../../application/use-cases/submit-task-to-qa.use-case";
-import { PassTaskQaUseCase } from "../../application/use-cases/pass-task-qa.use-case";
-import { ApproveTaskAcceptanceUseCase } from "../../application/use-cases/approve-task-acceptance.use-case";
-import { ArchiveTaskUseCase } from "../../application/use-cases/archive-task.use-case";
-import { OpenIssueUseCase } from "../../application/use-cases/open-issue.use-case";
-import { StartIssueUseCase } from "../../application/use-cases/start-issue.use-case";
-import { FixIssueUseCase } from "../../application/use-cases/fix-issue.use-case";
-import { SubmitIssueRetestUseCase } from "../../application/use-cases/submit-issue-retest.use-case";
-import { PassIssueRetestUseCase } from "../../application/use-cases/pass-issue-retest.use-case";
-import { FailIssueRetestUseCase } from "../../application/use-cases/fail-issue-retest.use-case";
-import { ResolveIssueUseCase } from "../../application/use-cases/resolve-issue.use-case";
-import { CloseIssueUseCase } from "../../application/use-cases/close-issue.use-case";
-import { CreateInvoiceUseCase } from "../../application/use-cases/create-invoice.use-case";
-import { AddInvoiceItemUseCase } from "../../application/use-cases/add-invoice-item.use-case";
-import { UpdateInvoiceItemUseCase } from "../../application/use-cases/update-invoice-item.use-case";
-import { RemoveInvoiceItemUseCase } from "../../application/use-cases/remove-invoice-item.use-case";
-import { SubmitInvoiceUseCase } from "../../application/use-cases/submit-invoice.use-case";
-import { ReviewInvoiceUseCase } from "../../application/use-cases/review-invoice.use-case";
-import { ApproveInvoiceUseCase } from "../../application/use-cases/approve-invoice.use-case";
-import { RejectInvoiceUseCase } from "../../application/use-cases/reject-invoice.use-case";
-import { PayInvoiceUseCase } from "../../application/use-cases/pay-invoice.use-case";
-import { CloseInvoiceUseCase } from "../../application/use-cases/close-invoice.use-case";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-
-// ── Repository factories ──────────────────────────────────────────────────────
-
-function makeTaskRepo() { return new FirebaseTaskRepository(); }
-function makeIssueRepo() { return new FirebaseIssueRepository(); }
-function makeInvoiceRepo() { return new FirebaseInvoiceRepository(); }
-
-// ── Task actions ──────────────────────────────────────────────────────────────
-
-export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
-  try {
-    return await new CreateTaskUseCase(makeTaskRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-  try {
-    return await new UpdateTaskUseCase(makeTaskRepo()).execute(taskId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-  try {
-    return await new AssignTaskUseCase(makeTaskRepo()).execute(taskId, assigneeId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await new SubmitTaskToQaUseCase(makeTaskRepo()).execute(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await new PassTaskQaUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
-  try {
-    return await new ApproveTaskAcceptanceUseCase(makeTaskRepo(), makeIssueRepo()).execute(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-  try {
-    return await new ArchiveTaskUseCase(makeTaskRepo()).execute(taskId, invoiceStatus);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ── Issue actions ─────────────────────────────────────────────────────────────
-
-export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
-  try {
-    return await new OpenIssueUseCase(makeIssueRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfStartIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await new StartIssueUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFixIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await new FixIssueUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await new SubmitIssueRetestUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await new PassIssueRetestUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await new FailIssueRetestUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-  try {
-    return await new ResolveIssueUseCase(makeIssueRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await new CloseIssueUseCase(makeIssueRepo()).execute(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-// ── Invoice actions ───────────────────────────────────────────────────────────
-
-export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
-  try {
-    return await new CreateInvoiceUseCase(makeInvoiceRepo()).execute(workspaceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await new AddInvoiceItemUseCase(makeInvoiceRepo()).execute(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await new UpdateInvoiceItemUseCase(makeInvoiceRepo()).execute(invoiceItemId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await new RemoveInvoiceItemUseCase(makeInvoiceRepo()).execute(dto.invoiceId, dto.invoiceItemId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new SubmitInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new ReviewInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new ApproveInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new RejectInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new PayInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await new CloseInvoiceUseCase(makeInvoiceRepo()).execute(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-import { wfAssignTask } from "../_actions/workspace-flow.actions";
-
-export interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-
-export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { wfCreateTask } from "../_actions/workspace-flow.actions";
-
-export interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-
-export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDateISO, setDueDateISO] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setDueDateISO("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入任務標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfCreateTask({
-        workspaceId,
-        title: t,
-        description: description.trim() || undefined,
-        assigneeId: assigneeId.trim() || undefined,
-        dueDateISO: dueDateISO || undefined,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立任務</DialogTitle>
-          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">標題 *</Label>
-            <Input
-              id="task-title"
-              placeholder="任務名稱"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-description">描述（選填）</Label>
-            <Textarea
-              id="task-description"
-              placeholder="任務詳情或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
-              <Input
-                id="task-assignee"
-                placeholder="用戶 ID"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="task-due">截止日期（選填）</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={dueDateISO}
-                onChange={(e) => setDueDateISO(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import {
-  wfApproveInvoice,
-  wfCloseInvoice,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfSubmitInvoice,
-} from "../_actions/workspace-flow.actions";
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatCurrency(amount: number): string {
-  try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
-  }
-}
-
-export interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import {
-  wfCloseIssue,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfPassIssueRetest,
-  wfStartIssue,
-  wfSubmitIssueRetest,
-} from "../_actions/workspace-flow.actions";
-
-export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-export interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-
-export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import { wfOpenIssue } from "../_actions/workspace-flow.actions";
-import { ISSUE_STAGE_LABEL } from "./IssueRow";
-
-export interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<IssueStage>("task");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setStage("task");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入議題標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfOpenIssue({
-        taskId,
-        stage,
-        title: t,
-        description: description.trim() || undefined,
-        createdBy: currentUserId,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>開啟議題</DialogTitle>
-          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-title">標題 *</Label>
-            <Input
-              id="issue-title"
-              placeholder="問題簡述"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-description">描述（選填）</Label>
-            <Textarea
-              id="issue-description"
-              placeholder="問題詳情、重現步驟…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>發生階段</Label>
-            <div className="flex gap-2">
-              {(["task", "qa", "acceptance"] as const).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={stage === s ? "default" : "outline"}
-                  onClick={() => setStage(s)}
-                  disabled={submitting}
-                >
-                  {ISSUE_STAGE_LABEL[s]}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
-````typescript
-"use client";
-
-import { useCallback, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import {
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfPassTaskQa,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
-import { AssignTaskDialog } from "./AssignTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { OpenIssueDialog } from "./OpenIssueDialog";
-
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
-
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-export interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
-
-export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoaded, setIssuesLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadIssues = useCallback(async () => {
-    try {
-      const data = await getWorkspaceFlowIssues(task.id);
-      setIssues(data);
-      setIssuesLoaded(true);
-    } catch {
-      // non-fatal
-    }
-  }, [task.id]);
-
-  async function toggleIssues() {
-    if (!issuesExpanded && !issuesLoaded) {
-      await loadIssues();
-    }
-    setIssuesExpanded((v) => !v);
-  }
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderTaskAction() {
-    switch (task.status) {
-      case "draft":
-        return (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
-            指派任務
-          </Button>
-        );
-      case "in_progress":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
-      case "qa":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
-      case "acceptance":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
-      case "accepted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
-      {/* ── Task header ─────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-          )}
-          {task.assigneeId && (
-            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
-          {task.dueDateISO && (
-            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── Action row ──────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {renderTaskAction()}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setIssueDialogOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          開議題
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground ml-auto"
-          onClick={toggleIssues}
-        >
-          {issuesExpanded ? (
-            <ChevronDown className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="mr-1 h-3.5 w-3.5" />
-          )}
-          議題{issuesLoaded ? ` (${issues.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Issues sub-list ─────────────────── */}
-      {issuesExpanded && (
-        <div className="space-y-2 pl-1">
-          {issues.length === 0 ? (
-            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
-          ) : (
-            issues.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                onTransitioned={loadIssues}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ── Dialogs ─────────────────────────── */}
-      <AssignTaskDialog
-        open={assignDialogOpen}
-        taskId={task.id}
-        onClose={() => setAssignDialogOpen(false)}
-        onDone={onTransitioned}
-      />
-      <OpenIssueDialog
-        open={issueDialogOpen}
-        taskId={task.id}
-        currentUserId={currentUserId}
-        onClose={() => setIssueDialogOpen(false)}
-        onCreated={async () => {
-          await loadIssues();
-          if (!issuesExpanded) setIssuesExpanded(true);
-        }}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace-flow/interfaces/contracts/workspace-flow.contract.ts
 ````typescript
 /**
@@ -62443,6 +59307,97 @@ export function describeGrant(grant: WorkspaceGrant): string {
 - `../../../modules/workspace/aggregates.md`
 ````
 
+## File: modules/workspace/interfaces/components/CreateWorkspaceDialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogProps {
+  readonly open: boolean;
+  readonly workspaceName: string;
+  readonly createError: string | null;
+  readonly isCreatingWorkspace: boolean;
+  readonly accountId: string | null | undefined;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly onWorkspaceNameChange: (name: string) => void;
+  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}
+
+export function CreateWorkspaceDialog({
+  open,
+  workspaceName,
+  createError,
+  isCreatingWorkspace,
+  accountId,
+  onOpenChange,
+  onWorkspaceNameChange,
+  onSubmit,
+}: CreateWorkspaceDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent aria-describedby="create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立工作區</DialogTitle>
+          <DialogDescription id="create-workspace-description">
+            建立後會直接出現在目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
+
+        <form className="space-y-4" onSubmit={onSubmit}>
+          <div className="space-y-2">
+            <label
+              className="text-sm font-medium text-foreground"
+              htmlFor="workspace-name"
+            >
+              工作區名稱
+            </label>
+            <Input
+              id="workspace-name"
+              value={workspaceName}
+              onChange={(event) => onWorkspaceNameChange(event.target.value)}
+              placeholder="例如：北區營運中心"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreatingWorkspace}
+              maxLength={80}
+            />
+            {createError && (
+              <p className="text-sm text-destructive">{createError}</p>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={isCreatingWorkspace}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
+              {isCreatingWorkspace ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceProductSpineCard.tsx
 ````typescript
 "use client";
@@ -62903,6 +59858,79 @@ export function WorkspaceSettingsDialog({
 }
 ````
 
+## File: modules/workspace/interfaces/hooks/useWorkspaceDetail.ts
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
+}
+
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+): UseWorkspaceDetailResult {
+  const router = useRouter();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
+
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
+
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          router.replace("/workspace?context=unavailable");
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId]);
+
+  return { workspace, loadState, setWorkspace };
+}
+````
+
 ## File: modules/workspace/interfaces/hooks/useWorkspaceSettingsSave.ts
 ````typescript
 "use client";
@@ -63216,6 +60244,27 @@ type Graph2dClass = typeof Graph2dType;
 
 export type TimelineOptions = InstanceType<TimelineClass> extends { setOptions(opts: infer T): void } ? T : never;
 export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opts: infer T): void } ? T : never;
+````
+
+## File: packages/shared-utils/index.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+
+import { cn, formatDate, generateId } from "./index";
+
+describe("shared-utils", () => {
+  it("formats dates as YYYY-MM-DD", () => {
+    expect(formatDate(new Date("2026-04-06T15:20:30.000Z"))).toBe("2026-04-06");
+  });
+
+  it("merges tailwind class conflicts deterministically", () => {
+    expect(cn("px-2", ["text-sm", undefined], "px-4")).toBe("text-sm px-4");
+  });
+
+  it("generates UUID-shaped ids", () => {
+    expect(generateId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+  });
+});
 ````
 
 ## File: packages/ui-shadcn/ui/input-group.tsx
@@ -63795,6 +60844,81 @@ export const VisTimeline: FC<VisTimelineProps> = ({
 export default VisTimeline;
 ````
 
+## File: py_fn/requirements-dev.txt
+````
+-r requirements.txt
+pytest>=8.3.0,<9.0.0
+````
+
+## File: README.md
+````markdown
+# Xuanwu App
+
+Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
+
+The system is built as a modular monolith with Module-Driven Domain Design. `knowledge` and `knowledge-base` are the core domains: `knowledge` owns the Notion-like content lifecycle, while `knowledge-base` owns organization-grade wiki, SOP, and article assets. `workspace` and `organization` provide collaboration and governance boundaries. `source` plus integration adapters form the anti-corruption boundary for external content. `ai`, `search`, and `notebook` provide ingestion, retrieval, reasoning, and research workflows on top of that knowledge base.
+
+## Product Capabilities
+
+- Knowledge pages, block-based editing, versioning, and approval
+- Organizational knowledge-base articles, categories, and verification workflows
+- Structured databases with records, schema, and multi-view exploration
+- External document/source ingestion with workspace-scoped governance
+- Ask/Cite, retrieval, summarization, and notebook-style knowledge generation
+- Workspace, organization, audit, feed, workflow, and scheduling support for execution
+
+## Architecture At A Glance
+
+- Architecture style: Modular Monolith + Module-Driven Domain Design
+- Boundary model: bounded contexts with local ubiquitous language and domain model ownership
+- Cross-context collaboration: public `api/` surfaces and published domain events
+- Runtime split:
+	- `Next.js` owns UI, auth/session orchestration, route composition, and server-side application flow
+	- `py_fn/` owns parsing, chunking, embedding, and worker-style ingestion tasks
+- Anti-corruption boundary: external systems are translated through source workflows and infrastructure adapters before entering core domains
+
+## Current Domain Shape
+
+- Core domains: `knowledge`, `knowledge-base`
+- Supporting domains: `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`
+- Generic domains: `identity`, `account`, `organization`, `workspace`, `notification`
+- Shared kernel: `shared`
+
+See [docs/ddd/subdomains.md](docs/ddd/subdomains.md) and [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md) for the canonical strategic map.
+
+## Documentation Entry Points
+
+- [docs/getting-started.md](docs/getting-started.md): local setup and validation flow
+- [docs/ddd/subdomains.md](docs/ddd/subdomains.md): strategic subdomain classification
+- [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md): bounded-context inventory
+- [docs/reference/specification/system-overview.md](docs/reference/specification/system-overview.md): system overview specification
+- [AGENTS.md](AGENTS.md): repository-wide operating rules and validation commands
+- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot workspace baseline
+
+## Development Quick Start
+
+```bash
+npm install
+npm run dev
+```
+
+Validation commands:
+
+```bash
+npm run lint
+npm run build
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Repository Notes
+
+- `modules/` contains bounded contexts and their local markdown reference sets
+- `docs/ddd/` contains strategic DDD entrypoints
+- `.github/` contains Copilot customizations, instructions, and repomix-generated skills
+- `docs/swarm.md`, `docs/beads.md`, and related files document internal AI delivery workflow, not the product surface itself
+````
+
 ## File: scripts/demo-flow.ts
 ````typescript
 /**
@@ -63848,772 +60972,81 @@ main().catch((err) => {
 });
 ````
 
-## File: scripts/init-framework.sh
-````bash
-#!/bin/bash
-# Claude Agentic Framework - Initialization Script
-# Usage: ./init-framework.sh [/path/to/your/project]
-
-set -e
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Repository URL for cloning when run via curl
-REPO_URL="https://github.com/dralgorhythm/claude-agentic-framework.git"
-
-# Determine framework source directory
-# When run via curl | bash, BASH_SOURCE[0] is not a valid file path
-if [ -f "${BASH_SOURCE[0]}" ]; then
-    # Running from local file
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-    FRAMEWORK_DIR="$( cd "$SCRIPT_DIR/.." && pwd )"
-    TEMP_CLONE=""
-else
-    # Running via curl | bash - need to clone the repo
-    echo "Downloading framework from repository..."
-    TEMP_CLONE="$(mktemp -d)"
-    git clone --depth 1 --quiet "$REPO_URL" "$TEMP_CLONE"
-    FRAMEWORK_DIR="$TEMP_CLONE"
-fi
-
-# Cleanup function for temp directory
-cleanup() {
-    if [ -n "$TEMP_CLONE" ] && [ -d "$TEMP_CLONE" ]; then
-        rm -rf "$TEMP_CLONE"
-    fi
-}
-trap cleanup EXIT
-
-# Target directory (default: current directory)
-TARGET_DIR="${1:-.}"
-TARGET_DIR="$(cd "$TARGET_DIR" 2>/dev/null && pwd || echo "$TARGET_DIR")"
-
-# Function to print colored output
-print_success() {
-    echo -e "${GREEN}✓${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}⚠${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}✗${NC} $1"
-}
-
-print_info() {
-    echo -e "${BLUE}ℹ${NC} $1"
-}
-
-# Function to prompt user for confirmation
-confirm() {
-    local prompt="$1"
-    local response
-    read -r -p "$prompt [y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            return 0
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
-
-# Function to show diff between two files
-show_file_diff() {
-    local existing="$1"
-    local new="$2"
-    local name="$3"
-
-    if command -v diff &>/dev/null; then
-        echo ""
-        echo -e "${BLUE}--- Diff for ${name} ---${NC}"
-        # Use color diff if available, otherwise plain diff
-        if diff --color=auto /dev/null /dev/null 2>/dev/null; then
-            diff --color=auto -u "$existing" "$new" 2>/dev/null || true
-        else
-            diff -u "$existing" "$new" 2>/dev/null || true
-        fi
-        echo -e "${BLUE}--- End diff ---${NC}"
-        echo ""
-    fi
-}
-
-# Function to show diff summary for directories
-show_dir_diff() {
-    local existing="$1"
-    local new="$2"
-    local name="$3"
-
-    if command -v diff &>/dev/null; then
-        echo ""
-        echo -e "${BLUE}--- Changes in ${name}/ ---${NC}"
-
-        # Show new files
-        local new_files
-        new_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $new" | sed "s|Only in $new[^:]*: |  + |" || true)
-        if [ -n "$new_files" ]; then
-            echo -e "${GREEN}New files:${NC}"
-            echo "$new_files"
-        fi
-
-        # Show removed files
-        local removed_files
-        removed_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "Only in $existing" | sed "s|Only in $existing[^:]*: |  - |" || true)
-        if [ -n "$removed_files" ]; then
-            echo -e "${RED}Files only in existing:${NC}"
-            echo "$removed_files"
-        fi
-
-        # Show modified files
-        local modified_files
-        modified_files=$(diff -rq "$existing" "$new" 2>/dev/null | grep "^Files .* differ$" | sed -E 's/Files (.*) and .* differ/  ~ \1/' || true)
-        if [ -n "$modified_files" ]; then
-            echo -e "${YELLOW}Modified files:${NC}"
-            echo "$modified_files"
-        fi
-
-        # Count changes
-        local total_changes
-        total_changes=$(diff -rq "$existing" "$new" 2>/dev/null | wc -l | tr -d ' ')
-        echo ""
-        echo "Total: $total_changes file(s) differ"
-        echo -e "${BLUE}--- End summary ---${NC}"
-        echo ""
-    fi
-}
-
-# Function to copy file with diff prompt
-copy_file_with_diff() {
-    local src="$1"
-    local dst="$2"
-    local name="$3"
-    local optional="${4:-false}"
-
-    if [ ! -f "$src" ]; then
-        if [ "$optional" = "true" ]; then
-            return 0
-        fi
-        print_error "Source file not found: $src"
-        return 1
-    fi
-
-    if [ -f "$dst" ]; then
-        # Check if files are identical
-        if diff -q "$dst" "$src" &>/dev/null; then
-            print_info "$name is already up to date"
-            return 0
-        fi
-
-        print_warning "$name already exists with differences"
-        show_file_diff "$dst" "$src" "$name"
-
-        if confirm "  Overwrite $name?"; then
-            cp "$src" "$dst"
-            print_success "$name updated"
-        else
-            print_info "Skipped $name"
-        fi
-    else
-        print_info "Copying $name..."
-        cp "$src" "$dst"
-        print_success "$name installed"
-    fi
-}
-
-# Function to copy directory with diff prompt
-copy_dir_with_diff() {
-    local src="$1"
-    local dst="$2"
-    local name="$3"
-    local optional="${4:-false}"
-
-    if [ ! -d "$src" ]; then
-        if [ "$optional" = "true" ]; then
-            return 0
-        fi
-        print_error "Source directory not found: $src"
-        return 1
-    fi
-
-    if [ -d "$dst" ]; then
-        # Check if directories are identical
-        if diff -rq "$dst" "$src" &>/dev/null; then
-            print_info "$name/ is already up to date"
-            return 0
-        fi
-
-        print_warning "$name/ already exists with differences"
-        show_dir_diff "$dst" "$src" "$name"
-
-        if confirm "  Overwrite $name/?"; then
-            rm -rf "$dst"
-            cp -r "$src" "$dst"
-            print_success "$name/ updated"
-        else
-            print_info "Skipped $name/"
-        fi
-    else
-        print_info "Copying $name/..."
-        cp -r "$src" "$dst"
-        print_success "$name/ installed"
-    fi
-}
-
-# Validate target directory
-if [ ! -d "$TARGET_DIR" ]; then
-    print_error "Target directory does not exist: $TARGET_DIR"
-    exit 1
-fi
-
-# Detect project name (prefer GitHub repo name, fallback to directory name)
-detect_project_name() {
-    local dir="$1"
-
-    # Try to get GitHub repo name from git remote
-    if [ -d "$dir/.git" ] || git -C "$dir" rev-parse --git-dir &>/dev/null; then
-        local remote_url
-        remote_url=$(git -C "$dir" remote get-url origin 2>/dev/null || echo "")
-
-        if [ -n "$remote_url" ]; then
-            # Extract repo name from various URL formats:
-            # https://github.com/user/repo.git -> repo
-            # git@github.com:user/repo.git -> repo
-            # https://github.com/user/repo -> repo
-            local repo_name
-            repo_name=$(echo "$remote_url" | sed -E 's#.*/([^/]+)(\.git)?$#\1#' | sed 's/\.git$//')
-
-            if [ -n "$repo_name" ]; then
-                echo "$repo_name"
-                return
-            fi
-        fi
-    fi
-
-    # Fallback to directory name
-    basename "$dir"
-}
-
-PROJECT_NAME="$(detect_project_name "$TARGET_DIR")"
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Claude Agentic Framework - Initialization"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-print_info "Framework source: $FRAMEWORK_DIR"
-print_info "Target directory: $TARGET_DIR"
-print_info "Project name: $PROJECT_NAME"
-echo ""
-
-# Copy core directories with diff support
-copy_dir_with_diff "$FRAMEWORK_DIR/.claude" "$TARGET_DIR/.claude" ".claude"
-
-# Create artifacts directory if it doesn't exist
-if [ ! -d "$TARGET_DIR/artifacts" ]; then
-    print_info "Creating artifacts directory..."
-    mkdir -p "$TARGET_DIR/artifacts"
-    print_success "artifacts directory created"
-else
-    print_info "artifacts directory already exists"
-fi
-
-# Copy config files with diff support
-copy_file_with_diff "$FRAMEWORK_DIR/.gitattributes" "$TARGET_DIR/.gitattributes" ".gitattributes"
-mkdir -p "$TARGET_DIR/.vscode"
-if [ -f "$FRAMEWORK_DIR/.vscode/mcp.json" ]; then
-    copy_file_with_diff "$FRAMEWORK_DIR/.vscode/mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
-elif [ -f "$FRAMEWORK_DIR/.mcp.json" ]; then
-    print_warning "Using legacy .mcp.json source; installing it as .vscode/mcp.json"
-    copy_file_with_diff "$FRAMEWORK_DIR/.mcp.json" "$TARGET_DIR/.vscode/mcp.json" ".vscode/mcp.json"
-else
-    print_warning "No MCP configuration file found in framework source"
-fi
-
-# Initialize Beads issue tracking (required for swarm coordination)
-if [ ! -d "$TARGET_DIR/.beads" ]; then
-    if command -v bd &>/dev/null; then
-        print_info "Initializing Beads issue tracking..."
-        if (cd "$TARGET_DIR" && bd init 2>/dev/null); then
-            print_success "Beads initialized"
-        else
-            print_warning "Beads initialization failed. Run 'bd init' manually for swarm coordination."
-        fi
-    else
-        print_warning "Beads CLI not found — required for swarm coordination"
-        print_info "  Install: curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-        print_info "  Then: cd $TARGET_DIR && bd init"
-    fi
-else
-    print_info ".beads/ already initialized"
-fi
-
-# Copy CLAUDE.md and AGENTS.md with diff support
-copy_file_with_diff "$FRAMEWORK_DIR/CLAUDE.md" "$TARGET_DIR/CLAUDE.md" "CLAUDE.md"
-copy_file_with_diff "$FRAMEWORK_DIR/AGENTS.md" "$TARGET_DIR/AGENTS.md" "AGENTS.md"
-
-# Copy README.md with diff support (optional for existing projects)
-if [ ! -f "$TARGET_DIR/README.md" ]; then
-    print_warning "README.md does not exist"
-    if confirm "  Create README.md from framework template?"; then
-        cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
-        print_success "README.md created"
-    else
-        print_info "Skipped README.md"
-    fi
-else
-    # Only show diff for README if user wants to see framework updates
-    if ! diff -q "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" &>/dev/null; then
-        print_info "README.md exists (differs from framework template)"
-        if confirm "  View diff and optionally update?"; then
-            show_file_diff "$TARGET_DIR/README.md" "$FRAMEWORK_DIR/README.md" "README.md"
-            if confirm "  Overwrite README.md with framework template?"; then
-                cp "$FRAMEWORK_DIR/README.md" "$TARGET_DIR/README.md"
-                print_success "README.md updated"
-            else
-                print_info "Kept existing README.md"
-            fi
-        else
-            print_info "Skipped README.md"
-        fi
-    else
-        print_info "README.md is already up to date"
-    fi
-fi
-
-# Create or update .gitignore (append mode for existing files)
-GITIGNORE_ENTRIES=(
-    "# Dependencies"
-    "node_modules/"
-    ".pnpm-store/"
-    "__pycache__/"
-    "*.pyc"
-    ".venv/"
-    "venv/"
-    "# Build outputs"
-    "dist/"
-    "build/"
-    "*.o"
-    "*.so"
-    "*.exe"
-    "# IDE"
-    ".vscode/"
-    ".idea/"
-    "*.swp"
-    "*.swo"
-    "*~"
-    "# OS"
-    ".DS_Store"
-    "Thumbs.db"
-    "# Environment"
-    ".env"
-    ".env.local"
-    "*.local"
-    "# Logs"
-    "*.log"
-    "npm-debug.log*"
-    "# Claude Framework"
-    "scratchpad/"
-)
-
-if [ ! -f "$TARGET_DIR/.gitignore" ]; then
-    print_warning ".gitignore does not exist"
-    if confirm "  Create basic .gitignore?"; then
-        printf '%s\n' "${GITIGNORE_ENTRIES[@]}" > "$TARGET_DIR/.gitignore"
-        print_success ".gitignore created"
-    else
-        print_info "Skipped .gitignore"
-    fi
-else
-    # Find missing entries (excluding comments)
-    MISSING_ENTRIES=()
-    for entry in "${GITIGNORE_ENTRIES[@]}"; do
-        # Skip comment lines for matching
-        if [[ "$entry" == \#* ]]; then
-            continue
-        fi
-        # Check if entry exists in current .gitignore (exact line match)
-        if ! grep -Fxq "$entry" "$TARGET_DIR/.gitignore" 2>/dev/null; then
-            MISSING_ENTRIES+=("$entry")
-        fi
-    done
-
-    if [ ${#MISSING_ENTRIES[@]} -eq 0 ]; then
-        print_info ".gitignore already contains all framework entries"
-    else
-        print_warning ".gitignore is missing ${#MISSING_ENTRIES[@]} framework entries"
-        echo ""
-        echo -e "${BLUE}--- Entries to append ---${NC}"
-        for entry in "${MISSING_ENTRIES[@]}"; do
-            echo -e "${GREEN}  + $entry${NC}"
-        done
-        echo -e "${BLUE}--- End entries ---${NC}"
-        echo ""
-
-        if confirm "  Append missing entries to .gitignore?"; then
-            # Add a blank line separator if file doesn't end with newline
-            if [ -s "$TARGET_DIR/.gitignore" ] && [ "$(tail -c1 "$TARGET_DIR/.gitignore" | wc -l)" -eq 0 ]; then
-                echo "" >> "$TARGET_DIR/.gitignore"
-            fi
-            # Add framework section header
-            echo "" >> "$TARGET_DIR/.gitignore"
-            echo "# Claude Agentic Framework" >> "$TARGET_DIR/.gitignore"
-            for entry in "${MISSING_ENTRIES[@]}"; do
-                echo "$entry" >> "$TARGET_DIR/.gitignore"
-            done
-            print_success ".gitignore updated (${#MISSING_ENTRIES[@]} entries appended)"
-        else
-            print_info "Kept existing .gitignore"
-        fi
-    fi
-fi
-
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-print_success "Framework initialization complete!"
-echo ""
-
-# Create hook runtime directories
-mkdir -p "$TARGET_DIR/.claude/hooks/.state" "$TARGET_DIR/.claude/hooks/.locks"
-print_success "Hook runtime directories created (.state, .locks)"
-
-# Make hook scripts executable
-if [ -d "$TARGET_DIR/.claude/hooks" ]; then
-    chmod +x "$TARGET_DIR/.claude/hooks"/*.sh 2>/dev/null || true
-    print_success "Hook scripts made executable"
-fi
-
-# Install hook dependencies if needed
-if [ -f "$TARGET_DIR/.claude/hooks/package.json" ]; then
-    print_info "Installing hook dependencies..."
-    echo ""
-
-    INSTALL_OK=false
-    if command -v pnpm &> /dev/null; then
-        (cd "$TARGET_DIR/.claude/hooks" && pnpm install --silent) && INSTALL_OK=true
-    elif command -v npm &> /dev/null; then
-        (cd "$TARGET_DIR/.claude/hooks" && npm install --silent) && INSTALL_OK=true
-    else
-        print_warning "Neither pnpm nor npm found - skipping dependency installation"
-        print_info "Install Node.js and run: cd .claude/hooks && npm install"
-    fi
-
-    if [ "$INSTALL_OK" = "true" ]; then
-        print_success "Hook dependencies installed"
-    fi
-
-    echo ""
-fi
-
-# Print next steps
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  Next Steps"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "1. Customize CLAUDE.md with your project-specific context"
-echo ""
-echo "2. Review tech strategy in .claude/rules/tech-strategy.md"
-echo "   Update to match your organization's standards"
-echo ""
-echo "3. Start using commands via slash commands:"
-echo "   /architect       - System design and ADRs"
-echo "   /builder         - Code implementation"
-echo "   /qa-engineer     - Test strategy and quality"
-echo "   /security-auditor - Security reviews"
-echo "   /ui-ux-designer  - Interface design"
-echo ""
-echo "   Swarm orchestration commands:"
-echo "   /swarm-plan      - Plan with parallel exploration"
-echo "   /swarm-execute   - Execute with parallel workers"
-echo "   /swarm-review    - Adversarial multi-perspective review"
-echo "   /swarm-research  - Deep investigation"
-echo "   /code-check      - SOLID, DRY, consistency audit"
-echo ""
-echo "4. If Beads was not initialized above, install it for swarm coordination:"
-echo "   curl -sSL https://raw.githubusercontent.com/steveyegge/beads/main/scripts/install.sh | bash"
-echo "   cd $TARGET_DIR && bd init"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-````
-
-## File: .github/instructions/README.md
-````markdown
-# Instructions Index
-
-Repository instruction index for `applyTo`-scoped Copilot rules.
-
-## DDD 戰略與戰術設計 (IDDD)
-
-- [ubiquitous-language.instructions.md](ubiquitous-language.instructions.md)
-- [bounded-context-rules.instructions.md](bounded-context-rules.instructions.md)
-- [domain-modeling.instructions.md](domain-modeling.instructions.md)
-- [event-driven-state.instructions.md](event-driven-state.instructions.md)
-
-## Architecture
-
-- [architecture-api-boundary.instructions.md](architecture-api-boundary.instructions.md)
-- [architecture-mddd.instructions.md](architecture-mddd.instructions.md)
-- [architecture-modules.instructions.md](architecture-modules.instructions.md)
-- [architecture-monorepo.instructions.md](architecture-monorepo.instructions.md)
-
-## Delivery Process
-
-- [branching-strategy.instructions.md](branching-strategy.instructions.md)
-- [ci-cd.instructions.md](ci-cd.instructions.md)
-- [commit-convention.instructions.md](commit-convention.instructions.md)
-- [lint-format.instructions.md](lint-format.instructions.md)
-
-## Platform and Runtime
-
-- [firebase-architecture.instructions.md](firebase-architecture.instructions.md)
-- [cloud-functions.instructions.md](cloud-functions.instructions.md)
-- [hosting-deploy.instructions.md](hosting-deploy.instructions.md)
-- [firestore-schema.instructions.md](firestore-schema.instructions.md)
-- [security-rules.instructions.md](security-rules.instructions.md)
-
-## AI and RAG
-
-- [genkit-flow.instructions.md](genkit-flow.instructions.md)
-- [embedding-pipeline.instructions.md](embedding-pipeline.instructions.md)
-- [rag-architecture.instructions.md](rag-architecture.instructions.md)
-- [prompt-engineering.instructions.md](prompt-engineering.instructions.md)
-
-## Next.js and UI
-
-- [nextjs-app-router.instructions.md](nextjs-app-router.instructions.md)
-- [nextjs-parallel-routes.instructions.md](nextjs-parallel-routes.instructions.md)
-- [nextjs-server-actions.instructions.md](nextjs-server-actions.instructions.md)
-- [shadcn-ui.instructions.md](shadcn-ui.instructions.md)
-- [tailwind-design-system.instructions.md](tailwind-design-system.instructions.md)
-
-## Testing
-
-- [testing-unit.instructions.md](testing-unit.instructions.md)
-- [testing-e2e.instructions.md](testing-e2e.instructions.md)
-- [playwright-mcp-testing.instructions.md](playwright-mcp-testing.instructions.md)
-
-## DDD Navigation
-
-Use `docs/ddd/` for domain knowledge and keep these instruction files behavioral only:
-
-- [`../../docs/ddd/subdomains.md`](../../docs/ddd/subdomains.md)
-- [`../../docs/ddd/bounded-contexts.md`](../../docs/ddd/bounded-contexts.md)
-- `../../modules/<context>/*.md` for bounded-context details
-````
-
-## File: app/(shell)/organization/workspaces/page.tsx
+## File: vitest.config.ts
 ````typescript
-"use client";
+import { defineConfig } from "vitest/config";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["**/*.{test,spec}.{ts,tsx,js,jsx}"],
+    exclude: [
+      "**/node_modules/**",
+      "**/.next/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/__pycache__/**",
+    ],
+  },
+});
+````
 
-import { useApp } from "@/app/providers/app-provider";
-import { createWorkspace, getWorkspacesForAccount } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { isOrganizationAccount } from "../_utils";
+## File: .github/agents/commands.md
+````markdown
+# Build, Lint & Development Commands
 
-export default function OrganizationWorkspacesPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+## Development
 
-  const [workspaces, setWorkspaces] = useState<
-    Awaited<ReturnType<typeof getWorkspacesForAccount>>
-  >([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+- `npm run dev` — Start Next.js development server (App Router, port 3000)
+- `npm run build` — Production build (Next.js + TypeScript type-check)
+- `npm run start` — Start production server from build output
 
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
+## Lint & Type Check
 
-  async function loadWorkspaces(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getWorkspacesForAccount(organizationId);
-      setWorkspaces(data);
-      setLoadState("loaded");
-    } catch {
-      setWorkspaces([]);
-      setLoadState("error");
-    }
-  }
+- `npm run lint` — Run ESLint (flat config, `eslint.config.mjs`)
+- `npm run test` — Run Vitest unit tests
+- TypeScript type-checking is included in `npm run build`
 
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
+## Firebase Deployment
 
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getWorkspacesForAccount(organizationId);
-        if (!cancelled) {
-          setWorkspaces(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setWorkspaces([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
+- `npm run deploy:firebase` — Deploy all Firebase resources
+- `npm run deploy:firestore:indexes` — Deploy Firestore indexes only
+- `npm run deploy:firestore:rules` — Deploy Firestore security rules only
+- `npm run deploy:storage:rules` — Deploy Storage security rules only
+- `npm run deploy:rules` — Deploy Firestore rules + Storage rules
+- `npm run deploy:apphosting` — Deploy App Hosting configuration
+- `npm run deploy:functions` — Deploy Cloud Functions (Python)
+- `npm run deploy:functions:py-fn` — Deploy Python Cloud Functions only
+- `npm run deploy:functions:all` — Deploy all Cloud Functions
 
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
+## Repomix (AI Skill Generation)
 
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreating(true);
-    setCreateError(null);
-    const result = await createWorkspace({
-      name: newName.trim(),
-      accountId: activeOrganizationId,
-      accountType: "organization",
-    });
-    setCreating(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      void loadWorkspaces(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message ?? "建立失敗，請稍後再試。");
-    }
-  }
+- `npm run repomix:skill` — Generate a repomix skill from the full codebase
+- `npm run repomix:remote` — Generate a skill from a remote GitHub repository
+- `npm run repomix:local` — Generate a skill from a local directory
 
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
+## Key Configuration Files
 
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-          </p>
-        </div>
-        <Button size="sm" onClick={() => { setCreateOpen(true); setCreateError(null); setNewName(""); }}>
-          建立工作區
-        </Button>
-      </div>
+| File | Purpose |
+|------|---------|
+| `next.config.ts` | Next.js 16 App Router configuration |
+| `tsconfig.json` | TypeScript config with `@alias` path mappings |
+| `eslint.config.mjs` | ESLint flat config with package boundary enforcement |
+| `tailwind.config.ts` | Tailwind CSS 4 configuration |
+| `firebase.json` | Firebase project configuration |
+| `firestore.rules` | Firestore security rules |
+| `firestore.indexes.json` | Firestore composite indexes |
+| `storage.rules` | Cloud Storage security rules |
+| `components.json` | shadcn CLI configuration (aliases → `@ui-shadcn/*`) |
+| `apphosting.yaml` | Firebase App Hosting configuration |
 
-      {/* Create Workspace Dialog */}
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="ws-name">工作區名稱</Label>
-              <Input
-                id="ws-name"
-                placeholder="例：行銷專案"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void handleCreate(); }}
-              />
-            </div>
-            {createError && <p className="text-xs text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCreateOpen(false)}>取消</Button>
-            <Button onClick={() => void handleCreate()} disabled={creating || !newName.trim()}>
-              {creating ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+## Environment Setup
 
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Workspaces</CardTitle>
-          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">工作區載入中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
-                    </Button>
-                    <Badge
-                      variant={
-                        workspace.lifecycleState === "active"
-                          ? "default"
-                          : workspace.lifecycleState === "preparatory"
-                            ? "secondary"
-                            : "outline"
-                      }
-                    >
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Wiki`}>WorkSpace Wiki</Link>
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+- **Node.js**: Version 24 required (see `engines` in `package.json`)
+- **Package manager**: npm
+- Install dependencies: `npm install`
+- Python test dependencies: `python -m pip install -r py_fn/requirements-dev.txt`
+- Firebase CLI: `npx firebase` (no global install required)
 ````
 
 ## File: app/globals.css
@@ -64817,173 +61250,189 @@ export default function OrganizationWorkspacesPage() {
 }
 ````
 
-## File: docs/ddd/bounded-contexts.md
+## File: CLAUDE.md
 ````markdown
-# Bounded Contexts
+# CLAUDE.md — Xuanwu App Context
 
-This page is the canonical bounded-context map for Xuanwu.
+Quick reference for Claude working in this Next.js 16 + MDDD repository.
 
-Xuanwu is implemented as a modular monolith. Each context owns its own ubiquitous language, domain model, application logic, and infrastructure adapters. Cross-context collaboration happens through public API surfaces or published domain events.
+## Context
 
-## Current Inventory
+**Xuanwu App**: Next.js 16, React 19, Firebase, Python workers (`py_fn/`)
 
-| Domain Type | Context | Ownership | Reference |
-|---|---|---|---|
-| Core Domain | `knowledge` | Knowledge pages, content blocks, versions, approvals, and collection-level content lifecycle. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
-| Core Domain | `knowledge-base` | Organizational articles, categories, wiki-grade publishing, verification, and shared knowledge assets. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
-| Supporting Subdomain | `ai` | Ingestion jobs, parsing/chunking handoff, and indexing preparation. | [modules/ai/README.md](../../modules/ai/README.md) |
-| Supporting Subdomain | `knowledge-collaboration` | Comments, permissions, and immutable version snapshots for knowledge content. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
-| Supporting Subdomain | `knowledge-database` | Structured database schemas, records, views, and relation-oriented data work. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
-| Supporting Subdomain | `notebook` | Workspace-scoped research, ask/cite, summary, and knowledge-generation flows. | [modules/notebook/README.md](../../modules/notebook/README.md) |
-| Supporting Subdomain | `search` | Retrieval, ranking, citation context, and semantic query support. | [modules/search/README.md](../../modules/search/README.md) |
-| Supporting Subdomain | `source` | External files, source collections, ingestion handoff, and source governance. | [modules/source/README.md](../../modules/source/README.md) |
-| Supporting Subdomain | `workspace-audit` | Audit logging and governance traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
-| Supporting Subdomain | `workspace-feed` | Activity stream, replies, reactions, and collaboration visibility. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
-| Supporting Subdomain | `workspace-flow` | Task, issue, and invoice workflow state machines derived from knowledge and operational policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
-| Supporting Subdomain | `workspace-scheduling` | Scheduling windows, work demands, and capacity allocation. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
-| Generic Subdomain | `identity` | Authentication and verified user identity. | [modules/identity/README.md](../../modules/identity/README.md) |
-| Generic Subdomain | `account` | User account semantics, policy, profile, and personalization. | [modules/account/README.md](../../modules/account/README.md) |
-| Generic Subdomain | `organization` | Multi-tenant organization governance, teams, and member relationships. | [modules/organization/README.md](../../modules/organization/README.md) |
-| Generic Subdomain | `workspace` | Workspace container, workspace membership, and workspace-scoped composition. | [modules/workspace/README.md](../../modules/workspace/README.md) |
-| Generic Subdomain | `notification` | Notification preferences and outbound signals. | [modules/notification/README.md](../../modules/notification/README.md) |
-| Shared Kernel | `shared` | Shared events, slug utilities, and cross-context domain primitives. | [modules/shared/README.md](../../modules/shared/README.md) |
+**Architecture**: Module-Driven Domain Design (MDDD) — 19 bounded-context modules
 
-## Communication Model
+**Essential**: Read AGENTS.md for rules, commands, and patterns.
 
-- Synchronous collaboration must go through the target context's public `api/` surface.
-- Asynchronous collaboration must go through published domain events or other explicit contracts.
-- External models must be translated at the edge through anti-corruption adapters instead of entering the domain layer unchanged.
+## Non-Negotiable Session Contract
 
-## Product-Level Reading Path
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it first.
+- Serena remains the orchestration lead and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
+- Repository orchestration memory and index updates must use Serena tools; do not replace them with direct `.serena/` edits.
 
-1. Read [subdomains.md](./subdomains.md) for strategic classification.
-2. Use this page to find context ownership.
-3. Read the corresponding `modules/<context>/README.md` and companion markdown files for ubiquitous language, aggregates, events, repositories, and context maps.
+## Coordination
 
-## Historical Notes
+- Serena MCP is mandatory for every conversation and remains the orchestration lead.
+- Start with Serena to understand the request, gather the needed context, and decide whether subagents are required.
+- This file is a Claude compatibility quick reference, not a separate repository governance source. Repo-wide rules live in `AGENTS.md` and `.github/*`.
+- When a task touches Claude Code workflow, consult `.claude/settings.json` for hooks and permissions, `.claude/rules/tech-strategy.md` for technology policy, and `.claude/hooks/*` for automation and guards.
+- If confidence in any library, framework, or config detail is below 99.99%, use Context7 before generating code.
 
-- `wiki` is no longer a standalone bounded context.
-- `knowledge-graph`, `retrieval`, `agent`, `content`, and `asset` should only appear as historical migration context unless a document explicitly states otherwise.
-- `modules/system.ts` remains a composition root and is excluded from the bounded-context inventory.
+## Quick Commands
+
+```bash
+npm run lint      # ESLint (0 errors)
+npm run build     # Type-check + Next.js build
+cd py_fn && python -m pytest tests/ -v
+```
+
+See [.github/agents/commands.md](.github/agents/commands.md) for full list.
+
+## Key Principles
+
+1. **Module isolation**: `modules/` are bounded contexts — use `api/` boundaries only
+2. **Dependency direction**: `UI → App → Domain ← Infrastructure`
+3. **Aliases**: Always use `@shared-*`, `@ui-*`, `@lib-*`, `@integration-*` — never `@/`
+4. **Runtime split**: Next.js = frontend + orchestration; `py_fn/` = ingestion + workers
+
+## Common Patterns (See AGENTS.md for full examples)
+
+```ts
+// Server Action: orchestrate use case, return CommandResult
+"use server";
+export async function action(input) { return useCase.execute(input); }
+
+// Use Case: `application/use-cases/*.ts` orchestrates domain
+// Repository: interface in `domain/`, impl in `infrastructure/`
+```
+
+## Full Reference
+
+- **[AGENTS.md](AGENTS.md)** — Complete rules, commands, architecture, patterns
+- **[.github/agents/knowledge-base.md](.github/agents/knowledge-base.md)** — Module inventory, tech stack
+- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** — Copilot delivery workflow
 ````
 
-## File: docs/ddd/subdomains.md
+## File: CONTRIBUTING.md
 ````markdown
-# Subdomains
+# Contributing to Xuanwu App
 
-This page is the strategic classification entry point for Xuanwu's Module-Driven Domain Design model.
+Contributions are welcome. Please follow these guidelines to keep the codebase consistent and easy to review.
 
-Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
+## House Rules
 
-## Strategic Classification
+### 👥 Prevent Work Duplication
 
-### Core Domains
+Before opening a new issue or PR, check whether it already exists in [Issues](https://github.com/122sp7/xuanwu-app/issues) or [Pull Requests](https://github.com/122sp7/xuanwu-app/pulls).
 
-| Context | Why it differentiates Xuanwu | Detail |
-|---|---|---|
-| `knowledge` | Owns the Notion-like knowledge content lifecycle: pages, blocks, versions, approval, and collection-level content structure. | [modules/knowledge/README.md](../../modules/knowledge/README.md) |
-| `knowledge-base` | Owns organizational wiki, SOP, and article-grade knowledge assets that are shareable, verifiable, and category-driven. | [modules/knowledge-base/README.md](../../modules/knowledge-base/README.md) |
+### ✅ Work on Approved Issues
 
-### Supporting Subdomains
+For new feature requests, wait for a maintainer to approve the issue before starting implementation. Bug fixes, security, performance, and documentation improvements can begin immediately.
 
-| Context | Role | Detail |
-|---|---|---|
-| `ai` | Ingestion orchestration, chunk preparation, and indexing handoff for downstream retrieval and reasoning. | [modules/ai/README.md](../../modules/ai/README.md) |
-| `knowledge-collaboration` | Comments, permissions, and version snapshots for knowledge-centric collaboration. | [modules/knowledge-collaboration/README.md](../../modules/knowledge-collaboration/README.md) |
-| `knowledge-database` | Structured database capability for schema, records, and multi-view exploration. | [modules/knowledge-database/README.md](../../modules/knowledge-database/README.md) |
-| `notebook` | Research, ask/cite, summary, and knowledge-generation workflow over retrieved context. | [modules/notebook/README.md](../../modules/notebook/README.md) |
-| `search` | Semantic retrieval and answer-context assembly with traceable citations. | [modules/search/README.md](../../modules/search/README.md) |
-| `source` | External document and source ingestion entrypoint. | [modules/source/README.md](../../modules/source/README.md) |
-| `workspace-audit` | Append-only audit trail for governability and traceability. | [modules/workspace-audit/README.md](../../modules/workspace-audit/README.md) |
-| `workspace-feed` | Activity stream and social visibility layer for workspace collaboration. | [modules/workspace-feed/README.md](../../modules/workspace-feed/README.md) |
-| `workspace-flow` | Task, issue, and invoice materialization from approved knowledge and workflow policy. | [modules/workspace-flow/README.md](../../modules/workspace-flow/README.md) |
-| `workspace-scheduling` | Scheduling, time windows, and capacity coordination for work demands. | [modules/workspace-scheduling/README.md](../../modules/workspace-scheduling/README.md) |
+### 🚫 One Concern per PR
 
-### Generic Subdomains
+Keep PRs small and focused. A PR should address one feature, bug, or refactor. Split large changes into a sequence of smaller PRs that can be reviewed and merged independently.
 
-| Context | Role | Detail |
-|---|---|---|
-| `identity` | Authentication and token lifecycle. | [modules/identity/README.md](../../modules/identity/README.md) |
-| `account` | User profile, account policy, and personalization semantics. | [modules/account/README.md](../../modules/account/README.md) |
-| `organization` | Tenant, team, member, and organization-level governance boundary. | [modules/organization/README.md](../../modules/organization/README.md) |
-| `workspace` | Primary collaboration container for all knowledge, sources, activity, and workflow state. | [modules/workspace/README.md](../../modules/workspace/README.md) |
-| `notification` | Notification delivery and preference-controlled signaling. | [modules/notification/README.md](../../modules/notification/README.md) |
+### 📚 Write for Future Readers
 
-### Shared Kernel
+Every PR contributes to the long-term understanding of the codebase. Write clearly enough that someone — possibly you — can revisit it months later and still understand what happened and why.
 
-| Context | Role | Detail |
-|---|---|---|
-| `shared` | Shared domain primitives such as events, slugs, and common contracts used across bounded contexts. | [modules/shared/README.md](../../modules/shared/README.md) |
+### ✅ Summarize Your PR
 
-## External Integration Boundary
+Provide a short summary at the top of every PR describing the intent. Use `Closes #123` or `Fixes #456` in the description to auto-link related issues.
 
-Xuanwu does not allow external system models to flow directly into the core domains. External files, document systems, storage events, and AI service contracts enter through source-facing workflows and per-context infrastructure adapters that act as anti-corruption boundaries.
+### 🧪 Describe What Was Tested
 
-## Historical Notes
-
-- The historical `wiki` module was decomposed. Current responsibilities are distributed across `knowledge`, `knowledge-base`, `knowledge-collaboration`, `knowledge-database`, `search`, and `notebook` depending on ownership.
-- The historical `event` and `namespace` modules were folded into `shared`.
-- `modules/system.ts` is a composition root, not a bounded context.
-````
-
-## File: docs/getting-started.md
-````markdown
-# Getting Started
-
-This guide gets a contributor from clone to a working local Xuanwu environment.
-
-## Prerequisites
-
-- Node.js 24
-- npm
-- Python environment compatible with `py_fn/requirements.txt` if you need to run worker validation
-
-## Install Dependencies
-
-```bash
-npm install
-```
-
-## Start the App
-
-```bash
-npm run dev
-```
-
-The default development surface is the Next.js app. The authenticated shell is workspace-first and routes users into knowledge, source, knowledge-base, knowledge-database, and notebook workflows.
-
-## Validate the Repository
-
-Run the web validation commands:
-
-```bash
-npm run lint
-npm run build
-```
-
-Run the Python worker checks when your change touches `py_fn/` or ingestion-related contracts:
-
-```bash
-cd py_fn
-python -m compileall -q .
-python -m pytest tests/ -v
-```
-
-## Read the Right Docs First
-
-1. [../README.md](../README.md) for product and architecture summary
-2. [ddd/subdomains.md](./ddd/subdomains.md) for strategic domain classification
-3. [ddd/bounded-contexts.md](./ddd/bounded-contexts.md) for the current bounded-context inventory
-4. [architecture/README.md](./architecture/README.md) for cross-context architecture reading paths
-5. [development/README.md](./development/README.md) for repository-local implementation guidance
-
-## Internal AI Delivery Docs
-
-Files such as [swarm.md](./swarm.md), [beads.md](./beads.md), and [customization.md](./customization.md) document the repository's internal AI delivery workflow. They are useful for maintainers, but they are not the product entrypoint for understanding Xuanwu itself.
+Explain how you validated your changes. For example: _"Tested locally with npm run dev, verified the new route renders without errors."_
 
 ---
 
-[← Back to README](../README.md)
+## Development
+
+### Prerequisites
+
+- Node.js 24
+- npm
+
+### Setup
+
+```bash
+npm install
+npm run dev      # Start Next.js dev server (port 3000)
+```
+
+### Validation
+
+Before pushing, ensure these all pass:
+
+```bash
+npm run lint     # ESLint — must have 0 errors
+npm run test     # Vitest unit tests
+npm run build    # Next.js production build + TypeScript type-check
+```
+
+For the Python worker:
+
+```bash
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+---
+
+## Architecture Conventions
+
+This project follows **Module-Driven Domain Design (MDDD)**. Before making changes, read:
+
+- [`.github/agents/README.md`](.github/agents/README.md) — rules index
+- [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+- [`CLAUDE.md`](CLAUDE.md) — key architecture rules and patterns
+
+### Key Rules
+
+- Business logic lives in `modules/<context>/` with four layers: `domain/`, `application/`, `infrastructure/`, `interfaces/`.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must be framework-free.
+- Use `@alias` package imports (e.g., `@shared-types`, `@ui-shadcn`). Never use legacy `@/shared/*`, `@/libs/*`, `@/ui/*` paths.
+- Keep Next.js Server Actions thin — delegate to use cases, return `CommandResult`.
+
+### File Naming
+
+| Type | Pattern | Example |
+|------|---------|---------|
+| Domain entity | `PascalCase.ts` | `Organization.ts` |
+| Repository interface | `MyRepository.ts` | `WorkspaceRepository.ts` |
+| Firebase repository | `FirebaseMyRepository.ts` | `FirebaseWorkspaceRepository.ts` |
+| Use case | `my-use-case.ts` | `create-workspace.ts` |
+| Server Action | `*.actions.ts` | `workspace.actions.ts` |
+| React component | `PascalCase.tsx` | `WorkspaceCard.tsx` |
+
+---
+
+## Making a Pull Request
+
+1. Fork the repository and create a branch from `main`.
+2. Make focused, incremental changes.
+3. Ensure `npm run lint` and `npm run build` pass with no new errors.
+4. Fill out the PR description with intent, changes, and testing notes.
+5. Link related issues with `Closes #N` or `Refs #N`.
+6. Request a review.
+
+---
+
+## Spec-Driven Development
+
+For larger features, consider using spec-driven development. See [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## AI Delivery Workflow
+
+For larger or cross-module changes, prefer the formal Copilot delivery workflow:
+
+- Plan first with [`docs/swarm.md`](docs/swarm.md)
+- Use the implementation plan as the execution contract for implementation, review, and QA
+- Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
 ## File: docs/guides/explanation/architecture-domain.md
@@ -65133,72 +61582,325 @@ Next.js 不承接 parse/chunk/embed 的 worker 邏輯；`py_fn/` 不承接頁面
 本文件的目的是把產品概念與現行 bounded-context 拓樸對齊，而不是維護一份脫離程式碼的「理想模組表」。當實作演進時，應優先更新 `docs/ddd/` root maps 與對應 module docs，再回來同步這份 explanation。
 ````
 
-## File: modules/knowledge-base/AGENT.md
+## File: modules/knowledge-base/context-map.md
 ````markdown
-# knowledge-base — DDD Agent
+# knowledge-base — Context Map
 
-## 戰略分類
+> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
 
-| 屬性 | 值 |
-|---|---|
-| **Domain Type** | **Core Domain** — 產品差異化核心 |
-| **Module** | `modules/knowledge-base/` |
-| **Aggregates** | Article, Category |
-| **Key Events** | article_created / published / verified, category_created |
+## 上游
 
-## 為何是 Core Domain
+- `workspace` / `identity` / `organization` — Conformist
+- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
+- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
+- `knowledge-database` — Open Host Service（Article 可與 Record 連結；knowledge-base 呼叫 knowledge-database OHS API）
 
-組織知識庫（SOP / Wiki）直接承載知識平台的可信度與協作深度，與 `knowledge`（個人筆記）共同構成 Xuanwu 的差異化競爭壁壘。
+## 下游
 
-## 關鍵設計決策
+- `notification` / `workspace-feed` — Published Language（事件消費）
+- `workspace-audit` — Published Language（審計紀錄）
 
-1. **Article ≠ Page** — 明確分離個人（knowledge）與組織（knowledge-base）知識邊界
-2. **VerificationState** — 組織知識的準確性治理，設計為 BC 內建能力而非協作插件
-3. **Backlink** — 由 `BacklinkExtractorService` 從 markdown 自動解析，保持 Article 圖譜一致性
-4. **Category 深度限制 5 層** — 防止過深的知識組織結構降低導航效率
-5. **D3 Promote 協議** — `knowledge-base` 擁有 Page → Article 提升的業務規則；透過訂閱 `knowledge.page_promoted` 事件建立 Article（`status=draft`）
+## Promote 協議（D3）
 
-## 詳細實作文件
+`knowledge-base` 是 Promote 協議的業務規則擁有者：
 
-→ [`modules/knowledge-base/`](../../modules/knowledge-base/)
+1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
+2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
+3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
+4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
 ````
 
-## File: modules/knowledge-base/application-services.md
+## File: modules/knowledge-base/README.md
 ````markdown
-# knowledge-base — Application Services
+# knowledge-base — DDD Reference
 
-> 詳細 Use Case 清單見 [`modules/knowledge-base/application-services.md`](../../modules/knowledge-base/application-services.md)
+> **Domain Type:** Core Domain
+> **Module:** `modules/knowledge-base/`
+> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
 
-**Article:** CreateArticle, UpdateArticle, PublishArticle, ArchiveArticle, VerifyArticle, RequestArticleReview, AssignArticleOwner, TransferArticleCategory, ExtractArticleBacklinks, **PromotePageToArticle**（D3：處理 `knowledge.page_promoted` 事件，建立 Article）
+## 戰略定位
 
-**Category:** CreateCategory, RenameCategory, MoveCategory, DeleteCategory
+`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
+
+## Bounded Context 邊界
+
+- **擁有：** Article（文章）、Category（分類）
+- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
+
+## 核心聚合
+
+詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
+
+- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
+- **Category** — 層級分類目錄（最多 5 層）
+
+## 主要領域事件
+
+詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
+
+- `knowledge-base.article_created`
+- `knowledge-base.article_published`
+- `knowledge-base.article_verified`
+- `knowledge-base.article_review_requested`
+- `knowledge-base.category_created`
+
+## 通用語言
+
+詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
+
+- **Article** ≠ Page（個人筆記）≠ Document（泛型）
+- **VerificationState** ≠ ApprovalState（knowledge 的審核）
+- **Backlink** = `[[Article Title]]` wikilink 解析結果
+
+## 上下文關係
+
+詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier |
+| 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
+| 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
+| 下游 | `notification`, `workspace-feed` | Published Language |
 ````
 
-## File: modules/knowledge-base/domain-events.md
-````markdown
-# knowledge-base — 領域事件
+## File: modules/knowledge-collaboration/domain/repositories/ICommentRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: domain/repositories
+ */
 
-> 詳細事件定義見 [`modules/knowledge-base/domain-events.md`](../../modules/knowledge-base/domain-events.md)
+import type { Comment, SelectionRange } from "../entities/comment.entity";
 
-## 事件清單
+export type CommentUnsubscribe = () => void;
 
-| 事件 | 觸發條件 |
-|---|---|
-| `knowledge-base.article_created` | 文章建立（狀態 draft）— 含透過 Promote 協議從 KnowledgePage 建立的 Article |
-| `knowledge-base.article_updated` | 文章內容更新 |
-| `knowledge-base.article_published` | draft → published |
-| `knowledge-base.article_archived` | 文章封存 |
-| `knowledge-base.article_verified` | 知識管理員驗證文章 |
-| `knowledge-base.article_review_requested` | 標記為 needs_review |
-| `knowledge-base.article_owner_assigned` | 指派文章負責人 |
-| `knowledge-base.category_created` | 建立分類目錄 |
-| `knowledge-base.category_moved` | 分類移動到新父節點 |
+export interface CreateCommentInput {
+  readonly contentId: string;
+  readonly contentType: "page" | "article";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly authorId: string;
+  readonly body: string;
+  readonly parentCommentId?: string | null;
+  readonly blockId?: string | null;
+  readonly selectionRange?: SelectionRange | null;
+}
 
-## 訂閱事件（D3 Promote 協議）
+export interface UpdateCommentInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly body: string;
+}
 
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_promoted` | 依 `pageId` 建立 Article（`status=draft`），完成 Promote 協議 |
+export interface ResolveCommentInput {
+  readonly id: string;
+  readonly accountId: string;
+  readonly resolvedByUserId: string;
+}
+
+export interface ICommentRepository {
+  create(input: CreateCommentInput): Promise<Comment>;
+  update(input: UpdateCommentInput): Promise<Comment | null>;
+  resolve(input: ResolveCommentInput): Promise<Comment | null>;
+  delete(accountId: string, commentId: string): Promise<void>;
+  findById(accountId: string, commentId: string): Promise<Comment | null>;
+  listByContent(accountId: string, contentId: string): Promise<Comment[]>;
+  /** Subscribe to real-time comment updates. Returns an unsubscribe function. */
+  subscribe(
+    accountId: string,
+    contentId: string,
+    onUpdate: (comments: Comment[]) => void,
+  ): CommentUnsubscribe;
+}
+````
+
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseCommentRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationComments/{commentId}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Comment } from "../../domain/entities/comment.entity";
+import type {
+  ICommentRepository,
+  CommentUnsubscribe,
+  CreateCommentInput,
+  UpdateCommentInput,
+  ResolveCommentInput,
+} from "../../domain/repositories/ICommentRepository";
+
+function commentsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationComments");
+}
+
+function commentDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationComments", id);
+}
+
+function toComment(id: string, data: Record<string, unknown>): Comment {
+  return {
+    id,
+    contentId: typeof data.contentId === "string" ? data.contentId : "",
+    contentType: data.contentType === "article" ? "article" : "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    authorId: typeof data.authorId === "string" ? data.authorId : "",
+    body: typeof data.body === "string" ? data.body : "",
+    parentCommentId: typeof data.parentCommentId === "string" ? data.parentCommentId : null,
+    blockId: typeof data.blockId === "string" ? data.blockId : null,
+    selectionRange: (
+      data.selectionRange !== null &&
+      typeof data.selectionRange === "object" &&
+      typeof (data.selectionRange as Record<string, unknown>).from === "number" &&
+      typeof (data.selectionRange as Record<string, unknown>).to === "number"
+    )
+      ? {
+          from: (data.selectionRange as Record<string, unknown>).from as number,
+          to: (data.selectionRange as Record<string, unknown>).to as number,
+        }
+      : null,
+    resolvedAt: typeof data.resolvedAt === "string" ? data.resolvedAt : null,
+    resolvedByUserId: typeof data.resolvedByUserId === "string" ? data.resolvedByUserId : null,
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseCommentRepository implements ICommentRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateCommentInput): Promise<Comment> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      contentId: input.contentId,
+      contentType: input.contentType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      authorId: input.authorId,
+      body: input.body,
+      parentCommentId: input.parentCommentId ?? null,
+      blockId: input.blockId ?? null,
+      selectionRange: input.selectionRange ?? null,
+      resolvedAt: null,
+      resolvedByUserId: null,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(commentDoc(db, input.accountId, id), data);
+    return toComment(id, data);
+  }
+
+  async update(input: UpdateCommentInput): Promise<Comment | null> {
+    const db = this.db();
+    const ref = commentDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    await updateDoc(ref, { body: input.body, updatedAtISO: now });
+    return toComment(snap.id, { ...snap.data(), body: input.body, updatedAtISO: now });
+  }
+
+  async resolve(input: ResolveCommentInput): Promise<Comment | null> {
+    const db = this.db();
+    const ref = commentDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    await updateDoc(ref, { resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
+    return toComment(snap.id, { ...snap.data(), resolvedAt: now, resolvedByUserId: input.resolvedByUserId, updatedAtISO: now });
+  }
+
+  async delete(accountId: string, commentId: string): Promise<void> {
+    const db = this.db();
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(commentDoc(db, accountId, commentId));
+  }
+
+  async findById(accountId: string, commentId: string): Promise<Comment | null> {
+    const db = this.db();
+    const snap = await getDoc(commentDoc(db, accountId, commentId));
+    if (!snap.exists()) return null;
+    return toComment(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByContent(accountId: string, contentId: string): Promise<Comment[]> {
+    const db = this.db();
+    const q = query(commentsCol(db, accountId), where("contentId", "==", contentId), orderBy("createdAtISO", "asc"));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribe(
+    accountId: string,
+    contentId: string,
+    onUpdate: (comments: Comment[]) => void,
+  ): CommentUnsubscribe {
+    const db = this.db();
+    const q = query(
+      commentsCol(db, accountId),
+      where("contentId", "==", contentId),
+      orderBy("createdAtISO", "asc"),
+    );
+    return onSnapshot(q, (snap) => {
+      onUpdate(snap.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>)));
+    });
+  }
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/queries
+ */
+
+import type { Comment } from "../../domain/entities/comment.entity";
+import type { Version } from "../../domain/entities/version.entity";
+import type { Permission } from "../../domain/entities/permission.entity";
+import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
+import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
+import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
+
+export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
+  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
+}
+
+export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
+  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
+}
+
+export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
+  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
+}
+
+/**
+ * Subscribe to real-time comment updates for a content document.
+ * Returns an unsubscribe function — call it in a useEffect cleanup.
+ */
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: Comment[]) => void,
+): () => void {
+  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
+}
 ````
 
 ## File: modules/knowledge-database/application/services/field-computation.service.ts
@@ -65383,16 +62085,6 @@ export function resolveComputedFields(input: {
   }
   return result;
 }
-````
-
-## File: modules/knowledge-database/context-map.md
-````markdown
-上游: `workspace`, `identity`, `knowledge-collaboration`(Permission), `knowledge`(KnowledgeCollection opaque ref / D1)
-下游: `knowledge-base`(article-record link), `workspace-feed`, `notification`
-
-> **D1 決策**：`knowledge-database` 完整擁有 `spaceType="database"` 的 Database/Record/View 聚合。`knowledge` 提供 `KnowledgeCollection.id` 作為 opaque reference，不參與結構化資料管理。
-
-→ [`modules/knowledge-database/context-map.md`](../../modules/knowledge-database/context-map.md)
 ````
 
 ## File: modules/knowledge-database/domain/entities/database-automation.entity.ts
@@ -65862,6 +62554,62 @@ export function DatabaseAutomationView({
 }
 ````
 
+## File: modules/knowledge-database/README.md
+````markdown
+# knowledge-database — DDD Reference
+
+> **Domain Type:** Supporting Subdomain
+> **Module:** `modules/knowledge-database/`
+> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+
+## 戰略定位
+
+`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+
+## 核心聚合
+
+- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
+- **Record** — 單行資料，properties Map（fieldId → value）
+- **View** — 視圖配置：type + filters + sorts + groupBy
+
+## 視圖類型
+
+`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+
+## 欄位類型
+
+`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+
+## 主要領域事件
+
+- `knowledge-database.database_created`
+- `knowledge-database.field_added` / `field_deleted`
+- `knowledge-database.record_added` / `record_updated` / `record_deleted`
+- `knowledge-database.record_linked`
+- `knowledge-database.view_created` / `view_updated`
+
+## 通用語言
+
+| 術語 | 定義 |
+|---|---|
+| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
+| **Field** | Schema 欄位定義（≠ Column） |
+| **Record** | 資料行（≠ Row, Item） |
+| **Property** | Record 中某 Field 的具體值 |
+| **View** | 視圖配置（不持有資料） |
+| **Relation** | 跨 Database 的 Record 連結欄位類型 |
+
+## 上下文關係
+
+| 關係 | BC | 類型 |
+|---|---|---|
+| 上游 | `workspace`, `identity`, `organization` | Conformist |
+| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
+| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
+| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
+| 下游 | `workspace-feed`, `notification` | Published Language |
+````
+
 ## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
 ````typescript
 /**
@@ -65968,341 +62716,6 @@ export class UnnestKnowledgeBlockUseCase {
     const updated = await this.repo.unnest(parsed.data);
     if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
     return commandSuccess(updated.id, Date.now());
-  }
-}
-````
-
-## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Page use cases — create, rename, move, reorder blocks, archive, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@/modules/shared/api";
-import { v7 as generateId } from "@lib-uuid";
-import {
-  CreateKnowledgePageSchema,
-  type CreateKnowledgePageDto,
-  RenameKnowledgePageSchema,
-  type RenameKnowledgePageDto,
-  MoveKnowledgePageSchema,
-  type MoveKnowledgePageDto,
-  ArchiveKnowledgePageSchema,
-  type ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksSchema,
-  type ReorderKnowledgePageBlocksDto,
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-  UpdatePageIconSchema,
-  type UpdatePageIconDto,
-  UpdatePageCoverSchema,
-  type UpdatePageCoverDto,
-} from "../dto/knowledge.dto";
-
-export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
-  const map = new Map<string, KnowledgePageTreeNode>();
-  for (const page of pages) {
-    map.set(page.id, { ...page, children: [] });
-  }
-
-  const roots: KnowledgePageTreeNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentPageId === null || !map.has(node.parentPageId)) {
-      roots.push(node);
-    } else {
-      const parent = map.get(node.parentPageId)!;
-      (parent.children as KnowledgePageTreeNode[]).push(node);
-    }
-  }
-
-  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
-    nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
-  };
-  sortByOrder(roots);
-
-  return roots;
-}
-
-export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
-
-    const page = await this.repo.create({
-      accountId,
-      workspaceId,
-      title: title.trim(),
-      parentPageId: parentPageId ?? null,
-      createdByUserId,
-    });
-
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, title } = parsed.data;
-    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = MoveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, targetParentPageId } = parsed.data;
-
-    if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
-    }
-
-    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId } = parsed.data;
-    const updated = await this.repo.archive(accountId, pageId);
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, blockIds } = parsed.data;
-    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    if (!accountId.trim() || !pageId.trim()) return null;
-    return this.repo.findById(accountId, pageId);
-  }
-}
-
-export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim()) return [];
-    return this.repo.listByAccountId(accountId);
-  }
-}
-
-export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim()) return [];
-    const pages = await this.repo.listByAccountId(accountId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: KnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    // causationId is set by the Server Action layer; generateId() is a safe fallback.
-    const causationId = inputCausationId ?? generateId();
-
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) {
-      return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    }
-    if (page.status === "archived") {
-      return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    }
-    if (page.approvalState === "approved") {
-      return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-    }
-
-    const nowISO = new Date().toISOString();
-    const approved = await this.repo.approve({ accountId, pageId, approvedByUserId: actorId, approvedAtISO: nowISO });
-    if (!approved) {
-      return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", "Failed to approve page.");
-    }
-
-    const correlationId = inputCorrelationId ?? generateId();
-
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const result = await this.repo.verify({ accountId, pageId, verifiedByUserId, verificationExpiresAtISO });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const result = await this.repo.requestReview({ accountId, pageId, requestedByUserId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const result = await this.repo.assignOwner({ accountId, pageId, ownerId });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class UpdatePageIconUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: UpdatePageIconDto): Promise<CommandResult> {
-    const parsed = UpdatePageIconSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, pageId, iconUrl } = parsed.data;
-    const result = await this.repo.updateIcon({ accountId, pageId, iconUrl });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class UpdatePageCoverUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: UpdatePageCoverDto): Promise<CommandResult> {
-    const parsed = UpdatePageCoverSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, pageId, coverUrl } = parsed.data;
-    const result = await this.repo.updateCover({ accountId, pageId, coverUrl });
-    if (!result) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(result.id, Date.now());
   }
 }
 ````
@@ -66439,6 +62852,247 @@ export interface UpdatePageCoverInput {
   readonly pageId: string;
   /** Image URL for the cover. Pass empty string to clear. */
   readonly coverUrl: string;
+}
+````
+
+## File: modules/knowledge/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: module/barrel (public API)
+ *
+ * This is the ONLY file that external modules should import from.
+ * All internal implementation details (domain, application, infrastructure)
+ * are NOT importable from outside — use the exports listed here.
+ *
+ * Boundary rule: other modules import via `@/modules/knowledge`, never from
+ * `@/modules/knowledge/domain/...` or deeper paths.
+ *
+ * Access pattern:
+ *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
+ *   - UI mutations                    → Server Actions below
+ *   - UI reads                        → Query functions below
+ *
+ * Current boundary note:
+ *   - `Page` / `Block` are owned by this module.
+ *   - `KnowledgeCollection` is still exported here as a transitional surface.
+ *   - `Article` / `Category` belong to `knowledge-base`.
+ */
+
+// ── API: Facade (cross-domain entry point) ────────────────────────────────────
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";
+
+// ── Domain: entity types ──────────────────────────────────────────────────────
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+} from "./domain/entities/knowledge-page.entity";
+
+export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
+
+export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./interfaces/_actions/knowledge.actions";
+
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "./interfaces/queries/knowledge.queries";
+
+// ── Domain: Collection + Wiki types ──────────────────────────────────────────
+export type {
+  KnowledgeCollection,
+  CollectionSpaceType,
+} from "./domain/entities/knowledge-collection.entity";
+
+export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
+
+// ── Interfaces: Components ────────────────────────────────────────────────────
+export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PageTreeView } from "./interfaces/components/PageTreeView";
+export { PageDialog } from "./interfaces/components/PageDialog";
+````
+
+## File: modules/knowledge/interfaces/_actions/knowledge-page.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import {
+  ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "../../application/use-cases/knowledge-page-review.use-cases";
+import {
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+} from "../../application/use-cases/knowledge-page-appearance.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { InMemoryEventStoreRepository, NoopEventBusRepository, QStashEventBusRepository } from "@/modules/shared/api";
+import type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageDto,
+  CreateKnowledgeVersionDto,
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  UpdatePageIconDto,
+  UpdatePageCoverDto,
+} from "../../application/dto/knowledge.dto";
+
+function makePageRepo() {
+  return new FirebaseKnowledgePageRepository();
+}
+
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_RENAME_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_MOVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+  try {
+    return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_REORDER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function publishKnowledgeVersion(_input: CreateKnowledgeVersionDto): Promise<CommandResult> {
+  return commandFailureFrom("CONTENT_VERSION_NOT_IMPLEMENTED", "Version persistence is not yet implemented.");
+}
+
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try {
+    const causationId = input.causationId ?? generateId();
+    const eventBus = process.env.QSTASH_TOKEN
+      ? new QStashEventBusRepository()
+      : new NoopEventBusRepository();
+    return await new ApproveKnowledgePageUseCase(
+      makePageRepo(),
+      new InMemoryEventStoreRepository(),
+      eventBus,
+    ).execute({ ...input, causationId });
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try {
+    return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_VERIFY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
+  try {
+    return await new RequestPageReviewUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_REVIEW_REQUEST_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
+  try {
+    return await new AssignPageOwnerUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_ASSIGN_OWNER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
+  try {
+    return await new UpdatePageIconUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_ICON_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
+  try {
+    return await new UpdatePageCoverUseCase(makePageRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CONTENT_PAGE_COVER_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 ````
 
@@ -66715,453 +63369,359 @@ export async function getKnowledgeCollections(
 }
 ````
 
-## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../modules/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+````
+
+## File: modules/organization/api/index.ts
 ````typescript
 /**
- * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
- * Implements the OrganizationRepository port.
- * Firebase SDK only exists in this file.
+ * organization 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
  */
 
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  addDoc,
-  query,
-  where,
-  arrayUnion,
-  arrayRemove,
-  onSnapshot,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-import type {
+import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
+
+// ─── DTOs ─────────────────────────────────────────────────────────────────────
+
+/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
+export interface OrganizationMemberDTO {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
+  presence: "active" | "away" | "offline";
+  isExternal?: boolean;
+}
+
+/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
+export interface OrganizationTeamDTO {
+  id: string;
+  name: string;
+  memberIds: string[];
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const organizationApi = {
+  /**
+   * 取得指定組織的所有成員清單。
+   */
+  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
+    const members = await orgRepo.getMembers(organizationId);
+    return members.map((m) => ({
+      id: m.id,
+      name: m.name,
+      email: m.email,
+      role: m.role,
+      presence: m.presence,
+      isExternal: m.isExternal,
+    }));
+  },
+
+  /**
+   * 取得指定組織的所有團隊清單。
+   */
+  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
+    const teams = await orgRepo.getTeams(organizationId);
+    return teams.map((t) => ({
+      id: t.id,
+      name: t.name,
+      memberIds: t.memberIds,
+    }));
+  },
+} as const;
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "../interfaces/_actions/organization.actions";
+
+// ─── Query Functions ──────────────────────────────────────────────────────────
+
+export {
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  getOrganizationTeams,
+  subscribeToOrganizationTeams,
+  getPartnerInvites,
+  getOrgPolicies,
+} from "../interfaces/queries/organization.queries";
+````
+
+## File: modules/organization/index.ts
+````typescript
+/**
+ * organization module public API
+ */
+export type {
   OrganizationEntity,
+  OrganizationRole,
+  Presence,
   MemberReference,
   Team,
-  OrgPolicy,
   PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
+  ThemeConfig,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  OrgPolicy,
   InviteMemberInput,
   UpdateMemberRoleInput,
   CreateTeamInput,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
   CreateOrgPolicyInput,
   UpdateOrgPolicyInput,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-import { toOrganizationEntity, toOrgPolicy, toTeam, toPartnerInvite } from "./organization-mappers";
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseOrganizationRepository implements OrganizationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private organizationAccountRef(organizationId: string) {
-    return doc(this.db, "accounts", organizationId);
-  }
-
-  private buildOrganizationAccountData(
-    data: {
-      name?: string;
-      ownerId?: string;
-      email?: string;
-      photoURL?: string;
-      description?: string;
-      theme?: OrganizationEntity["theme"];
-      members?: MemberReference[];
-      memberIds?: string[];
-      teams?: Team[];
-      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
-    },
-  ) {
-    return {
-      accountType: "organization" as const,
-      name: data.name ?? "",
-      ownerId: data.ownerId ?? "",
-      email: data.email ?? null,
-      photoURL: data.photoURL ?? null,
-      description: data.description ?? null,
-      theme: data.theme ?? null,
-      members: data.members ?? [],
-      memberIds: data.memberIds ?? [],
-      teams: data.teams ?? [],
-      createdAt: data.createdAt ?? serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-  }
-
-  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
-
-  async create(command: CreateOrganizationCommand): Promise<string> {
-    const orgRef = doc(collection(this.db, "organizations"));
-    const owner: MemberReference = {
-      id: command.ownerId,
-      name: command.ownerName,
-      email: command.ownerEmail,
-      role: "Owner",
-      presence: "active",
-    };
-    const createdAt = serverTimestamp();
-    const organizationData = {
-      name: command.organizationName,
-      ownerId: command.ownerId,
-      members: [owner],
-      memberIds: [command.ownerId],
-      teams: [],
-      createdAt,
-    };
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, organizationData);
-    batch.set(
-      this.organizationAccountRef(orgRef.id),
-      this.buildOrganizationAccountData({
-        name: command.organizationName,
-        ownerId: command.ownerId,
-        members: [owner],
-        memberIds: [command.ownerId],
-        teams: [],
-        createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-    return orgRef.id;
-  }
-
-  async findById(id: string): Promise<OrganizationEntity | null> {
-    const snap = await getDoc(doc(this.db, "organizations", id));
-    if (!snap.exists()) return null;
-    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async save(org: OrganizationEntity): Promise<void> {
-    const orgRef = doc(this.db, "organizations", org.id);
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, {
-      name: org.name,
-      ownerId: org.ownerId,
-      members: org.members,
-      memberIds: org.memberIds,
-      teams: org.teams,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(org.id),
-      this.buildOrganizationAccountData({
-        name: org.name,
-        ownerId: org.ownerId,
-        email: org.email,
-        photoURL: org.photoURL,
-        description: org.description,
-        theme: org.theme,
-        members: org.members,
-        memberIds: org.memberIds,
-        teams: org.teams,
-        createdAt: org.createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
-    const orgRef = doc(this.db, "organizations", command.organizationId);
-    const updates: Record<string, unknown> = {
-      accountType: "organization",
-      updatedAt: serverTimestamp(),
-    };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.description !== undefined) updates.description = command.description;
-    if (command.theme !== undefined) updates.theme = command.theme;
-    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, updates);
-    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
-    await batch.commit();
-  }
-
-  async delete(organizationId: string): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.delete(doc(this.db, "organizations", organizationId));
-    batch.delete(this.organizationAccountRef(organizationId));
-    await batch.commit();
-  }
-
-  // ─── Members ────────────────────────────────────────────────────────────────
-
-  async inviteMember(input: InviteMemberInput): Promise<string> {
-    const invite = {
-      email: input.email,
-      teamId: input.teamId,
-      role: input.role,
-      inviteState: "pending",
-      protocol: input.protocol,
-      invitedAt: serverTimestamp(),
-    };
-    const ref = await addDoc(
-      collection(this.db, "organizations", input.organizationId, "invites"),
-      invite,
-    );
-    return ref.id;
-  }
-
-  async recruitMember(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-  ): Promise<void> {
-    const orgRef = doc(this.db, "organizations", organizationId);
-    const member: MemberReference = {
-      id: memberId,
-      name,
-      email,
-      role: "Member",
-      presence: "active",
-    };
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, {
-      members: arrayUnion(member),
-      memberIds: arrayUnion(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members: arrayUnion(member),
-        memberIds: arrayUnion(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async removeMember(organizationId: string, memberId: string): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", organizationId), {
-      members,
-      memberIds: arrayRemove(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members,
-        memberIds: arrayRemove(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).map((m) =>
-          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
-        )
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", input.organizationId), {
-      members,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(input.organizationId),
-      {
-        members,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async getMembers(organizationId: string): Promise<MemberReference[]> {
-    const snap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!snap.exists()) return [];
-    const data = snap.data() as Record<string, unknown>;
-    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
-  }
-
-  subscribeToMembers(
-    organizationId: string,
-    onUpdate: (members: MemberReference[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
-      if (!snap.exists()) {
-        onUpdate([]);
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
-    });
-  }
-
-  // ─── Teams ──────────────────────────────────────────────────────────────────
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "teams"),
-    );
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-
-  subscribeToTeams(
-    organizationId: string,
-    onUpdate: (teams: Team[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(
-      collection(this.db, "organizations", organizationId, "teams"),
-      (snap) => {
-        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
-      },
-    );
-  }
-
-  // ─── Partners ────────────────────────────────────────────────────────────────
-
-  async sendPartnerInvite(
-    organizationId: string,
-    teamId: string,
-    email: string,
-  ): Promise<string> {
-    const ref = await addDoc(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-      {
-        email,
-        teamId,
-        role: "Guest",
-        inviteState: "pending",
-        invitedAt: serverTimestamp(),
-      },
-    );
-    return ref.id;
-  }
-
-  async dismissPartnerMember(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await this.removeMemberFromTeam(organizationId, teamId, memberId);
-  }
-
-  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-    );
-    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
-  }
-
-  // ─── Policy ──────────────────────────────────────────────────────────────────
-
-  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
-    const now = new Date().toISOString();
-    const ref = await addDoc(collection(this.db, "orgPolicies"), {
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      _createdAt: serverTimestamp(),
-    });
-    return {
-      id: ref.id,
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-      _updatedAt: serverTimestamp(),
-    };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.description !== undefined) updates.description = data.description;
-    if (data.rules !== undefined) updates.rules = data.rules;
-    if (data.scope !== undefined) updates.scope = data.scope;
-    if (data.isActive !== undefined) updates.isActive = data.isActive;
-    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
-  }
-
-  async deletePolicy(policyId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "orgPolicies", policyId));
-  }
-
-  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
-    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
-  }
-}
+} from "./domain/entities/Organization";
+export type { OrganizationRepository, Unsubscribe } from "./domain/repositories/OrganizationRepository";
+// Use Cases
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "./application/use-cases/organization.use-cases";
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "./application/use-cases/organization-policy.use-cases";
+// Infrastructure
+export { FirebaseOrganizationRepository } from "./infrastructure/firebase/FirebaseOrganizationRepository";
+// Server Actions
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "./interfaces/_actions/organization.actions";
+// Read Queries
+export {
+  getOrganizationMembers,
+  subscribeToOrganizationMembers,
+  getOrganizationTeams,
+  subscribeToOrganizationTeams,
+  getPartnerInvites,
+  getOrgPolicies,
+} from "./interfaces/queries/organization.queries";
 ````
 
 ## File: modules/organization/infrastructure/firebase/organization-mappers.ts
@@ -67332,6 +63892,594 @@ export function RagUploadPanel({
     </Card>
   );
 }
+````
+
+## File: modules/search/interfaces/hooks/useDocumentOperations.ts
+````typescript
+"use client";
+
+import { useState } from "react";
+import { toast } from "sonner";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { deleteSourceDocument, renameSourceDocument } from "@/modules/source/api";
+import type { SourceLiveDocument as WikiLiveDocument } from "@/modules/source/api";
+
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+
+interface UseDocumentOperationsOptions {
+  readonly activeAccountId: string;
+  readonly appendLog: (message: string) => void;
+}
+
+interface UseDocumentOperationsResult {
+  readonly deletingId: string | null;
+  readonly renamingId: string | null;
+  readonly handleDelete: (doc: WikiLiveDocument) => Promise<void>;
+  readonly handleRename: (doc: WikiLiveDocument) => Promise<void>;
+  readonly handleViewOriginal: (doc: WikiLiveDocument) => Promise<void>;
+}
+
+export function useDocumentOperations({
+  activeAccountId,
+  appendLog,
+}: UseDocumentOperationsOptions): UseDocumentOperationsResult {
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+
+  async function handleDelete(doc: WikiLiveDocument) {
+    if (!activeAccountId) return;
+    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
+
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      if (doc.sourceGcsUri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.sourceGcsUri)); } catch { /* not-found */ }
+      }
+      if (doc.jsonGcsUri) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.jsonGcsUri)); } catch { /* not-found */ }
+      }
+      const result = await deleteSourceDocument(activeAccountId, doc.id);
+      if (!result.success) throw new Error(result.error.message);
+      toast.success("文件已刪除");
+      appendLog(`刪除文件：${doc.filename}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("刪除失敗");
+      appendLog(`刪除失敗：${doc.filename}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleRename(doc: WikiLiveDocument) {
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法更名"); return; }
+    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
+    if (!nextName || nextName === doc.filename) return;
+
+    setRenamingId(doc.id);
+    try {
+      const result = await renameSourceDocument(activeAccountId, doc.id, nextName);
+      if (!result.success) throw new Error(result.error.message);
+      toast.success("文件名稱已更新");
+      appendLog(`更名文件：${doc.filename} -> ${nextName}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("更名失敗");
+      appendLog(`更名失敗：${doc.filename}`);
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+  async function handleViewOriginal(doc: WikiLiveDocument) {
+    if (!doc.sourceGcsUri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
+      window.open(url, "_blank", "noopener,noreferrer");
+      appendLog(`開啟原始檔：${doc.filename}`);
+    } catch (error) {
+      console.error(error);
+      toast.error("無法開啟原始檔");
+      appendLog(`開啟原始檔失敗：${doc.filename}`);
+    }
+  }
+
+  return { deletingId, renamingId, handleDelete, handleRename, handleViewOriginal };
+}
+````
+
+## File: modules/source/interfaces/components/SourceDocumentsView.tsx
+````typescript
+"use client";
+
+import { useRef, useState } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { useApp } from "@/app/providers/app-provider";
+import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import type { SourceLiveDocument } from "../hooks/useDocumentsSnapshot";
+import { useDocumentsSnapshot } from "../hooks/useDocumentsSnapshot";
+import { SourceDocumentRow } from "./source-document-row";
+import { deleteSourceDocument, renameSourceDocument } from "../_actions/file.actions";
+
+const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
+const WATCH_PATH = "uploads/";
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+
+interface SourceDocumentsViewProps {
+  readonly workspaceId?: string;
+}
+
+/** Upload dropzone + real-time document list backed by Firebase onSnapshot. */
+export function SourceDocumentsView({ workspaceId }: SourceDocumentsViewProps) {
+  const { state: appState } = useApp();
+  const activeAccountId = appState.activeAccount?.id ?? "";
+  const effectiveWorkspaceId = workspaceId?.trim() ?? "";
+
+  const { docs, loading, pendingDocs, addPending } = useDocumentsSnapshot(
+    activeAccountId,
+    effectiveWorkspaceId || undefined,
+  );
+
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const allDocs = [
+    ...pendingDocs,
+    ...docs.filter((d) => !pendingDocs.some((p) => p.id === d.id)),
+  ].sort((a, b) => (b.uploadedAt?.getTime() ?? 0) - (a.uploadedAt?.getTime() ?? 0));
+
+  function handleFileChange(file: File | null) {
+    if (!file) { setSelectedFile(null); return; }
+    if (!(file.type in ACCEPTED_MIME)) {
+      toast.error(`僅支援 ${ACCEPTED_EXTS}`);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setSelectedFile(file);
+  }
+
+  async function handleUpload() {
+    if (!selectedFile) { toast.error("請先選擇檔案"); return; }
+    if (!activeAccountId) { toast.error("目前沒有 active account，無法上傳"); return; }
+
+    const ext = selectedFile.name.includes(".") ? `.${selectedFile.name.split(".").pop() ?? ""}` : "";
+    const docId = crypto.randomUUID();
+    const uploadPath = `${WATCH_PATH}${activeAccountId}/${docId}${ext}`;
+
+    setUploading(true);
+    addPending({ id: docId, filename: selectedFile.name, workspaceId: effectiveWorkspaceId, sourceGcsUri: `gs://${UPLOAD_BUCKET}/${uploadPath}`, jsonGcsUri: "", pageCount: 0, status: "processing", ragStatus: "", uploadedAt: new Date(), errorMessage: "", ragError: "", isClientPending: true });
+
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const fileRef = storageApi.ref(storage, uploadPath);
+      const customMetadata: Record<string, string> = { account_id: activeAccountId, filename: selectedFile.name, original_filename: selectedFile.name, display_name: selectedFile.name };
+      if (effectiveWorkspaceId) customMetadata.workspace_id = effectiveWorkspaceId;
+      await storageApi.uploadBytes(fileRef, selectedFile, { customMetadata });
+      toast.success("上傳成功，背景已開始解析與入庫");
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (error) {
+      console.error(error);
+      toast.error("上傳失敗");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDelete(doc: SourceLiveDocument) {
+    if (!activeAccountId) return;
+    if (!window.confirm(`確定刪除「${doc.filename}」？此動作無法復原。`)) return;
+    setDeletingId(doc.id);
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      for (const uri of [doc.sourceGcsUri, doc.jsonGcsUri].filter(Boolean)) {
+        try { await storageApi.deleteObject(storageApi.ref(storage, uri)); } catch { /* ignore */ }
+      }
+      const result = await deleteSourceDocument(activeAccountId, doc.id);
+      if (!result.success) throw new Error(result.error.message);
+      toast.success("文件已刪除");
+    } catch (error) {
+      console.error(error);
+      toast.error("刪除失敗");
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  async function handleRename(doc: SourceLiveDocument) {
+    if (!activeAccountId) return;
+    const nextName = window.prompt("請輸入新檔名", doc.filename)?.trim() ?? "";
+    if (!nextName || nextName === doc.filename) return;
+    setRenamingId(doc.id);
+    try {
+      const result = await renameSourceDocument(activeAccountId, doc.id, nextName);
+      if (!result.success) throw new Error(result.error.message);
+      toast.success("文件名稱已更新");
+    } catch (error) {
+      console.error(error);
+      toast.error("更名失敗");
+    } finally {
+      setRenamingId(null);
+    }
+  }
+
+  async function handleViewOriginal(doc: SourceLiveDocument) {
+    if (!doc.sourceGcsUri) return;
+    try {
+      const storage = getFirebaseStorage(UPLOAD_BUCKET);
+      const url = await storageApi.getDownloadURL(storageApi.ref(storage, doc.sourceGcsUri));
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (error) {
+      console.error(error);
+      toast.error("無法開啟原始檔");
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Upload File</CardTitle>
+          <CardDescription>
+            {effectiveWorkspaceId ? `拖曳或選擇檔案上傳到 workspace：${effectiveWorkspaceId}` : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <label
+            onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+            onDragLeave={() => setDragging(false)}
+            onDrop={(e) => { e.preventDefault(); setDragging(false); handleFileChange(e.dataTransfer.files?.[0] ?? null); }}
+            className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"}`}
+          >
+            <FileUp className="size-7 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
+              <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+            </div>
+            <input ref={fileInputRef} type="file" accept={Object.keys(ACCEPTED_MIME).join(",")} className="sr-only" onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)} />
+          </label>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => void handleUpload()} disabled={uploading || !selectedFile || !activeAccountId}>
+              {uploading && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {uploading ? "上傳中..." : "上傳並啟動解析"}
+            </Button>
+            <Button variant="outline" onClick={() => { setSelectedFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} disabled={uploading}>
+              清除
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>文件列表</CardTitle>
+          <CardDescription>
+            {effectiveWorkspaceId ? `workspace: ${effectiveWorkspaceId} — ${allDocs.length} 筆` : `account 全覽 — ${allDocs.length} 筆`}（即時更新）
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/40">
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">檔名</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">狀態</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">RAG</th>
+                  <th className="px-3 py-2 text-left text-xs font-medium text-muted-foreground">上傳時間</th>
+                  <th className="px-3 py-2 text-right text-xs font-medium text-muted-foreground">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading && allDocs.length === 0 ? (
+                  <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">讀取中...</td></tr>
+                ) : allDocs.length === 0 ? (
+                  <tr><td colSpan={5} className="px-3 py-8 text-center text-sm text-muted-foreground">目前沒有文件，試著上傳第一份檔案 ↑</td></tr>
+                ) : (
+                  allDocs.map((doc) => (
+                    <SourceDocumentRow
+                      key={doc.id}
+                      doc={doc}
+                      deletingId={deletingId}
+                      renamingId={renamingId}
+                      onDelete={() => void handleDelete(doc)}
+                      onRename={() => void handleRename(doc)}
+                      onViewOriginal={() => void handleViewOriginal(doc)}
+                    />
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-feed/application/use-cases/workspace-feed-interaction.use-cases.ts
+````typescript
+/**
+ * Module: workspace-feed
+ * Layer: application/use-cases
+ * Purpose: Feed interaction use cases — like, bookmark, view, share.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type {
+  WorkspaceFeedInteractionRepository,
+  WorkspaceFeedPostRepository,
+} from "../../domain/repositories/workspace-feed.repositories";
+import { FeedInteractionSchema } from "../dto/workspace-feed.dto";
+
+export class LikeWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const liked = await this.interactionRepo.like(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (liked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { likeDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class BookmarkWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    const bookmarked = await this.interactionRepo.bookmark(
+      parsed.data.accountId,
+      parsed.data.postId,
+      parsed.data.actorAccountId,
+    );
+    if (bookmarked) {
+      await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { bookmarkDelta: 1 });
+    }
+
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ViewWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.view(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { viewDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+
+export class ShareWorkspaceFeedPostUseCase {
+  constructor(
+    private readonly postRepo: WorkspaceFeedPostRepository,
+    private readonly interactionRepo: WorkspaceFeedInteractionRepository,
+  ) {}
+
+  async execute(input: { accountId: string; postId: string; actorAccountId: string }): Promise<CommandResult> {
+    const parsed = FeedInteractionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.postRepo.findById(parsed.data.accountId, parsed.data.postId);
+    if (!post) {
+      return commandFailureFrom("WORKSPACE_FEED_POST_NOT_FOUND", "Post not found.");
+    }
+
+    await this.interactionRepo.share(parsed.data.accountId, parsed.data.postId, parsed.data.actorAccountId);
+    await this.postRepo.patchCounters(parsed.data.accountId, parsed.data.postId, { shareDelta: 1 });
+    return commandSuccess(parsed.data.postId, Date.now());
+  }
+}
+````
+
+## File: modules/workspace-feed/application/use-cases/workspace-feed-post.use-cases.ts
+````typescript
+/**
+ * Module: workspace-feed
+ * Layer: application/use-cases
+ * Purpose: Post lifecycle use cases — create, reply, repost, get, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { WorkspaceFeedPost } from "../../domain/entities/workspace-feed-post.entity";
+import type { WorkspaceFeedPostRepository } from "../../domain/repositories/workspace-feed.repositories";
+import {
+  CreateWorkspaceFeedPostSchema,
+  type CreateWorkspaceFeedPostDto,
+  ListAccountFeedSchema,
+  type ListAccountFeedDto,
+  ListWorkspaceFeedSchema,
+  type ListWorkspaceFeedDto,
+  ReplyWorkspaceFeedPostSchema,
+  type ReplyWorkspaceFeedPostDto,
+  RepostWorkspaceFeedPostSchema,
+  type RepostWorkspaceFeedPostDto,
+} from "../dto/workspace-feed.dto";
+
+export class CreateWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: CreateWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = CreateWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const post = await this.repo.createPost(parsed.data);
+    return commandSuccess(post.id, Date.now());
+  }
+}
+
+export class ReplyWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ReplyWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = ReplyWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const parent = await this.repo.findById(parsed.data.accountId, parsed.data.parentPostId);
+    if (!parent) {
+      return commandFailureFrom("WORKSPACE_FEED_PARENT_NOT_FOUND", "Parent post not found.");
+    }
+    if (parent.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Parent post is in another workspace.");
+    }
+
+    const reply = await this.repo.createReply(parsed.data);
+    return commandSuccess(reply.id, Date.now());
+  }
+}
+
+export class RepostWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: RepostWorkspaceFeedPostDto): Promise<CommandResult> {
+    const parsed = RepostWorkspaceFeedPostSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("WORKSPACE_FEED_INVALID_INPUT", parsed.error.message);
+    }
+
+    const source = await this.repo.findById(parsed.data.accountId, parsed.data.sourcePostId);
+    if (!source) {
+      return commandFailureFrom("WORKSPACE_FEED_SOURCE_NOT_FOUND", "Source post not found.");
+    }
+    if (source.workspaceId !== parsed.data.workspaceId) {
+      return commandFailureFrom("WORKSPACE_FEED_WORKSPACE_MISMATCH", "Source post is in another workspace.");
+    }
+
+    const repost = await this.repo.createRepost(parsed.data);
+    if (!repost) {
+      return commandFailureFrom("WORKSPACE_FEED_REPOST_FAILED", "Failed to create repost.");
+    }
+
+    return commandSuccess(repost.id, Date.now());
+  }
+}
+
+export class GetWorkspaceFeedPostUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(accountId: string, postId: string): Promise<WorkspaceFeedPost | null> {
+    if (!accountId.trim() || !postId.trim()) return null;
+    return this.repo.findById(accountId, postId);
+  }
+}
+
+export class ListWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListWorkspaceFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListWorkspaceFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByWorkspaceId(parsed.data.accountId, parsed.data.workspaceId, parsed.data.limit ?? 50);
+  }
+}
+
+export class ListAccountWorkspaceFeedUseCase {
+  constructor(private readonly repo: WorkspaceFeedPostRepository) {}
+
+  async execute(input: ListAccountFeedDto): Promise<WorkspaceFeedPost[]> {
+    const parsed = ListAccountFeedSchema.safeParse(input);
+    if (!parsed.success) return [];
+    return this.repo.listByAccountId(parsed.data.accountId, parsed.data.limit ?? 50);
+  }
+}
+````
+
+## File: modules/workspace-feed/application/use-cases/workspace-feed.use-cases.ts
+````typescript
+/**
+ * Module: workspace-feed
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for all workspace-feed use cases.
+ *          Split by subdomain for IDDD single-responsibility:
+ *  - workspace-feed-post.use-cases.ts        (create, reply, repost, get, list)
+ *  - workspace-feed-interaction.use-cases.ts  (like, bookmark, view, share)
+ */
+
+export {
+  CreateWorkspaceFeedPostUseCase,
+  ReplyWorkspaceFeedPostUseCase,
+  RepostWorkspaceFeedPostUseCase,
+  GetWorkspaceFeedPostUseCase,
+  ListWorkspaceFeedUseCase,
+  ListAccountWorkspaceFeedUseCase,
+} from "./workspace-feed-post.use-cases";
+
+export {
+  LikeWorkspaceFeedPostUseCase,
+  BookmarkWorkspaceFeedPostUseCase,
+  ViewWorkspaceFeedPostUseCase,
+  ShareWorkspaceFeedPostUseCase,
+} from "./workspace-feed-interaction.use-cases";
 ````
 
 ## File: modules/workspace-flow/api/index.ts
@@ -67602,222 +64750,281 @@ export interface SourceReference {
 }
 ````
 
-## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+## File: modules/workspace-flow/index.ts
 ````typescript
-"use client";
-
 /**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ * @module workspace-flow
+ * @file index.ts
+ * @description Aggregate public exports for workspace-flow.
  *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
+ * Cross-module consumers SHOULD use @/modules/workspace-flow/api directly.
+ * This root entry mirrors only the stable public surface.
  *
  * @author workspace-flow
- * @since 2026-03-27
+ * @since 2026-03-24
  */
 
-import { useCallback, useEffect, useState } from "react";
+export * from "./api";
+````
 
-import { Plus } from "lucide-react";
+## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace access use cases — team grants, individual grants, locations.
+ */
 
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/entities/Workspace";
 
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Task } from "../../domain/entities/Task";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { InvoiceRow } from "./InvoiceRow";
-import { TaskRow } from "./TaskRow";
+// ─── Grant Team Access ────────────────────────────────────────────────────────
 
-// ── Types ──────────────────────────────────────────────────────────────────────
+export class GrantTeamAccessUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
 
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
+  async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
     try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
+      await this.workspaceRepo.grantTeamAccess(workspaceId, teamId);
+      return commandSuccess(workspaceId, Date.now());
     } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
+      return commandFailureFrom(
+        "WORKSPACE_TEAM_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant team access",
+      );
     }
   }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
-  );
 }
+
+// ─── Grant Individual Access ──────────────────────────────────────────────────
+
+export class GrantIndividualAccessUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
+    try {
+      await this.workspaceRepo.grantIndividualAccess(workspaceId, grant);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_GRANT_FAILED",
+        err instanceof Error ? err.message : "Failed to grant individual access",
+      );
+    }
+  }
+}
+
+// ─── Create Location ──────────────────────────────────────────────────────────
+
+export class CreateWorkspaceLocationUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<CommandResult> {
+    try {
+      const locationId = await this.workspaceRepo.createLocation(workspaceId, location);
+      return commandSuccess(locationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_LOCATION_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace location",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-capabilities.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace capabilities use case — mount feature flags.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { Capability } from "../../domain/entities/Workspace";
+
+// ─── Mount Capabilities ───────────────────────────────────────────────────────
+
+export class MountCapabilitiesUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
+    try {
+      await this.workspaceRepo.mountCapabilities(workspaceId, capabilities);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CAPABILITIES_MOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to mount capabilities",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace lifecycle use cases — create and delete.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+} from "../../domain/entities/Workspace";
+
+// ─── Create Workspace ─────────────────────────────────────────────────────────
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspaceId = await this.workspaceRepo.save({
+        id: crypto.randomUUID(),
+        name: command.name,
+        accountId: command.accountId,
+        accountType: command.accountType,
+        lifecycleState: "preparatory",
+        visibility: "visible",
+        capabilities: [],
+        grants: [],
+        teamIds: [],
+        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+      });
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+// ─── Create Workspace with Capabilities ──────────────────────────────────────
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspaceId = await this.workspaceRepo.save({
+        id: crypto.randomUUID(),
+        name: command.name,
+        accountId: command.accountId,
+        accountType: command.accountType,
+        lifecycleState: "preparatory",
+        visibility: "visible",
+        capabilities: [],
+        grants: [],
+        teamIds: [],
+        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+      });
+      if (capabilities.length > 0) {
+        await this.workspaceRepo.mountCapabilities(workspaceId, capabilities);
+      }
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!workspace) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+      await this.workspaceRepo.updateSettings(command);
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+}
+
+// ─── Delete Workspace ─────────────────────────────────────────────────────────
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+      await this.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/application/use-cases/workspace.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Re-export barrel for all workspace use cases.
+ *          Split by subdomain for IDDD single-responsibility:
+ *  - workspace-lifecycle.use-cases.ts  (create, update, delete)
+ *  - workspace-capabilities.use-cases.ts (mount capabilities)
+ *  - workspace-access.use-cases.ts      (team grants, individual grants, locations)
+ */
+
+export {
+  CreateWorkspaceUseCase,
+  CreateWorkspaceWithCapabilitiesUseCase,
+  UpdateWorkspaceSettingsUseCase,
+  DeleteWorkspaceUseCase,
+} from "./workspace-lifecycle.use-cases";
+
+export { MountCapabilitiesUseCase } from "./workspace-capabilities.use-cases";
+
+export {
+  GrantTeamAccessUseCase,
+  GrantIndividualAccessUseCase,
+  CreateWorkspaceLocationUseCase,
+} from "./workspace-access.use-cases";
 ````
 
 ## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
@@ -67894,17 +65101,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
 
 import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 
 const lifecycleBadgeVariant: Record<
   WorkspaceEntity["lifecycleState"],
@@ -68138,70 +65337,22 @@ export function WorkspaceHubScreen({
         </CardContent>
       </Card>
 
-      <Dialog
+      <CreateWorkspaceDialog
         open={isCreateWorkspaceOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
         onOpenChange={(open) => {
           setIsCreateWorkspaceOpen(open);
-          if (!open) {
-            resetCreateWorkspaceDialog();
-          }
+          if (!open) resetCreateWorkspaceDialog();
         }}
-      >
-        <DialogContent aria-describedby="create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立工作區</DialogTitle>
-            <DialogDescription id="create-workspace-description">
-              建立後會直接出現在目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label
-                className="text-sm font-medium text-foreground"
-                htmlFor="workspace-name"
-              >
-                工作區名稱
-              </label>
-              <Input
-                id="workspace-name"
-                value={workspaceName}
-                onChange={(event) => {
-                  setWorkspaceName(event.target.value);
-                  if (createError) {
-                    clearCreateError();
-                  }
-                }}
-                placeholder="例如：北區營運中心"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {createError && (
-                <p className="text-sm text-destructive">{createError}</p>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !accountId}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onWorkspaceNameChange={(name) => {
+          setWorkspaceName(name);
+          if (createError) clearCreateError();
+        }}
+        onSubmit={handleCreateWorkspace}
+      />
     </div>
   );
 }
@@ -68512,6 +65663,8 @@ export function WorkspaceOverviewTab({
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "deploy:firestore:indexes": "npx firebase deploy --only firestore:indexes",
     "deploy:firestore:rules": "npx firebase deploy --only firestore:rules",
     "deploy:storage:rules": "npx firebase deploy --only storage",
@@ -68606,78 +65759,1934 @@ export function WorkspaceOverviewTab({
     "tailwindcss-animate": "^1.0.7",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5",
-    "typescript-eslint": "^8.58.0"
+    "typescript-eslint": "^8.58.0",
+    "vitest": "^4.1.2"
   }
 }
 ````
 
-## File: README.md
+## File: py_fn/src/application/use_cases/__init__.py
+````python
+"""Application use cases."""
+
+from application.dto import RagIngestionResult
+from application.use_cases.rag_query import execute_rag_query
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+
+__all__ = [
+    "execute_rag_query",
+    "RagIngestionResult",
+    "ingest_document_for_rag",
+]
+````
+
+## File: py_fn/src/application/use_cases/rag_query.py
+````python
+"""
+RAG query — application use case orchestration.
+
+Delegates all domain filtering to domain.services.rag_result_filter.
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.config import RAG_QUERY_DEFAULT_MAX_AGE_DAYS, RAG_QUERY_TOP_K
+from domain.repositories import RagQueryGateway, get_rag_query_gateway
+from domain.services.rag_result_filter import (
+    extract_snippet,
+    match_account,
+    match_freshness,
+    match_ready_status,
+    match_taxonomy,
+    match_workspace,
+    normalize_metadata,
+    resolve_filename,
+)
+from domain.value_objects import RagCitation, RagQueryInput, RagQueryResult
+
+logger = logging.getLogger(__name__)
+
+
+def _process_hits(
+    hits: list[dict[str, Any]],
+    provider: str,
+    request: RagQueryInput,
+    seen_snippets: set[str],
+) -> tuple[list[str], list[RagCitation], int, int, int, int]:
+    """Filter and map raw retrieval hits into context snippets and citations.
+
+    Returns (contexts, citations, dropped_workspace, dropped_status,
+             dropped_freshness, dropped_taxonomy).
+    """
+    contexts: list[str] = []
+    citations: list[RagCitation] = []
+    dropped_workspace = dropped_status = dropped_freshness = dropped_taxonomy = 0
+
+    for hit in hits:
+        if not isinstance(hit, dict):
+            continue
+        metadata = normalize_metadata(hit.get("metadata"))
+        if not metadata:
+            continue
+        if not match_account(metadata, request.account_scope):
+            continue
+        if not match_workspace(metadata, request.workspace_scope):
+            dropped_workspace += 1
+            continue
+        if not match_ready_status(metadata, request.require_ready):
+            dropped_status += 1
+            continue
+        if not match_freshness(metadata, request.max_age_days):
+            dropped_freshness += 1
+            continue
+        if not match_taxonomy(metadata, request.taxonomy_filters):
+            dropped_taxonomy += 1
+            continue
+
+        snippet = extract_snippet(hit, metadata)
+        if not snippet or snippet in seen_snippets:
+            continue
+
+        seen_snippets.add(snippet)
+        contexts.append(snippet)
+        citations.append(
+            RagCitation(
+                provider=provider,
+                doc_id=metadata.get("doc_id"),
+                chunk_id=metadata.get("chunk_id"),
+                score=hit.get("score") if isinstance(hit, dict) else None,
+                filename=resolve_filename(metadata),
+                json_gcs_uri=metadata.get("json_gcs_uri"),
+                search_id=hit.get("id") if provider == "search" else None,
+                account_id=metadata.get("account_id") or "",
+                workspace_id=metadata.get("workspace_id") or metadata.get("space_id") or "",
+                taxonomy=metadata.get("taxonomy") or metadata.get("semantic_class") or "",
+                processing_status=metadata.get("processing_status") or metadata.get("status") or "",
+                indexed_at=metadata.get("indexed_at") or "",
+            )
+        )
+
+    return contexts, citations, dropped_workspace, dropped_status, dropped_freshness, dropped_taxonomy
+
+
+def execute_rag_query(
+    *,
+    query: str,
+    account_scope: str,
+    workspace_scope: str,
+    top_k: int | None,
+    taxonomy_filters: list[str] | tuple[str, ...] | None,
+    max_age_days: int | None,
+    require_ready: bool,
+    gateway: RagQueryGateway | None = None,
+) -> dict:
+    """Application use case for RAG query orchestration."""
+    gateway = gateway or get_rag_query_gateway()
+
+    request = RagQueryInput.from_raw(
+        query=query,
+        account_scope=account_scope,
+        workspace_scope=workspace_scope,
+        top_k=top_k,
+        taxonomy_filters=taxonomy_filters,
+        max_age_days=max_age_days,
+        require_ready=require_ready,
+        default_top_k=RAG_QUERY_TOP_K,
+        default_max_age_days=RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+    )
+    if not request.has_query:
+        return {
+            "answer": "",
+            "citations": [],
+            "cache": "miss",
+            "vector_hits": 0,
+            "search_hits": 0,
+            "account_scope": request.account_scope,
+            "workspace_scope": request.workspace_scope,
+            "taxonomy_filters": list(request.taxonomy_filters),
+            "max_age_days": request.max_age_days,
+            "require_ready": request.require_ready,
+        }
+
+    cache_key = gateway.build_query_cache_key(
+        account_scope=request.account_scope,
+        query=(
+            f"workspace={request.workspace_scope};"
+            f"taxonomy={','.join(request.taxonomy_filters)};"
+            f"maxAge={request.max_age_days};"
+            f"ready={request.require_ready};"
+            f"q={request.query}"
+        ),
+        top_k=request.top_k,
+    )
+    try:
+        cached = gateway.get_query_cache(cache_key)
+        if cached and isinstance(cached.get("answer"), str):
+            return {
+                "answer": cached.get("answer", ""),
+                "citations": cached.get("citations", []),
+                "cache": "hit",
+                "vector_hits": int(cached.get("vector_hits") or 0),
+                "search_hits": int(cached.get("search_hits") or 0),
+                "account_scope": cached.get("account_scope") or request.account_scope,
+                "workspace_scope": cached.get("workspace_scope") or request.workspace_scope,
+            }
+    except Exception as exc:
+        logger.warning("redis query cache read failed: %s", exc)
+
+    retrieval_top_k = request.retrieval_top_k()
+    vector = gateway.to_query_vector(request.query)
+    vector_hits_raw = gateway.query_vector(vector, top_k=retrieval_top_k)
+    search_hits_raw = gateway.query_search(request.query, top_k=retrieval_top_k)
+
+    seen_snippets: set[str] = set()
+
+    vec_contexts, vec_citations, dw1, ds1, df1, dt1 = _process_hits(
+        vector_hits_raw, "vector", request, seen_snippets
+    )
+    srch_contexts, srch_citations, dw2, ds2, df2, dt2 = _process_hits(
+        search_hits_raw, "search", request, seen_snippets
+    )
+
+    contexts = vec_contexts + srch_contexts
+    citations = vec_citations + srch_citations
+    vector_hit_count = len(vec_citations)
+    search_hit_count = len(srch_citations)
+
+    context_block = "\n\n---\n\n".join(contexts[: request.top_k])
+    if not context_block:
+        return RagQueryResult(
+            answer="找不到足夠的相關內容。",
+            citations=(),
+            cache="miss",
+            vector_hits=len(vector_hits_raw),
+            search_hits=len(search_hits_raw),
+            account_scope=request.account_scope,
+            workspace_scope=request.workspace_scope,
+            taxonomy_filters=request.taxonomy_filters,
+            max_age_days=request.max_age_days,
+            require_ready=request.require_ready,
+            debug={
+                "vector_candidates": len(vector_hits_raw),
+                "search_candidates": len(search_hits_raw),
+                "retrieval_top_k": retrieval_top_k,
+                "workspace_scope": request.workspace_scope,
+                "taxonomy_filters": list(request.taxonomy_filters),
+                "max_age_days": request.max_age_days,
+                "require_ready": request.require_ready,
+                "dropped_by_workspace": dw1 + dw2,
+                "dropped_by_status": ds1 + ds2,
+                "dropped_by_freshness": df1 + df2,
+                "dropped_by_taxonomy": dt1 + dt2,
+                "reason": "no-context-after-scope-or-text-filter",
+            },
+        ).to_dict()
+
+    answer = gateway.generate_answer(query=request.query, context_block=context_block)
+    result = RagQueryResult(
+        answer=answer,
+        citations=tuple(citations),
+        cache="miss",
+        vector_hits=vector_hit_count,
+        search_hits=search_hit_count,
+        account_scope=request.account_scope,
+        workspace_scope=request.workspace_scope,
+        taxonomy_filters=request.taxonomy_filters,
+        max_age_days=request.max_age_days,
+        require_ready=request.require_ready,
+    ).to_dict()
+
+    try:
+        gateway.save_query_cache(cache_key, result)
+    except Exception as exc:
+        logger.warning("redis query cache write failed: %s", exc)
+
+    gateway.publish_query_audit(
+        query=request.query,
+        top_k=request.top_k,
+        citation_count=len(citations),
+        vector_hits=vector_hit_count,
+        search_hits=search_hit_count,
+    )
+
+    return result
+````
+
+## File: py_fn/src/domain/services/__init__.py
+````python
+"""Domain services."""
+
+from domain.services.rag_result_filter import (
+    normalize_metadata,
+    match_account,
+    match_workspace,
+    match_ready_status,
+    match_freshness,
+    match_taxonomy,
+    extract_snippet,
+    extract_text_candidate,
+    resolve_filename,
+)
+from domain.services.rag_ingestion_text import (
+    clean_text,
+    chunk_text,
+    detect_language_hint,
+)
+
+__all__ = [
+    "normalize_metadata",
+    "match_account",
+    "match_workspace",
+    "match_ready_status",
+    "match_freshness",
+    "match_taxonomy",
+    "extract_snippet",
+    "extract_text_candidate",
+    "resolve_filename",
+    "clean_text",
+    "chunk_text",
+    "detect_language_hint",
+]
+````
+
+## File: py_fn/src/domain/services/rag_ingestion_text.py
+````python
+"""
+Domain Service — RAG ingestion text processing.
+
+Pure business logic for text normalization, language detection, and
+chunking.  No infrastructure dependency.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+
+def detect_language_hint(text: str) -> str:
+    """粗略語系判斷：cjk / latin / mixed。"""
+    cjk_count = len(re.findall(r"[\u3400-\u9fff\u3040-\u30ff\uac00-\ud7af]", text))
+    latin_count = len(re.findall(r"[A-Za-z]", text))
+    if cjk_count > latin_count * 1.2:
+        return "cjk"
+    if latin_count > cjk_count * 1.2:
+        return "latin"
+    return "mixed"
+
+
+def clean_text(raw_text: str) -> str:
+    """Step 1: Normalization v2，保留段落與可引用性。"""
+    text = raw_text.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[\u200b\u200c\u200d\ufeff]", "", text)
+    text = text.replace("\u3000", " ")
+    text = re.sub(r"[\t ]+", " ", text)
+    text = re.sub(r"\n[\t ]+", "\n", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+def chunk_text(text: str, chunk_size: int, overlap: int) -> list[dict[str, Any]]:
+    """Step 2 + Step 3: 分塊並建立 chunk metadata。"""
+    if not text:
+        return []
+
+    if chunk_size <= 0:
+        chunk_size = 1200
+    if overlap < 0:
+        overlap = 0
+    if overlap >= chunk_size:
+        overlap = max(0, chunk_size // 4)
+
+    chunks: list[dict[str, Any]] = []
+    start = 0
+    text_len = len(text)
+
+    while start < text_len:
+        end = min(start + chunk_size, text_len)
+        content = text[start:end].strip()
+        if content:
+            chunks.append(
+                {
+                    "text": content,
+                    "char_start": start,
+                    "char_end": end,
+                }
+            )
+        if end >= text_len:
+            break
+        start = end - overlap
+
+    return chunks
+````
+
+## File: py_fn/src/domain/services/rag_result_filter.py
+````python
+"""
+Domain Service — RAG result filtering and snippet extraction.
+
+Pure business logic for matching and ranking retrieval hits against
+request scope constraints.  No infrastructure dependency.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from datetime import UTC, datetime, timedelta
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+
+def normalize_metadata(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return {}
+        try:
+            parsed = json.loads(raw)
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            return {}
+    return {}
+
+
+def match_account(metadata: dict[str, Any], account_scope: str) -> bool:
+    candidates = (
+        metadata.get("account_id"),
+        metadata.get("accountId"),
+        metadata.get("account"),
+        metadata.get("account_scope"),
+    )
+    return any(str(value or "").strip() == account_scope for value in candidates)
+
+
+def match_workspace(metadata: dict[str, Any], workspace_scope: str) -> bool:
+    candidates = (
+        metadata.get("workspace_id"),
+        metadata.get("workspaceId"),
+        metadata.get("space_id"),
+        metadata.get("spaceId"),
+    )
+    return any(str(value or "").strip() == workspace_scope for value in candidates)
+
+
+def match_ready_status(metadata: dict[str, Any], require_ready: bool) -> bool:
+    if not require_ready:
+        return True
+    candidates = (
+        metadata.get("processing_status"),
+        metadata.get("rag_status"),
+        metadata.get("status"),
+    )
+    return any(str(value or "").strip().lower() == "ready" for value in candidates)
+
+
+def _parse_datetime(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+    raw = str(value or "").strip()
+    if not raw:
+        return None
+    try:
+        normalized = raw.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+        return parsed.astimezone(UTC) if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    except Exception:
+        return None
+
+
+def match_freshness(metadata: dict[str, Any], max_age_days: int) -> bool:
+    if max_age_days <= 0:
+        return True
+
+    candidates = (
+        metadata.get("indexed_at"),
+        metadata.get("parsed_at"),
+        metadata.get("uploaded_at"),
+    )
+
+    timestamp = next(
+        (dt for dt in (_parse_datetime(value) for value in candidates) if dt is not None),
+        None,
+    )
+    if timestamp is None:
+        return False
+
+    cutoff = datetime.now(UTC) - timedelta(days=max_age_days)
+    return timestamp >= cutoff
+
+
+def match_taxonomy(metadata: dict[str, Any], taxonomy_filters: tuple[str, ...]) -> bool:
+    if not taxonomy_filters:
+        return True
+
+    normalized_filters = {item.lower() for item in taxonomy_filters if item}
+    if not normalized_filters:
+        return True
+
+    candidates = {
+        str(metadata.get("taxonomy") or "").strip().lower(),
+        str(metadata.get("semantic_class") or "").strip().lower(),
+        str(metadata.get("semantic_type") or "").strip().lower(),
+    }
+
+    tags = metadata.get("tags")
+    if isinstance(tags, list):
+        candidates.update(str(item or "").strip().lower() for item in tags)
+
+    candidates.discard("")
+    return bool(candidates.intersection(normalized_filters))
+
+
+def extract_text_candidate(value: Any) -> str:
+    if isinstance(value, str):
+        return value.strip()
+
+    if isinstance(value, dict):
+        for key in ("text", "content", "chunk_text"):
+            snippet = str(value.get(key) or "").strip()
+            if snippet:
+                return snippet
+
+    return ""
+
+
+def extract_snippet(hit: dict[str, Any], metadata: dict[str, Any]) -> str:
+    candidates = (
+        hit.get("data"),
+        metadata.get("text"),
+        metadata.get("chunk_text"),
+        metadata.get("content"),
+        hit.get("text"),
+        hit.get("content"),
+    )
+    for candidate in candidates:
+        snippet = extract_text_candidate(candidate)
+        if snippet:
+            return snippet
+    return ""
+
+
+def resolve_filename(metadata: dict[str, Any], fallback: str | None = None) -> str | None:
+    candidates = (
+        metadata.get("filename"),
+        metadata.get("display_name"),
+        metadata.get("original_filename"),
+        metadata.get("title"),
+        fallback,
+    )
+    for value in candidates:
+        name = str(value or "").strip()
+        if name:
+            return name
+    return None
+````
+
+## File: py_fn/src/infrastructure/external/upstash/_base.py
+````python
+"""
+Upstash 共用工具 — 錯誤類別與基礎輔助函數。
+供 vector_client / redis_client / search_client / qstash_client 共享使用。
+"""
+
+from __future__ import annotations
+
+import importlib
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class UpstashConfigError(RuntimeError):
+    """Upstash 配置缺失。"""
+
+
+class UpstashSdkError(RuntimeError):
+    """Upstash SDK 載入失敗。"""
+
+
+def _require(value: str, name: str) -> str:
+    if not value:
+        raise UpstashConfigError(f"{name} is not set")
+    return value
+
+
+def _import_module(module_name: str, install_hint: str):
+    try:
+        return importlib.import_module(module_name)
+    except ImportError as exc:
+        raise UpstashSdkError(f"Missing dependency: {install_hint}") from exc
+````
+
+## File: py_fn/src/infrastructure/external/upstash/clients.py
+````python
+"""
+Upstash clients — 向後相容的重新匯出桶。
+各功能已拆分至對應的聚焦模組：
+  - vector_client.py  (upsert_vectors, query_vectors)
+  - redis_client.py   (redis_get_json, redis_set_json, redis_fixed_window_allow)
+  - search_client.py  (upsert_search_documents, query_search_documents)
+  - qstash_client.py  (publish_qstash_json)
+  - _base.py          (UpstashConfigError, UpstashSdkError)
+
+此檔案保留所有原始公開符號以維持向後相容。
+"""
+
+from __future__ import annotations
+
+from infrastructure.external.upstash._base import (
+    UpstashConfigError,
+    UpstashSdkError,
+)
+from infrastructure.external.upstash.vector_client import (
+    get_vector_index,
+    upsert_vectors,
+    query_vectors,
+)
+from infrastructure.external.upstash.redis_client import (
+    get_redis_client,
+    redis_get_json,
+    redis_set_json,
+    redis_fixed_window_allow,
+)
+from infrastructure.external.upstash.search_client import (
+    get_search_index,
+    upsert_search_documents,
+    query_search_documents,
+)
+from infrastructure.external.upstash.qstash_client import (
+    get_qstash_client,
+    publish_qstash_json,
+)
+
+__all__ = [
+    "UpstashConfigError",
+    "UpstashSdkError",
+    "get_vector_index",
+    "upsert_vectors",
+    "query_vectors",
+    "get_redis_client",
+    "redis_get_json",
+    "redis_set_json",
+    "redis_fixed_window_allow",
+    "get_search_index",
+    "upsert_search_documents",
+    "query_search_documents",
+    "get_qstash_client",
+    "publish_qstash_json",
+]
+````
+
+## File: py_fn/src/infrastructure/external/upstash/qstash_client.py
+````python
+"""
+Upstash QStash 客戶端 — 非同步訊息投遞操作。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.config import (
+    QSTASH_CURRENT_SIGNING_KEY,
+    QSTASH_NEXT_SIGNING_KEY,
+    QSTASH_TOKEN,
+    QSTASH_URL,
+)
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_QSTASH_CLIENT: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_qstash_client() -> Any:
+    """取得 QStash 官方 SDK client（單例）。"""
+    global _QSTASH_CLIENT
+    if _QSTASH_CLIENT is None:
+        mod = _import_module("qstash", "pip install qstash")
+        client_cls = getattr(mod, "QStash", None)
+        if client_cls is None:
+            raise UpstashSdkError("qstash.QStash not found")
+
+        # 新舊 SDK 參數名稱兼容
+        kwargs: dict[str, Any] = {
+            "token": _require(QSTASH_TOKEN, "QSTASH_TOKEN"),
+        }
+        if QSTASH_URL:
+            kwargs["base_url"] = QSTASH_URL
+        if QSTASH_CURRENT_SIGNING_KEY:
+            kwargs["current_signing_key"] = QSTASH_CURRENT_SIGNING_KEY
+        if QSTASH_NEXT_SIGNING_KEY:
+            kwargs["next_signing_key"] = QSTASH_NEXT_SIGNING_KEY
+
+        try:
+            _QSTASH_CLIENT = client_cls(**kwargs)
+        except TypeError:
+            # 退回最小初始化方式
+            _QSTASH_CLIENT = client_cls(token=_require(QSTASH_TOKEN, "QSTASH_TOKEN"))
+
+    return _QSTASH_CLIENT
+
+
+def publish_qstash_json(url: str, body: dict[str, Any], delay: str | None = None) -> bool:
+    """透過 QStash 投遞 JSON 訊息（best effort）。"""
+    target_url = url.strip()
+    if not target_url:
+        return False
+
+    try:
+        client = get_qstash_client()
+    except Exception as exc:
+        logger.debug("publish_qstash_json skip: %s", exc)
+        return False
+
+    try:
+        kwargs: dict[str, Any] = {
+            "url": target_url,
+            "body": body,
+        }
+        if delay:
+            kwargs["delay"] = delay
+
+        publish_json = getattr(client, "publish_json", None)
+        if callable(publish_json):
+            publish_json(**kwargs)
+            return True
+
+        publish = getattr(client, "publish", None)
+        if callable(publish):
+            publish(**kwargs)
+            return True
+
+        return False
+    except TypeError:
+        try:
+            publish_json = getattr(client, "publish_json", None)
+            if callable(publish_json):
+                publish_json(target_url, body)
+                return True
+            publish = getattr(client, "publish", None)
+            if callable(publish):
+                publish(target_url, body)
+                return True
+            return False
+        except Exception:
+            logger.debug("publish_qstash_json fallback failed", exc_info=True)
+            return False
+    except Exception:
+        logger.debug("publish_qstash_json failed", exc_info=True)
+        return False
+````
+
+## File: py_fn/src/infrastructure/external/upstash/redis_client.py
+````python
+"""
+Upstash Redis 客戶端 — JSON 讀寫與固定窗口限流操作。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from typing import Any
+
+from core.config import UPSTASH_REDIS_REST_TOKEN, UPSTASH_REDIS_REST_URL
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_REDIS_CLIENT: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_redis_client() -> Any:
+    """取得 Upstash Redis 官方 SDK client（單例）。"""
+    global _REDIS_CLIENT
+    if _REDIS_CLIENT is None:
+        mod = _import_module("upstash_redis", "pip install upstash-redis")
+        redis_cls = getattr(mod, "Redis", None)
+        if redis_cls is None:
+            raise UpstashSdkError("upstash_redis.Redis not found")
+        _REDIS_CLIENT = redis_cls(
+            url=_require(UPSTASH_REDIS_REST_URL, "UPSTASH_REDIS_REST_URL"),
+            token=_require(UPSTASH_REDIS_REST_TOKEN, "UPSTASH_REDIS_REST_TOKEN"),
+        )
+    return _REDIS_CLIENT
+
+
+def redis_get_json(key: str) -> dict[str, Any] | None:
+    """從 Upstash Redis 讀取 JSON 字串並反序列化。"""
+    client = get_redis_client()
+    raw = client.get(key)
+    if raw is None:
+        return None
+
+    if isinstance(raw, (bytes, bytearray)):
+        raw_text = raw.decode("utf-8", errors="ignore")
+    else:
+        raw_text = str(raw)
+
+    if not raw_text:
+        return None
+
+    try:
+        parsed = json.loads(raw_text)
+        return parsed if isinstance(parsed, dict) else None
+    except Exception:
+        logger.warning("redis_get_json: invalid json at key=%s", key)
+        return None
+
+
+def redis_set_json(key: str, value: dict[str, Any], ttl_seconds: int = 0) -> None:
+    """將 dict 寫入 Upstash Redis；可選擇 TTL。"""
+    client = get_redis_client()
+    payload = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+    if ttl_seconds > 0:
+        try:
+            client.set(key, payload, ex=ttl_seconds)
+            return
+        except TypeError:
+            pass
+        except Exception:
+            logger.exception("redis_set_json set(ex=) failed: key=%s", key)
+            raise
+
+        try:
+            client.setex(key, ttl_seconds, payload)
+            return
+        except Exception:
+            logger.exception("redis_set_json setex failed: key=%s", key)
+            raise
+
+    client.set(key, payload)
+
+
+def redis_fixed_window_allow(
+    key: str,
+    max_requests: int,
+    window_seconds: int,
+) -> tuple[bool, int]:
+    """固定窗限流：回傳 (allowed, remaining)。"""
+    if max_requests <= 0 or window_seconds <= 0:
+        return True, max_requests
+
+    client = get_redis_client()
+    current = int(client.incr(key) or 0)
+    if current == 1:
+        client.expire(key, window_seconds)
+
+    allowed = current <= max_requests
+    remaining = max(0, max_requests - current)
+    return allowed, remaining
+````
+
+## File: py_fn/src/infrastructure/external/upstash/search_client.py
+````python
+"""
+Upstash Search 客戶端 — 全文搜尋 upsert / query 操作。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+from urllib import error as urlerror
+from urllib import request as urlrequest
+from typing import Any
+
+from core.config import (
+    UPSTASH_SEARCH_REST_TOKEN,
+    UPSTASH_SEARCH_REST_URL,
+    UPSTASH_SEARCH_INDEX,
+    UPSTASH_SEARCH_TIMEOUT_SECONDS,
+)
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_SEARCH_INDEX: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_search_index() -> Any:
+    """取得 Upstash Search 官方 SDK index（單例）。"""
+    global _SEARCH_INDEX
+    if _SEARCH_INDEX is None:
+        mod = _import_module("upstash_search", "pip install upstash-search")
+        search_cls = getattr(mod, "Search", None)
+        if search_cls is None:
+            raise UpstashSdkError("upstash_search.Search not found")
+
+        index_name = UPSTASH_SEARCH_INDEX or "default"
+        client = search_cls(
+            url=_require(UPSTASH_SEARCH_REST_URL, "UPSTASH_SEARCH_REST_URL"),
+            token=_require(UPSTASH_SEARCH_REST_TOKEN, "UPSTASH_SEARCH_REST_TOKEN"),
+            allow_telemetry=False,
+        )
+        _SEARCH_INDEX = client.index(index_name)
+    return _SEARCH_INDEX
+
+
+def upsert_search_documents(documents: list[dict[str, Any]]) -> int:
+    """批次寫入 Upstash Search index（best effort，不拋出上層）。"""
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return 0
+
+    if not documents:
+        return 0
+
+    normalized: list[dict[str, Any]] = []
+    for item in documents:
+        if not isinstance(item, dict):
+            continue
+        doc_id = str(item.get("id") or "").strip()
+        if not doc_id:
+            continue
+
+        content = item.get("content") if isinstance(item.get("content"), dict) else {}
+        metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+        normalized.append({
+            "id": doc_id,
+            "content": content,
+            "metadata": metadata,
+        })
+
+    if not normalized:
+        return 0
+
+    try:
+        index = get_search_index()
+        try:
+            index.upsert(documents=normalized)
+        except TypeError:
+            index.upsert(normalized)
+        return len(normalized)
+    except Exception as exc:
+        logger.warning("upsert_search_documents failed: %s", exc)
+        return 0
+
+
+def query_search_documents(query: str, top_k: int) -> list[dict[str, Any]]:
+    """
+    以 Upstash Search REST 進行補充檢索（best effort）。
+
+    回傳格式統一為 list[dict]，單筆含 text / score / source 等欄位。
+    """
+    if not UPSTASH_SEARCH_REST_URL or not UPSTASH_SEARCH_REST_TOKEN:
+        return []
+
+    if not query.strip() or top_k <= 0:
+        return []
+
+    # Prefer official SDK first; fallback to REST probing for compatibility.
+    try:
+        index = get_search_index()
+        result = index.search(query=query, limit=top_k)
+        normalized: list[dict[str, Any]] = []
+
+        if isinstance(result, list):
+            items = result
+        elif isinstance(result, dict):
+            items = (
+                result.get("result")
+                or result.get("matches")
+                or result.get("hits")
+                or result.get("data")
+                or []
+            )
+        else:
+            items = getattr(result, "results", None) or getattr(result, "data", None) or []
+
+        if isinstance(items, list):
+            for item in items:
+                if not isinstance(item, dict):
+                    try:
+                        item = dict(item)
+                    except Exception:
+                        continue
+
+                metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                content = item.get("content") if isinstance(item.get("content"), dict) else {}
+                text = str(
+                    item.get("text")
+                    or content.get("text")
+                    or content.get("content")
+                    or metadata.get("text")
+                    or item.get("content")
+                    or ""
+                ).strip()
+                if not text:
+                    continue
+
+                normalized.append(
+                    {
+                        "id": item.get("id"),
+                        "score": item.get("score"),
+                        "text": text,
+                        "metadata": metadata,
+                        "source": "upstash-search-sdk",
+                    }
+                )
+
+        if normalized:
+            return normalized
+    except Exception as exc:
+        logger.debug("query_search_documents sdk path failed, fallback to REST: %s", exc)
+
+    endpoint_base = UPSTASH_SEARCH_REST_URL.rstrip("/")
+    body_candidates = [
+        {"query": query, "topK": top_k},
+        {"query": query, "top_k": top_k},
+        {"q": query, "limit": top_k},
+    ]
+    path_candidates = ["/query", "/search"]
+
+    for path in path_candidates:
+        url = f"{endpoint_base}{path}"
+        for body in body_candidates:
+            raw = None
+            try:
+                req = urlrequest.Request(
+                    url=url,
+                    method="POST",
+                    headers={
+                        "Authorization": f"Bearer {UPSTASH_SEARCH_REST_TOKEN}",
+                        "Content-Type": "application/json",
+                    },
+                    data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+                )
+                with urlrequest.urlopen(req, timeout=UPSTASH_SEARCH_TIMEOUT_SECONDS) as resp:
+                    raw = resp.read().decode("utf-8", errors="ignore")
+            except urlerror.HTTPError as exc:
+                logger.debug("query_search_documents http error: %s %s", url, exc)
+                continue
+            except Exception as exc:
+                logger.debug("query_search_documents request failed: %s", exc)
+                continue
+
+            if not raw:
+                continue
+
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                logger.debug("query_search_documents invalid json from %s", url)
+                continue
+
+            candidates = []
+            if isinstance(payload, dict):
+                candidates = (
+                    payload.get("result")
+                    or payload.get("matches")
+                    or payload.get("hits")
+                    or payload.get("data")
+                    or []
+                )
+            elif isinstance(payload, list):
+                candidates = payload
+
+            if not isinstance(candidates, list):
+                continue
+
+            normalized: list[dict[str, Any]] = []
+            for item in candidates:
+                if isinstance(item, dict):
+                    metadata = item.get("metadata") if isinstance(item.get("metadata"), dict) else {}
+                    text = str(
+                        item.get("text")
+                        or metadata.get("text")
+                        or item.get("content")
+                        or ""
+                    ).strip()
+                    if not text:
+                        continue
+                    normalized.append(
+                        {
+                            "id": item.get("id"),
+                            "score": item.get("score"),
+                            "text": text,
+                            "metadata": metadata,
+                            "source": "upstash-search",
+                        }
+                    )
+            if normalized:
+                return normalized
+
+    return []
+````
+
+## File: py_fn/src/infrastructure/external/upstash/vector_client.py
+````python
+"""
+Upstash Vector 客戶端 — 向量 upsert / query 操作。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from core.config import UPSTASH_VECTOR_REST_TOKEN, UPSTASH_VECTOR_REST_URL
+from infrastructure.external.upstash._base import UpstashSdkError, _require, _import_module
+
+_VECTOR_INDEX: Any | None = None
+
+logger = logging.getLogger(__name__)
+
+
+def get_vector_index() -> Any:
+    """取得 Upstash Vector 官方 SDK Index 實例（單例）。"""
+    global _VECTOR_INDEX
+    if _VECTOR_INDEX is None:
+        mod = _import_module("upstash_vector", "pip install upstash-vector")
+        index_cls = getattr(mod, "Index", None)
+        if index_cls is None:
+            raise UpstashSdkError("upstash_vector.Index not found")
+        _VECTOR_INDEX = index_cls(
+            url=_require(UPSTASH_VECTOR_REST_URL, "UPSTASH_VECTOR_REST_URL"),
+            token=_require(UPSTASH_VECTOR_REST_TOKEN, "UPSTASH_VECTOR_REST_TOKEN"),
+        )
+    return _VECTOR_INDEX
+
+
+def _normalize_vector_item(item: Any) -> dict[str, Any]:
+    if isinstance(item, dict):
+        return item
+    try:
+        return {
+            "id": getattr(item, "id", None),
+            "score": getattr(item, "score", None),
+            "vector": getattr(item, "vector", None),
+            "metadata": getattr(item, "metadata", None),
+            "data": getattr(item, "data", None),
+        }
+    except Exception:
+        return {}
+
+
+def upsert_vectors(items: list[dict[str, Any]], namespace: str = "") -> Any:
+    """
+    批次 upsert 向量資料到 Upstash Vector。
+
+    items 每筆至少包含：
+      - id: str
+      - vector: list[float]
+      - metadata: dict[str, Any]
+    """
+    index = get_vector_index()
+    sdk_payload = [
+        {
+            "id": item["id"],
+            "vector": item["vector"],
+            "metadata": item.get("metadata", {}),
+            "data": item.get("data"),
+        }
+        for item in items
+    ]
+    tuples_payload = [
+        (item["id"], item["vector"], item.get("metadata", {}))
+        for item in items
+    ]
+
+    try:
+        return index.upsert(vectors=sdk_payload, namespace=namespace)
+    except TypeError:
+        try:
+            return index.upsert(sdk_payload, namespace=namespace)
+        except TypeError:
+            try:
+                return index.upsert(tuples_payload, namespace=namespace)
+            except TypeError:
+                return index.upsert(items, namespace=namespace)
+
+
+def query_vectors(
+    vector: list[float],
+    top_k: int,
+    include_metadata: bool = True,
+    include_data: bool = True,
+    namespace: str = "",
+    filter: str = "",
+) -> list[dict[str, Any]]:
+    """查詢 Upstash Vector，統一輸出為 list[dict]。"""
+    index = get_vector_index()
+
+    try:
+        result = index.query(
+            vector=vector,
+            top_k=top_k,
+            include_metadata=include_metadata,
+            include_data=include_data,
+            namespace=namespace,
+            filter=filter,
+        )
+    except TypeError:
+        try:
+            result = index.query(
+                vector,
+                top_k=top_k,
+                include_metadata=include_metadata,
+                include_data=include_data,
+                namespace=namespace,
+                filter=filter,
+            )
+        except TypeError:
+            result = index.query(vector=vector, top_k=top_k, namespace=namespace)
+
+    if isinstance(result, list):
+        return [_normalize_vector_item(item) for item in result]
+
+    if isinstance(result, dict):
+        candidates = result.get("result") or result.get("matches") or result.get("data") or []
+        if isinstance(candidates, list):
+            return [_normalize_vector_item(item) for item in candidates]
+
+    if hasattr(result, "data") and isinstance(result.data, list):
+        return [_normalize_vector_item(item) for item in result.data]
+
+    return []
+````
+
+## File: py_fn/src/interface/handlers/_https_helpers.py
+````python
+"""
+HTTPS handler 共用工具 — 驗證、存取控制與輸入解析輔助函數。
+供 parse_document / rag_query / rag_reindex 共享使用。
+"""
+
+from __future__ import annotations
+
+import logging
+from typing import Any
+
+from firebase_functions import https_fn
+import firebase_admin.firestore as fb_firestore
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_auth_uid(req: https_fn.CallableRequest) -> str:
+    auth = getattr(req, "auth", None)
+    if auth is None:
+        return ""
+    if isinstance(auth, dict):
+        return str(auth.get("uid", "")).strip()
+    uid = str(getattr(auth, "uid", "")).strip()
+    if uid:
+        return uid
+    token = getattr(auth, "token", None)
+    if isinstance(token, dict):
+        return str(token.get("uid", "")).strip()
+    return ""
+
+
+def _assert_account_access(uid: str, account_id: str) -> None:
+    if uid == account_id:
+        return
+
+    db = fb_firestore.client()
+    snap = db.collection("accounts").document(account_id).get()
+    if not snap.exists:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "account not found or inaccessible",
+        )
+
+    data = snap.to_dict() or {}
+    owner_id = str(data.get("ownerId", "")).strip()
+    member_ids = data.get("memberIds") if isinstance(data.get("memberIds"), list) else []
+    member_set = {str(item or "").strip() for item in member_ids}
+    if owner_id == uid or uid in member_set:
+        return
+
+    raise https_fn.HttpsError(
+        https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+        "you do not have access to this account scope",
+    )
+
+
+def _assert_workspace_belongs_account(account_id: str, workspace_id: str) -> None:
+    db = fb_firestore.client()
+    snap = db.collection("workspaces").document(workspace_id).get()
+    if not snap.exists:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace not found",
+        )
+
+    data = snap.to_dict() or {}
+    bound_account_id = str(data.get("accountId", "")).strip()
+    if bound_account_id != account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.PERMISSION_DENIED,
+            "workspace does not belong to account scope",
+        )
+
+
+def _parse_taxonomy_filters(raw_value: Any) -> list[str]:
+    if not isinstance(raw_value, list):
+        return []
+    return [str(item or "").strip().lower() for item in raw_value if str(item or "").strip()]
+
+
+def _to_bool(raw_value: Any, default_value: bool) -> bool:
+    if isinstance(raw_value, bool):
+        return raw_value
+    raw = str(raw_value or "").strip().lower()
+    if not raw:
+        return default_value
+    if raw in {"1", "true", "yes", "on"}:
+        return True
+    if raw in {"0", "false", "no", "off"}:
+        return False
+    return default_value
+
+
+def _parse_gs_uri(gs_uri: str) -> tuple[str, str]:
+    if not gs_uri.startswith("gs://"):
+        raise ValueError("gcs uri must start with gs://")
+    path_part = gs_uri.split("gs://", 1)[1]
+    if "/" not in path_part:
+        raise ValueError("gcs uri must include object path")
+    bucket_name, object_path = path_part.split("/", 1)
+    return bucket_name, object_path
+````
+
+## File: py_fn/src/interface/handlers/https.py
+````python
+"""
+HTTPS Callable 觸發器 — 向後相容的重新匯出桶。
+各 handler 已拆分至對應的聚焦模組：
+  - parse_document.py      (handle_parse_document)
+  - rag_query_handler.py   (handle_rag_query)
+  - rag_reindex_handler.py (handle_rag_reindex_document)
+  - _https_helpers.py      (共用驗證/解析工具)
+
+此檔案保留所有原始公開符號以維持向後相容。
+"""
+
+from __future__ import annotations
+
+from interface.handlers.parse_document import handle_parse_document
+from interface.handlers.rag_query_handler import handle_rag_query
+from interface.handlers.rag_reindex_handler import handle_rag_reindex_document
+
+__all__ = [
+    "handle_parse_document",
+    "handle_rag_query",
+    "handle_rag_reindex_document",
+]
+````
+
+## File: py_fn/src/interface/handlers/parse_document.py
+````python
+"""
+HTTPS Callable — handle_parse_document：觸發 Document AI 解析。
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import time
+
+from firebase_functions import https_fn
+
+from application.services.document_pipeline import get_document_pipeline
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+from interface.handlers._https_helpers import _parse_gs_uri
+
+logger = logging.getLogger(__name__)
+
+
+def handle_parse_document(req: https_fn.CallableRequest) -> dict:
+    """
+    HTTPS Callable：主動觸發單一文件的 Document AI 解析。
+
+    輸入 GCS URI，Document AI 直接從 Cloud Storage 讀取並解析。
+    Firestore 會記錄完整的 lifecycle（processing → completed/error）。
+    """
+    runtime = get_document_pipeline()
+    data: dict = req.data or {}
+    account_id = str(data.get("account_id", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
+    if not workspace_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace_id 為必填欄位",
+        )
+
+    gcs_uri: str = data.get("gcs_uri", "").strip()
+    if not gcs_uri or not gcs_uri.startswith("gs://"):
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "gcs_uri 為必填欄位（格式：gs://bucket/path）",
+        )
+
+    # 解析 GCS URI 得到儲存檔名，用於 doc_id。
+    path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
+    storage_filename = os.path.basename(path_part)     # "file.pdf"
+    doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or storage_filename
+    )
+
+    # 推測 MIME 類型
+    mime_type = data.get("mime_type", "").strip()
+    if not mime_type:
+        _mime_map = {
+            ".pdf": "application/pdf",
+            ".tiff": "image/tiff",
+            ".tif": "image/tiff",
+            ".png": "image/png",
+            ".jpg": "image/jpeg",
+            ".jpeg": "image/jpeg",
+        }
+        mime_type = _mime_map.get(ext.lower())
+        if mime_type is None:
+            raise https_fn.HttpsError(
+                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+                f"無法判斷 MIME 類型，請手動指定（副檔名：{ext}）",
+            )
+
+    size_bytes = data.get("size_bytes", 0)
+    logger.info("parse_document callable: %s → doc_id=%s", gcs_uri, doc_id)
+
+    # ── 初始化 Firestore document ───────────────────────────────────────────
+    try:
+        runtime.init_document(
+            doc_id=doc_id,
+            gcs_uri=gcs_uri,
+            filename=filename,
+            size_bytes=int(size_bytes),
+            mime_type=mime_type,
+            account_id=account_id,
+            workspace_id=workspace_id,
+        )
+    except Exception as exc:
+        logger.exception("Failed to init document %s: %s", doc_id, exc)
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            "Failed to initialize document",
+        ) from exc
+
+    # 解析 gs://bucket/path，取得 bucket 與 object_path
+    bucket_name, object_path = path_part.split("/", 1)
+
+    # ── 同步解析（保持函數活躍直到完成） ─────────────────────────────────────
+    start_time = time.time()
+    try:
+        parsed = runtime.process_document_gcs(gcs_uri=gcs_uri, mime_type=mime_type)
+        extraction_ms = int((time.time() - start_time) * 1000)
+
+        # 解析結果全文寫回 GCS JSON（與 uploads 目錄結構對應）
+        json_object_path = runtime.parsed_json_path(object_path)
+        json_gcs_uri = runtime.upload_json(
+            bucket_name=bucket_name,
+            object_path=json_object_path,
+            data={
+                "doc_id": doc_id,
+                "account_id": account_id,
+                "workspace_id": workspace_id,
+                "source_gcs_uri": gcs_uri,
+                "filename": filename,
+                "display_name": filename,
+                "original_filename": filename,
+                "page_count": parsed.page_count,
+                "extraction_ms": extraction_ms,
+                "text": parsed.text,
+            },
+        )
+
+        runtime.update_parsed(
+            doc_id=doc_id,
+            json_gcs_uri=json_gcs_uri,
+            page_count=parsed.page_count,
+            extraction_ms=extraction_ms,
+            account_id=account_id,
+        )
+
+        # Step 5/6: RAG ingestion（embed + vector + ready）
+        try:
+            rag = ingest_document_for_rag(
+                doc_id=doc_id,
+                filename=filename,
+                source_gcs_uri=gcs_uri,
+                json_gcs_uri=json_gcs_uri,
+                text=parsed.text,
+                page_count=parsed.page_count,
+                account_id=account_id,
+                workspace_id=workspace_id,
+            )
+            runtime.mark_rag_ready(
+                doc_id=doc_id,
+                chunk_count=rag.chunk_count,
+                vector_count=rag.vector_count,
+                embedding_model=rag.embedding_model,
+                embedding_dimensions=rag.embedding_dimensions,
+                raw_chars=rag.raw_chars,
+                normalized_chars=rag.normalized_chars,
+                normalization_version=rag.normalization_version,
+                language_hint=rag.language_hint,
+                account_id=account_id,
+            )
+        except Exception as rag_exc:
+            logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
+            runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
+
+        logger.info(
+            "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
+            doc_id,
+            parsed.page_count,
+            extraction_ms,
+            json_gcs_uri,
+        )
+    except Exception as exc:
+        logger.exception("parse_document failed for %s: %s", doc_id, exc)
+        runtime.record_error(doc_id, str(exc)[:200], account_id=account_id)
+
+    # 立即回覆（無論成功或失敗，Firestore 狀態已更新）
+    return {
+        "account_scope": account_id,
+        "doc_id": doc_id,
+        "status": "processing",  # 前端應監聽 Firestore 的實際狀態
+    }
+````
+
+## File: py_fn/src/interface/handlers/rag_query_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_query：RAG 查詢（Step 7）。
+"""
+
+from __future__ import annotations
+
+import logging
+
+from firebase_functions import https_fn
+
+from application.services.document_pipeline import allow_rag_query_rate_limit
+from application.use_cases import execute_rag_query
+from core.config import (
+    RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+    RAG_QUERY_REQUIRE_READY_STATUS,
+    RAG_QUERY_RATE_LIMIT_MAX,
+    RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
+)
+from interface.handlers._https_helpers import (
+    _assert_account_access,
+    _assert_workspace_belongs_account,
+    _extract_auth_uid,
+    _parse_taxonomy_filters,
+    _to_bool,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def handle_rag_query(req: https_fn.CallableRequest) -> dict:
+    """HTTPS Callable：RAG 查詢（Step 7）。"""
+    uid = _extract_auth_uid(req)
+    if not uid:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.UNAUTHENTICATED,
+            "需先登入才能執行 RAG 查詢",
+        )
+
+    data: dict = req.data or {}
+    query = str(data.get("query", "")).strip()
+    account_id = str(data.get("account_id", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
+    if not query:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "query 為必填欄位",
+        )
+    if not workspace_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "workspace_id 為必填欄位",
+        )
+
+    _assert_account_access(uid, account_id)
+    _assert_workspace_belongs_account(account_id, workspace_id)
+
+    top_k = data.get("top_k")
+    try:
+        top_k_int = int(top_k) if top_k is not None else None
+    except Exception:
+        top_k_int = None
+
+    try:
+        max_age_days = int(data.get("max_age_days")) if data.get("max_age_days") is not None else None
+    except Exception:
+        max_age_days = None
+
+    taxonomy_filters = _parse_taxonomy_filters(data.get("taxonomy_filters"))
+    require_ready = _to_bool(data.get("require_ready"), RAG_QUERY_REQUIRE_READY_STATUS)
+
+    try:
+        allowed, remaining = allow_rag_query_rate_limit(
+            account_id=account_id,
+            max_requests=RAG_QUERY_RATE_LIMIT_MAX,
+            window_seconds=RAG_QUERY_RATE_LIMIT_WINDOW_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("rag_query rate-limit skipped: %s", exc)
+        allowed, remaining = True, -1
+
+    if not allowed:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.RESOURCE_EXHAUSTED,
+            "RAG query rate limit exceeded, please try again later.",
+        )
+
+    result = execute_rag_query(
+        query=query,
+        top_k=top_k_int,
+        account_scope=account_id,
+        workspace_scope=workspace_id,
+        taxonomy_filters=taxonomy_filters,
+        max_age_days=max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS,
+        require_ready=require_ready,
+    )
+    response = {
+        "answer": result.get("answer", ""),
+        "citations": result.get("citations", []),
+        "cache": result.get("cache", "miss"),
+        "vector_hits": result.get("vector_hits", 0),
+        "search_hits": result.get("search_hits", 0),
+        "account_scope": result.get("account_scope", account_id),
+        "workspace_scope": result.get("workspace_scope", workspace_id),
+        "taxonomy_filters": result.get("taxonomy_filters", taxonomy_filters),
+        "max_age_days": result.get("max_age_days", max_age_days or RAG_QUERY_DEFAULT_MAX_AGE_DAYS),
+        "require_ready": result.get("require_ready", require_ready),
+        "rate_limit_remaining": remaining,
+    }
+    if isinstance(result.get("debug"), dict):
+        response["debug"] = result["debug"]
+    return response
+````
+
+## File: py_fn/src/interface/handlers/rag_reindex_handler.py
+````python
+"""
+HTTPS Callable — handle_rag_reindex_document：手動觸發文件 RAG 重新索引。
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+
+from firebase_functions import https_fn
+
+from application.services.document_pipeline import get_document_pipeline
+from application.use_cases.rag_ingestion import ingest_document_for_rag
+from interface.handlers._https_helpers import _parse_gs_uri
+
+logger = logging.getLogger(__name__)
+
+
+def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
+    """HTTPS Callable：手動觸發單一文件的 Normalization + RAG ingestion。"""
+    runtime = get_document_pipeline()
+    data: dict = req.data or {}
+
+    account_id = str(data.get("account_id", "")).strip()
+    doc_id = str(data.get("doc_id", "")).strip()
+    json_gcs_uri = str(data.get("json_gcs_uri", "")).strip()
+    source_gcs_uri = str(data.get("source_gcs_uri", "")).strip()
+    workspace_id = str(data.get("workspace_id", "")).strip()
+    filename = (
+        str(data.get("filename", "")).strip()
+        or str(data.get("display_name", "")).strip()
+        or str(data.get("original_filename", "")).strip()
+        or doc_id
+    )
+
+    if not account_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "account_id 為必填欄位",
+        )
+    if not doc_id:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "doc_id 為必填欄位",
+        )
+    if not json_gcs_uri:
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+            "json_gcs_uri 為必填欄位",
+        )
+
+    try:
+        page_count = int(data.get("page_count", 0) or 0)
+    except Exception:
+        page_count = 0
+
+    try:
+        bucket_name, object_path = _parse_gs_uri(json_gcs_uri)
+        json_bytes = runtime.download_bytes(bucket_name=bucket_name, object_path=object_path)
+        parsed_payload = json.loads(json_bytes.decode("utf-8")) if json_bytes else {}
+
+        text = str(parsed_payload.get("text", "")).strip()
+        if not text:
+            raise ValueError("json 內容缺少 text")
+
+        if not source_gcs_uri:
+            source_gcs_uri = str(parsed_payload.get("source_gcs_uri", "")).strip()
+        if not workspace_id:
+            workspace_id = str(parsed_payload.get("workspace_id", "")).strip()
+        if not workspace_id:
+            workspace_id = str((parsed_payload.get("metadata") or {}).get("space_id", "")).strip()
+        if not filename:
+            filename = (
+                str(parsed_payload.get("filename", "")).strip()
+                or str(parsed_payload.get("display_name", "")).strip()
+                or str(parsed_payload.get("original_filename", "")).strip()
+                or doc_id
+            )
+        if page_count <= 0:
+            page_count = int(parsed_payload.get("page_count", 0) or 0)
+        if not workspace_id:
+            raise https_fn.HttpsError(
+                https_fn.FunctionsErrorCode.INVALID_ARGUMENT,
+                "workspace_id 為必填欄位",
+            )
+
+        rag = ingest_document_for_rag(
+            doc_id=doc_id,
+            filename=filename,
+            source_gcs_uri=source_gcs_uri,
+            json_gcs_uri=json_gcs_uri,
+            text=text,
+            page_count=page_count,
+            account_id=account_id,
+            workspace_id=workspace_id,
+        )
+
+        runtime.mark_rag_ready(
+            doc_id=doc_id,
+            chunk_count=rag.chunk_count,
+            vector_count=rag.vector_count,
+            embedding_model=rag.embedding_model,
+            embedding_dimensions=rag.embedding_dimensions,
+            raw_chars=rag.raw_chars,
+            normalized_chars=rag.normalized_chars,
+            normalization_version=rag.normalization_version,
+            language_hint=rag.language_hint,
+            account_id=account_id,
+        )
+
+        return {
+            "account_scope": account_id,
+            "doc_id": doc_id,
+            "status": "ready",
+            "chunk_count": rag.chunk_count,
+            "vector_count": rag.vector_count,
+            "raw_chars": rag.raw_chars,
+            "normalized_chars": rag.normalized_chars,
+            "normalization_version": rag.normalization_version,
+            "language_hint": rag.language_hint,
+        }
+    except Exception as exc:
+        logger.exception("rag_reindex_document failed for %s: %s", doc_id, exc)
+        runtime.record_rag_error(doc_id, str(exc)[:200], account_id=account_id)
+        raise https_fn.HttpsError(
+            https_fn.FunctionsErrorCode.INTERNAL,
+            f"rag_reindex_document 失敗：{str(exc)[:200]}",
+        ) from exc
+````
+
+## File: .github/copilot-instructions.md
 ````markdown
-# Xuanwu App
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
 
-Xuanwu is a personal- and organization-oriented Knowledge Platform. Its product goal is to bring documents, notes, knowledge pages, knowledge-base articles, structured data, and external sources into one governable workspace system so knowledge can be preserved, verified, retrieved, reasoned over, and turned into executable work.
+# Xuanwu Copilot Workspace Instructions
 
-The system is built as a modular monolith with Module-Driven Domain Design. `knowledge` and `knowledge-base` are the core domains: `knowledge` owns the Notion-like content lifecycle, while `knowledge-base` owns organization-grade wiki, SOP, and article assets. `workspace` and `organization` provide collaboration and governance boundaries. `source` plus integration adapters form the anti-corruption boundary for external content. `ai`, `search`, and `notebook` provide ingestion, retrieval, reasoning, and research workflows on top of that knowledge base.
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
 
-## Product Capabilities
+## Purpose
 
-- Knowledge pages, block-based editing, versioning, and approval
-- Organizational knowledge-base articles, categories, and verification workflows
-- Structured databases with records, schema, and multi-view exploration
-- External document/source ingestion with workspace-scoped governance
-- Ask/Cite, retrieval, summarization, and notebook-style knowledge generation
-- Workspace, organization, audit, feed, workflow, and scheduling support for execution
+- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
 
-## Architecture At A Glance
+## Non-Negotiable Session Contract
 
-- Architecture style: Modular Monolith + Module-Driven Domain Design
-- Boundary model: bounded contexts with local ubiquitous language and domain model ownership
-- Cross-context collaboration: public `api/` surfaces and published domain events
-- Runtime split:
-	- `Next.js` owns UI, auth/session orchestration, route composition, and server-side application flow
-	- `py_fn/` owns parsing, chunking, embedding, and worker-style ingestion tasks
-- Anti-corruption boundary: external systems are translated through source workflows and infrastructure adapters before entering core domains
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
 
-## Current Domain Shape
+## Authoritative Sources
 
-- Core domains: `knowledge`, `knowledge-base`
-- Supporting domains: `ai`, `knowledge-collaboration`, `knowledge-database`, `notebook`, `search`, `source`, `workspace-audit`, `workspace-feed`, `workspace-flow`, `workspace-scheduling`
-- Generic domains: `identity`, `account`, `organization`, `workspace`, `notification`
-- Shared kernel: `shared`
+Read these in order before making non-trivial decisions:
 
-See [docs/ddd/subdomains.md](docs/ddd/subdomains.md) and [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md) for the canonical strategic map.
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
+2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
 
-## Documentation Entry Points
+## DDD Reference Authority
 
-- [docs/getting-started.md](docs/getting-started.md): local setup and validation flow
-- [docs/ddd/subdomains.md](docs/ddd/subdomains.md): strategic subdomain classification
-- [docs/ddd/bounded-contexts.md](docs/ddd/bounded-contexts.md): bounded-context inventory
-- [docs/reference/specification/system-overview.md](docs/reference/specification/system-overview.md): system overview specification
-- [AGENTS.md](AGENTS.md): repository-wide operating rules and validation commands
-- [.github/copilot-instructions.md](.github/copilot-instructions.md): Copilot workspace baseline
+DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
 
-## Development Quick Start
+| Query | Canonical Document |
+|-------|-------------------|
+| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Context terminology | `modules/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
+| Context domain events | `modules/<context>/domain-events.md` |
+| Context map | `modules/<context>/context-map.md` |
+| Context repositories | `modules/<context>/repositories.md` |
+| Context application services | `modules/<context>/application-services.md` |
+| Context domain services | `modules/<context>/domain-services.md` |
 
-```bash
-npm install
-npm run dev
-```
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
 
-Validation commands:
+## Workspace-Wide Operating Rules
 
-```bash
-npm run lint
-npm run build
-cd py_fn && python -m compileall -q .
-cd py_fn && python -m pytest tests/ -v
-```
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
 
-## Repository Notes
+## Architecture Guardrails
 
-- `modules/` contains bounded contexts and their local markdown reference sets
-- `docs/ddd/` contains strategic DDD entrypoints
-- `.github/` contains Copilot customizations, instructions, and repomix-generated skills
-- `docs/swarm.md`, `docs/beads.md`, and related files document internal AI delivery workflow, not the product surface itself
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+
+## Copilot Customization Design Rules
+
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+
+## Serena MCP
+
+Serena MCP is **mandatory for every session**. There are no exceptions.
+
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
+
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
+
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Claude Compatibility Layer
+
+`.claude/` is a supported Claude Code compatibility surface.
+
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
+
+## Skill And Agent Routing
+
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
+
+## Validation
+
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
+
+## Terminology
+
+- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
 ````
 
 ## File: app/(shell)/_components/app-rail.tsx
@@ -69972,100 +68981,6 @@ const eslintConfig = defineConfig([
 export default eslintConfig;
 ````
 
-## File: modules/bounded-contexts.md
-````markdown
-# Modules Bounded Contexts（Canonical Link）
-
-本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
-
-- ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
-- 若需調整界限上下文內容，請只編輯 canonical 檔案。
-- 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
-````
-
-## File: modules/knowledge-base/context-map.md
-````markdown
-# knowledge-base — Context Map
-
-> 詳細關係見 [`modules/knowledge-base/context-map.md`](../../modules/knowledge-base/context-map.md)
-
-## 上游
-
-- `workspace` / `identity` / `organization` — Conformist
-- `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
-- `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
-- `knowledge-database` — Open Host Service（Article 可與 Record 連結；knowledge-base 呼叫 knowledge-database OHS API）
-
-## 下游
-
-- `notification` / `workspace-feed` — Published Language（事件消費）
-- `workspace-audit` — Published Language（審計紀錄）
-
-## Promote 協議（D3）
-
-`knowledge-base` 是 Promote 協議的業務規則擁有者：
-
-1. 使用者觸發「提升為文章」操作（via `knowledge-base` Server Action）
-2. `knowledge` BC 執行頁面驗證並發出 `knowledge.page_promoted` 事件
-3. `knowledge-base` 訂閱後依 `pageId` 建立對應 Article（`status=draft`）
-4. 提升後原 KnowledgePage 保留（不歸檔）；Article 成為知識庫主版本
-````
-
-## File: modules/knowledge-base/README.md
-````markdown
-# knowledge-base — DDD Reference
-
-> **Domain Type:** Core Domain
-> **Module:** `modules/knowledge-base/`
-> **詳細模組文件:** [`modules/knowledge-base/`](../../modules/knowledge-base/)
-
-## 戰略定位
-
-`knowledge-base` 是 Xuanwu 的第二核心域（與 `knowledge` 並列），提供組織級公開知識庫能力。它使知識平台從個人筆記進化為組織可共享、可驗證、可結構化的知識網路。
-
-## Bounded Context 邊界
-
-- **擁有：** Article（文章）、Category（分類）
-- **不擁有：** 個人 Page（→ `knowledge`）、版本歷史（→ `knowledge-collaboration`）、結構化資料（→ `knowledge-database`）
-
-## 核心聚合
-
-詳見 [aggregates.md](../../modules/knowledge-base/aggregates.md)
-
-- **Article** — 組織知識文章（SOP / Wiki），具備 VerificationState 與 ArticleOwner
-- **Category** — 層級分類目錄（最多 5 層）
-
-## 主要領域事件
-
-詳見 [domain-events.md](../../modules/knowledge-base/domain-events.md)
-
-- `knowledge-base.article_created`
-- `knowledge-base.article_published`
-- `knowledge-base.article_verified`
-- `knowledge-base.article_review_requested`
-- `knowledge-base.category_created`
-
-## 通用語言
-
-詳見 [ubiquitous-language.md](../../modules/knowledge-base/ubiquitous-language.md)
-
-- **Article** ≠ Page（個人筆記）≠ Document（泛型）
-- **VerificationState** ≠ ApprovalState（knowledge 的審核）
-- **Backlink** = `[[Article Title]]` wikilink 解析結果
-
-## 上下文關係
-
-詳見 [context-map.md](../../modules/knowledge-base/context-map.md)
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier |
-| 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
-| 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
-| 下游 | `notification`, `workspace-feed` | Published Language |
-````
-
 ## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
 ````typescript
 /**
@@ -70156,148 +69071,539 @@ export const RevokePermissionSchema = z.object({
 export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
 ````
 
-## File: modules/knowledge-database/README.md
+## File: modules/knowledge/AGENT.md
 ````markdown
-# knowledge-database — DDD Reference
+# AGENT.md — knowledge BC
 
-> **Domain Type:** Supporting Subdomain
-> **Module:** `modules/knowledge-database/`
-> **詳細模組文件:** [`modules/knowledge-database/`](../../modules/knowledge-database/)
+## 模組定位
 
-## 戰略定位
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
 
-`knowledge-database` 對應 Notion Database 能力，提供結構化資料儲存與多視圖展示。使用者可定義欄位 Schema，以不同視圖（Table/Board/Calendar/Timeline/Gallery）探索相同資料。
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
 
-## 核心聚合
+## 通用語言（Ubiquitous Language）
 
-- **Database** — 欄位 Schema 容器 + 視圖清單；invariant 邊界
-- **Record** — 單行資料，properties Map（fieldId → value）
-- **View** — 視圖配置：type + filters + sorts + groupBy
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
 
-## 視圖類型
+> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
 
-`table` | `board` | `list` | `calendar` | `timeline` | `gallery`
+## 邊界規則
 
-## 欄位類型
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
 
-`text` | `number` | `select` | `multi_select` | `date` | `checkbox` | `url` | `email` | `relation` | `formula` | `rollup`
+### ❌ 禁止
+```typescript
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
+```
 
-## 主要領域事件
+## page_approved 事件規則
 
-- `knowledge-database.database_created`
-- `knowledge-database.field_added` / `field_deleted`
-- `knowledge-database.record_added` / `record_updated` / `record_deleted`
-- `knowledge-database.record_linked`
-- `knowledge-database.view_created` / `view_updated`
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
 
-## 通用語言
+## 驗證命令
 
-| 術語 | 定義 |
-|---|---|
-| **Database** | 結構化資料容器（≠ KnowledgeCollection） |
-| **Field** | Schema 欄位定義（≠ Column） |
-| **Record** | 資料行（≠ Row, Item） |
-| **Property** | Record 中某 Field 的具體值 |
-| **View** | 視圖配置（不持有資料） |
-| **Relation** | 跨 Database 的 Record 連結欄位類型 |
-
-## 上下文關係
-
-| 關係 | BC | 類型 |
-|---|---|---|
-| 上游 | `workspace`, `identity`, `organization` | Conformist |
-| 上游 | `knowledge-collaboration` | Customer/Supplier（Permission） |
-| 上游 | `knowledge` | Customer/Supplier（KnowledgeCollection opaque ref / D1） |
-| 下游 | `knowledge-base` | Open Host Service（Article-Record link） |
-| 下游 | `workspace-feed`, `notification` | Published Language |
+```bash
+npm run lint
+npm run build
+```
 ````
 
-## File: modules/knowledge/application-services.md
+## File: modules/knowledge/aggregates.md
 ````markdown
-# knowledge — Application Services
+# Aggregates — knowledge
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
+## 聚合根：KnowledgePage
 
-本文件記錄 `knowledge` 的 application layer 服務與 use cases。內容與 `modules/knowledge/application/` 實作保持一致。
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
 
-## Application Layer 職責
+### 關鍵屬性
 
-管理知識頁面、內容區塊與版本歷史，是平台的核心知識內容領域。
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
 
-## 實際檔案
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
 
-- `application/block-service.ts`
-- `application/dto/knowledge.dto.ts`
-- `application/use-cases/knowledge-block.use-cases.ts`
-- `application/use-cases/knowledge-collection.use-cases.ts`
-- `application/use-cases/knowledge-page.use-cases.ts`
-- `application/use-cases/knowledge-version.use-cases.ts`
+### KnowledgePageStatus 與 UI 標籤對照
 
-## Use Cases 清單
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
 
-| Use Case 類別 | 操作 | UI 入口 |
-|---|---|---|
-| `CreateKnowledgePageUseCase` | 建立知識頁面 | PageTreeView `+` 按鈕 / "新增頁面" |
-| `RenameKnowledgePageUseCase` | 重新命名頁面 | PageTreeView `…` 選單 → 行內 inline 輸入框 |
-| `MoveKnowledgePageUseCase` | 移動頁面層級 | PageTreeView `…` 選單 → 「移動到」（待實作） |
-| `ArchiveKnowledgePageUseCase` | 歸檔頁面（UI：移至垃圾桶） | PageTreeView `…` 選單 → 「移至垃圾桶」 |
-| `PromoteKnowledgePageUseCase` | 提升頁面為 Article（D3 Promote 協議）：執行頁面驗證並發出 `knowledge.page_promoted` 事件 | 由 `knowledge-base` Server Action 觸發 |
-| `ReorderKnowledgePageBlocksUseCase` | 重排頁面區塊 |
-| `ApproveKnowledgePageUseCase` | 審批頁面（觸發整合事件） |
-| `VerifyKnowledgePageUseCase` | 驗證頁面（Wiki Space 模式） |
-| `RequestPageReviewUseCase` | 要求頁面審閱（Wiki Space 模式） |
-| `AssignPageOwnerUseCase` | 指定頁面負責人（Wiki Space 模式） |
-| `GetKnowledgePageUseCase` | 取得單頁 |
-| `ListKnowledgePagesUseCase` | 取得帳戶所有頁面 |
-| `GetKnowledgePageTreeUseCase` | 取得頁面樹狀結構 |
-| `CreateKnowledgeCollectionUseCase` | 建立集合（Database / Wiki Space） |
-| `RenameKnowledgeCollectionUseCase` | 重新命名集合 |
-| `AddPageToCollectionUseCase` | 將頁面加入集合 |
-| `RemovePageFromCollectionUseCase` | 從集合移除頁面 |
-| `AddCollectionColumnUseCase` | 新增欄位（Database 模式） |
-| `ArchiveKnowledgeCollectionUseCase` | 歸檔集合 |
-| `GetKnowledgeCollectionUseCase` | 取得單一集合 |
-| `ListKnowledgeCollectionsByAccountUseCase` | 取得帳戶所有集合 |
-| `ListKnowledgeCollectionsByWorkspaceUseCase` | 取得工作區所有集合 |
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
 
-## 設計對齊
+### 不變數
 
-- 模組 README：`../../../modules/knowledge/README.md`
-- 模組 AGENT：`../../../modules/knowledge/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+- `slug` 在同一 accountId 下必須唯一
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區 |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
 ````
 
-## File: modules/knowledge/domain-services.md
+## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Page lifecycle use cases — create, rename, move, reorder blocks, archive, list.
+ * Review workflow: see knowledge-page-review.use-cases.ts
+ * Appearance: see knowledge-page-appearance.use-cases.ts
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+} from "../dto/knowledge.dto";
+
+export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
+
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
+
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
+  };
+  sortByOrder(roots);
+
+  return roots;
+}
+
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+
+    const page = await this.repo.create({
+      accountId,
+      workspaceId,
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
+    });
+
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, title } = parsed.data;
+    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, targetParentPageId } = parsed.data;
+
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+    }
+
+    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId } = parsed.data;
+    const updated = await this.repo.archive(accountId, pageId);
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+````
+
+## File: modules/knowledge/context-map.md
 ````markdown
-# knowledge — Domain Services
+# Context Map — knowledge
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
+## 上游（依賴）
 
-本文件整理 `knowledge` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
 
-## Domain Services 檔案
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
 
-- 目前沒有獨立的 `domain/services/*` 檔案。
+---
 
-## 設計規則
+## 下游（被依賴）
 
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
 
-## 模組內對應文件
+**這是平台最重要的跨 BC 整合點。**
 
-- `../../../modules/knowledge/domain-services.md`
-- `../../../modules/knowledge/aggregates.md`
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (KnowledgeToWorkflowMaterializer)
+```
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+### knowledge → knowledge-database（Open Host Service / D1）
+
+- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
+- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
+- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
+
+```
+knowledge ──(KnowledgeCollection.id)──► knowledge-database
+                                        (Database / Record / View 管理)
+```
+
+### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
+
+- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
+- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
+- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
+
+```
+knowledge ─── knowledge.page_promoted ───► knowledge-base
+                                           (Article 建立，Promote 協議完成)
+```
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
+| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
+````
+
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## Knowledge Collection 驗證事件
+
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+```
+
+## Promote 事件（D3：Page → Article 提升協議）
+
+`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
+
+```typescript
+interface KnowledgePagePromotedEvent {
+  readonly type: "knowledge.page_promoted";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
+  readonly promotedByUserId: string;
+  readonly occurredAt: string;       // ISO 8601
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
 ````
 
 ## File: modules/knowledge/domain/index.ts
@@ -70656,101 +69962,6 @@ export function emptyTextBlockContent(): BlockContent {
 export function plainTextBlockContent(text: string, type: BlockType = "text"): BlockContent {
   return { type, richText: [{ type: "text", plainText: text }] };
 }
-````
-
-## File: modules/knowledge/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: module/barrel (public API)
- *
- * This is the ONLY file that external modules should import from.
- * All internal implementation details (domain, application, infrastructure)
- * are NOT importable from outside — use the exports listed here.
- *
- * Boundary rule: other modules import via `@/modules/knowledge`, never from
- * `@/modules/knowledge/domain/...` or deeper paths.
- *
- * Access pattern:
- *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
- *   - UI mutations                    → Server Actions below
- *   - UI reads                        → Query functions below
- *
- * Current boundary note:
- *   - `Page` / `Block` are owned by this module.
- *   - `KnowledgeCollection` is still exported here as a transitional surface.
- *   - `Article` / `Category` belong to `knowledge-base`.
- */
-
-// ── API: Facade (cross-domain entry point) ────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./api/knowledge-facade";
-
-// ── Domain: entity types ──────────────────────────────────────────────────────
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-} from "./domain/entities/knowledge-page.entity";
-
-export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
-
-export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "./interfaces/_actions/knowledge.actions";
-
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "./interfaces/queries/knowledge.queries";
-
-// ── Domain: Collection + Wiki types ──────────────────────────────────────────
-export type {
-  KnowledgeCollection,
-  CollectionSpaceType,
-} from "./domain/entities/knowledge-collection.entity";
-
-export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
-
-// ── Interfaces: Components ────────────────────────────────────────────────────
-export { BlockEditorView } from "./interfaces/components/BlockEditorView";
-export { PageTreeView } from "./interfaces/components/PageTreeView";
-export { PageDialog } from "./interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
@@ -71383,15 +70594,950 @@ export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
-## File: modules/subdomains.md
-````markdown
-# Modules Subdomains（Canonical Link）
+## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
+````typescript
+/**
+ * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
+ * Implements the OrganizationRepository port.
+ * Firebase SDK only exists in this file.
+ */
 
-本文件僅作為 modules 層入口，避免與 DDD 主文件重複。
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  OrganizationRole,
+} from "../../domain/entities/Organization";
+import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
 
-- ✅ Canonical Source: [`../docs/ddd/subdomains.md`](../docs/ddd/subdomains.md)
-- 若需調整子域分類內容，請只編輯 canonical 檔案。
-- 各 bounded context 的細節仍以 `modules/<context>/*.md` 為準。
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseOrganizationRepository implements OrganizationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private organizationAccountRef(organizationId: string) {
+    return doc(this.db, "accounts", organizationId);
+  }
+
+  private buildOrganizationAccountData(
+    data: {
+      name?: string;
+      ownerId?: string;
+      email?: string;
+      photoURL?: string;
+      description?: string;
+      theme?: OrganizationEntity["theme"];
+      members?: MemberReference[];
+      memberIds?: string[];
+      teams?: Team[];
+      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
+    },
+  ) {
+    return {
+      accountType: "organization" as const,
+      name: data.name ?? "",
+      ownerId: data.ownerId ?? "",
+      email: data.email ?? null,
+      photoURL: data.photoURL ?? null,
+      description: data.description ?? null,
+      theme: data.theme ?? null,
+      members: data.members ?? [],
+      memberIds: data.memberIds ?? [],
+      teams: data.teams ?? [],
+      createdAt: data.createdAt ?? serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
+
+  async create(command: CreateOrganizationCommand): Promise<string> {
+    const orgRef = doc(collection(this.db, "organizations"));
+    const owner: MemberReference = {
+      id: command.ownerId,
+      name: command.ownerName,
+      email: command.ownerEmail,
+      role: "Owner",
+      presence: "active",
+    };
+    const createdAt = serverTimestamp();
+    const organizationData = {
+      name: command.organizationName,
+      ownerId: command.ownerId,
+      members: [owner],
+      memberIds: [command.ownerId],
+      teams: [],
+      createdAt,
+    };
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, organizationData);
+    batch.set(
+      this.organizationAccountRef(orgRef.id),
+      this.buildOrganizationAccountData({
+        name: command.organizationName,
+        ownerId: command.ownerId,
+        members: [owner],
+        memberIds: [command.ownerId],
+        teams: [],
+        createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+    return orgRef.id;
+  }
+
+  async findById(id: string): Promise<OrganizationEntity | null> {
+    const snap = await getDoc(doc(this.db, "organizations", id));
+    if (!snap.exists()) return null;
+    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async save(org: OrganizationEntity): Promise<void> {
+    const orgRef = doc(this.db, "organizations", org.id);
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, {
+      name: org.name,
+      ownerId: org.ownerId,
+      members: org.members,
+      memberIds: org.memberIds,
+      teams: org.teams,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(org.id),
+      this.buildOrganizationAccountData({
+        name: org.name,
+        ownerId: org.ownerId,
+        email: org.email,
+        photoURL: org.photoURL,
+        description: org.description,
+        theme: org.theme,
+        members: org.members,
+        memberIds: org.memberIds,
+        teams: org.teams,
+        createdAt: org.createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
+    const orgRef = doc(this.db, "organizations", command.organizationId);
+    const updates: Record<string, unknown> = {
+      accountType: "organization",
+      updatedAt: serverTimestamp(),
+    };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.description !== undefined) updates.description = command.description;
+    if (command.theme !== undefined) updates.theme = command.theme;
+    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
+    const batch = writeBatch(this.db);
+    batch.update(orgRef, updates);
+    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
+    await batch.commit();
+  }
+
+  async delete(organizationId: string): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.delete(doc(this.db, "organizations", organizationId));
+    batch.delete(this.organizationAccountRef(organizationId));
+    await batch.commit();
+  }
+
+  // ─── Members ────────────────────────────────────────────────────────────────
+
+  async inviteMember(input: InviteMemberInput): Promise<string> {
+    const invite = {
+      email: input.email,
+      teamId: input.teamId,
+      role: input.role,
+      inviteState: "pending",
+      protocol: input.protocol,
+      invitedAt: serverTimestamp(),
+    };
+    const ref = await addDoc(
+      collection(this.db, "organizations", input.organizationId, "invites"),
+      invite,
+    );
+    return ref.id;
+  }
+
+  async recruitMember(
+    organizationId: string,
+    memberId: string,
+    name: string,
+    email: string,
+  ): Promise<void> {
+    const orgRef = doc(this.db, "organizations", organizationId);
+    const member: MemberReference = {
+      id: memberId,
+      name,
+      email,
+      role: "Member",
+      presence: "active",
+    };
+    const batch = writeBatch(this.db);
+    batch.update(orgRef, {
+      members: arrayUnion(member),
+      memberIds: arrayUnion(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(organizationId),
+      {
+        members: arrayUnion(member),
+        memberIds: arrayUnion(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async removeMember(organizationId: string, memberId: string): Promise<void> {
+    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!orgSnap.exists()) return;
+    const data = orgSnap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), {
+      members,
+      memberIds: arrayRemove(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(organizationId),
+      {
+        members,
+        memberIds: arrayRemove(memberId),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
+    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
+    if (!orgSnap.exists()) return;
+    const data = orgSnap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).map((m) =>
+          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
+        )
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", input.organizationId), {
+      members,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.organizationAccountRef(input.organizationId),
+      {
+        members,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async getMembers(organizationId: string): Promise<MemberReference[]> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return [];
+    const data = snap.data() as Record<string, unknown>;
+    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
+  }
+
+  subscribeToMembers(
+    organizationId: string,
+    onUpdate: (members: MemberReference[]) => void,
+  ): Unsubscribe {
+    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
+      if (!snap.exists()) {
+        onUpdate([]);
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
+    });
+  }
+
+  // ─── Teams ──────────────────────────────────────────────────────────────────
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(
+      collection(this.db, "organizations", organizationId, "teams"),
+    );
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribeToTeams(
+    organizationId: string,
+    onUpdate: (teams: Team[]) => void,
+  ): Unsubscribe {
+    return onSnapshot(
+      collection(this.db, "organizations", organizationId, "teams"),
+      (snap) => {
+        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
+      },
+    );
+  }
+
+  // ─── Partners ────────────────────────────────────────────────────────────────
+
+  async sendPartnerInvite(
+    organizationId: string,
+    teamId: string,
+    email: string,
+  ): Promise<string> {
+    const ref = await addDoc(
+      collection(this.db, "organizations", organizationId, "partnerInvites"),
+      {
+        email,
+        teamId,
+        role: "Guest",
+        inviteState: "pending",
+        invitedAt: serverTimestamp(),
+      },
+    );
+    return ref.id;
+  }
+
+  async dismissPartnerMember(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+  ): Promise<void> {
+    await this.removeMemberFromTeam(organizationId, teamId, memberId);
+  }
+
+  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+    const snaps = await getDocs(
+      collection(this.db, "organizations", organizationId, "partnerInvites"),
+    );
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-lifecycle.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization lifecycle server actions — create, update settings, delete.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+} from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function createOrganization(
+  command: CreateOrganizationCommand,
+): Promise<CommandResult> {
+  try {
+    return await new CreateOrganizationUseCase(orgRepo).execute(command);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function createOrganizationWithTeam(
+  command: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try {
+    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
+  } catch (err) {
+    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateOrganizationSettings(
+  command: UpdateOrganizationSettingsCommand,
+): Promise<CommandResult> {
+  try {
+    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-member.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization member server actions — invite, recruit, dismiss, update role.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { InviteMemberInput } from "../../domain/entities/Organization";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type { UpdateMemberRoleInput } from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try {
+    return await new InviteMemberUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
+  } catch (err) {
+    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function dismissMember(
+  organizationId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try {
+    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
+  } catch (err) {
+    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try {
+    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-partner.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization partner server actions — create group, invite, dismiss.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function createPartnerGroup(
+  organizationId: string,
+  groupName: string,
+): Promise<CommandResult> {
+  try {
+    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
+  } catch (err) {
+    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
+  } catch (err) {
+    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
+  } catch (err) {
+    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization policy server actions — create, update, delete.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../../application/use-cases/organization-policy.use-cases";
+import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+const policyRepo = new FirebaseOrgPolicyRepository();
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try {
+    return await new CreateOrgPolicyUseCase(policyRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateOrgPolicy(
+  policyId: string,
+  data: UpdateOrgPolicyInput,
+): Promise<CommandResult> {
+  try {
+    return await new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try {
+    return await new DeleteOrgPolicyUseCase(policyRepo).execute(policyId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/organization/interfaces/_actions/organization-team.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Organization team server actions — create, delete, update members.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../../application/use-cases/organization.use-cases";
+import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
+
+const orgRepo = new FirebaseOrganizationRepository();
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try {
+    return await new CreateTeamUseCase(orgRepo).execute(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteTeam(
+  organizationId: string,
+  teamId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try {
+    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/source/application/use-cases/wiki-libraries.use-case.ts
+````typescript
+/**
+ * Module: source
+ * Layer: application/use-cases
+ * Purpose: Wiki-style library use-cases — create, add fields, add rows, list.
+ *          Direct-function API for the source module's wiki-facing library
+ *          management surface.
+ */
+
+import {
+  InMemoryEventStoreRepository,
+  NoopEventBusRepository,
+  PublishDomainEventUseCase,
+} from "@/modules/shared/api";
+
+import type {
+  AddWikiLibraryFieldInput,
+  CreateWikiLibraryInput,
+  CreateWikiLibraryRowInput,
+  WikiLibrary,
+  WikiLibraryField,
+  WikiLibraryRow,
+} from "../../domain/entities/wiki-library.types";
+import type { WikiLibraryRepository } from "../../domain/repositories/WikiLibraryRepository";
+import {
+  generateId,
+  normalizeName,
+  normalizeFieldKey,
+  ensureUniqueLibrarySlug,
+  deriveSlugCandidate,
+} from "./wiki-library-use-case.helpers";
+
+const defaultEventPublisher = new PublishDomainEventUseCase(
+  new InMemoryEventStoreRepository(),
+  new NoopEventBusRepository(),
+);
+
+export async function listWikiLibraries(
+  accountId: string,
+  workspaceId: string | undefined,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary[]> {
+  if (!accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const libraries = await libraryRepository.listByAccountId(accountId);
+  const activeLibraries = libraries.filter((library) => library.status === "active");
+  if (!workspaceId) {
+    return activeLibraries;
+  }
+  return activeLibraries.filter((library) => library.workspaceId === workspaceId);
+}
+
+export async function createWikiLibrary(
+  input: CreateWikiLibraryInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrary> {
+  if (!input.accountId) {
+    throw new Error("accountId is required");
+  }
+
+  const name = normalizeName(input.name);
+  const libraries = await libraryRepository.listByAccountId(input.accountId);
+  const workspaceLibraries = libraries.filter((library) => (library.workspaceId ?? "") === (input.workspaceId ?? ""));
+
+  const slug = ensureUniqueLibrarySlug(deriveSlugCandidate(name), workspaceLibraries);
+  const now = new Date();
+  const library: WikiLibrary = {
+    id: generateId(),
+    accountId: input.accountId,
+    workspaceId: input.workspaceId,
+    name,
+    slug,
+    status: "active",
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.create(library);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_created",
+    aggregateType: "asset-library",
+    aggregateId: library.id,
+    payload: {
+      accountId: library.accountId,
+      workspaceId: library.workspaceId,
+      slug: library.slug,
+    },
+  });
+
+  return library;
+}
+
+export async function addWikiLibraryField(
+  input: AddWikiLibraryFieldInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryField> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const key = normalizeFieldKey(input.key);
+  const label = normalizeName(input.label);
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  if (fields.some((field) => field.key === key)) {
+    throw new Error(`field key "${key}" already exists`);
+  }
+
+  const field: WikiLibraryField = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    key,
+    label,
+    type: input.type,
+    required: input.required ?? false,
+    options: input.options,
+    createdAt: new Date(),
+  };
+
+  await libraryRepository.createField(input.accountId, field);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_field_added",
+    aggregateType: "asset-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      fieldKey: field.key,
+      fieldType: field.type,
+    },
+  });
+
+  return field;
+}
+
+export async function createWikiLibraryRow(
+  input: CreateWikiLibraryRowInput,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibraryRow> {
+  const library = await libraryRepository.findById(input.accountId, input.libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const fields = await libraryRepository.listFields(input.accountId, input.libraryId);
+  const requiredFields = fields.filter((field) => field.required);
+  for (const field of requiredFields) {
+    if (!(field.key in input.values)) {
+      throw new Error(`missing required field: ${field.key}`);
+    }
+  }
+
+  const now = new Date();
+  const row: WikiLibraryRow = {
+    id: generateId(),
+    libraryId: input.libraryId,
+    values: input.values,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  await libraryRepository.createRow(input.accountId, row);
+  await defaultEventPublisher.execute({
+    id: generateId(),
+    eventName: "source.library_row_created",
+    aggregateType: "asset-library",
+    aggregateId: input.libraryId,
+    payload: {
+      accountId: input.accountId,
+      rowId: row.id,
+      fields: Object.keys(row.values),
+    },
+  });
+
+  return row;
+}
+
+export interface WikiLibrarySnapshot {
+  library: WikiLibrary;
+  fields: WikiLibraryField[];
+  rows: WikiLibraryRow[];
+}
+
+export async function getWikiLibrarySnapshot(
+  accountId: string,
+  libraryId: string,
+  libraryRepository: WikiLibraryRepository,
+): Promise<WikiLibrarySnapshot> {
+  const library = await libraryRepository.findById(accountId, libraryId);
+  if (!library) {
+    throw new Error("library not found");
+  }
+
+  const [fields, rows] = await Promise.all([
+    libraryRepository.listFields(accountId, libraryId),
+    libraryRepository.listRows(accountId, libraryId),
+  ]);
+
+  return { library, fields, rows };
+}
+````
+
+## File: modules/source/application/use-cases/wiki-library-use-case.helpers.ts
+````typescript
+/**
+ * Module: source
+ * Layer: application/use-cases
+ * Purpose: Private helper functions for wiki-library use cases.
+ *          Extracted to keep use-case files focused on business workflow only.
+ */
+
+import { deriveSlugCandidate, isValidSlug } from "@/modules/shared/api";
+import type { WikiLibrary } from "../../domain/entities/wiki-library.types";
+
+export function generateId(): string {
+  const randomUUID = globalThis.crypto?.randomUUID;
+  if (typeof randomUUID === "function") {
+    return randomUUID.call(globalThis.crypto);
+  }
+  return `wbl_${Date.now()}_${Math.random().toString(16).slice(2, 10)}`;
+}
+
+export function normalizeName(name: string): string {
+  const value = name.trim();
+  if (!value) {
+    throw new Error("library name is required");
+  }
+  return value.slice(0, 80);
+}
+
+export function normalizeFieldKey(key: string): string {
+  const normalized = key.trim().toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!normalized) {
+    throw new Error("field key is required");
+  }
+  return normalized.slice(0, 48);
+}
+
+export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary[]): string {
+  const normalizedBase = isValidSlug(baseSlug) ? baseSlug : "library-node";
+  const existing = new Set(libraries.map((library) => library.slug));
+  if (!existing.has(normalizedBase)) {
+    return normalizedBase;
+  }
+
+  let index = 2;
+  while (index < 5000) {
+    const candidate = `${normalizedBase}-${index}`;
+    if (!existing.has(candidate) && isValidSlug(candidate)) {
+      return candidate;
+    }
+    index += 1;
+  }
+
+  throw new Error("cannot allocate a unique slug for this library name");
+}
+
+export { deriveSlugCandidate };
 ````
 
 ## File: modules/workspace-flow/domain/entities/Invoice.ts
@@ -71488,6 +71634,1450 @@ export interface UpdateTaskInput {
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
 }
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-invoice.actions.ts
+ * @description Server Actions for workspace-flow Invoice write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
+
+function makeFacade(): WorkspaceFlowFacade {
+  return new WorkspaceFlowFacade(
+    new FirebaseTaskRepository(),
+    new FirebaseIssueRepository(),
+    new FirebaseInvoiceRepository(),
+  );
+}
+
+export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().createInvoice(workspaceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().addInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().removeInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().reviewInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().rejectInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().payInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-issue.actions.ts
+ * @description Server Actions for workspace-flow Issue write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
+
+function makeFacade(): WorkspaceFlowFacade {
+  return new WorkspaceFlowFacade(
+    new FirebaseTaskRepository(),
+    new FirebaseIssueRepository(),
+    new FirebaseInvoiceRepository(),
+  );
+}
+
+export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().openIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfStartIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().startIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFixIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().fixIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().failIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().resolveIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task.actions.ts
+ * @description Server Actions for workspace-flow Task write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { CreateTaskDto } from "../../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
+
+function makeFacade(): WorkspaceFlowFacade {
+  return new WorkspaceFlowFacade(
+    new FirebaseTaskRepository(),
+    new FirebaseIssueRepository(),
+    new FirebaseInvoiceRepository(),
+  );
+}
+
+export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().createTask(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateTask(taskId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().assignTask(taskId, assigneeId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitTaskToQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passTaskQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveTaskAcceptance(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().archiveTask(taskId, invoiceStatus);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import { wfAssignTask } from "../_actions/workspace-flow.actions";
+
+export interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { wfCreateTask } from "../_actions/workspace-flow.actions";
+
+export interface CreateTaskDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  workspaceId: string;
+}
+
+export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDateISO, setDueDateISO] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setAssigneeId("");
+    setDueDateISO("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入任務標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfCreateTask({
+        workspaceId,
+        title: t,
+        description: description.trim() || undefined,
+        assigneeId: assigneeId.trim() || undefined,
+        dueDateISO: dueDateISO || undefined,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立任務</DialogTitle>
+          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">標題 *</Label>
+            <Input
+              id="task-title"
+              placeholder="任務名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-description">描述（選填）</Label>
+            <Textarea
+              id="task-description"
+              placeholder="任務詳情或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
+              <Input
+                id="task-assignee"
+                placeholder="用戶 ID"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">截止日期（選填）</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDateISO}
+                onChange={(e) => setDueDateISO(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import {
+  wfApproveInvoice,
+  wfCloseInvoice,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfSubmitInvoice,
+} from "../_actions/workspace-flow.actions";
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
+  }
+}
+
+export interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import {
+  wfCloseIssue,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfPassIssueRetest,
+  wfStartIssue,
+  wfSubmitIssueRetest,
+} from "../_actions/workspace-flow.actions";
+
+export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+export interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import { wfOpenIssue } from "../_actions/workspace-flow.actions";
+import { ISSUE_STAGE_LABEL } from "./IssueRow";
+
+export interface OpenIssueDialogProps {
+  open: boolean;
+  taskId: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setStage("task");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入議題標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfOpenIssue({
+        taskId,
+        stage,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: currentUserId,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>開啟議題</DialogTitle>
+          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-title">標題 *</Label>
+            <Input
+              id="issue-title"
+              placeholder="問題簡述"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-description">描述（選填）</Label>
+            <Textarea
+              id="issue-description"
+              placeholder="問題詳情、重現步驟…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>發生階段</Label>
+            <div className="flex gap-2">
+              {(["task", "qa", "acceptance"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={stage === s ? "default" : "outline"}
+                  onClick={() => setStage(s)}
+                  disabled={submitting}
+                >
+                  {ISSUE_STAGE_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
+````typescript
+"use client";
+
+import { useCallback, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { Task } from "../../domain/entities/Task";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import {
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfPassTaskQa,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
+import { AssignTaskDialog } from "./AssignTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { OpenIssueDialog } from "./OpenIssueDialog";
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+
+export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoaded, setIssuesLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIssues = useCallback(async () => {
+    try {
+      const data = await getWorkspaceFlowIssues(task.id);
+      setIssues(data);
+      setIssuesLoaded(true);
+    } catch {
+      // non-fatal
+    }
+  }, [task.id]);
+
+  async function toggleIssues() {
+    if (!issuesExpanded && !issuesLoaded) {
+      await loadIssues();
+    }
+    setIssuesExpanded((v) => !v);
+  }
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderTaskAction() {
+    switch (task.status) {
+      case "draft":
+        return (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
+            指派任務
+          </Button>
+        );
+      case "in_progress":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
+      case "qa":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
+      case "acceptance":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
+      case "accepted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
+      {/* ── Task header ─────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+          {task.assigneeId && (
+            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+          {task.dueDateISO && (
+            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Action row ──────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {renderTaskAction()}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={() => setIssueDialogOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          開議題
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground ml-auto"
+          onClick={toggleIssues}
+        >
+          {issuesExpanded ? (
+            <ChevronDown className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+          )}
+          議題{issuesLoaded ? ` (${issues.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Issues sub-list ─────────────────── */}
+      {issuesExpanded && (
+        <div className="space-y-2 pl-1">
+          {issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
+          ) : (
+            issues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onTransitioned={loadIssues}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Dialogs ─────────────────────────── */}
+      <AssignTaskDialog
+        open={assignDialogOpen}
+        taskId={task.id}
+        onClose={() => setAssignDialogOpen(false)}
+        onDone={onTransitioned}
+      />
+      <OpenIssueDialog
+        open={issueDialogOpen}
+        taskId={task.id}
+        currentUserId={currentUserId}
+        onClose={() => setIssueDialogOpen(false)}
+        onCreated={async () => {
+          await loadIssues();
+          if (!issuesExpanded) setIssuesExpanded(true);
+        }}
+      />
+    </div>
+  );
+}
+````
+
+## File: py_fn/src/application/use_cases/rag_ingestion.py
+````python
+"""
+RAG pipeline — ingestion use case (clean → chunk → embed → upsert).
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import UTC, datetime
+from typing import Any
+
+from application.dto import RagIngestionResult
+from core.config import (
+    OPENAI_EMBEDDING_DIMENSIONS,
+    OPENAI_EMBEDDING_MODEL,
+    RAG_DOC_CACHE_TTL_SECONDS,
+    RAG_CHUNK_OVERLAP_CHARS,
+    RAG_CHUNK_SIZE_CHARS,
+    RAG_REDIS_PREFIX,
+    RAG_VECTOR_NAMESPACE,
+)
+from domain.repositories import RagIngestionGateway, get_rag_ingestion_gateway
+from domain.services.rag_ingestion_text import clean_text, chunk_text, detect_language_hint
+
+logger = logging.getLogger(__name__)
+
+
+def ingest_document_for_rag(
+    *,
+    doc_id: str,
+    filename: str,
+    source_gcs_uri: str,
+    json_gcs_uri: str,
+    text: str,
+    page_count: int,
+    account_id: str,
+    workspace_id: str,
+    taxonomy: str = "general",
+    gateway: RagIngestionGateway | None = None,
+) -> RagIngestionResult:
+    """Step 1~5: clean -> chunk -> metadata -> embed -> upsert vector。"""
+    gateway = gateway or get_rag_ingestion_gateway()
+
+    if not account_id:
+        raise ValueError("account_id is required")
+    if not workspace_id:
+        raise ValueError("workspace_id is required")
+
+    raw_chars = len(text or "")
+    normalized = clean_text(text or "")
+    normalized_chars = len(normalized)
+    normalization_version = "v2"
+    language_hint = detect_language_hint(normalized)
+
+    base_chunks = chunk_text(
+        normalized,
+        chunk_size=RAG_CHUNK_SIZE_CHARS,
+        overlap=RAG_CHUNK_OVERLAP_CHARS,
+    )
+    if not base_chunks:
+        return RagIngestionResult(
+            chunk_count=0,
+            vector_count=0,
+            embedding_model=OPENAI_EMBEDDING_MODEL,
+            embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+            raw_chars=raw_chars,
+            normalized_chars=normalized_chars,
+            normalization_version=normalization_version,
+            language_hint=language_hint,
+        )
+
+    texts = [item["text"] for item in base_chunks]
+    vectors = gateway.embed_texts(texts, model=OPENAI_EMBEDDING_MODEL)
+
+    now_iso = datetime.now(UTC).isoformat()
+    payload: list[dict[str, Any]] = []
+
+    for i, (chunk, vec) in enumerate(zip(base_chunks, vectors)):
+        chunk_id = f"{doc_id}:{i:04d}"
+        payload.append(
+            {
+                "id": chunk_id,
+                "vector": vec,
+                "data": chunk["text"],
+                "metadata": {
+                    "vector_namespace": RAG_VECTOR_NAMESPACE,
+                    "doc_id": doc_id,
+                    "chunk_id": chunk_id,
+                    "chunk_index": i,
+                    "chunk_count": len(base_chunks),
+                    "filename": filename,
+                    "original_filename": filename,
+                    "display_name": filename,
+                    "source_gcs_uri": source_gcs_uri,
+                    "json_gcs_uri": json_gcs_uri,
+                    "account_id": account_id,
+                    "workspace_id": workspace_id,
+                    "taxonomy": taxonomy,
+                    "semantic_class": taxonomy,
+                    "processing_status": "ready",
+                    "page_count": page_count,
+                    "char_start": chunk["char_start"],
+                    "char_end": chunk["char_end"],
+                    "text": chunk["text"],
+                    "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
+                    "raw_chars": raw_chars,
+                    "normalized_chars": normalized_chars,
+                    "normalization_version": normalization_version,
+                    "language_hint": language_hint,
+                    "indexed_at": now_iso,
+                    "ingestion_pipeline": "rag-v2",
+                },
+            }
+        )
+
+    gateway.upsert_vectors(payload, namespace=RAG_VECTOR_NAMESPACE)
+
+    # Best effort: keep Upstash Search in sync with vector chunks.
+    try:
+        search_docs = [
+            {
+                "id": item["id"],
+                "content": {
+                    "text": item["metadata"].get("text", ""),
+                    "filename": item["metadata"].get("filename", ""),
+                    "doc_id": item["metadata"].get("doc_id", ""),
+                    "taxonomy": item["metadata"].get("taxonomy", ""),
+                },
+                "metadata": item["metadata"],
+            }
+            for item in payload
+        ]
+        gateway.upsert_search_documents(search_docs)
+    except Exception as exc:
+        logger.warning("search index upsert skipped for %s: %s", doc_id, exc)
+
+    # 文件索引摘要寫入 Redis，方便後續檢視與治理。
+    try:
+        gateway.redis_set_json(
+            key=f"{RAG_REDIS_PREFIX}:doc:{doc_id}:latest",
+            value={
+                "doc_id": doc_id,
+                "filename": filename,
+                "chunk_count": len(base_chunks),
+                "vector_count": len(payload),
+                "account_id": account_id,
+                "embedding_model": OPENAI_EMBEDDING_MODEL,
+                "embedding_dimensions": OPENAI_EMBEDDING_DIMENSIONS,
+                "normalization_version": normalization_version,
+                "language_hint": language_hint,
+                "indexed_at": now_iso,
+            },
+            ttl_seconds=RAG_DOC_CACHE_TTL_SECONDS,
+        )
+    except Exception as exc:
+        logger.warning("redis doc summary write failed for %s: %s", doc_id, exc)
+
+    return RagIngestionResult(
+        chunk_count=len(base_chunks),
+        vector_count=len(payload),
+        embedding_model=OPENAI_EMBEDDING_MODEL,
+        embedding_dimensions=OPENAI_EMBEDDING_DIMENSIONS,
+        raw_chars=raw_chars,
+        normalized_chars=normalized_chars,
+        normalization_version=normalization_version,
+        language_hint=language_hint,
+    )
+````
+
+## File: AGENTS.md
+````markdown
+# Agent Guide — Xuanwu App
+
+This file is the entry point for AI agents (GitHub Copilot, Claude, OpenCode, etc.) working in this repository.
+
+## Development Status Workflow
+
+Use the following status flow for issues, tasks, and features:
+
+| Order | Status | Emoji | Description |
+|------|--------|-------|-------------|
+| 0 | Idea | 💡 | Initial idea or feature request |
+| 1 | Backlog | 📥 | Stored in backlog, not scheduled |
+| 2 | Planned | 📅 | Planned and scheduled |
+| 3 | Designing | 🎨 | Architecture / UI / schema design |
+| 4 | Ready | 🟢 | Ready for development |
+| 5 | Developing | 🚧 | Active development |
+| 6 | Midway | 🏗️ | Development partially completed |
+| 7 | Testing | 🧪 | Testing / QA |
+| 8 | Fixing | 🔧 | Bug fixing |
+| 9 | Review | 🔍 | Code review / acceptance review |
+|10 | Staging | 🚀 | Staging / pre-production |
+|11 | Done | ✅ | Development completed |
+|12 | Delivered | 📦 | Delivered / deployed to production |
+|13 | Archived | 🗄️ | Archived / closed / inactive |
+
+## Quick Start
+
+1. Read [`.github/agents/README.md`](.github/agents/README.md) — rules index and overview
+2. Read [`.github/agents/knowledge-base.md`](.github/agents/knowledge-base.md) — domain knowledge and module inventory
+3. Read [`.github/agents/commands.md`](.github/agents/commands.md) — build, lint, deploy commands
+4. Read [`.github/README.md`](.github/README.md) — customization index for agents, prompts, skills, and instructions
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena is unavailable, bootstrap it before continuing.
+- Serena is the orchestration lead. Serena understands the request first and decides whether subagents are needed.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- Repository orchestration memory and index updates must go through Serena tools; direct `.serena/` edits or non-Serena replacements are not authoritative.
+
+## Orchestration Protocol
+
+- Serena MCP is mandatory at the start of every conversation and acts as the orchestration lead.
+- Serena understands the request first, reads relevant memory, gathers targeted context, and decides whether focused subagents are needed.
+- Subagents assist with exploration or execution, but Serena remains responsible for delegation and final synthesis.
+- If confidence in any library, framework, or config detail is below 99.99%, query Context7 before generating or recommending code.
+- `.claude/` is a supported Claude Code compatibility surface. Consult `.claude/settings.json`, `.claude/rules/tech-strategy.md`, and `.claude/hooks/*` when maintaining Claude-specific workflow or compatibility, while treating `.github/*` as the primary Copilot rule tree.
+
+## Key Rules
+
+### Architecture
+
+- Follow **Module-Driven Domain Design (MDDD)**: code belongs in `modules/<context>/`.
+- Treat every `modules/<module-name>/` as an isolated bounded context.
+- Cross-module interaction must go through `modules/<module-name>/api/` only.
+- Dependency direction: `interfaces/ → application/ → domain/ ← infrastructure/`.
+- `domain/` must stay framework-free (no Firebase SDK, React, HTTP clients).
+- Keep boundaries explicit: business logic stays in `application/` + `domain/`, while UI/UX concerns stay in `interfaces/` and `app/` composition.
+- Import shared code through `@alias` package aliases, never with relative paths across modules.
+
+### Import Aliases
+
+```ts
+import type { CommandResult } from "@shared-types";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { getFirebaseFirestore } from "@integration-firebase";
+```
+
+Never use legacy paths: `@/shared/*`, `@/libs/*`, `@/infrastructure/*`, `@/ui/*`.
+
+### Runtime Boundary
+
+- **Next.js** owns browser-facing APIs, upload UX, auth/session, Server Actions, streaming AI responses.
+- **`py_fn/`** owns ingestion, parsing, chunking, embedding, and background jobs.
+- Do not add chat streaming or auth logic to `py_fn/`.
+
+## Validation Commands
+
+```bash
+npm install          # Install dependencies
+npm run lint         # ESLint (0 errors expected; pre-existing warnings are OK)
+npm run test         # Vitest unit test baseline
+npm run build        # Next.js production build + TypeScript type-check
+
+# Python worker
+cd py_fn && python -m pip install -r requirements-dev.txt
+cd py_fn && python -m compileall -q .
+cd py_fn && python -m pytest tests/ -v
+```
+
+## Common Patterns
+
+### Server Action (write-side)
+
+```ts
+"use server";
+export async function myAction(input: MyInput): Promise<CommandResult> {
+  // validate → use case → return CommandResult
+}
+```
+
+### Use Case
+
+```ts
+// modules/<context>/application/use-cases/MyUseCase.ts
+export class MyUseCase {
+  constructor(private readonly repo: MyRepository) {}
+  async execute(input: MyInput): Promise<CommandResult> { ... }
+}
+```
+
+### Repository
+
+- Interface in `domain/repositories/`.
+- Firebase implementation in `infrastructure/firebase/`.
+
+## IDDD 領域驅動設計規範 (Implementing Domain-Driven Design)
+
+本專案已導入 Vaughn Vernon《Implementing Domain-Driven Design》(IDDD) 規範，以確保 Copilot 生成的程式碼符合通用語言、限界上下文與事件驅動架構原則。
+
+### DDD 審查 Agent
+
+- **[Domain Architect](.github/agents/domain-architect.agent.md)** — IDDD 領域架構審查，負責確認聚合根設計、限界上下文邊界、通用語言一致性與領域事件規範。
+
+### DDD 指令文件 (Instructions)
+
+| 文件 | 用途 |
+|------|------|
+| [ubiquitous-language](.github/instructions/ubiquitous-language.instructions.md) | 強制查閱 `terminology-glossary.md`，規範通用語言命名 |
+| [bounded-context-rules](.github/instructions/bounded-context-rules.instructions.md) | 限界上下文邊界與模組依賴方向規範 |
+| [domain-modeling](.github/instructions/domain-modeling.instructions.md) | 聚合根、實體與值對象的 Immutable 設計與 Zod 驗證規範 |
+| [event-driven-state](.github/instructions/event-driven-state.instructions.md) | XState 與領域事件互動、SuperJSON 序列化規範 |
+
+### DDD Prompt 模板
+
+- [`generate-aggregate`](.github/prompts/generate-aggregate.prompt.md) — 生成符合 IDDD 規範的 TypeScript 聚合根骨架。
+- [`generate-domain-event`](.github/prompts/generate-domain-event.prompt.md) — 生成領域事件定義（Zod Schema + 型別推導）。
+
+### DDD 術語表
+
+DDD 相關術語定義（聚合根、限界上下文、通用語言等）請查閱 [`.github/terminology-glossary.md`](.github/terminology-glossary.md) 的「DDD 戰略設計術語」與「DDD 戰術設計術語」章節。
+
+## Spec-Driven Development
+
+When asked to use spec-driven development, follow [`SPEC-WORKFLOW.md`](SPEC-WORKFLOW.md).
+
+## Copilot Delivery Workflow
+
+This repository also maintains a formal Copilot delivery chain for non-trivial work:
+
+1. Planner
+2. Implementer
+3. Reviewer
+4. QA
+
+Use `.github/copilot-instructions.md` as the Copilot-specific baseline and see [`docs/handoffs.md`](docs/handoffs.md) for the formal stage transitions.
+
+## Permissions
+
+For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS.md).
+
+## Full Rules
+
+See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
 ## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
@@ -72048,447 +73638,1067 @@ export class KnowledgeApi {
 }
 ````
 
+## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+"use client";
+
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Plus } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { Task } from "../../domain/entities/Task";
+import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
+import {
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { InvoiceRow } from "./InvoiceRow";
+import { TaskRow } from "./TaskRow";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type FlowSection = "tasks" | "invoices";
+
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>("tasks");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
+      )}
+
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>發票</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/knowledge-database/api/index.ts
+````typescript
+/**
+ * knowledge-database public API boundary
+ */
+
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
+
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
+
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+  createRecord,
+  updateRecord,
+  deleteRecord,
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/knowledge-database.actions";
+
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
+
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
+
+// Form entity types
+export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
+
+// Automation entity types
+export type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+  AutomationCondition,
+  AutomationAction,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../domain/entities/database-automation.entity";
+
+// UI Components (automation)
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
+
+// Automation server actions
+export {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/knowledge-database-automation.actions";
+
+// Automation queries
+export { getAutomations } from "../interfaces/queries/knowledge-database-automation.queries";
+
+// ── FieldComputationService ────────────────────────────────────────────────────
+export type {
+  RelationFieldConfig,
+  RelationValue,
+  FormulaFieldConfig,
+  FormulaResult,
+  RollupFieldConfig,
+  RollupAggregation,
+  RollupResult,
+  ComputedFieldValue,
+} from "../application/services/field-computation.service";
+export {
+  resolveRelationValue,
+  evaluateFormula,
+  computeRollup,
+  resolveComputedFields,
+} from "../application/services/field-computation.service";
+````
+
+## File: modules/knowledge/api/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
+ */
+
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+
+export { RichTextEditor } from "../interfaces/components/RichTextEditor";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
+
+// ── BacklinkIndex ─────────────────────────────────────────────────────────────
+export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
+export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
+export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
+````
+
 ## File: modules/knowledge/application/dto/knowledge.dto.ts
 ````typescript
 /**
  * Module: knowledge
  * Layer: application/dto
- * Purpose: Zod-validated input schemas for Content use cases.
+ * Purpose: Barrel re-export for all knowledge DTOs.
+ * Split into focused files per IDDD single-responsibility principle:
+ *  - knowledge-page.dto.ts        (page lifecycle + approve)
+ *  - knowledge-block.dto.ts       (block CRUD + nesting)
+ *  - knowledge-collection.dto.ts  (collection management)
+ *  - knowledge-wiki.dto.ts        (wiki, verification, appearance)
  */
 
-import { z } from "@lib-zod";
-import { BLOCK_TYPES } from "../../domain/value-objects/block-content";
-import { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "../../domain/entities/knowledge-page.entity";
+export {
+  KnowledgePageStatusSchema,
+  CreateKnowledgePageSchema,
+  RenameKnowledgePageSchema,
+  MoveKnowledgePageSchema,
+  ArchiveKnowledgePageSchema,
+  ReorderKnowledgePageBlocksSchema,
+  CreateKnowledgeVersionSchema,
+  ExtractedTaskSchema,
+  ExtractedInvoiceSchema,
+  ApproveKnowledgePageSchema,
+} from "./knowledge-page.dto";
+export type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  CreateKnowledgeVersionDto,
+  ApproveKnowledgePageDto,
+} from "./knowledge-page.dto";
 
-const AccountScopeSchema = z.object({
-  accountId: z.string().min(1),
-});
+export {
+  BlockTypeSchema,
+  BlockContentSchema,
+  AddKnowledgeBlockSchema,
+  UpdateKnowledgeBlockSchema,
+  DeleteKnowledgeBlockSchema,
+  NestKnowledgeBlockSchema,
+  UnnestKnowledgeBlockSchema,
+} from "./knowledge-block.dto";
+export type {
+  BlockContentDto,
+  AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockDto,
+} from "./knowledge-block.dto";
 
-export const BlockTypeSchema = z.enum(BLOCK_TYPES);
+export {
+  CollectionColumnTypeSchema,
+  CollectionColumnInputSchema,
+  CreateKnowledgeCollectionSchema,
+  RenameKnowledgeCollectionSchema,
+  AddPageToCollectionSchema,
+  RemovePageFromCollectionSchema,
+  AddCollectionColumnSchema,
+  ArchiveKnowledgeCollectionSchema,
+} from "./knowledge-collection.dto";
+export type {
+  CollectionColumnTypeDto,
+  CollectionColumnInputDto,
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "./knowledge-collection.dto";
 
-export const BlockContentSchema = z.object({
-  type: BlockTypeSchema,
-  richText: z.array(z.unknown()).readonly(),
-  properties: z.record(z.string(), z.unknown()).optional(),
-});
-
-export type BlockContentDto = z.infer<typeof BlockContentSchema>;
-
-export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  title: z.string().min(1).max(300),
-  parentPageId: z.string().min(1).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgePageDto = z.infer<typeof CreateKnowledgePageSchema>;
-
-export const RenameKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  title: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgePageDto = z.infer<typeof RenameKnowledgePageSchema>;
-
-export const MoveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  targetParentPageId: z.string().min(1).nullable(),
-});
-
-export type MoveKnowledgePageDto = z.infer<typeof MoveKnowledgePageSchema>;
-
-export const ArchiveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-});
-
-export type ArchiveKnowledgePageDto = z.infer<typeof ArchiveKnowledgePageSchema>;
-
-export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  blockIds: z.array(z.string().min(1)),
-});
-
-export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
-
-export const AddKnowledgeBlockSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  content: BlockContentSchema,
-  index: z.number().int().nonnegative().optional(),
-  parentBlockId: z.string().min(1).nullable().optional(),
-});
-
-export type AddKnowledgeBlockDto = z.infer<typeof AddKnowledgeBlockSchema>;
-
-export const UpdateKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-  content: BlockContentSchema,
-});
-
-export type UpdateKnowledgeBlockDto = z.infer<typeof UpdateKnowledgeBlockSchema>;
-
-export const DeleteKnowledgeBlockSchema = AccountScopeSchema.extend({
-  blockId: z.string().min(1),
-});
-
-export type DeleteKnowledgeBlockDto = z.infer<typeof DeleteKnowledgeBlockSchema>;
-
-export const NestKnowledgeBlockSchema = z.object({
-  accountId: z.string().min(1),
-  blockId: z.string().min(1),
-  parentBlockId: z.string().min(1),
-  index: z.number().int().min(0).optional(),
-});
-export type NestKnowledgeBlockDto = z.infer<typeof NestKnowledgeBlockSchema>;
-
-export const UnnestKnowledgeBlockSchema = z.object({
-  accountId: z.string().min(1),
-  blockId: z.string().min(1),
-  index: z.number().int().min(0).optional(),
-});
-export type UnnestKnowledgeBlockDto = z.infer<typeof UnnestKnowledgeBlockSchema>;
-
-export const CreateKnowledgeVersionSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  label: z.string().max(100).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeVersionDto = z.infer<typeof CreateKnowledgeVersionSchema>;
-
-export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
-
-// ── Approve content page ──────────────────────────────────────────────────────
-
-export const ExtractedTaskSchema = z.object({
-  title: z.string().min(1).max(300),
-  dueDate: z.string().optional(),
-  description: z.string().optional(),
-});
-
-export const ExtractedInvoiceSchema = z.object({
-  amount: z.number().positive(),
-  description: z.string().min(1),
-  currency: z.string().optional(),
-});
-
-export const ApproveKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  actorId: z.string().min(1),
-  /**
-   * causationId identifies the command (use-case invocation) that caused the
-   * resulting event.  Generated by the Server Action layer if not provided by
-   * the caller, so that command-event causality is correctly traceable.
-   */
-  causationId: z.string().min(1).optional(),
-  /** Optional: external tasks extracted by AI from this page. */
-  extractedTasks: z.array(ExtractedTaskSchema).default([]),
-  /** Optional: external invoices extracted by AI from this page. */
-  extractedInvoices: z.array(ExtractedInvoiceSchema).default([]),
-  /**
-   * Correlation ID tracing the entire ingestion → approval → materialization flow.
-   * Generated by the caller if not provided (e.g. first action in the flow).
-   */
-  correlationId: z.string().optional(),
-  /** Optional: workspaceId to include in the published event. */
-  workspaceId: z.string().optional(),
-});
-
-export type ApproveKnowledgePageDto = z.infer<typeof ApproveKnowledgePageSchema>;
-
-// ── Collection DTOs ───────────────────────────────────────────────────────────
-
-export const CollectionColumnTypeSchema = z.enum([
-  "text",
-  "number",
-  "select",
-  "multi-select",
-  "date",
-  "checkbox",
-  "url",
-  "relation",
-]);
-
-export type CollectionColumnTypeDto = z.infer<typeof CollectionColumnTypeSchema>;
-
-export const CollectionColumnInputSchema = z.object({
-  name: z.string().min(1).max(100),
-  type: CollectionColumnTypeSchema,
-  options: z.array(z.string()).optional(),
-});
-
-export type CollectionColumnInputDto = z.infer<typeof CollectionColumnInputSchema>;
-
-export const CreateKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  columns: z.array(CollectionColumnInputSchema).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateKnowledgeCollectionDto = z.infer<typeof CreateKnowledgeCollectionSchema>;
-
-export const RenameKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  name: z.string().min(1).max(300),
-});
-
-export type RenameKnowledgeCollectionDto = z.infer<typeof RenameKnowledgeCollectionSchema>;
-
-export const AddPageToCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  pageId: z.string().min(1),
-});
-
-export type AddPageToCollectionDto = z.infer<typeof AddPageToCollectionSchema>;
-
-export const RemovePageFromCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  pageId: z.string().min(1),
-});
-
-export type RemovePageFromCollectionDto = z.infer<typeof RemovePageFromCollectionSchema>;
-
-export const AddCollectionColumnSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-  column: CollectionColumnInputSchema,
-});
-
-export type AddCollectionColumnDto = z.infer<typeof AddCollectionColumnSchema>;
-
-export const ArchiveKnowledgeCollectionSchema = AccountScopeSchema.extend({
-  collectionId: z.string().min(1),
-});
-
-export type ArchiveKnowledgeCollectionDto = z.infer<typeof ArchiveKnowledgeCollectionSchema>;
-
-// ── Wiki / Knowledge Base DTOs ────────────────────────────────────────────────
-
-export const PageVerificationStateSchema = z.enum(PAGE_VERIFICATION_STATES);
-
-export const VerifyKnowledgePageSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  verifiedByUserId: z.string().min(1),
-  /** ISO 8601 — if set, page auto-transitions to "needs_review" after this date. */
-  verificationExpiresAtISO: z.string().datetime({ offset: true }).optional(),
-});
-
-export type VerifyKnowledgePageDto = z.infer<typeof VerifyKnowledgePageSchema>;
-
-export const RequestPageReviewSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  requestedByUserId: z.string().min(1),
-});
-
-export type RequestPageReviewDto = z.infer<typeof RequestPageReviewSchema>;
-
-export const AssignPageOwnerSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  ownerId: z.string().min(1),
-  assignedByUserId: z.string().min(1),
-});
-
-export type AssignPageOwnerDto = z.infer<typeof AssignPageOwnerSchema>;
-
-export const CreateWikiSpaceSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
-  name: z.string().min(1).max(300),
-  description: z.string().max(1000).optional(),
-  createdByUserId: z.string().min(1),
-});
-
-export type CreateWikiSpaceDto = z.infer<typeof CreateWikiSpaceSchema>;
-
-export const UpdatePageIconSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  iconUrl: z.string().max(2000),
-});
-
-export type UpdatePageIconDto = z.infer<typeof UpdatePageIconSchema>;
-
-export const UpdatePageCoverSchema = AccountScopeSchema.extend({
-  pageId: z.string().min(1),
-  coverUrl: z.string().max(2000),
-});
-
-export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
+export {
+  PageVerificationStateSchema,
+  VerifyKnowledgePageSchema,
+  RequestPageReviewSchema,
+  AssignPageOwnerSchema,
+  CreateWikiSpaceSchema,
+  UpdatePageIconSchema,
+  UpdatePageCoverSchema,
+} from "./knowledge-wiki.dto";
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+  UpdatePageIconDto,
+  UpdatePageCoverDto,
+} from "./knowledge-wiki.dto";
 ````
 
-## File: modules/knowledge/README.md
-````markdown
-# knowledge — 知識內容上下文
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all knowledge Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
+ */
 
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "./knowledge-page.actions";
 
-## 在 Knowledge Platform / Second Brain 中的角色
+export {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+} from "./knowledge-block.actions";
 
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
-
-## 核心聚合 / 核心概念
-
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+export {
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "./knowledge-collection.actions";
 ````
 
-## File: modules/knowledge/repositories.md
-````markdown
-# knowledge — Repositories
+## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
+````typescript
+"use client";
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
+import { useCallback, useEffect, useRef } from "react";
+import { monitorForElements } from "@lib-dragdrop";
 
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { BlockRow } from "./block-row";
 
-## Domain Repository Ports
+/**
+ * BlockEditorView — Block-based editor with drag-and-drop reordering.
+ * Block types, row rendering, and type-selector are extracted to focused files.
+ */
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, changeBlockType, deleteBlock, moveBlock, init } =
+    useBlockEditorStore();
+  const focusNextRef = useRef<string | null>(null);
+  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
+  const setBlockRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    blockRefs.current[id] = el;
+  }, []);
 
-## Infrastructure Implementations
+  useEffect(() => { init(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+  useEffect(() => {
+    const intent = focusNextRef.current;
+    if (!intent) return;
 
-## KnowledgePageRepository 方法對照
+    let targetId: string | undefined;
+    if (intent.startsWith("__after:")) {
+      const afterId = intent.slice("__after:".length);
+      const idx = blocks.findIndex((b) => b.id === afterId);
+      targetId = blocks[idx + 1]?.id;
+    } else {
+      targetId = intent;
+    }
 
-| 方法 | 說明 |
-|------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
+    if (targetId) {
+      const el = blockRefs.current[targetId];
+      if (el) {
+        el.focus();
+        const range = document.createRange();
+        const sel = window.getSelection();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+        focusNextRef.current = null;
+      }
+    }
+  });
 
-## 設計規則
+  useEffect(() => {
+    return monitorForElements({
+      onDrop({ source, location }) {
+        const target = location.current.dropTargets[0];
+        if (!target) return;
+        const fromId = source.data["blockId"] as string | undefined;
+        const toId = target.data["blockId"] as string | undefined;
+        if (!fromId || !toId || fromId === toId) return;
+        const fromIdx = blocks.findIndex((b) => b.id === fromId);
+        const toIdx = blocks.findIndex((b) => b.id === toId);
+        if (fromIdx !== -1 && toIdx !== -1) moveBlock(fromIdx, toIdx);
+      },
+    });
+  }, [blocks, moveBlock]);
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+  const handleKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        addBlock(blockId);
+        focusNextRef.current = `__after:${blockId}`;
+      } else if (event.key === "Backspace") {
+        const el = blockRefs.current[blockId];
+        if (!el?.textContent) {
+          event.preventDefault();
+          const idx = blocks.findIndex((b) => b.id === blockId);
+          if (idx > 0) {
+            const prevId = blocks[idx - 1].id;
+            deleteBlock(blockId);
+            focusNextRef.current = prevId;
+          }
+        }
+      }
+    },
+    [addBlock, blocks, deleteBlock],
+  );
 
-## 模組內對應文件
+  return (
+    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Block Editor</p>
+        <h2 className="mt-2 text-xl font-semibold text-foreground">區塊編輯器</h2>
+        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+          支援 10 種區塊類型 · Enter 換行 · Backspace 刪除空白區塊 · 拖曳重排
+        </p>
+      </div>
 
-- `../../../modules/knowledge/repositories.md`
-- `../../../modules/knowledge/aggregates.md`
+      <div className="space-y-0.5">
+        {blocks.map((block, idx) => (
+          <BlockRow
+            key={block.id}
+            block={block}
+            index={idx}
+            setBlockRef={setBlockRef}
+            onKeyDown={handleKeyDown}
+            onTextChange={(text) => updateBlock(block.id, text)}
+            onTypeChange={(type) => changeBlockType(block.id, type)}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/60">
+        {blocks.length} 個區塊 · Enter 新增 · Backspace 刪除空白區塊 · 拖曳重排
+      </p>
+    </section>
+  );
+}
 ````
 
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
+## File: modules/organization/interfaces/_actions/organization.actions.ts
+````typescript
+/**
+ * Module: organization
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all organization Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
+ *  - organization-lifecycle.actions.ts (create, update settings, delete)
+ *  - organization-member.actions.ts    (invite, recruit, dismiss, update role)
+ *  - organization-team.actions.ts      (create, delete, update members)
+ *  - organization-partner.actions.ts   (create group, invite, dismiss)
+ *  - organization-policy.actions.ts    (create, update, delete policy)
+ */
 
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+} from "./organization-lifecycle.actions";
 
-## 術語定義
+export {
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+} from "./organization-member.actions";
 
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+export {
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+} from "./organization-team.actions";
 
-## 頁面生命周期操作（Page Lifecycle Actions）
+export {
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+} from "./organization-partner.actions";
 
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+export {
+  createOrgPolicy,
+  updateOrgPolicy,
+  deleteOrgPolicy,
+} from "./organization-policy.actions";
+````
 
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow.actions.ts
+````typescript
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow.actions.ts
+ * @description Re-export barrel for all workspace-flow Server Actions.
+ *              Each sub-file carries its own "use server" directive; this barrel
+ *              must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *              "use server" barrel that itself re-exports other "use server" files.
+ *  - workspace-flow-task.actions.ts    (create, update, assign, qa, approve, archive)
+ *  - workspace-flow-issue.actions.ts   (open, start, fix, retest, resolve, close)
+ *  - workspace-flow-invoice.actions.ts (create, add/update/remove item, submit, review, approve, reject, pay, close)
+ */
 
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+export {
+  wfCreateTask,
+  wfUpdateTask,
+  wfAssignTask,
+  wfSubmitTaskToQa,
+  wfPassTaskQa,
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+} from "./workspace-flow-task.actions";
 
-## 頁面操作選單（PageContextMenu）
+export {
+  wfOpenIssue,
+  wfStartIssue,
+  wfFixIssue,
+  wfSubmitIssueRetest,
+  wfPassIssueRetest,
+  wfFailIssueRetest,
+  wfResolveIssue,
+  wfCloseIssue,
+} from "./workspace-flow-issue.actions";
 
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+export {
+  wfCreateInvoice,
+  wfAddInvoiceItem,
+  wfUpdateInvoiceItem,
+  wfRemoveInvoiceItem,
+  wfSubmitInvoice,
+  wfReviewInvoice,
+  wfApproveInvoice,
+  wfRejectInvoice,
+  wfPayInvoice,
+  wfCloseInvoice,
+} from "./workspace-flow-invoice.actions";
+````
 
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
 
-## 頁面樹狀視圖（PageTreeView）
+import Link from "next/link";
+import { useMemo, useState } from "react";
 
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { useApp } from "@/app/providers/app-provider";
 
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../application/workspace-settings";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "./workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "./WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../hooks/useWorkspaceDetail";
 
-## 禁止替換術語
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+}
 
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
+  const status = getWorkspaceTabStatus(tab);
+  return (
+    <Card className="border border-border/50">
+      <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+        {status} {getWorkspaceTabLabel(tab)} — 此分頁尚在開發中，功能將逐步開放。
+      </CardContent>
+    </Card>
+  );
+}
 
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+}: WorkspaceDetailScreenProps) {
+  const { state: appState, dispatch } = useApp();
+  const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
+    workspaceId,
+    accountId,
+    accountsHydrated,
+  );
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  const personnelEntries = useMemo(() => {
+    if (!workspace?.personnel) return [];
+    return [
+      { label: "Manager", value: workspace.personnel.managerId },
+      { label: "Supervisor", value: workspace.personnel.supervisorId },
+      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
+    ].filter((entry) => Boolean(entry.value));
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    if (!workspace?.address) return [];
+    const { street, city, state, postalCode, country, details } = workspace.address;
+    return [
+      street,
+      [city, state, postalCode].filter(Boolean).join(", "),
+      country,
+      details,
+    ].filter((line): line is string => Boolean(line));
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Wiki":
+        return <WorkspaceWikiView workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return renderWorkspacePlaceholderTab(tab);
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -72537,7 +74747,8 @@ import {
   type WorkspaceTabValue,
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
-import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
+import { useAuth } from "@/app/providers/auth-provider";
+import { createKnowledgePage } from "@/modules/knowledge/api";
 import { CustomizeNavigationDialog,
   readNavPreferences,
   type NavPreferences,
@@ -72674,6 +74885,7 @@ export function DashboardSidebar({
   onToggleCollapsed,
   onSelectWorkspace,
 }: DashboardSidebarProps) {
+  const { state: authState } = useAuth();
   const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
     activeAccount?.id,
     pathname,
@@ -72852,20 +75064,18 @@ export function DashboardSidebar({
     }
     setCreatingKind("page");
     try {
-      const db = getFirebaseFirestore();
-      const payload: Record<string, unknown> = {
-        title: "未命名頁面",
-        kind: "page",
+      const result = await createKnowledgePage({
         accountId,
-        createdAt: firestoreApi.serverTimestamp(),
-        updatedAt: firestoreApi.serverTimestamp(),
-      };
-      if (activeWorkspaceId) payload.spaceId = activeWorkspaceId;
-      await firestoreApi.addDoc(
-        firestoreApi.collection(db, "accounts", accountId, "pages"),
-        payload,
-      );
-      toast.success("已建立頁面");
+        workspaceId: activeWorkspaceId ?? undefined,
+        title: "未命名頁面",
+        parentPageId: null,
+        createdByUserId: authState.user?.id ?? accountId,
+      });
+      if (result.success) {
+        toast.success("已建立頁面");
+      } else {
+        toast.error(result.error?.message ?? "建立頁面失敗");
+      }
     } catch (error) {
       console.error(error);
       toast.error("建立頁面失敗");
@@ -73389,1075 +75599,6 @@ export function DashboardSidebar({
 }
 ````
 
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-  createRecord,
-  updateRecord,
-  deleteRecord,
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
-
-// UI Components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-
-// Form entity types
-export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
-
-// Automation entity types
-export type {
-  DatabaseAutomation,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/entities/database-automation.entity";
-
-// UI Components (automation)
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-
-// Automation server actions
-export {
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../interfaces/_actions/knowledge-database-automation.actions";
-
-// Automation queries
-export { getAutomations } from "../interfaces/queries/knowledge-database-automation.queries";
-
-// ── FieldComputationService ────────────────────────────────────────────────────
-export type {
-  RelationFieldConfig,
-  RelationValue,
-  FormulaFieldConfig,
-  FormulaResult,
-  RollupFieldConfig,
-  RollupAggregation,
-  RollupResult,
-  ComputedFieldValue,
-} from "../application/services/field-computation.service";
-export {
-  resolveRelationValue,
-  evaluateFormula,
-  computeRollup,
-  resolveComputedFields,
-} from "../application/services/field-computation.service";
-````
-
-## File: modules/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
-
-## 模組定位
-
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
-
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
-
-> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
-
-### ❌ 禁止
-```typescript
-import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
-```
-
-## page_approved 事件規則
-
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
-## File: modules/knowledge/api/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
- */
-
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
-
-export { KnowledgeApi } from "./knowledge-api";
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-
-export { PageEditorView } from "../interfaces/components/PageEditorView";
-export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
-
-export { RichTextEditor } from "../interfaces/components/RichTextEditor";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
-
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Collection types ──────────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
-
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-
-// ── Queries (read-side) ──────────────────────────────────────────────
-
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
-
-export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
-export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-
-// ── BacklinkIndex ─────────────────────────────────────────────────────────────
-export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
-export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
-export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
-````
-
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (KnowledgeToWorkflowMaterializer)
-```
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
-### knowledge → knowledge-database（Open Host Service / D1）
-
-- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
-- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
-- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
-
-```
-knowledge ──(KnowledgeCollection.id)──► knowledge-database
-                                        (Database / Record / View 管理)
-```
-
-### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
-
-- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
-- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
-- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
-
-```
-knowledge ─── knowledge.page_promoted ───► knowledge-base
-                                           (Article 建立，Promote 協議完成)
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
-| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
-````
-
-## File: modules/knowledge/domain-events.md
-````markdown
-# Domain Events — knowledge
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
-
-## 最重要事件：knowledge.page_approved
-
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
-```
-
-## Knowledge Collection 驗證事件
-
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
-```
-
-## Promote 事件（D3：Page → Article 提升協議）
-
-`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
-
-```typescript
-interface KnowledgePagePromotedEvent {
-  readonly type: "knowledge.page_promoted";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
-  readonly promotedByUserId: string;
-  readonly occurredAt: string;       // ISO 8601
-}
-```
-
-## 訂閱事件（消費端）
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
-
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
-````
-
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all knowledge Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- *          Each sub-file carries its own "use server" directive; this barrel
- *          must NOT repeat it — Turbopack cannot resolve re-exports from a
- *          "use server" barrel that itself re-exports other "use server" files.
- */
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "./knowledge-page.actions";
-
-export {
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-} from "./knowledge-block.actions";
-
-export {
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-} from "./knowledge-collection.actions";
-````
-
-## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useRef } from "react";
-import { monitorForElements } from "@lib-dragdrop";
-
-import { useBlockEditorStore } from "../store/block-editor.store";
-import { BlockRow } from "./block-row";
-
-/**
- * BlockEditorView — Block-based editor with drag-and-drop reordering.
- * Block types, row rendering, and type-selector are extracted to focused files.
- */
-export function BlockEditorView() {
-  const { blocks, addBlock, updateBlock, changeBlockType, deleteBlock, moveBlock, init } =
-    useBlockEditorStore();
-  const focusNextRef = useRef<string | null>(null);
-  const blockRefs = useRef<Record<string, HTMLDivElement | null>>({});
-
-  const setBlockRef = useCallback((id: string, el: HTMLDivElement | null) => {
-    blockRefs.current[id] = el;
-  }, []);
-
-  useEffect(() => { init(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const intent = focusNextRef.current;
-    if (!intent) return;
-
-    let targetId: string | undefined;
-    if (intent.startsWith("__after:")) {
-      const afterId = intent.slice("__after:".length);
-      const idx = blocks.findIndex((b) => b.id === afterId);
-      targetId = blocks[idx + 1]?.id;
-    } else {
-      targetId = intent;
-    }
-
-    if (targetId) {
-      const el = blockRefs.current[targetId];
-      if (el) {
-        el.focus();
-        const range = document.createRange();
-        const sel = window.getSelection();
-        range.selectNodeContents(el);
-        range.collapse(false);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-        focusNextRef.current = null;
-      }
-    }
-  });
-
-  useEffect(() => {
-    return monitorForElements({
-      onDrop({ source, location }) {
-        const target = location.current.dropTargets[0];
-        if (!target) return;
-        const fromId = source.data["blockId"] as string | undefined;
-        const toId = target.data["blockId"] as string | undefined;
-        if (!fromId || !toId || fromId === toId) return;
-        const fromIdx = blocks.findIndex((b) => b.id === fromId);
-        const toIdx = blocks.findIndex((b) => b.id === toId);
-        if (fromIdx !== -1 && toIdx !== -1) moveBlock(fromIdx, toIdx);
-      },
-    });
-  }, [blocks, moveBlock]);
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => {
-      if (event.key === "Enter" && !event.shiftKey) {
-        event.preventDefault();
-        addBlock(blockId);
-        focusNextRef.current = `__after:${blockId}`;
-      } else if (event.key === "Backspace") {
-        const el = blockRefs.current[blockId];
-        if (!el?.textContent) {
-          event.preventDefault();
-          const idx = blocks.findIndex((b) => b.id === blockId);
-          if (idx > 0) {
-            const prevId = blocks[idx - 1].id;
-            deleteBlock(blockId);
-            focusNextRef.current = prevId;
-          }
-        }
-      }
-    },
-    [addBlock, blocks, deleteBlock],
-  );
-
-  return (
-    <section className="space-y-4 rounded-xl border border-border/60 bg-card p-6">
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Block Editor</p>
-        <h2 className="mt-2 text-xl font-semibold text-foreground">區塊編輯器</h2>
-        <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
-          支援 10 種區塊類型 · Enter 換行 · Backspace 刪除空白區塊 · 拖曳重排
-        </p>
-      </div>
-
-      <div className="space-y-0.5">
-        {blocks.map((block, idx) => (
-          <BlockRow
-            key={block.id}
-            block={block}
-            index={idx}
-            setBlockRef={setBlockRef}
-            onKeyDown={handleKeyDown}
-            onTextChange={(text) => updateBlock(block.id, text)}
-            onTypeChange={(type) => changeBlockType(block.id, type)}
-          />
-        ))}
-      </div>
-
-      <p className="text-[11px] text-muted-foreground/60">
-        {blocks.length} 個區塊 · Enter 新增 · Backspace 刪除空白區塊 · 拖曳重排
-      </p>
-    </section>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { useApp } from "@/app/providers/app-provider";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../application/workspace-settings";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
-import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "./workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "./WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../hooks/useWorkspaceSettingsSave";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-}
-
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
-  const status = getWorkspaceTabStatus(tab);
-  return (
-    <Card className="border border-border/50">
-      <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-        {status} {getWorkspaceTabLabel(tab)} — 此分頁尚在開發中，功能將逐步開放。
-      </CardContent>
-    </Card>
-  );
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-}: WorkspaceDetailScreenProps) {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setLoadState("loaded");
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceDetailScreen] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-
-  const personnelEntries = useMemo(() => {
-    if (!workspace?.personnel) return [];
-    return [
-      { label: "Manager", value: workspace.personnel.managerId },
-      { label: "Supervisor", value: workspace.personnel.supervisorId },
-      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
-    ].filter((entry) => Boolean(entry.value));
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    if (!workspace?.address) return [];
-    const { street, city, state, postalCode, country, details } = workspace.address;
-    return [
-      street,
-      [city, state, postalCode].filter(Boolean).join(", "),
-      country,
-      details,
-    ].filter((line): line is string => Boolean(line));
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Wiki":
-        return <WorkspaceWikiView workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return renderWorkspacePlaceholderTab(tab);
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
-````
-
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-````
-
 ## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
 ````typescript
 "use client";
@@ -74629,4 +75770,14 @@ function buildBlockContent(tiptapJson: object): BlockContent {
 function escapeHtml(str: string): string {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
