@@ -6080,6 +6080,458 @@ export default function OrganizationDailyPage() {
 }
 ````
 
+## File: app/(shell)/organization/members/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+type MemberRole = "Admin" | "Member" | "Guest";
+
+export default function OrganizationMembersPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  async function loadMembers(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationMembers(organizationId);
+      setMembers(data);
+      setLoadState("loaded");
+    } catch {
+      setMembers([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationMembers(organizationId);
+        if (!cancelled) {
+          setMembers(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleInvite() {
+    if (!activeOrganizationId || !inviteEmail.trim()) return;
+    setInviteSubmitting(true);
+    setInviteError(null);
+    const result = await inviteMember({
+      organizationId: activeOrganizationId,
+      email: inviteEmail.trim(),
+      teamId: "",
+      role: inviteRole,
+      protocol: "email",
+    });
+    setInviteSubmitting(false);
+    if (result.success) {
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("Member");
+      await loadMembers(activeOrganizationId);
+    } else {
+      setInviteError(result.error.message);
+    }
+  }
+
+  async function handleDismiss(memberId: string) {
+    if (!activeOrganizationId) return;
+    setRemovingId(memberId);
+    await dismissMember(activeOrganizationId, memberId);
+    setRemovingId(null);
+    await loadMembers(activeOrganizationId);
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>組織成員清單與目前角色。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && members.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
+          )}
+          {loadState === "loaded" &&
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="secondary">{member.presence}</Badge>
+                  {member.role !== "Owner" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingId === member.id}
+                      onClick={() => handleDismiss(member.id)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>邀請成員</DialogTitle>
+            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="invite-email">電子信箱</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="member@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="invite-role">角色</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                  <SelectItem value="Guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
+              {inviteSubmitting ? "邀請中…" : "送出邀請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/permissions/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createOrgPolicy, getOrgPolicies } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+type PolicyScope = "workspace" | "member" | "global";
+
+export default function OrganizationPermissionsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newScope, setNewScope] = useState<PolicyScope>("member");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadPolicies(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrgPolicies(organizationId);
+      setPolicies(data);
+      setLoadState("loaded");
+    } catch {
+      setPolicies([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(organizationId);
+        if (!cancelled) {
+          setPolicies(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setPolicies([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createOrgPolicy({
+      orgId: activeOrganizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      rules: [],
+      scope: newScope,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewScope("member");
+      await loadPolicies(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Permissions</CardTitle>
+          <CardDescription>組織層級政策規則與 scope。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && policies.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
+          )}
+          {loadState === "loaded" &&
+            policies.map((policy) => (
+              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{policy.name}</p>
+                  <Badge variant="outline">{policy.scope}</Badge>
+                  <Badge variant={policy.isActive ? "default" : "secondary"}>
+                    {policy.isActive ? "active" : "inactive"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增政策</DialogTitle>
+            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="policy-name">名稱</Label>
+              <Input
+                id="policy-name"
+                placeholder="政策名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-description">描述</Label>
+              <Input
+                id="policy-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-scope">Scope</Label>
+              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
+                <SelectTrigger id="policy-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member（成員）</SelectItem>
+                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
+                  <SelectItem value="global">Global（全域）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/schedule/dispatcher/page.tsx
 ````typescript
 import { redirect } from "next/navigation";
@@ -6133,6 +6585,224 @@ export default function OrganizationSchedulePage() {
         currentUserId={activeOrganizationId}
       />
     </section>
+  );
+}
+````
+
+## File: app/(shell)/organization/teams/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createTeam, getOrganizationTeams } from "@/modules/organization/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationTeamsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newType, setNewType] = useState<"internal" | "external">("internal");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadTeams(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationTeams(organizationId);
+      setTeams(data);
+      setLoadState("loaded");
+    } catch {
+      setTeams([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(organizationId);
+        if (!cancelled) {
+          setTeams(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setTeams([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createTeam({
+      organizationId: activeOrganizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      type: newType,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewType("internal");
+      await loadTeams(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>組織團隊與成員關聯。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && teams.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          )}
+          {loadState === "loaded" &&
+            teams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <Badge variant="outline">{team.type}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Members: {team.memberIds.length}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立團隊</DialogTitle>
+            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="team-name">名稱</Label>
+              <Input
+                id="team-name"
+                placeholder="團隊名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-description">描述</Label>
+              <Input
+                id="team-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-type">類型</Label>
+              <Select
+                value={newType}
+                onValueChange={(v) => setNewType(v as "internal" | "external")}
+              >
+                <SelectTrigger id="team-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal（內部）</SelectItem>
+                  <SelectItem value="external">External（外部）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 ````
@@ -45894,238 +46564,6 @@ export default function NotebookRagQueryPage() {
 }
 ````
 
-## File: app/(shell)/organization/members/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-type MemberRole = "Admin" | "Member" | "Guest";
-
-export default function OrganizationMembersPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-
-  const [removingId, setRemovingId] = useState<string | null>(null);
-
-  async function loadMembers(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationMembers(organizationId);
-      setMembers(data);
-      setLoadState("loaded");
-    } catch {
-      setMembers([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationMembers(organizationId);
-        if (!cancelled) {
-          setMembers(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleInvite() {
-    if (!activeOrganizationId || !inviteEmail.trim()) return;
-    setInviteSubmitting(true);
-    setInviteError(null);
-    const result = await inviteMember({
-      organizationId: activeOrganizationId,
-      email: inviteEmail.trim(),
-      teamId: "",
-      role: inviteRole,
-      protocol: "email",
-    });
-    setInviteSubmitting(false);
-    if (result.success) {
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteRole("Member");
-      await loadMembers(activeOrganizationId);
-    } else {
-      setInviteError(result.error.message);
-    }
-  }
-
-  async function handleDismiss(memberId: string) {
-    if (!activeOrganizationId) return;
-    setRemovingId(memberId);
-    await dismissMember(activeOrganizationId, memberId);
-    setRemovingId(null);
-    await loadMembers(activeOrganizationId);
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>組織成員清單與目前角色。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && members.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
-          )}
-          {loadState === "loaded" &&
-            members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{member.role}</Badge>
-                  <Badge variant="secondary">{member.presence}</Badge>
-                  {member.role !== "Owner" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={removingId === member.id}
-                      onClick={() => handleDismiss(member.id)}
-                    >
-                      移除
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>邀請成員</DialogTitle>
-            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="invite-email">電子信箱</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="invite-role">角色</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Member">Member</SelectItem>
-                  <SelectItem value="Guest">Guest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
-              {inviteSubmitting ? "邀請中…" : "送出邀請"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/page.tsx
 ````typescript
 "use client";
@@ -46322,444 +46760,6 @@ export default function OrganizationPage() {
           已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
         </p>
       )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/permissions/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createOrgPolicy, getOrgPolicies } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-type PolicyScope = "workspace" | "member" | "global";
-
-export default function OrganizationPermissionsPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newScope, setNewScope] = useState<PolicyScope>("member");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadPolicies(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrgPolicies(organizationId);
-      setPolicies(data);
-      setLoadState("loaded");
-    } catch {
-      setPolicies([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrgPolicies(organizationId);
-        if (!cancelled) {
-          setPolicies(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setPolicies([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createOrgPolicy({
-      orgId: activeOrganizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      rules: [],
-      scope: newScope,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewScope("member");
-      await loadPolicies(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
-          <CardDescription>組織層級政策規則與 scope。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && policies.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
-          )}
-          {loadState === "loaded" &&
-            policies.map((policy) => (
-              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{policy.name}</p>
-                  <Badge variant="outline">{policy.scope}</Badge>
-                  <Badge variant={policy.isActive ? "default" : "secondary"}>
-                    {policy.isActive ? "active" : "inactive"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>新增政策</DialogTitle>
-            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="policy-name">名稱</Label>
-              <Input
-                id="policy-name"
-                placeholder="政策名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-description">描述</Label>
-              <Input
-                id="policy-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-scope">Scope</Label>
-              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
-                <SelectTrigger id="policy-scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member（成員）</SelectItem>
-                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
-                  <SelectItem value="global">Global（全域）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/teams/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createTeam, getOrganizationTeams } from "@/modules/organization/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-export default function OrganizationTeamsPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newType, setNewType] = useState<"internal" | "external">("internal");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadTeams(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationTeams(organizationId);
-      setTeams(data);
-      setLoadState("loaded");
-    } catch {
-      setTeams([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationTeams(organizationId);
-        if (!cancelled) {
-          setTeams(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setTeams([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createTeam({
-      organizationId: activeOrganizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      type: newType,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewType("internal");
-      await loadTeams(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Teams</CardTitle>
-          <CardDescription>組織團隊與成員關聯。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && teams.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
-          )}
-          {loadState === "loaded" &&
-            teams.map((team) => (
-              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{team.name}</p>
-                  <Badge variant="outline">{team.type}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Members: {team.memberIds.length}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立團隊</DialogTitle>
-            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="team-name">名稱</Label>
-              <Input
-                id="team-name"
-                placeholder="團隊名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-description">描述</Label>
-              <Input
-                id="team-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-type">類型</Label>
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as "internal" | "external")}
-              >
-                <SelectTrigger id="team-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Internal（內部）</SelectItem>
-                  <SelectItem value="external">External（外部）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -53144,106 +53144,6 @@ export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promi
 }
 ````
 
-## File: modules/knowledge/interfaces/components/block-row.tsx
-````typescript
-"use client";
-
-import { useEffect, useRef, useState } from "react";
-import { GripVertical } from "lucide-react";
-
-import { draggable, dropTargetForElements } from "@lib-dragdrop";
-import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
-import { TypeSelectorButton } from "./block-type-selector";
-
-export interface BlockRowProps {
-  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
-  readonly index: number;
-  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
-  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
-  readonly onTextChange: (text: string) => void;
-  readonly onTypeChange: (type: BlockType) => void;
-}
-
-export function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
-  const dragHandleRef = useRef<HTMLButtonElement>(null);
-  const dropRef = useRef<HTMLDivElement>(null);
-  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
-
-  useEffect(() => {
-    const handleEl = dragHandleRef.current;
-    const dropEl = dropRef.current;
-    if (!handleEl || !dropEl) return;
-    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ blockId: block.id }) });
-    const cleanupDrop = dropTargetForElements({ element: dropEl, getData: () => ({ blockId: block.id }) });
-    return () => { cleanupDraggable(); cleanupDrop(); };
-  }, [block.id]);
-
-  const { type, richText } = block.content;
-
-  if (type === "divider") {
-    return (
-      <div ref={dropRef} className="group flex items-center gap-1 py-1">
-        <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
-        <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
-          <GripVertical className="size-4 text-muted-foreground" />
-        </button>
-        <hr className="flex-1 border-t border-border/60" />
-      </div>
-    );
-  }
-
-  return (
-    <div ref={dropRef} className="group flex items-start gap-1">
-      <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
-      <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
-        <GripVertical className="size-4 text-muted-foreground" />
-      </button>
-      {type === "bullet-list" && <span className="mt-1 select-none text-sm text-foreground">•</span>}
-      <div
-        ref={(el) => setBlockRef(block.id, el)}
-        role="textbox"
-        tabIndex={0}
-        contentEditable
-        suppressContentEditableWarning
-        onKeyDown={(e) => onKeyDown(e, block.id)}
-        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
-        data-placeholder={blockPlaceholder(type)}
-        className={blockEditableClass(type)}
-      >
-        {richText.map((span) => span.text).join("")}
-      </div>
-    </div>
-  );
-}
-
-function blockEditableClass(type: BlockType): string {
-  const base = "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
-  switch (type) {
-    case "heading-1": return `${base} text-3xl font-bold`;
-    case "heading-2": return `${base} text-2xl font-semibold`;
-    case "heading-3": return `${base} text-xl font-medium`;
-    case "quote": return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
-    case "code": return `${base} font-mono text-sm bg-muted rounded`;
-    case "bullet-list":
-    case "numbered-list": return `${base} text-sm text-foreground`;
-    default: return `${base} min-h-[1.75rem] text-sm text-foreground`;
-  }
-}
-
-function blockPlaceholder(type: BlockType): string {
-  switch (type) {
-    case "heading-1": return "標題 1";
-    case "heading-2": return "標題 2";
-    case "heading-3": return "標題 3";
-    case "quote": return "引言…";
-    case "code": return "// 程式碼";
-    case "bullet-list": return "清單項目…";
-    case "numbered-list": return "清單項目…";
-    default: return "輸入文字…";
-  }
-}
-````
-
 ## File: modules/knowledge/interfaces/components/block-type-constants.ts
 ````typescript
 import type { BlockType } from "../../domain/value-objects/block-content";
@@ -55371,105 +55271,6 @@ export function RagBadge({ status, error }: { status: string; error: string }) {
     );
   }
   return <span className="text-xs text-muted-foreground">-</span>;
-}
-````
-
-## File: modules/search/interfaces/components/rag-upload-panel.tsx
-````typescript
-"use client";
-
-import { type RefObject } from "react";
-import { FileUp, Loader2 } from "lucide-react";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif/.tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg/.jpeg",
-};
-
-export const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
-export { ACCEPTED_MIME };
-
-export interface RagUploadPanelProps {
-  readonly effectiveWorkspaceId: string;
-  readonly activeAccountId: string;
-  readonly uploading: boolean;
-  readonly selectedFile: File | null;
-  readonly dragging: boolean;
-  readonly fileInputRef: RefObject<HTMLInputElement>;
-  readonly onFileChange: (file: File | null) => void;
-  readonly onUpload: () => void;
-  readonly onDragOver: (event: React.DragEvent<HTMLLabelElement>) => void;
-  readonly onDragLeave: () => void;
-  readonly onDrop: (event: React.DragEvent<HTMLLabelElement>) => void;
-  readonly onClearFile: () => void;
-}
-
-export function RagUploadPanel({
-  effectiveWorkspaceId,
-  activeAccountId,
-  uploading,
-  selectedFile,
-  dragging,
-  fileInputRef,
-  onFileChange,
-  onUpload,
-  onDragOver,
-  onDragLeave,
-  onDrop,
-  onClearFile,
-}: RagUploadPanelProps) {
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Upload File</CardTitle>
-        <CardDescription>
-          {effectiveWorkspaceId
-            ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
-            : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <label
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onDrop={onDrop}
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
-            dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
-          }`}
-        >
-          <FileUp className="size-7 text-muted-foreground" />
-          <div className="text-center">
-            <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
-            <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
-          </div>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={Object.keys(ACCEPTED_MIME).join(",")}
-            className="sr-only"
-            onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
-          />
-        </label>
-        <div className="flex items-center gap-2">
-          <Button onClick={onUpload} disabled={uploading || !selectedFile || !activeAccountId}>
-            {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-            {uploading ? "上傳中..." : "上傳並啟動解析"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={onClearFile}
-            disabled={uploading}
-          >
-            清除
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  );
 }
 ````
 
@@ -62642,62 +62443,6 @@ export function describeGrant(grant: WorkspaceGrant): string {
 - `../../../modules/workspace/aggregates.md`
 ````
 
-## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import { formatDate } from "@shared-utils";
-import type { WorkspaceTabGroup } from "./workspace-tabs";
-
-export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "library",
-  "spaces",
-  "databases",
-];
-
-export const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-export function getWorkspaceInitials(name: string): string {
-  const tokens = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
-  if (tokens.length === 0) {
-    return "WS";
-  }
-
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
-}
-
-export function formatTimestamp(
-  timestamp: WorkspaceEntity["createdAt"] | undefined,
-): string {
-  if (!timestamp) {
-    return "—";
-  }
-  try {
-    return formatDate(timestamp.toDate());
-  } catch {
-    return "—";
-  }
-}
-
-export function trimOrUndefined(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed || undefined;
-}
-````
-
 ## File: modules/workspace/interfaces/components/WorkspaceProductSpineCard.tsx
 ````typescript
 "use client";
@@ -66697,6 +66442,107 @@ export interface UpdatePageCoverInput {
 }
 ````
 
+## File: modules/knowledge/interfaces/components/block-row.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import { GripVertical } from "lucide-react";
+
+import { draggable, dropTargetForElements } from "@lib-dragdrop";
+import type { BlockType, RichTextSpan } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
+import { TypeSelectorButton } from "./block-type-selector";
+
+export interface BlockRowProps {
+  readonly block: { id: string; content: { type: BlockType; richText: ReadonlyArray<RichTextSpan> } };
+  readonly index: number;
+  readonly setBlockRef: (id: string, el: HTMLDivElement | null) => void;
+  readonly onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>, blockId: string) => void;
+  readonly onTextChange: (text: string) => void;
+  readonly onTypeChange: (type: BlockType) => void;
+}
+
+export function BlockRow({ block, setBlockRef, onKeyDown, onTextChange, onTypeChange }: BlockRowProps) {
+  const dragHandleRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleEl = dragHandleRef.current;
+    const dropEl = dropRef.current;
+    if (!handleEl || !dropEl) return;
+    const cleanupDraggable = draggable({ element: handleEl, getInitialData: () => ({ blockId: block.id }) });
+    const cleanupDrop = dropTargetForElements({ element: dropEl, getData: () => ({ blockId: block.id }) });
+    return () => { cleanupDraggable(); cleanupDrop(); };
+  }, [block.id]);
+
+  const { type, richText } = block.content;
+
+  if (type === "divider") {
+    return (
+      <div ref={dropRef} className="group flex items-center gap-1 py-1">
+        <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
+        <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
+          <GripVertical className="size-4 text-muted-foreground" />
+        </button>
+        <hr className="flex-1 border-t border-border/60" />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={dropRef} className="group flex items-start gap-1">
+      <TypeSelectorButton currentType={type} open={typeMenuOpen} onOpenChange={setTypeMenuOpen} onSelect={onTypeChange} />
+      <button ref={dragHandleRef} type="button" aria-label="拖曳重排" className="mt-1 cursor-grab touch-none opacity-0 transition group-hover:opacity-40 hover:!opacity-100 active:cursor-grabbing">
+        <GripVertical className="size-4 text-muted-foreground" />
+      </button>
+      {type === "bullet-list" && <span className="mt-1 select-none text-sm text-foreground">•</span>}
+      <div
+        ref={(el) => setBlockRef(block.id, el)}
+        role="textbox"
+        tabIndex={0}
+        contentEditable
+        suppressContentEditableWarning
+        onKeyDown={(e) => onKeyDown(e, block.id)}
+        onInput={(e) => onTextChange(e.currentTarget.textContent ?? "")}
+        data-placeholder={blockPlaceholder(type)}
+        className={blockEditableClass(type)}
+      >
+        {richTextToPlainText(richText)}
+      </div>
+    </div>
+  );
+}
+
+function blockEditableClass(type: BlockType): string {
+  const base = "flex-1 rounded px-2 py-1 outline-none focus:bg-muted/30 empty:before:text-muted-foreground/40 empty:before:content-[attr(data-placeholder)]";
+  switch (type) {
+    case "heading-1": return `${base} text-3xl font-bold`;
+    case "heading-2": return `${base} text-2xl font-semibold`;
+    case "heading-3": return `${base} text-xl font-medium`;
+    case "quote": return `${base} border-l-4 border-primary/50 pl-3 italic text-muted-foreground`;
+    case "code": return `${base} font-mono text-sm bg-muted rounded`;
+    case "bullet-list":
+    case "numbered-list": return `${base} text-sm text-foreground`;
+    default: return `${base} min-h-[1.75rem] text-sm text-foreground`;
+  }
+}
+
+function blockPlaceholder(type: BlockType): string {
+  switch (type) {
+    case "heading-1": return "標題 1";
+    case "heading-2": return "標題 2";
+    case "heading-3": return "標題 3";
+    case "quote": return "引言…";
+    case "code": return "// 程式碼";
+    case "bullet-list": return "清單項目…";
+    case "numbered-list": return "清單項目…";
+    default: return "輸入文字…";
+  }
+}
+````
+
 ## File: modules/knowledge/interfaces/components/block-type-selector.tsx
 ````typescript
 "use client";
@@ -67389,6 +67235,105 @@ export function toPartnerInvite(id: string, data: Record<string, unknown>): Part
 }
 ````
 
+## File: modules/search/interfaces/components/rag-upload-panel.tsx
+````typescript
+"use client";
+
+import { type RefObject } from "react";
+import { FileUp, Loader2 } from "lucide-react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+
+const ACCEPTED_MIME: Record<string, string> = {
+  "application/pdf": ".pdf",
+  "image/tiff": ".tif/.tiff",
+  "image/png": ".png",
+  "image/jpeg": ".jpg/.jpeg",
+};
+
+export const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+export { ACCEPTED_MIME };
+
+export interface RagUploadPanelProps {
+  readonly effectiveWorkspaceId: string;
+  readonly activeAccountId: string;
+  readonly uploading: boolean;
+  readonly selectedFile: File | null;
+  readonly dragging: boolean;
+  readonly fileInputRef: RefObject<HTMLInputElement | null>;
+  readonly onFileChange: (file: File | null) => void;
+  readonly onUpload: () => void;
+  readonly onDragOver: (event: React.DragEvent<HTMLLabelElement>) => void;
+  readonly onDragLeave: () => void;
+  readonly onDrop: (event: React.DragEvent<HTMLLabelElement>) => void;
+  readonly onClearFile: () => void;
+}
+
+export function RagUploadPanel({
+  effectiveWorkspaceId,
+  activeAccountId,
+  uploading,
+  selectedFile,
+  dragging,
+  fileInputRef,
+  onFileChange,
+  onUpload,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onClearFile,
+}: RagUploadPanelProps) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Upload File</CardTitle>
+        <CardDescription>
+          {effectiveWorkspaceId
+            ? `拖曳或選擇檔案上傳到目前 workspace scope：${effectiveWorkspaceId}`
+            : "拖曳或選擇檔案上傳到 account scope；workspace 視角為選填。"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <label
+          onDragOver={onDragOver}
+          onDragLeave={onDragLeave}
+          onDrop={onDrop}
+          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed p-6 transition ${
+            dragging ? "border-primary/60 bg-primary/10" : "border-border/70 bg-muted/10 hover:border-primary/40"
+          }`}
+        >
+          <FileUp className="size-7 text-muted-foreground" />
+          <div className="text-center">
+            <p className="text-sm font-medium">{selectedFile ? selectedFile.name : "點擊或拖曳上傳"}</p>
+            <p className="text-xs text-muted-foreground">支援：{ACCEPTED_EXTS}</p>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={Object.keys(ACCEPTED_MIME).join(",")}
+            className="sr-only"
+            onChange={(event) => onFileChange(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <div className="flex items-center gap-2">
+          <Button onClick={onUpload} disabled={uploading || !selectedFile || !activeAccountId}>
+            {uploading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+            {uploading ? "上傳中..." : "上傳並啟動解析"}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={onClearFile}
+            disabled={uploading}
+          >
+            清除
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+````
+
 ## File: modules/workspace-flow/api/index.ts
 ````typescript
 /**
@@ -67872,6 +67817,62 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
       />
     </div>
   );
+}
+````
+
+## File: modules/workspace/interfaces/components/workspace-detail-helpers.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import { formatDate } from "@shared-utils";
+import type { WorkspaceTabGroup } from "../workspace-tabs";
+
+export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
+  "primary",
+  "modules",
+  "library",
+  "spaces",
+  "databases",
+];
+
+export const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+export function getWorkspaceInitials(name: string): string {
+  const tokens = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (tokens.length === 0) {
+    return "WS";
+  }
+
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+export function formatTimestamp(
+  timestamp: WorkspaceEntity["createdAt"] | undefined,
+): string {
+  if (!timestamp) {
+    return "—";
+  }
+  try {
+    return formatDate(timestamp.toDate());
+  } catch {
+    return "—";
+  }
+}
+
+export function trimOrUndefined(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed || undefined;
 }
 ````
 
@@ -72313,48 +72314,6 @@ export const UpdatePageCoverSchema = AccountScopeSchema.extend({
 export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
 ````
 
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all knowledge Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- */
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "./knowledge-page.actions";
-
-export {
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-} from "./knowledge-block.actions";
-
-export {
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-} from "./knowledge-collection.actions";
-````
-
 ## File: modules/knowledge/README.md
 ````markdown
 # knowledge — 知識內容上下文
@@ -72530,316 +72489,6 @@ export {
 
 > `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
-````
-
-## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import {
-  Card,
-  CardContent,
-} from "@ui-shadcn/ui/card";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
-import { WorkspaceFilesTab } from "@/modules/source/api";
-import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
-import { useApp } from "@/app/providers/app-provider";
-
-import {
-  createSettingsDraft,
-  type WorkspaceSettingsDraft,
-} from "../../application/workspace-settings";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
-import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
-import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "../workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "./workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "./WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../hooks/useWorkspaceSettingsSave";
-
-interface WorkspaceDetailScreenProps {
-  readonly workspaceId: string;
-  readonly accountId: string | null | undefined;
-  readonly accountsHydrated: boolean;
-  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
-  readonly initialTab?: string;
-}
-
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
-  const status = getWorkspaceTabStatus(tab);
-  return (
-    <Card className="border border-border/50">
-      <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-        {status} {getWorkspaceTabLabel(tab)} — 此分頁尚在開發中，功能將逐步開放。
-      </CardContent>
-    </Card>
-  );
-}
-
-export function WorkspaceDetailScreen({
-  workspaceId,
-  accountId,
-  accountsHydrated,
-  initialTab,
-}: WorkspaceDetailScreenProps) {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
-
-  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
-    workspace,
-    accountId,
-    onSaved: (updated) => {
-      setWorkspace(updated);
-      setLoadState("loaded");
-      setSettingsDraft(createSettingsDraft(updated));
-      setIsEditWorkspaceOpen(false);
-    },
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceDetailScreen] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-
-  const personnelEntries = useMemo(() => {
-    if (!workspace?.personnel) return [];
-    return [
-      { label: "Manager", value: workspace.personnel.managerId },
-      { label: "Supervisor", value: workspace.personnel.supervisorId },
-      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
-    ].filter((entry) => Boolean(entry.value));
-  }, [workspace]);
-
-  const addressLines = useMemo(() => {
-    if (!workspace?.address) return [];
-    const { street, city, state, postalCode, country, details } = workspace.address;
-    return [
-      street,
-      [city, state, postalCode].filter(Boolean).join(", "),
-      country,
-      details,
-    ].filter(Boolean);
-  }, [workspace]);
-
-  function renderTabContent(tab: WorkspaceTabValue) {
-    if (!workspace) return null;
-
-    switch (tab) {
-      case "Overview":
-        return (
-          <WorkspaceOverviewTab
-            workspace={workspace}
-            activeWorkspaceId={appState.activeWorkspaceId}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            onEditClick={() => {
-              setSettingsDraft(createSettingsDraft(workspace));
-              clearSaveError();
-              setIsEditWorkspaceOpen(true);
-            }}
-            onSetActiveWorkspace={() =>
-              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
-            }
-          />
-        );
-      case "Members":
-        return <WorkspaceMembersTab workspace={workspace} />;
-      case "Daily":
-        return <WorkspaceDailyTab workspace={workspace} />;
-      case "Files":
-        return <WorkspaceFilesTab workspace={workspace} />;
-      case "Wiki":
-        return <WorkspaceWikiView workspace={workspace} />;
-      case "Schedule":
-        return (
-          <WorkspaceSchedulingTab
-            workspace={workspace}
-            accountId={accountId ?? workspace.accountId}
-            currentUserId={accountId ?? "anonymous"}
-          />
-        );
-      case "Audit":
-        return <WorkspaceAuditTab workspaceId={workspace.id} />;
-      case "Tasks":
-        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
-      case "Feed":
-        return (
-          <WorkspaceFeedWorkspaceView
-            accountId={accountId ?? workspace.accountId}
-            workspaceId={workspace.id}
-            workspaceName={workspace.name}
-          />
-        );
-      default:
-        return renderWorkspacePlaceholderTab(tab);
-    }
-  }
-
-  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
-    ? initialTab
-    : "Overview";
-
-  return (
-    <div className="space-y-6">
-      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
-        ← 返回 Workspace Hub
-      </Link>
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          正在同步帳號內容…
-        </div>
-      )}
-
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            Loading workspace detail…
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入工作區資料，請返回清單後重試。
-          </CardContent>
-        </Card>
-      )}
-
-      {loadState === "loaded" && !workspace && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-            找不到此工作區。
-          </CardContent>
-        </Card>
-      )}
-
-      {workspace && (
-        <div className="space-y-6">
-          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
-          <nav
-            aria-label="Workspace tab navigation"
-            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
-          >
-            <div className="flex min-w-max items-center gap-0.5">
-              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
-                const tabs = getWorkspaceTabsByGroup(group);
-                const links = tabs.map((tab) => {
-                  const isActive = resolvedTab === tab;
-                  return (
-                    <Link
-                      key={tab}
-                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
-                      aria-current={isActive ? "page" : undefined}
-                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
-                        isActive
-                          ? "bg-primary/10 text-primary"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                    >
-                      {getWorkspaceTabLabel(tab)}
-                    </Link>
-                  );
-                });
-                if (groupIndex > 0) {
-                  return [
-                    <div
-                      key={`sep-${group}`}
-                      aria-hidden="true"
-                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
-                    />,
-                    ...links,
-                  ];
-                }
-                return links;
-              })}
-            </div>
-          </nav>
-
-          <div className="flex items-center gap-2">
-            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
-          </div>
-          {renderTabContent(resolvedTab)}
-        </div>
-      )}
-
-      <WorkspaceSettingsDialog
-        open={isEditWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsEditWorkspaceOpen(open);
-          if (!open) {
-            clearSaveError();
-            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
-          }
-        }}
-        settingsDraft={settingsDraft}
-        setSettingsDraft={setSettingsDraft}
-        isSaving={isSavingWorkspace}
-        saveError={saveError}
-        onSubmit={(event) => void handleSave(event, settingsDraft)}
-      />
-    </div>
-  );
-}
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
@@ -74323,6 +73972,49 @@ interface KnowledgePagePromotedEvent {
 | `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
 ````
 
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all knowledge Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
+ */
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "./knowledge-page.actions";
+
+export {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+} from "./knowledge-block.actions";
+
+export {
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "./knowledge-collection.actions";
+````
+
 ## File: modules/knowledge/interfaces/components/BlockEditorView.tsx
 ````typescript
 "use client";
@@ -74446,11 +74138,321 @@ export function BlockEditorView() {
 }
 ````
 
+## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import {
+  Card,
+  CardContent,
+} from "@ui-shadcn/ui/card";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { WorkspaceAuditTab } from "@/modules/workspace-audit/api";
+import { WorkspaceFilesTab } from "@/modules/source/api";
+import { WorkspaceSchedulingTab } from "@/modules/workspace-scheduling/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace-feed/api";
+import { useApp } from "@/app/providers/app-provider";
+
+import {
+  createSettingsDraft,
+  type WorkspaceSettingsDraft,
+} from "../../application/workspace-settings";
+import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+import { WorkspaceWikiView } from "./WorkspaceWikiView";
+import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "./workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "./WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../hooks/useWorkspaceSettingsSave";
+
+interface WorkspaceDetailScreenProps {
+  readonly workspaceId: string;
+  readonly accountId: string | null | undefined;
+  readonly accountsHydrated: boolean;
+  /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
+  readonly initialTab?: string;
+}
+
+function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
+  const status = getWorkspaceTabStatus(tab);
+  return (
+    <Card className="border border-border/50">
+      <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+        {status} {getWorkspaceTabLabel(tab)} — 此分頁尚在開發中，功能將逐步開放。
+      </CardContent>
+    </Card>
+  );
+}
+
+export function WorkspaceDetailScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+}: WorkspaceDetailScreenProps) {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [isEditWorkspaceOpen, setIsEditWorkspaceOpen] = useState(false);
+  const [settingsDraft, setSettingsDraft] = useState<WorkspaceSettingsDraft | null>(null);
+
+  const { isSaving: isSavingWorkspace, saveError, clearSaveError, handleSave } = useWorkspaceSettingsSave({
+    workspace,
+    accountId,
+    onSaved: (updated) => {
+      setWorkspace(updated);
+      setLoadState("loaded");
+      setSettingsDraft(createSettingsDraft(updated));
+      setIsEditWorkspaceOpen(false);
+    },
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
+
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
+
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          router.replace("/workspace?context=unavailable");
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceDetailScreen] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId]);
+
+  const personnelEntries = useMemo(() => {
+    if (!workspace?.personnel) return [];
+    return [
+      { label: "Manager", value: workspace.personnel.managerId },
+      { label: "Supervisor", value: workspace.personnel.supervisorId },
+      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
+    ].filter((entry) => Boolean(entry.value));
+  }, [workspace]);
+
+  const addressLines = useMemo(() => {
+    if (!workspace?.address) return [];
+    const { street, city, state, postalCode, country, details } = workspace.address;
+    return [
+      street,
+      [city, state, postalCode].filter(Boolean).join(", "),
+      country,
+      details,
+    ].filter((line): line is string => Boolean(line));
+  }, [workspace]);
+
+  function renderTabContent(tab: WorkspaceTabValue) {
+    if (!workspace) return null;
+
+    switch (tab) {
+      case "Overview":
+        return (
+          <WorkspaceOverviewTab
+            workspace={workspace}
+            activeWorkspaceId={appState.activeWorkspaceId}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            onEditClick={() => {
+              setSettingsDraft(createSettingsDraft(workspace));
+              clearSaveError();
+              setIsEditWorkspaceOpen(true);
+            }}
+            onSetActiveWorkspace={() =>
+              dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspace.id })
+            }
+          />
+        );
+      case "Members":
+        return <WorkspaceMembersTab workspace={workspace} />;
+      case "Daily":
+        return <WorkspaceDailyTab workspace={workspace} />;
+      case "Files":
+        return <WorkspaceFilesTab workspace={workspace} />;
+      case "Wiki":
+        return <WorkspaceWikiView workspace={workspace} />;
+      case "Schedule":
+        return (
+          <WorkspaceSchedulingTab
+            workspace={workspace}
+            accountId={accountId ?? workspace.accountId}
+            currentUserId={accountId ?? "anonymous"}
+          />
+        );
+      case "Audit":
+        return <WorkspaceAuditTab workspaceId={workspace.id} />;
+      case "Tasks":
+        return <WorkspaceFlowTab workspaceId={workspace.id} currentUserId={accountId ?? "anonymous"} />;
+      case "Feed":
+        return (
+          <WorkspaceFeedWorkspaceView
+            accountId={accountId ?? workspace.accountId}
+            workspaceId={workspace.id}
+            workspaceName={workspace.name}
+          />
+        );
+      default:
+        return renderWorkspacePlaceholderTab(tab);
+    }
+  }
+
+  const resolvedTab: WorkspaceTabValue = initialTab && isWorkspaceTabValue(initialTab)
+    ? initialTab
+    : "Overview";
+
+  return (
+    <div className="space-y-6">
+      <Link href="/workspace" className="inline-flex text-sm font-medium text-primary hover:underline md:hidden">
+        ← 返回 Workspace Hub
+      </Link>
+
+      {!accountsHydrated && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          正在同步帳號內容…
+        </div>
+      )}
+
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            Loading workspace detail…
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入工作區資料，請返回清單後重試。
+          </CardContent>
+        </Card>
+      )}
+
+      {loadState === "loaded" && !workspace && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">
+            找不到此工作區。
+          </CardContent>
+        </Card>
+      )}
+
+      {workspace && (
+        <div className="space-y-6">
+          {/* Mobile tab navigation – hidden on md+ where sidebar handles navigation */}
+          <nav
+            aria-label="Workspace tab navigation"
+            className="md:hidden -mx-6 overflow-x-auto border-b border-border/50 px-4 pb-2"
+          >
+            <div className="flex min-w-max items-center gap-0.5">
+              {MOBILE_TAB_GROUP_ORDER.flatMap((group, groupIndex) => {
+                const tabs = getWorkspaceTabsByGroup(group);
+                const links = tabs.map((tab) => {
+                  const isActive = resolvedTab === tab;
+                  return (
+                    <Link
+                      key={tab}
+                      href={`/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`}
+                      aria-current={isActive ? "page" : undefined}
+                      className={`whitespace-nowrap rounded-md px-2.5 py-1.5 text-xs font-medium transition ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      {getWorkspaceTabLabel(tab)}
+                    </Link>
+                  );
+                });
+                if (groupIndex > 0) {
+                  return [
+                    <div
+                      key={`sep-${group}`}
+                      aria-hidden="true"
+                      className="mx-1.5 h-3.5 w-px shrink-0 bg-border/60"
+                    />,
+                    ...links,
+                  ];
+                }
+                return links;
+              })}
+            </div>
+          </nav>
+
+          <div className="flex items-center gap-2">
+            <Badge variant="outline">{getWorkspaceTabStatus(resolvedTab)} {getWorkspaceTabLabel(resolvedTab)}</Badge>
+          </div>
+          {renderTabContent(resolvedTab)}
+        </div>
+      )}
+
+      <WorkspaceSettingsDialog
+        open={isEditWorkspaceOpen}
+        onOpenChange={(open) => {
+          setIsEditWorkspaceOpen(open);
+          if (!open) {
+            clearSaveError();
+            if (workspace) setSettingsDraft(createSettingsDraft(workspace));
+          }
+        }}
+        settingsDraft={settingsDraft}
+        setSettingsDraft={setSettingsDraft}
+        isSaving={isSavingWorkspace}
+        saveError={saveError}
+        onSubmit={(event) => void handleSave(event, settingsDraft)}
+      />
+    </div>
+  );
+}
+````
+
 ## File: next-env.d.ts
 ````typescript
 /// <reference types="next" />
 /// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
+import "./.next/types/routes.d.ts";
 
 // NOTE: This file should not be edited
 // see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
