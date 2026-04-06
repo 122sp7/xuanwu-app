@@ -4,6 +4,7 @@ import type {
   Team,
   OrgPolicy,
   PartnerInvite,
+  OrganizationRole,
 } from "../../domain/entities/Organization";
 
 export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
@@ -40,5 +41,27 @@ export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolic
     isActive: data.isActive === true,
     createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
     updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+  };
+}
+
+export function toTeam(id: string, data: Record<string, unknown>): Team {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    type: data.type === "external" ? "external" : "internal",
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+  };
+}
+
+export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
+  return {
+    id,
+    email: data.email as string,
+    teamId: data.teamId as string,
+    role: (data.role as OrganizationRole) ?? "Guest",
+    inviteState: (data.inviteState as PartnerInvite["inviteState"]) ?? "pending",
+    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
+    protocol: typeof data.protocol === "string" ? data.protocol : "",
   };
 }

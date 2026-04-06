@@ -39,7 +39,7 @@ import type {
   UpdateOrgPolicyInput,
   OrganizationRole,
 } from "../../domain/entities/Organization";
-import { toOrganizationEntity, toOrgPolicy } from "./organization-mappers";
+import { toOrganizationEntity, toOrgPolicy, toTeam, toPartnerInvite } from "./organization-mappers";
 
 // ─── Repository ───────────────────────────────────────────────────────────────
 
@@ -342,16 +342,7 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     const snaps = await getDocs(
       collection(this.db, "organizations", organizationId, "teams"),
     );
-    return snaps.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        name: typeof data.name === "string" ? data.name : "",
-        description: typeof data.description === "string" ? data.description : "",
-        type: data.type === "external" ? "external" : "internal",
-        memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-      };
-    });
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
   }
 
   subscribeToTeams(
@@ -361,17 +352,7 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     return onSnapshot(
       collection(this.db, "organizations", organizationId, "teams"),
       (snap) => {
-        const teams: Team[] = snap.docs.map((d) => {
-          const data = d.data() as Record<string, unknown>;
-          return {
-            id: d.id,
-            name: typeof data.name === "string" ? data.name : "",
-            description: typeof data.description === "string" ? data.description : "",
-            type: data.type === "external" ? "external" : "internal",
-            memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-          };
-        });
-        onUpdate(teams);
+        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
       },
     );
   }
@@ -408,18 +389,7 @@ export class FirebaseOrganizationRepository implements OrganizationRepository {
     const snaps = await getDocs(
       collection(this.db, "organizations", organizationId, "partnerInvites"),
     );
-    return snaps.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        email: data.email as string,
-        teamId: data.teamId as string,
-        role: (data.role as OrganizationRole) ?? "Guest",
-        inviteState: (data.inviteState as PartnerInvite["inviteState"]) ?? "pending",
-        invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
-        protocol: typeof data.protocol === "string" ? data.protocol : "",
-      };
-    });
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
   }
 
   // ─── Policy ──────────────────────────────────────────────────────────────────
