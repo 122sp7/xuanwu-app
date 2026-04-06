@@ -24,7 +24,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
-import { Node, mergeAttributes } from "@tiptap/core";
 import { StarterKit } from "@tiptap/starter-kit";
 import { Placeholder } from "@tiptap/extension-placeholder";
 import { Underline } from "@tiptap/extension-underline";
@@ -62,118 +61,10 @@ import {
 } from "../_actions/knowledge.actions";
 import type { BlockContent } from "../../domain/value-objects/block-content";
 import { richTextToPlainText } from "../../domain/value-objects/block-content";
-
-// ── Custom Tiptap Extensions ──────────────────────────────────────────────────
-
-/**
- * CalloutBlock — a highlighted info/warning callout block.
- * Renders as: <div data-type="callout"><p>...</p></div>
- */
-const CalloutBlock = Node.create({
-  name: "callout",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  addAttributes() {
-    return {
-      emoji: { default: "💡" },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "div[data-type='callout']" }];
-  },
-
-  renderHTML({ HTMLAttributes, node }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "callout", class: "callout-block" }),
-      ["span", { class: "callout-emoji", contenteditable: "false" }, node.attrs.emoji as string],
-      ["div", { class: "callout-content" }, 0],
-    ];
-  },
-});
-
-/**
- * ToggleBlock — a collapsible details/summary block.
- * Renders as: <details><summary>...</summary></details>
- */
-const ToggleBlock = Node.create({
-  name: "toggle",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  parseHTML() {
-    return [{ tag: "details" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
-  },
-});
-
-/**
- * TableOfContentsBlock — a read-only auto-generated TOC node.
- * Renders as: <div data-type="toc" contenteditable="false">...</div>
- * Actual heading links are injected via the editor's DOM at render time.
- */
-const TableOfContentsNode = Node.create({
-  name: "tableOfContents",
-  group: "block",
-  atom: true,
-
-  parseHTML() {
-    return [{ tag: "div[data-type='toc']" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "toc",
-        contenteditable: "false",
-        class: "toc-block",
-      }),
-    ];
-  },
-});
-
-/**
- * SyncedBlock — a reference block whose content mirrors a source block by ID.
- * In the editor it renders as a styled read-only placeholder.
- * Full real-time sync would be implemented via a Firestore listener in a
- * dedicated React component; here the node marks the block as synced so the
- * editor can render a visual indicator.
- */
-const SyncedBlock = Node.create({
-  name: "syncedBlock",
-  group: "block",
-  content: "block*",
-  defining: true,
-
-  addAttributes() {
-    return {
-      sourceBlockId: { default: null },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "div[data-type='synced-block']" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "synced-block",
-        class: "synced-block",
-      }),
-      0,
-    ];
-  },
-});
+import { CalloutBlock } from "./extensions/callout-block.extension";
+import { ToggleBlock } from "./extensions/toggle-block.extension";
+import { TableOfContentsNode } from "./extensions/table-of-contents-node.extension";
+import { SyncedBlock } from "./extensions/synced-block.extension";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
