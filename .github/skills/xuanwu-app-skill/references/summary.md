@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-977 files | 67,904 lines
+982 files | 69,282 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 416 | 25,174 |
+| TypeScript | 417 | 25,385 |
 | Markdown | 297 | 13,089 |
-| TypeScript (TSX) | 136 | 23,307 |
+| TypeScript (TSX) | 140 | 24,441 |
 | No Extension | 52 | 136 |
 | Python | 49 | 3,532 |
 | MERMAID | 10 | 583 |
@@ -52,7 +52,7 @@ This skill contains the following reference files:
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 357 |
 | Text | 2 | 114 |
-| Other | 3 | 720 |
+| Other | 3 | 753 |
 
 **Largest files:**
 - `modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx` (1,112 lines)
@@ -63,5 +63,5 @@ This skill contains the following reference files:
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `modules/search/interfaces/components/RagView.tsx` (659 lines)
 - `app/(shell)/_components/customize-navigation-dialog.tsx` (611 lines)
+- `modules/knowledge/interfaces/components/RichTextEditor.tsx` (575 lines)
 - `app/(shell)/_components/app-rail.tsx` (569 lines)
-- `py_fn/src/infrastructure/external/upstash/clients.py` (538 lines)
