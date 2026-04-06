@@ -47,4 +47,5 @@
 | 上游 | `workspace`, `identity`, `organization` | Conformist |
 | 上游 | `knowledge-collaboration` | Customer/Supplier |
 | 上游 | `knowledge` | Customer/Supplier（D3 Promote：訂閱 `knowledge.page_promoted` 建立 Article） |
+| 上游 | `knowledge-database` | Open Host Service（Article-Record 連結） |
 | 下游 | `notification`, `workspace-feed` | Published Language |

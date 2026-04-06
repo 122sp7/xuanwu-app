@@ -7,10 +7,10 @@
 - `workspace` / `identity` / `organization` — Conformist
 - `knowledge-collaboration` — Customer/Supplier（Permission 資訊）
 - `knowledge` — Customer/Supplier（**D3 Promote 協議**：訂閱 `knowledge.page_promoted`，由 `knowledge-base` 建立 Article）
+- `knowledge-database` — Open Host Service（Article 可與 Record 連結；knowledge-base 呼叫 knowledge-database OHS API）
 
 ## 下游
 
-- `knowledge-database` — Article 可與 Record 連結（ACL）
 - `notification` / `workspace-feed` — Published Language（事件消費）
 - `workspace-audit` — Published Language（審計紀錄）
 
