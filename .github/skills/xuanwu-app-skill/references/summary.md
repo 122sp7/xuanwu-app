@@ -38,13 +38,13 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1068 files | 71,510 lines
+1071 files | 71,717 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 467 | 26,884 |
+| TypeScript | 470 | 27,104 |
 | Markdown | 298 | 13,359 |
-| TypeScript (TSX) | 163 | 24,692 |
+| TypeScript (TSX) | 163 | 24,679 |
 | Python | 60 | 3,706 |
 | No Extension | 52 | 136 |
 | MERMAID | 10 | 583 |
