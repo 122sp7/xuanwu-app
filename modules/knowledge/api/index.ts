@@ -23,6 +23,8 @@ export type { Block } from "../interfaces/store/block-editor.store";
 export { PageEditorView } from "../interfaces/components/PageEditorView";
 export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
 
+export { RichTextEditor } from "../interfaces/components/RichTextEditor";
+
 // ── Server Actions (write-side) ───────────────────────────────────────────────
 
 export {
