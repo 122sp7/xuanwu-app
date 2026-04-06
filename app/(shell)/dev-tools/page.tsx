@@ -383,7 +383,7 @@ export default function DevToolsPage() {
         docs.sort((a, b) => (b.uploaded_at?.getTime() ?? 0) - (a.uploaded_at?.getTime() ?? 0));
         setAllDocs(docs);
       });
-    } catch (_) {}
+    } catch (_err) {}
     return () => {
       unsubscribeListRef.current?.();
     };
@@ -441,11 +441,11 @@ export default function DevToolsPage() {
       const db = getFirebaseFirestore();
       // 刪除 GCS 原始檔案
       if (doc.gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_) {}
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.gcs_uri)); } catch (_err) {}
       }
       // 刪除 GCS JSON
       if (doc.json_gcs_uri) {
-        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_) {}
+        try { await storageApi.deleteObject(storageApi.ref(storage, doc.json_gcs_uri)); } catch (_err) {}
       }
       // 刪除 Firestore 記錄
       if (!activeAccountId) {

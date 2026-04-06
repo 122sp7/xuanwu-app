@@ -3,7 +3,7 @@
  * @file workspace-flow.contract.ts
  * @description Module-local interface contracts for workspace-flow UI adapters.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Expand with view-model contracts as UI adapters are added
  */
 

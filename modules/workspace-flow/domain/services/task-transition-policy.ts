@@ -3,7 +3,7 @@
  * @file task-transition-policy.ts
  * @description Pure domain service encapsulating allowed Task status transitions.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Expand with multi-branch transitions if workflow rules evolve
  */
 

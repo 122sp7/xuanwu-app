@@ -3,7 +3,7 @@
  * @file pay-invoice.use-case.ts
  * @description Use case: Mark an approved invoice as paid (approved → paid).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoicePaidEvent to event bus
  */
 

@@ -49,6 +49,7 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- intentional focus delegation to child input
     <div
       role="group"
       data-slot="input-group-addon"
@@ -59,6 +60,11 @@ function InputGroupAddon({
           return
         }
         e.currentTarget.parentElement?.querySelector("input")?.focus()
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.currentTarget.parentElement?.querySelector("input")?.focus()
+        }
       }}
       {...props}
     />

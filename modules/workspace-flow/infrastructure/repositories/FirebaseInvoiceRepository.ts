@@ -3,7 +3,7 @@
  * @file FirebaseInvoiceRepository.ts
  * @description Firebase Firestore implementation of InvoiceRepository for workspace-flow.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add query pagination support and composite indexes
  */
 

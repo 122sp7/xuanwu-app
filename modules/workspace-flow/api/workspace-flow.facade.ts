@@ -8,7 +8,7 @@
  * Scalar-get summary operations return the appropriate {@link *Summary} projection.
  *
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 import type { TaskRepository } from "../domain/repositories/TaskRepository";

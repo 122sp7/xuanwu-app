@@ -3,7 +3,7 @@
  * @file InvoiceRepository.ts
  * @description Repository port interface for Invoice persistence.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Implement in infrastructure/repositories/FirebaseInvoiceRepository
  */
 

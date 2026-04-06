@@ -199,6 +199,7 @@ const eslintConfig = defineConfig([
         {
           selector: "function",
           format: ["camelCase", "PascalCase"],
+          leadingUnderscore: "allow",
         },
         {
           selector: "variable",
@@ -227,7 +228,7 @@ const eslintConfig = defineConfig([
     rules: {
       "@typescript-eslint/no-unused-vars": [
         "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
       ],
     },
   },

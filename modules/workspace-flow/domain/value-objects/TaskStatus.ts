@@ -3,7 +3,7 @@
  * @file TaskStatus.ts
  * @description Task lifecycle status union, transition table, and pure helper functions.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add additional transition guards as business rules evolve
  */
 

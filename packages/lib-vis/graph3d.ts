@@ -31,5 +31,7 @@ export const Graph3dPoint3d = visGraph3dRuntime.Graph3dPoint3d;
 export const Graph3dSlider = visGraph3dRuntime.Graph3dSlider;
 export const Graph3dStepNumber = visGraph3dRuntime.Graph3dStepNumber;
 
-type Graph3dClass = typeof import("vis-graph3d").Graph3d;
+import type { Graph3d as Graph3dType } from "vis-graph3d";
+
+type Graph3dClass = typeof Graph3dType;
 export type Graph3dOptions = InstanceType<Graph3dClass> extends { setOptions(opts: infer T): void } ? T : never;

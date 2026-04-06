@@ -888,7 +888,7 @@ export function WorkspaceDetailScreen({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">可見性</label>
+                  <span className="text-sm font-medium text-foreground">可見性</span>
                   <Select
                     value={settingsDraft.visibility}
                     onValueChange={(value: WorkspaceEntity["visibility"]) =>
@@ -909,7 +909,7 @@ export function WorkspaceDetailScreen({
                 </div>
 
                 <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">生命週期</label>
+                  <span className="text-sm font-medium text-foreground">生命週期</span>
                   <Select
                     value={settingsDraft.lifecycleState}
                     onValueChange={(value: WorkspaceEntity["lifecycleState"]) =>

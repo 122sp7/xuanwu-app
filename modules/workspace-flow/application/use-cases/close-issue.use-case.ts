@@ -3,7 +3,7 @@
  * @file close-issue.use-case.ts
  * @description Use case: Close a resolved issue (resolved → closed).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit IssueClosedEvent to event bus
  */
 

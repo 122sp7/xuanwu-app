@@ -3,7 +3,7 @@
  * @file invoice.converter.ts
  * @description Firestore document-to-entity converter for Invoice.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Harden unknown field handling with stricter runtime validation
  */
 

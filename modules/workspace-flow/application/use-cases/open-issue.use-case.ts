@@ -3,7 +3,7 @@
  * @file open-issue.use-case.ts
  * @description Use case: Open a new issue against a task.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit IssueOpenedEvent to event bus
  */
 

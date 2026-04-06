@@ -3,7 +3,7 @@
  * @file FirebaseInvoiceItemRepository.ts
  * @description Firebase Firestore repository for InvoiceItem CRUD operations.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add query pagination support
  */
 

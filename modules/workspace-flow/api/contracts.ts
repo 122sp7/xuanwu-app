@@ -8,7 +8,7 @@
  * isTerminal*) are intentionally NOT exposed here — status machines are internal.
  *
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 // ── Entity types ──────────────────────────────────────────────────────────────

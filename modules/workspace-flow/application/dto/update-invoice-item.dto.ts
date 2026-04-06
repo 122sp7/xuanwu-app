@@ -3,7 +3,7 @@
  * @file update-invoice-item.dto.ts
  * @description Command DTO for updating the amount of an existing invoice item.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 export interface UpdateInvoiceItemDto {

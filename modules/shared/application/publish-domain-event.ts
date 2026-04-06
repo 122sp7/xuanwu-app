@@ -4,8 +4,8 @@
  *
  * Write-side orchestration for event capture, persistence, and dispatch.
  */
-import {
-  EventRecord,
+import { EventRecord } from '../domain/event-record';
+import type {
   EventRecordPayload,
   EventMetadata,
   IEventBusRepository,

@@ -4,7 +4,6 @@
  */
 
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
 import type { Database } from "../../domain/entities/database.entity";
 import type { IDatabaseRepository } from "../../domain/repositories/IDatabaseRepository";
 import {

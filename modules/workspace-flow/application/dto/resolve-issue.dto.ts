@@ -3,7 +3,7 @@
  * @file resolve-issue.dto.ts
  * @description Command DTO for resolving an issue (retest passed → resolved).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 export interface ResolveIssueDto {

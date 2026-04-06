@@ -4,7 +4,7 @@
  * Article lifecycle use cases.
  */
 
-import { z } from "@lib-zod";
+import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { IArticleRepository } from "../../domain/repositories/ArticleRepository";
 import type { Article } from "../../domain/entities/article.entity";

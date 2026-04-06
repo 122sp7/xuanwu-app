@@ -6,6 +6,7 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { InviteMemberInput } from "../../domain/entities/Organization";
 import {
   CreateOrganizationUseCase,
   CreateOrganizationWithTeamUseCase,
@@ -83,7 +84,7 @@ export async function deleteOrganization(organizationId: string): Promise<Comman
 
 // ─── Members ─────────────────────────────────────────────────────────────────
 
-export async function inviteMember(input: import("../../domain/entities/Organization").InviteMemberInput): Promise<CommandResult> {
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
   try {
     return await new InviteMemberUseCase(orgRepo).execute(input);
   } catch (err) {

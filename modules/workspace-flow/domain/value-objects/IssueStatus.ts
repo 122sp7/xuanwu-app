@@ -3,7 +3,7 @@
  * @file IssueStatus.ts
  * @description Issue lifecycle status union, multi-successor transition table, and helpers.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add additional transition guards as business rules evolve
  */
 

@@ -4,7 +4,7 @@
  * Use cases for View (database view) lifecycle.
  */
 
-import { z } from "@lib-zod";
+import type { z } from "@lib-zod";
 import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 import type { IViewRepository } from "../../domain/repositories/IViewRepository";
 import {
