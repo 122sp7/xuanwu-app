@@ -106,7 +106,7 @@ export function AppRail({
   activeWorkspaceId,
   onSelectWorkspace,
   onOrganizationCreated,
-  _onSignOut,
+  onSignOut: _onSignOut,
 }: AppRailProps) {
   const router = useRouter();
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
