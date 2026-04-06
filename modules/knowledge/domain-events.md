@@ -98,6 +98,6 @@ interface KnowledgePagePromotedEvent {
 
 | 消費 BC | 事件 | 行動 |
 |---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | ContentToWorkflowMaterializer 建立 Task、Invoice |
+| `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
 | `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
 | `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |

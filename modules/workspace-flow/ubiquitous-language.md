@@ -14,7 +14,7 @@
 | 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
 | 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
 | 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
-| 工作流程物化器 | ContentToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
+| 工作流程物化器 | KnowledgeToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
 
 ## 禁止替換術語
 

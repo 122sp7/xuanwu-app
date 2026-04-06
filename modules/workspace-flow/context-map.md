@@ -6,13 +6,13 @@
 
 **這是 workspace-flow 最重要的上游整合。**
 
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
 - 從 `extractedTasks[]` 建立 MaterializedTask
 - 從 `extractedInvoices[]` 建立 Invoice
 - 每個物化實體中記錄 `sourceReference`（pageId + causationId）
 
 ```
-knowledge.page_approved ──► ContentToWorkflowMaterializer
+knowledge.page_approved ──► KnowledgeToWorkflowMaterializer
                             ├─► Task.create（extractedTask）
                             └─► Invoice.create（extractedInvoice）
 ```

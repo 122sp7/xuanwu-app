@@ -17,12 +17,12 @@
 **這是平台最重要的跨 BC 整合點。**
 
 - 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `ContentToWorkflowMaterializer` Process Manager 訂閱此事件
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
 - 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
 
 ```
 knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (ContentToWorkflowMaterializer)
+                                          (KnowledgeToWorkflowMaterializer)
 ```
 
 ### knowledge → ai（Customer/Supplier）

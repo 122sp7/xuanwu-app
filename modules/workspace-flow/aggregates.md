@@ -88,4 +88,4 @@ draft ──► submitted ──► finance_review ──► approved ──► 
 
 | 服務 | 說明 |
 |------|------|
-| `ContentToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
+| `KnowledgeToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
