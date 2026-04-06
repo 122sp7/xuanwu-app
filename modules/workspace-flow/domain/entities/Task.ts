@@ -24,7 +24,7 @@ export interface Task {
   readonly archivedAtISO?: string;
   /**
    * Present when this Task was materialized from a KnowledgePage via the
-   * `content.page_approved` event.  Provides full provenance traceability.
+    * `knowledge.page_approved` event. Provides full provenance traceability.
    */
   readonly sourceReference?: SourceReference;
   readonly createdAtISO: string;
