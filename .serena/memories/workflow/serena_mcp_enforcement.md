@@ -30,13 +30,21 @@
 
 ### Memory naming convention
 
-| Phase          | Memory name pattern            |
-|----------------|-------------------------------|
-| Planning       | `workflow/plan-{task-id}`      |
-| Implementation | `workflow/impl-{task-id}`      |
-| Review         | `workflow/review-{task-id}`    |
-| QA             | `workflow/qa-{task-id}`        |
-| Maintenance    | `workflow/maintenance-{date}`  |
+| Scope          | Memory name pattern                     |
+|----------------|-----------------------------------------|
+| Planning       | `workflow/plan-{task-id}`               |
+| Implementation | `workflow/impl-{task-id}`               |
+| Review         | `workflow/review-{task-id}`             |
+| QA             | `workflow/qa-{task-id}`                 |
+| Maintenance    | `workflow/maintenance-{date}`           |
+| Index / map    | `index/<topic>-<date>`                  |
+| Archived drift | `_archive/<topic>-stale-{date}`         |
+
+### Active baseline structure
+
+- Prefer `index/` memories as the navigation layer for current Serena state, sync snapshots, and replacement-memory pointers.
+- Treat `workflow/` as execution history, not as the canonical project baseline.
+- If protected core memory names cannot be recreated, keep authoritative replacements explicitly named and point `index/` memories to them.
 
 ### Additional operational rules
 
@@ -45,6 +53,8 @@
 - Playwright execution rule: for UI tasks, use Playwright MCP for direct action completion,
   not exploratory diagnostics by default.
 - Post-fix hygiene: after major fixes, perform Serena memory/index refresh in the same turn.
+- Project-level tool configuration must use concrete Serena tool names from `serena tools list`; wildcard entries such as `serena/*` or `context7/*` are not safe assumptions for this repo's current Serena environment.
+- For an existing project, `serena project create` is not a repair command and fails if `project.yml` already exists; use `serena project index` for safe cache refresh on an existing project.
 
 ### Reference
 
