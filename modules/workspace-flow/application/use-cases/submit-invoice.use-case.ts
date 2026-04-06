@@ -3,7 +3,7 @@
  * @file submit-invoice.use-case.ts
  * @description Use case: Submit an invoice for review (draft → submitted). Requires at least one item.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceSubmittedEvent to event bus
  */
 

@@ -3,7 +3,7 @@
  * @file issue-transition-policy.ts
  * @description Pure domain service encapsulating allowed Issue status transitions.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Expand with additional guard conditions as business rules evolve
  */
 

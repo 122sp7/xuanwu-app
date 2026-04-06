@@ -7,7 +7,7 @@
  * Provides a drop-in React component for interactive timeline visualization.
  */
 
-import { useRef, useEffect, FC } from "react";
+import { useRef, useEffect, type FC } from "react";
 import { Timeline, DataSet } from "@lib-vis";
 
 export interface VisTimelineProps {

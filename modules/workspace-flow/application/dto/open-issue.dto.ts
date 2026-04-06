@@ -3,7 +3,7 @@
  * @file open-issue.dto.ts
  * @description Command DTO for opening a new issue against a task.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add Zod schema when validation layer is wired in
  */
 

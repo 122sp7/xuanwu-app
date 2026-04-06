@@ -3,7 +3,7 @@
  * @file start-issue.use-case.ts
  * @description Use case: Start investigating an issue (open → investigating).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit IssueStartedEvent to event bus
  */
 

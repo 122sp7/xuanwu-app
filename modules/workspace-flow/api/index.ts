@@ -8,7 +8,7 @@
  *
  * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  */
 
 // ── Facade (write + summary-read surface) ────────────────────────────────────

@@ -3,7 +3,7 @@
  * @file InvoiceItem.ts
  * @description InvoiceItem entity linking a task to an invoice with an amount.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add domain validation methods as billing rules expand
  */
 

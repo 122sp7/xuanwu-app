@@ -3,7 +3,7 @@
  * @file InvoiceStatus.ts
  * @description Invoice lifecycle status union, transition table, and helpers.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add additional transition guards as billing rules evolve
  */
 

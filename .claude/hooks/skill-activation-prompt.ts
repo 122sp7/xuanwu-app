@@ -171,7 +171,7 @@ async function main(): Promise<void> {
     output.push("---");
 
     console.log(output.join("\n"));
-  } catch (error) {
+  } catch (_error) {
     // Silently exit on errors to not disrupt workflow
     process.exit(0);
   }

@@ -3,7 +3,7 @@
  * @file submit-task-to-qa.use-case.ts
  * @description Use case: Submit a task for QA review (in_progress → qa).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add pre-submission checks (e.g. assignee present)
  */
 

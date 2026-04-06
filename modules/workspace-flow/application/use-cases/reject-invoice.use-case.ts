@@ -3,7 +3,7 @@
  * @file reject-invoice.use-case.ts
  * @description Use case: Reject an invoice back to submitted (finance_review → submitted).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit InvoiceRejectedEvent to event bus
  */
 

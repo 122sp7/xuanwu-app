@@ -13,8 +13,10 @@
 export { Timeline, Graph2d } from "vis-timeline";
 export * from "vis-timeline";
 
-type TimelineClass = typeof import("vis-timeline").Timeline;
-type Graph2dClass = typeof import("vis-timeline").Graph2d;
+import type { Timeline as TimelineType, Graph2d as Graph2dType } from "vis-timeline";
+
+type TimelineClass = typeof TimelineType;
+type Graph2dClass = typeof Graph2dType;
 
 export type TimelineOptions = InstanceType<TimelineClass> extends { setOptions(opts: infer T): void } ? T : never;
 export type Graph2dOptions = InstanceType<Graph2dClass> extends { setOptions(opts: infer T): void } ? T : never;

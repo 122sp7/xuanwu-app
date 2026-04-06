@@ -125,6 +125,7 @@ export function CreateDemandForm({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />
           </div>

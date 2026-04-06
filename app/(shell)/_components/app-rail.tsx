@@ -106,7 +106,7 @@ export function AppRail({
   activeWorkspaceId,
   onSelectWorkspace,
   onOrganizationCreated,
-  onSignOut,
+  onSignOut: _onSignOut,
 }: AppRailProps) {
   const router = useRouter();
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
@@ -483,6 +483,7 @@ export function AppRail({
                   if (orgError) setOrgError(null);
                 }}
                 placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 disabled={isCreating}
                 maxLength={80}
@@ -537,6 +538,7 @@ export function AppRail({
                   if (workspaceCreateError) setWorkspaceCreateError(null);
                 }}
                 placeholder="例如：Project Alpha"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
                 autoFocus
                 disabled={isCreatingWorkspace}
                 maxLength={80}

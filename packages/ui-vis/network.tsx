@@ -8,7 +8,7 @@
  * Simplifies ref management and event handling for Next.js environments.
  */
 
-import { useRef, useEffect, FC } from "react";
+import { useRef, useEffect, type FC } from "react";
 import Graph from "react-graph-vis";
 import type { Network, Options } from "vis-network";
 

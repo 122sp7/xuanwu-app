@@ -3,7 +3,7 @@
  * @file fail-issue-retest.use-case.ts
  * @description Use case: Fail an issue's retest (retest → fixing).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit IssueRetestFailedEvent to event bus
  */
 

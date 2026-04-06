@@ -46,6 +46,9 @@ export { SubmitRagQueryFeedbackUseCase } from "../application/use-cases/submit-r
 
 export { FirebaseRagQueryFeedbackRepository } from "../infrastructure/firebase/FirebaseRagQueryFeedbackRepository";
 
+// ── UI Components ─────────────────────────────────────────────────────────
+export { RagQueryView } from "../interfaces/components/RagQueryView";
+
 // ── Wiki RAG types (owned by search domain) ────────────────────────────────
 export type {
   WikiCitation,

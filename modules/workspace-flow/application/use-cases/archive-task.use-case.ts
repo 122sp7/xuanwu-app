@@ -3,7 +3,7 @@
  * @file archive-task.use-case.ts
  * @description Use case: Archive a task (accepted → archived). Requires invoice closed or none.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit TaskArchivedEvent to event bus
  */
 

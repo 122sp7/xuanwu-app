@@ -3,7 +3,7 @@
  * @file approve-task-acceptance.use-case.ts
  * @description Use case: Approve a task at acceptance stage (acceptance → accepted). Requires no open issues.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit TaskAcceptanceApprovedEvent to event bus
  */
 

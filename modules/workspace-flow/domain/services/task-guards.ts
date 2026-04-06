@@ -3,7 +3,7 @@
  * @file task-guards.ts
  * @description Pure domain guards for task lifecycle invariants.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Add guards for additional business invariants as rules evolve
  */
 

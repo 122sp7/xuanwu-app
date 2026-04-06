@@ -3,7 +3,7 @@
  * @file submit-issue-retest.use-case.ts
  * @description Use case: Submit an issue for retest (fixing → retest).
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Emit IssueRetestSubmittedEvent to event bus
  */
 

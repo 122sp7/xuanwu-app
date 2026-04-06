@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-unused-vars -- example/demo functions intentionally defined but not called */
 
 import LlamaCloud from "@llamaindex/llama-cloud";
 import { readFile, writeFile } from "fs/promises";

@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/search";
+import { RagQueryView } from "@/modules/search/api";
 
 export default function NotebookRagQueryPage() {
   const searchParams = useSearchParams();

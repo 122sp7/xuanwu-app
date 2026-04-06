@@ -122,7 +122,7 @@ export function DatabaseTableView({
     }));
   }
 
-  function handleCellBlur(record: DatabaseRecord, fieldId: string) {
+  function _handleCellBlur(record: DatabaseRecord, fieldId: string) {
     const fieldEdits = edits[record.id];
     if (!fieldEdits || !(fieldId in fieldEdits)) return;
     const newProperties = setProperty(record, fieldId, fieldEdits[fieldId]);

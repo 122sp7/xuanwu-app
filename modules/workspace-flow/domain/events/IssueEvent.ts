@@ -3,7 +3,7 @@
  * @file IssueEvent.ts
  * @description Discriminated-union event types emitted by the Issue aggregate.
  * @author workspace-flow
- * @created 2026-03-24
+ * @since 2026-03-24
  * @todo Wire to event bus via @/modules/event IEventBusRepository
  */
 
