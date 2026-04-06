@@ -43,12 +43,16 @@ import {
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
 import { getFirebaseFirestore, firestoreApi } from "@integration-firebase/firestore";
-import {
-  CustomizeNavigationDialog,
+import { CustomizeNavigationDialog,
   readNavPreferences,
   type NavPreferences,
 } from "./customize-navigation-dialog";
 import { KnowledgeSidebarSection } from "./knowledge-sidebar-section";
+import {
+  getWorkspaceIdFromPath,
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  useRecentWorkspaces,
+} from "./use-recent-workspaces";
 
 interface DashboardSidebarProps {
   readonly pathname: string;
@@ -76,8 +80,7 @@ const ACCOUNT_SECTION_MATCHERS = [
   "/organization/audit",
 ] as const;
 
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
 
 function createWorkspaceLinkItems(group: WorkspaceTabGroup): { value: WorkspaceTabValue; label: string }[] {
   return getWorkspaceTabsByGroup(group).map((value) => ({
@@ -108,43 +111,6 @@ interface SidebarLocaleBundle {
     groups?: Record<string, string>;
     tabLabels?: Record<string, string>;
   };
-}
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
 }
 
 // ── Section helpers ──────────────────────────────────────────────────────────
@@ -213,7 +179,11 @@ export function DashboardSidebar({
   onToggleCollapsed,
   onSelectWorkspace,
 }: DashboardSidebarProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
+    activeAccount?.id,
+    pathname,
+    workspaces,
+  );
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
   const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
@@ -253,26 +223,6 @@ export function DashboardSidebar({
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
-  // Track recently visited workspaces in localStorage
-  useEffect(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [activeAccount?.id, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    const accountId = activeAccount?.id;
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [activeAccount?.id, pathname]);
 
   useEffect(() => {
     const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
@@ -291,15 +241,6 @@ export function DashboardSidebar({
     }
   }, [pathname, activeWorkspaceId, onSelectWorkspace]);
 
-  const recentWorkspaceLinks = useMemo(() => {
-    return recentWorkspaceIds
-      .map((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
 
   const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
   const visibleRecentWorkspaceLinks = isExpanded
