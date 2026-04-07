@@ -108,8 +108,7 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
     })();
 
     return () => { mountedRef.current = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- editor instance is stable
-  }, [accountId, pageId]);
+  }, [accountId, editor, pageId]);
 
   useEffect(() => {
     return () => {

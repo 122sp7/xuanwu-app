@@ -5,6 +5,8 @@ import { getFirebaseStorage, storageApi } from "@integration-firebase/storage";
 
 import { addKnowledgeBlock, createKnowledgePage } from "@/modules/knowledge/api";
 
+const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
 interface CreateKnowledgeDraftFromSourceDocumentInput {
   readonly accountId: string;
   readonly workspaceId: string;
@@ -75,6 +77,38 @@ function buildDraftBlockText(input: {
   ].join("\n");
 }
 
+function createParagraphNode(text: string): Record<string, unknown> {
+  return text
+    ? { type: "paragraph", content: [{ type: "text", text }] }
+    : { type: "paragraph" };
+}
+
+function buildDraftTiptapDocument(input: {
+  readonly filename: string;
+  readonly sourceGcsUri: string;
+  readonly jsonGcsUri: string;
+  readonly pageCount: number;
+  readonly parsedText: string;
+}): Record<string, unknown> {
+  const draftText = buildDraftBlockText(input);
+  const paragraphs = draftText
+    .split("\n")
+    .map((line) => line.trim())
+    .map((line) => createParagraphNode(line));
+
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "匯入草稿" }],
+      },
+      ...paragraphs,
+    ],
+  };
+}
+
 export async function createKnowledgeDraftFromSourceDocument(
   input: CreateKnowledgeDraftFromSourceDocumentInput,
 ): Promise<CommandResult> {
@@ -113,18 +147,16 @@ export async function createKnowledgeDraftFromSourceDocument(
       index: 0,
       content: {
         type: "text",
-        richText: [
-          {
-            type: "text",
-            plainText: buildDraftBlockText({
-              filename: input.filename,
-              sourceGcsUri: input.sourceGcsUri,
-              jsonGcsUri: input.jsonGcsUri,
-              pageCount: input.pageCount,
-              parsedText,
-            }),
-          },
-        ],
+        richText: [],
+        properties: {
+          [TIPTAP_PROPERTY_KEY]: buildDraftTiptapDocument({
+            filename: input.filename,
+            sourceGcsUri: input.sourceGcsUri,
+            jsonGcsUri: input.jsonGcsUri,
+            pageCount: input.pageCount,
+            parsedText,
+          }),
+        },
       },
     });
 
