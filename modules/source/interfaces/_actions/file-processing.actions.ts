@@ -128,6 +128,14 @@ export async function createKnowledgeDraftFromSourceDocument(
 
   try {
     const titleBase = trimFileExtension(input.filename) || input.filename;
+    const parsedText = await loadParsedDocumentText(input.jsonGcsUri);
+    const draftText = buildDraftBlockText({
+      filename: input.filename,
+      sourceGcsUri: input.sourceGcsUri,
+      jsonGcsUri: input.jsonGcsUri,
+      pageCount: input.pageCount,
+      parsedText,
+    });
     const pageResult = await createKnowledgePage({
       accountId: input.accountId,
       workspaceId: input.workspaceId,
@@ -140,14 +148,13 @@ export async function createKnowledgeDraftFromSourceDocument(
       return pageResult;
     }
 
-    const parsedText = await loadParsedDocumentText(input.jsonGcsUri);
     const blockResult = await addKnowledgeBlock({
       accountId: input.accountId,
       pageId: pageResult.aggregateId,
       index: 0,
       content: {
         type: "text",
-        richText: [],
+        richText: [{ type: "text", plainText: draftText }],
         properties: {
           [TIPTAP_PROPERTY_KEY]: buildDraftTiptapDocument({
             filename: input.filename,

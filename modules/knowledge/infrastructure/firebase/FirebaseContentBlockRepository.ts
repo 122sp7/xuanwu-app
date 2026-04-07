@@ -12,7 +12,6 @@ import {
   getDoc,
   getDocs,
   getFirestore,
-  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -135,10 +134,11 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
       query(
         blocksCol(this.db, accountId),
         where("pageId", "==", pageId),
-        orderBy("order", "asc"),
       ),
     );
-    return snaps.docs.map((d) => toKnowledgeBlock(d.id, d.data() as Record<string, unknown>));
+    return snaps.docs
+      .map((d) => toKnowledgeBlock(d.id, d.data() as Record<string, unknown>))
+      .sort((left, right) => left.order - right.order);
   }
 
   async nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
