@@ -45,7 +45,6 @@ import {
   SECTION_TITLES,
   sidebarItemClass,
   sidebarSectionTitleClass,
-  sidebarGroupButtonClass,
   WORKSPACE_PRIMARY_LINK_ITEMS,
   WORKSPACE_SPACE_ITEMS,
   WORKSPACE_DATABASE_ITEMS,
@@ -73,9 +72,6 @@ export function DashboardSidebar({
     workspaces,
   );
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
-  const [isWorkspaceSpacesExpanded, setIsWorkspaceSpacesExpanded] = useState(true);
-  const [isWorkspaceDatabasesExpanded, setIsWorkspaceDatabasesExpanded] = useState(true);
-  const [isWorkspaceModulesExpanded, setIsWorkspaceModulesExpanded] = useState(false);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const searchParams = useSearchParams();
@@ -325,12 +321,6 @@ export function DashboardSidebar({
                   activeWorkspaceTab={activeWorkspaceTab}
                   navPrefs={navPrefs}
                   localeBundle={localeBundle}
-                  isWorkspaceSpacesExpanded={isWorkspaceSpacesExpanded}
-                  setIsWorkspaceSpacesExpanded={setIsWorkspaceSpacesExpanded}
-                  isWorkspaceDatabasesExpanded={isWorkspaceDatabasesExpanded}
-                  setIsWorkspaceDatabasesExpanded={setIsWorkspaceDatabasesExpanded}
-                  isWorkspaceModulesExpanded={isWorkspaceModulesExpanded}
-                  setIsWorkspaceModulesExpanded={setIsWorkspaceModulesExpanded}
                   primaryItems={WORKSPACE_PRIMARY_LINK_ITEMS}
                   spaceItems={WORKSPACE_SPACE_ITEMS}
                   databaseItems={WORKSPACE_DATABASE_ITEMS}
@@ -338,7 +328,6 @@ export function DashboardSidebar({
                   moduleItems={WORKSPACE_MODULE_LINK_ITEMS}
                   buildWorkspaceTabHref={buildWorkspaceTabHref}
                   sidebarItemClass={sidebarItemClass}
-                  sidebarGroupButtonClass={sidebarGroupButtonClass}
                 />
               ) : (
                 <div>
