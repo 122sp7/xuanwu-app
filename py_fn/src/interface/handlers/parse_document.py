@@ -46,10 +46,13 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             "gcs_uri 為必填欄位（格式：gs://bucket/path）",
         )
 
-    # 解析 GCS URI 得到儲存檔名，用於 doc_id。
+    run_rag = bool(data.get("run_rag", True))
+
+    # 解析 GCS URI 得到儲存檔名，並允許呼叫端覆蓋 doc_id。
     path_part = gcs_uri.split("gs://", 1)[1]  # "bucket/path/to/file.pdf"
     storage_filename = os.path.basename(path_part)     # "file.pdf"
-    doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
+    default_doc_id, ext = os.path.splitext(storage_filename)   # "file", ".pdf"
+    doc_id = str(data.get("doc_id", "")).strip() or default_doc_id
     filename = (
         str(data.get("filename", "")).strip()
         or str(data.get("original_filename", "")).strip()
@@ -132,39 +135,41 @@ def handle_parse_document(req: https_fn.CallableRequest) -> dict:
             account_id=account_id,
         )
 
-        # Step 5/6: RAG ingestion（embed + vector + ready）
-        try:
-            rag = ingest_document_for_rag(
-                doc_id=doc_id,
-                filename=filename,
-                source_gcs_uri=gcs_uri,
-                json_gcs_uri=json_gcs_uri,
-                text=parsed.text,
-                page_count=parsed.page_count,
-                account_id=account_id,
-                workspace_id=workspace_id,
-            )
-            runtime.mark_rag_ready(
-                doc_id=doc_id,
-                chunk_count=rag.chunk_count,
-                vector_count=rag.vector_count,
-                embedding_model=rag.embedding_model,
-                embedding_dimensions=rag.embedding_dimensions,
-                raw_chars=rag.raw_chars,
-                normalized_chars=rag.normalized_chars,
-                normalization_version=rag.normalization_version,
-                language_hint=rag.language_hint,
-                account_id=account_id,
-            )
-        except Exception as rag_exc:
-            logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
-            runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
+        # Step 5/6: RAG ingestion（可由呼叫端明確關閉，支援人工決策式流程）
+        if run_rag:
+            try:
+                rag = ingest_document_for_rag(
+                    doc_id=doc_id,
+                    filename=filename,
+                    source_gcs_uri=gcs_uri,
+                    json_gcs_uri=json_gcs_uri,
+                    text=parsed.text,
+                    page_count=parsed.page_count,
+                    account_id=account_id,
+                    workspace_id=workspace_id,
+                )
+                runtime.mark_rag_ready(
+                    doc_id=doc_id,
+                    chunk_count=rag.chunk_count,
+                    vector_count=rag.vector_count,
+                    embedding_model=rag.embedding_model,
+                    embedding_dimensions=rag.embedding_dimensions,
+                    raw_chars=rag.raw_chars,
+                    normalized_chars=rag.normalized_chars,
+                    normalization_version=rag.normalization_version,
+                    language_hint=rag.language_hint,
+                    account_id=account_id,
+                )
+            except Exception as rag_exc:
+                logger.exception("RAG ingestion failed for %s: %s", doc_id, rag_exc)
+                runtime.record_rag_error(doc_id, str(rag_exc)[:200], account_id=account_id)
 
         logger.info(
-            "✓ parse_document done: doc_id=%s (%d pages, %d ms) → %s",
+            "✓ parse_document done: doc_id=%s (%d pages, %d ms, run_rag=%s) → %s",
             doc_id,
             parsed.page_count,
             extraction_ms,
+            run_rag,
             json_gcs_uri,
         )
     except Exception as exc:
