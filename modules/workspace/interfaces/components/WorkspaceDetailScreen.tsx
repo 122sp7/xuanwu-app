@@ -43,17 +43,6 @@ interface WorkspaceDetailScreenProps {
   readonly initialTab?: string;
 }
 
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
-  const status = getWorkspaceTabStatus(tab);
-  return (
-    <Card className="border border-border/50">
-      <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-        {status} {getWorkspaceTabLabel(tab)} — 此分頁尚在開發中，功能將逐步開放。
-      </CardContent>
-    </Card>
-  );
-}
-
 export function WorkspaceDetailScreen({
   workspaceId,
   accountId,
@@ -149,7 +138,7 @@ export function WorkspaceDetailScreen({
           />
         );
       default:
-        return renderWorkspacePlaceholderTab(tab);
+        return null;
     }
   }
 
