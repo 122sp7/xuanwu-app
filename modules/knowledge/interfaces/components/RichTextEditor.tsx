@@ -203,6 +203,18 @@ function buildHtmlFromTiptapJson(node: TiptapJsonNode | undefined): string {
     return text ? `<p>${escapeHtml(text)}</p>` : "<p></p>";
   }
 
+  if (node.type === "bulletList") {
+    return `<ul>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ul>`;
+  }
+
+  if (node.type === "orderedList") {
+    return `<ol>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ol>`;
+  }
+
+  if (node.type === "listItem") {
+    return `<li>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</li>`;
+  }
+
   if (node.type === "text") {
     return escapeHtml(node.text ?? "");
   }
