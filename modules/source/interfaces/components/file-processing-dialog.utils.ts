@@ -12,6 +12,7 @@ export interface TaskResult {
 export interface ExecutionSummary {
   readonly pageCount: number;
   readonly jsonGcsUri: string;
+  readonly pageHref: string;
   readonly parse: TaskResult;
   readonly rag: TaskResult;
   readonly page: TaskResult;
@@ -21,6 +22,7 @@ export function createIdleSummary(): ExecutionSummary {
   return {
     pageCount: 0,
     jsonGcsUri: "",
+    pageHref: "",
     parse: { status: "idle", detail: "尚未開始解析" },
     rag: { status: "idle", detail: "尚未決定是否建立 RAG 索引" },
     page: { status: "idle", detail: "尚未決定是否建立 Knowledge Page" },
