@@ -9,3 +9,6 @@
 - UI contract: wiki-beta documents/rag-query must pass workspaceId (URL first, fallback activeWorkspaceId) into WikiBetaRagTestView.
 - Storage trigger contract: missing workspace_id is rejected.
 - Dev-tools contract: upload and rag_reindex_document must include workspace scope.
+- [FIXED 2026-04-07] dev-tools ACCEPTED_MIME reversed (key=MIME,val=ext); fixed to key=ext,val=MIME.
+  uploadBytes now carries customMetadata: { account_id, workspace_id, filename } so storage trigger receives workspace scope correctly.
+  See: index/dev-tools-upload-fix-2026-04-07 for full details.

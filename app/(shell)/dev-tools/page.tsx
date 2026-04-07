@@ -47,6 +47,7 @@ import { DevToolsParsedDocsSection } from "./dev-tools-parsed-docs-section";
 export default function DevToolsPage() {
   const { state: appState } = useApp();
   const activeAccountId = appState.activeAccount?.id ?? "";
+  const activeWorkspaceId = appState.activeWorkspaceId ?? "";
 
   // ── Upload state ──────────────────────────────────────────────────────────
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -163,6 +164,11 @@ export default function DevToolsPage() {
       const fileRef = storageApi.ref(storage, uploadPath);
       const snap = await storageApi.uploadBytes(fileRef, selectedFile, {
         contentType: ACCEPTED_MIME[selectedFile.name.split(".").pop()?.toLowerCase() ?? ""] ?? "application/octet-stream",
+        customMetadata: {
+          account_id: activeAccountId,
+          workspace_id: activeWorkspaceId,
+          filename: selectedFile.name,
+        },
       });
       appendLog(`✅ 上傳完成：${snap.ref.fullPath}`);
       // Step 2: Watch Firestore for status updates

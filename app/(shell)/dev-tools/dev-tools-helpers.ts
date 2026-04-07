@@ -34,12 +34,14 @@ export type UploadStatus = "idle" | "uploading" | "waiting" | "done" | "error";
 export const UPLOAD_BUCKET = "xuanwu-i-00708880-4e2d8.firebasestorage.app";
 export const WATCH_PATH = "uploads/";
 export const ACCEPTED_MIME: Record<string, string> = {
-  "application/pdf": ".pdf",
-  "image/tiff": ".tif / .tiff",
-  "image/png": ".png",
-  "image/jpeg": ".jpg / .jpeg",
+  pdf: "application/pdf",
+  tif: "image/tiff",
+  tiff: "image/tiff",
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
 };
-export const ACCEPTED_EXTS = Object.values(ACCEPTED_MIME).join(", ");
+export const ACCEPTED_EXTS = ".pdf, .tif / .tiff, .png, .jpg / .jpeg";
 
 // ── Data-mapping helpers ──────────────────────────────────────────────────────
 
