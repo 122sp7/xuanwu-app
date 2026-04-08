@@ -11,7 +11,7 @@ import {
   isWorkspaceTabValue,
   type WorkspaceTabGroup,
   type WorkspaceTabValue,
-} from "../../api/contracts";
+} from "../workspace-tabs";
 
 export interface WorkspaceSidebarLocaleBundle {
   workspace?: {
