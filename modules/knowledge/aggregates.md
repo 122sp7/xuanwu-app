@@ -15,7 +15,7 @@
 | `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
 | `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
 | `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區（可選） |
+| `workspaceId` | `string?` | 所屬工作區；workspace-first 頁面必須帶值，僅顯式 summary / legacy migration 情境可為空 |
 | `status` | `KnowledgePageStatus` | `active \| archived` |
 | `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
 | `approvedByUserId` | `string?` | 審批者 ID |
@@ -47,6 +47,7 @@
 ### 不變數
 
 - `slug` 在同一 accountId 下必須唯一
+- 頁面樹與日常建立流程預設以 workspaceId 為邊界；account 層級只能做顯式 summary，不可作為隱含預設
 - archived 頁面不可新增 ContentBlock
 - archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
 - **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
@@ -102,7 +103,7 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 |------|------|------|
 | `id` | `string` | 集合主鍵 |
 | `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區 |
+| `workspaceId` | `string?` | 所屬工作區；wiki 與日常集合操作預設為 workspace-first |
 | `name` | `string` | 集合名稱 |
 | `description` | `string?` | 說明文字 |
 | `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |

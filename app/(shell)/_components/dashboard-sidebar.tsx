@@ -163,11 +163,15 @@ export function DashboardSidebar({
       toast.error("目前沒有 active account，無法建立");
       return;
     }
+    if (!activeWorkspaceId) {
+      toast.error("請先切換到工作區，再建立頁面");
+      return;
+    }
     setCreatingKind("page");
     try {
       const result = await createKnowledgePage({
         accountId,
-        workspaceId: activeWorkspaceId ?? undefined,
+        workspaceId: activeWorkspaceId,
         title: "未命名頁面",
         parentPageId: null,
         createdByUserId: authState.user?.id ?? accountId,

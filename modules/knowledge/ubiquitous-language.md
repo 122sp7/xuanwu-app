@@ -18,6 +18,8 @@
 | 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
 | 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
 | 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
+| 工作區預設視角 | Workspace-first Scope | 日常頁面樹、建立與整理流程預設綁定 active workspace 的規則 | `app/(shell)/knowledge/pages/page.tsx` |
+| 帳戶總覽模式 | Account Summary Mode | 顯式跨工作區總覽模式，只用於 summary，不作為隱含預設建立入口 | `app/(shell)/knowledge/pages/page.tsx` |
 | 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
 | 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
 | 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |

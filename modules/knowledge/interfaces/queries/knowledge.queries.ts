@@ -10,7 +10,9 @@ import type { KnowledgeCollection } from "../../domain/entities/knowledge-collec
 import {
   GetKnowledgePageUseCase,
   ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
   GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
 } from "../../application/use-cases/knowledge-page.use-cases";
 import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
 import {
@@ -36,8 +38,28 @@ export async function getKnowledgePages(accountId: string): Promise<KnowledgePag
   return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
 }
 
+export async function getKnowledgePagesByWorkspace(
+  accountId: string,
+  workspaceId: string,
+): Promise<KnowledgePage[]> {
+  return new ListKnowledgePagesByWorkspaceUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    workspaceId,
+  );
+}
+
 export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
   return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgePageTreeByWorkspace(
+  accountId: string,
+  workspaceId: string,
+): Promise<KnowledgePageTreeNode[]> {
+  return new GetKnowledgePageTreeByWorkspaceUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    workspaceId,
+  );
 }
 
 export async function getKnowledgeBlocks(

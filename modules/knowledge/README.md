@@ -18,6 +18,12 @@
 | Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
 | 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
 
+## Scope 原則
+
+- `knowledge` 的日常頁面建立、整理與樹狀導覽以 workspace-first 為預設。
+- account / organization 層級只能作為顯式 summary mode，用於跨工作區總覽，不應默默取代工作區視角。
+- 若畫面或查詢沒有明確指定 summary mode，則必須帶入 activeWorkspaceId 來限制知識頁面範圍。
+
 ## 與其他 Bounded Context 協作
 
 - `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。

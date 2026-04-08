@@ -13,6 +13,8 @@ interface PageTreeViewProps {
   accountId: string;
   workspaceId?: string;
   currentUserId: string;
+  allowCreate?: boolean;
+  emptyStateDescription?: string;
   onPageClick?: (pageId: string) => void;
   onCreated?: () => void;
 }
@@ -110,6 +112,8 @@ export function PageTreeView({
   accountId,
   workspaceId,
   currentUserId,
+  allowCreate = true,
+  emptyStateDescription = "尚無頁面。點擊「新增頁面」開始建立。",
   onPageClick,
   onCreated,
 }: PageTreeViewProps) {
@@ -119,20 +123,22 @@ export function PageTreeView({
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 px-2 text-xs"
-          onClick={() => setAddRootOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
-        </Button>
+        {allowCreate ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setAddRootOpen(true)}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
+          </Button>
+        ) : null}
       </div>
 
       {nodes.length === 0 ? (
         <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
           <FileText className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">尚無頁面。點擊「新增頁面」開始建立。</p>
+          <p className="text-sm text-muted-foreground">{emptyStateDescription}</p>
         </div>
       ) : (
         <div className="rounded-lg border border-border/60 bg-background py-1">
@@ -153,15 +159,17 @@ export function PageTreeView({
         </div>
       )}
 
-      <PageDialog
-        open={addRootOpen}
-        onOpenChange={setAddRootOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        parentPageId={null}
-        onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
-      />
+      {allowCreate ? (
+        <PageDialog
+          open={addRootOpen}
+          onOpenChange={setAddRootOpen}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          parentPageId={null}
+          onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
+        />
+      ) : null}
     </div>
   );
 }

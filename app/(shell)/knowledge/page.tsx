@@ -15,9 +15,9 @@ import { Skeleton } from "@ui-shadcn/ui/skeleton";
 
 const QUICK_ACCESS = [
   {
-    href: "/knowledge/pages",
+    href: "/knowledge/pages?scope=account",
     title: "Pages",
-    description: "維持 account-level 的頁面樹與內容維運工具。",
+    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
     icon: FileText,
   },
   {

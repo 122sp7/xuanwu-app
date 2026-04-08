@@ -5,7 +5,7 @@ import { BookOpenIcon, FileTextIcon, Loader2, PlusIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { getKnowledgePageTree } from "@/modules/knowledge/api";
+import { getKnowledgePageTreeByWorkspace } from "@/modules/knowledge/api";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -44,7 +44,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
     async function loadPages() {
       setLoadState("loading");
       try {
-        const result = await getKnowledgePageTree(workspace.accountId);
+        const result = await getKnowledgePageTreeByWorkspace(workspace.accountId, workspace.id);
         if (!cancelled) {
           setPages(result);
           setLoadState("loaded");
@@ -57,7 +57,7 @@ export function WorkspaceWikiView({ workspace }: WorkspaceWikiViewProps) {
     void loadPages();
 
     return () => { cancelled = true; };
-  }, [workspace.accountId]);
+  }, [workspace.accountId, workspace.id]);
 
   const flatPages = flattenTree(pages);
 
