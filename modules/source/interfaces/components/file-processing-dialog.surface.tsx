@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@ui-shadcn/ui/dialog";
-import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
 import {
   Sheet,
   SheetContent,
@@ -37,26 +36,13 @@ export function FileProcessingDialogSurface({
 }: FileProcessingDialogSurfaceProps) {
   const isMobile = useIsMobile();
 
-  const sharedContent = (
-    <>
-      <ScrollArea className="min-h-0 flex-1 overscroll-contain">
-        <div className="space-y-4 px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5">{children}</div>
-      </ScrollArea>
-      {footer ? (
-        <div className="border-t border-border/60 bg-muted/30 px-4 py-4 sm:px-6">
-          {footer}
-        </div>
-      ) : null}
-    </>
-  );
-
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent
           side="bottom"
           showCloseButton={canDismiss}
-          className="h-auto max-h-[92vh] gap-0 rounded-t-[28px] p-0 overscroll-contain"
+          className="h-auto max-h-[92vh] gap-0 overflow-y-auto rounded-t-[28px] p-0 overscroll-contain"
         >
           <SheetHeader className="gap-3 border-b border-border/60 px-4 pb-4 pt-5 text-left">
             <div className="flex flex-wrap items-center gap-2">
@@ -70,7 +56,12 @@ export function FileProcessingDialogSurface({
               </SheetDescription>
             </div>
           </SheetHeader>
-          {sharedContent}
+          <div className="space-y-4 px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5">{children}</div>
+          {footer ? (
+            <div className="border-t border-border/60 bg-muted/30 px-4 py-4 sm:px-6">
+              {footer}
+            </div>
+          ) : null}
         </SheetContent>
       </Sheet>
     );
@@ -79,7 +70,7 @@ export function FileProcessingDialogSurface({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="[display:flex] max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="max-h-[90vh] gap-0 overflow-y-auto p-0 sm:max-w-2xl"
         showCloseButton={canDismiss}
       >
         <DialogHeader className="gap-3 border-b border-border/60 px-4 pb-4 pt-5 sm:px-6">
@@ -94,7 +85,12 @@ export function FileProcessingDialogSurface({
             </DialogDescription>
           </div>
         </DialogHeader>
-        {sharedContent}
+        <div className="space-y-4 px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5">{children}</div>
+        {footer ? (
+          <div className="border-t border-border/60 bg-muted/30 px-4 py-4 sm:px-6">
+            {footer}
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   );
