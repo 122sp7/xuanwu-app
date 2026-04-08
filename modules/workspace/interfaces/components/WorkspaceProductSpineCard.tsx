@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -9,12 +10,35 @@ import {
   CardHeader,
   CardTitle,
 } from "@ui-shadcn/ui/card";
+import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
 
 interface WorkspaceProductSpineCardProps {
-  readonly workspaceId: string;
+  readonly workspace: WorkspaceEntity;
 }
 
-export function WorkspaceProductSpineCard({ workspaceId }: WorkspaceProductSpineCardProps) {
+export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCardProps) {
+  const addressLines = workspace.address
+    ? [
+        workspace.address.street,
+        [workspace.address.city, workspace.address.state, workspace.address.postalCode]
+          .filter(Boolean)
+          .join(", "),
+        workspace.address.country,
+        workspace.address.details,
+      ].filter((line): line is string => Boolean(line))
+    : [];
+
+  const workspaceRoles = [
+    { id: "manager", roleName: "Manager", role: workspace.personnel?.managerId ?? "" },
+    { id: "supervisor", roleName: "Supervisor", role: workspace.personnel?.supervisorId ?? "" },
+    { id: "safety-officer", roleName: "Safety officer", role: workspace.personnel?.safetyOfficerId ?? "" },
+    ...(workspace.personnel?.customRoles ?? []).map((entry) => ({
+      id: entry.roleId,
+      roleName: entry.roleName,
+      role: entry.role,
+    })),
+  ].filter((entry) => entry.roleName || entry.role);
+
   return (
     <Card className="border border-border/50 xl:col-span-2">
       <CardHeader>
@@ -25,6 +49,36 @@ export function WorkspaceProductSpineCard({ workspaceId }: WorkspaceProductSpine
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_0.9fr]">
+        <div className="xl:col-span-4">
+          <WorkspaceInformationCard
+            workspaceName={<p className="text-sm font-medium text-foreground">{workspace.name}</p>}
+            workspaceAddress={
+              addressLines.length > 0 ? (
+                <div className="space-y-1.5 text-sm text-foreground">
+                  {addressLines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">尚未設定工作區地址。</p>
+              )
+            }
+            workspaceRoles={
+              workspaceRoles.length > 0
+                ? workspaceRoles.map((entry) => ({
+                    id: entry.id,
+                    roleName: <p className="text-sm font-medium text-foreground">{entry.roleName}</p>,
+                    roleValue: entry.role ? (
+                      <p className="text-sm text-foreground break-all">{entry.role}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">未設定</p>
+                    ),
+                  }))
+                : []
+            }
+          />
+        </div>
+
         <div className="rounded-xl border border-border/40 px-4 py-4">
           <p className="text-sm font-semibold text-foreground">Knowledge</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
@@ -32,10 +86,10 @@ export function WorkspaceProductSpineCard({ workspaceId }: WorkspaceProductSpine
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/workspace/${workspaceId}?tab=Files`}>Files 分頁</Link>
+              <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspaceId)}`}>
+              <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
                 文件
               </Link>
             </Button>
@@ -49,10 +103,10 @@ export function WorkspaceProductSpineCard({ workspaceId }: WorkspaceProductSpine
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/workspace/${workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
+              <Link href={`/workspace/${workspace.id}?tab=Wiki`}>工作區 Wiki</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`}>
+              <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
                 頁面
               </Link>
             </Button>
@@ -66,10 +120,10 @@ export function WorkspaceProductSpineCard({ workspaceId }: WorkspaceProductSpine
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspaceId)}`}>AI 對話</Link>
+              <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspaceId)}`}>
+              <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
                 RAG Query
               </Link>
             </Button>

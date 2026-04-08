@@ -104,7 +104,7 @@ export function WorkspaceOverviewTab({
       </Card>
 
       <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <WorkspaceProductSpineCard workspaceId={workspace.id} />
+        <WorkspaceProductSpineCard workspace={workspace} />
 
         <Card className="border border-border/50">
           <CardHeader>

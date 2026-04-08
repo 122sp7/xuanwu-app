@@ -20,6 +20,10 @@ const personnelLabels = {
   safetyOfficerId: "Safety officer",
 } as const;
 
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
 function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
   if (value === "active" || value === "away" || value === "offline") {
     return value;
@@ -163,8 +167,8 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
         }
       });
 
-      Object.entries(personnelLabels).forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
         if (memberId) {
           mergeMember(
             memberId,
@@ -193,8 +197,8 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
         }
       });
 
-      Object.entries(personnelLabels).forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field as keyof typeof workspace.personnel];
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
         if (memberId) {
           mergeMember(memberId, {
             source: "personnel",

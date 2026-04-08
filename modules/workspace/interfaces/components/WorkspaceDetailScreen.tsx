@@ -74,6 +74,10 @@ export function WorkspaceDetailScreen({
       { label: "Manager", value: workspace.personnel.managerId },
       { label: "Supervisor", value: workspace.personnel.supervisorId },
       { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
+      ...((workspace.personnel.customRoles ?? []).map((entry) => ({
+        label: entry.roleName,
+        value: entry.role,
+      }))),
     ].filter((entry) => Boolean(entry.value));
   }, [workspace]);
 

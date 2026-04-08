@@ -1,5 +1,11 @@
 import type { WorkspaceEntity, WorkspaceGrant } from "@/modules/workspace/api";
 
+export interface WorkspaceCustomRoleDraft {
+  readonly roleId: string;
+  readonly roleName: string;
+  readonly role: string;
+}
+
 export interface WorkspaceSettingsDraft {
   readonly name: string;
   readonly visibility: WorkspaceEntity["visibility"];
@@ -13,6 +19,15 @@ export interface WorkspaceSettingsDraft {
   readonly managerId: string;
   readonly supervisorId: string;
   readonly safetyOfficerId: string;
+  readonly customRoles: WorkspaceCustomRoleDraft[];
+}
+
+export function createWorkspaceCustomRoleDraft(): WorkspaceCustomRoleDraft {
+  return {
+    roleId: crypto.randomUUID(),
+    roleName: "",
+    role: "",
+  };
 }
 
 export function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettingsDraft {
@@ -29,6 +44,11 @@ export function createSettingsDraft(workspace: WorkspaceEntity): WorkspaceSettin
     managerId: workspace.personnel?.managerId ?? "",
     supervisorId: workspace.personnel?.supervisorId ?? "",
     safetyOfficerId: workspace.personnel?.safetyOfficerId ?? "",
+    customRoles: workspace.personnel?.customRoles?.map((entry) => ({
+      roleId: entry.roleId,
+      roleName: entry.roleName,
+      role: entry.role,
+    })) ?? [],
   };
 }
 
