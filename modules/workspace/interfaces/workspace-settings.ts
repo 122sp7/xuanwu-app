@@ -1,4 +1,4 @@
-import type { WorkspaceEntity, WorkspaceGrant } from "../domain/entities/Workspace";
+import type { WorkspaceEntity, WorkspaceGrant } from "../api/contracts";
 
 export interface WorkspaceCustomRoleDraft {
   readonly roleId: string;

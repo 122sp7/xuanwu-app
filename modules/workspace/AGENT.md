@@ -50,6 +50,13 @@
 5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
 6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
 
+目前實際入口對位：
+
+- `api/contracts.ts`：公開契約（types / events / value object helpers）
+- `api/facade.ts`：公開行為入口（commands / queries）
+- `api/ui.ts`：公開 UI composition surface（components / hooks / tab metadata）
+- `ports/index.ts`：公開 port 抽象（repositories + event publisher port）
+
 ## 六邊形依賴方向（Compile-time）
 
 - `interfaces -> application -> domain`
