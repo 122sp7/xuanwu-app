@@ -6,7 +6,6 @@ import type { Timestamp } from "@shared-types";
 import type { WorkspaceAccessPolicy, WorkspaceGrant } from "./WorkspaceAccess";
 import type {
   Capability,
-  CapabilitySpec,
   WorkspaceCapabilityAssignments,
 } from "./WorkspaceCapability";
 import type { WorkspaceLocation } from "./WorkspaceLocation";
@@ -14,7 +13,6 @@ import type {
   Address,
   WorkspaceOperationalProfile,
   WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
 } from "./WorkspaceProfile";
 import { createAddress, type AddressInput } from "../value-objects/Address";
 import type {
