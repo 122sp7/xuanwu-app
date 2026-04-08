@@ -6,6 +6,10 @@
 
 本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
 
+從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
+
+從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 ports，由 `infrastructure/` 提供實作；UI 與 server entrypoints 則依賴 application layer，而不是直接跨進 repository implementation。
+
 ## Application Layer 職責
 
 - 協調 command-side use cases
@@ -20,6 +24,18 @@
 - Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
 - Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
 - Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
+
+## 在整體 Domain 裡的位置
+
+- 這些 application services 只服務 `workspace` 這個 bounded context
+- 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
+- 若流程跨越多個 bounded context，應明確透過 `api/`、published language 或更高層的 composition orchestration 協作
+
+## Event-Driven 與長流程定位
+
+- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先視為 application-level process orchestration，而不是直接塞進 aggregate
+- 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
+- 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
 
 ## Command-side Use Cases
 

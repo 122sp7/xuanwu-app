@@ -2,6 +2,10 @@
 
 本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
 
+從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
+
+這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
+
 ## Write-side Aggregate Root
 
 ### `Workspace`
@@ -13,7 +17,7 @@
 | 屬性 | 型別 | 說明 |
 |------|------|------|
 | `id` | `string` | 工作區主鍵；建立後不可變更 |
-| `name` | `string` | 工作區名稱 |
+| `name` | `WorkspaceName` | 工作區名稱值對象 |
 | `accountId` | `string` | 擁有工作區的 account / organization |
 | `accountType` | `"user" \| "organization"` | 擁有者類型 |
 | `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
@@ -60,6 +64,13 @@
 | `WikiContentItemNode` | 導覽項 read projection |
 
 `WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+
+## Strategic Reminder
+
+- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
+- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
+- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
+- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
 
 ## Factory Boundary
 

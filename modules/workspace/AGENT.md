@@ -20,6 +20,15 @@
 
 `workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
 
+## 戰略層級（Domain / Subdomain / Bounded Context）
+
+- `Xuanwu` 是整體 business domain
+- `workspace` 所對應的問題空間在戰略分類上屬於 generic subdomain
+- `modules/workspace/` 是承載這組語言、模型、應用流程與 adapter 的 bounded context
+- `context-map.md` 描述 bounded context 與其他 bounded context 的關係；`aggregates.md`、`repositories.md`、`domain-events.md` 描述的是此 bounded context 內部的 tactical model
+- Subdomain 是問題空間；Bounded Context 是語言、模型與整合邊界。兩者不可混同，也不保證一對一
+- 這組文件是以 `workspace` 為中心的 selected view，不試圖重畫整個 Xuanwu domain
+
 ## Tactical 對位
 
 - Aggregate Root：`Workspace`
@@ -72,6 +81,17 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
 - `infrastructure/` 禁止 import `api/`
 - `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
+
+## 六邊形對位
+
+- Domain Model 在 bounded context 的核心：`domain/`
+- Application layer 包在 domain model 外層：`application/`
+- Driving Adapters 是進入此 bounded context 的入口：`interfaces/`、Server Actions、query wrappers、UI composition
+- Driven Adapters 是對外技術整合：`infrastructure/`
+- Repository ports 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
+- `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
+- 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
+- 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
 
 ## Tactical 建模守則
 

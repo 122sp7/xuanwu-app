@@ -8,7 +8,19 @@
 
 `workspace` 是 Xuanwu 的協作容器 bounded context。它提供工作區作為協作範圍的 identity、生命週期與可見性語言，讓知識、來源、工作流、稽核、動態與排程等上下文可以用同一個 `workspaceId` 對齊範圍。
 
-它是 generic subdomain，不是產品差異化核心；真正差異化的知識內容、檢索與協作語意由其他 bounded context 擁有。
+從戰略分類看，workspace 所對應的問題空間屬於 generic subdomain，不是產品差異化核心；真正差異化的知識內容、檢索與協作語意由其他 bounded context 擁有。
+
+從邊界落地看，`modules/workspace/` 是承載這組 generic-subdomain 語言的 bounded context，而不是整個 Xuanwu domain 的總模型。
+
+## Domain / Subdomain / Bounded Context
+
+| 層級 | workspace 在此層級的角色 |
+|---|---|
+| Domain | Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 協作容器與範圍治理問題空間，戰略上屬於 generic subdomain |
+| Bounded Context | `modules/workspace/`，承載 `workspaceId`、生命週期、可見性與工作區公開邊界 |
+
+這裡描述的是以 workspace 為中心的 selected view。它用來分析此問題空間牽涉到哪些 subdomains 與 bounded contexts，不等於整個 Xuanwu domain 的完整戰略地圖。
 
 ## 主要職責
 
@@ -37,6 +49,20 @@
 | Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
 | Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
 | Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
+
+## Hexagonal View
+
+| 六邊形位置 | workspace 對位 |
+|---|---|
+| Domain Model Core | `domain/` 下的 aggregate、entity、value object、domain event language |
+| Application Ring | `application/` use cases 與 orchestration |
+| Driving Adapters | `interfaces/`、Server Actions、queries、UI composition |
+| Driven Ports | `domain/repositories/` 等內核對外介面 |
+| Driven Adapters | `infrastructure/` 的 Firebase 等外部整合 |
+
+`context-map.md` 描述的是 bounded context 在整體 domain 裡的外部關係；六邊形描述的是這個 bounded context 內部的結構。兩者不可混用。
+
+若 workspace 透過事件與其他 bounded contexts 協作，它仍然是一個位於整體 event-driven topology 中的 hexagon：commands / queries 由 driving side 進入，domain events 由內核語言產生，再由外層 adapter 發布。
 
 ## DDD 概念導讀
 

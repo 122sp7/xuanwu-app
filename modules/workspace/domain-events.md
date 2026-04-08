@@ -4,6 +4,16 @@
 
 在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
 
+從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
+
+從六邊形架構角度看，事件型別與工廠屬於內核語言；event bus / event store 與實際發布機制屬於外層 adapter 協作。
+
+## Event-Driven Architecture Position
+
+- `workspace` 可以作為一個 hexagonal system 發出 outgoing events，也可能在未來接收 incoming events
+- 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
+- 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
+
 ## Event Base Contract
 
 workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
@@ -53,3 +63,9 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 - 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
 - event publishing 依賴 `modules/shared/api` 的 `PublishDomainEventUseCase` 與 event store / event bus adapters
 - 在事件完全接線前，文件仍以此處為 canonical published language
+
+## 明確不是目前策略的內容
+
+- 目前 workspace repository 不是 event-sourced repository；aggregate 不是從 event store replay reconstitute
+- 目前沒有專屬的 event pipeline / filter chain 作為主要處理模型
+- 目前沒有 `workspace` 專屬的 long-running process executive 或 tracker aggregate

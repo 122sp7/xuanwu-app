@@ -4,6 +4,18 @@
 
 本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
 
+## 戰略層級術語
+
+| 術語 | 在 workspace 文件中的意思 |
+|------|------------------------|
+| Domain | 指 Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 指 workspace 所對應的協作容器問題空間；戰略分類屬於 generic subdomain |
+| Bounded Context | 指 `modules/workspace/` 這個語言、模型與 adapter 的邊界 |
+
+子域與限界上下文不是同一件事：subdomain 是業務問題空間；bounded context 是該語言與模型的實作/協作邊界。
+
+同一個 subdomain 可以由一個或多個 bounded contexts 落地；workspace 文件只描述 `modules/workspace/` 這個 bounded context 的語言，不替整個 subdomain 代言所有詞彙。
+
 ## 核心術語
 
 | 術語 | 英文 | 定義 |
@@ -34,6 +46,14 @@
 | 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
 | 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
 
+## Domain Event Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區已建立事件 | `WorkspaceCreatedEvent` | 工作區建立後對外發布的 domain event 訊息 |
+| 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
+| 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
+
 ## 命名守則
 
 - aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
@@ -56,6 +76,7 @@
 - `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
 - `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
 - `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
+- 同一組 workspace 語言應在此 bounded context 的 domain、application、interfaces、infrastructure 中保持一致；只有在邊界上才翻譯外部語言
 
 ## 文件元術語對照
 
