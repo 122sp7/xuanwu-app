@@ -12,6 +12,7 @@ import {
 import { Separator } from "@ui-shadcn/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
 import { describeGrant } from "../../application/workspace-settings";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
 import { WorkspaceOverviewSummaryCard } from "./WorkspaceOverviewSummaryCard";
 import { WorkspaceProductSpineCard } from "./WorkspaceProductSpineCard";
 import { WorkspaceQuickstartCard } from "./WorkspaceQuickstartCard";
@@ -48,6 +49,9 @@ export function WorkspaceOverviewTab({
           </TabsTrigger>
           <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
             Profile
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="min-w-fit px-3 py-2">
+            Settings
           </TabsTrigger>
         </TabsList>
 
@@ -245,6 +249,15 @@ export function WorkspaceOverviewTab({
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="settings" className="mt-4 space-y-4">
+          <WorkspaceOverviewSettingsTab
+            workspace={workspace}
+            personnelEntries={personnelEntries}
+            addressLines={addressLines}
+            onEditClick={onEditClick}
+          />
         </TabsContent>
       </div>
     </Tabs>
