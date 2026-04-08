@@ -7,6 +7,8 @@
 export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
 export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
 export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "../interfaces/components/CreateWorkspaceDialogRail";
 
 export {
   WORKSPACE_TAB_GROUPS,
@@ -27,3 +29,8 @@ export type {
 } from "../interfaces/workspace-tabs";
 
 export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/hooks/useRecentWorkspaces";
