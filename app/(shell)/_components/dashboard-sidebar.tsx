@@ -19,6 +19,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { createKnowledgePage } from "@/modules/knowledge/api";
+import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
   CustomizeNavigationDialog,
@@ -37,7 +38,6 @@ import {
   type DashboardSidebarProps,
   ORGANIZATION_MANAGEMENT_ITEMS,
   ACCOUNT_NAV_ITEMS,
-  buildWorkspaceQuickAccessItems,
   SECTION_TITLES,
   sidebarItemClass,
   sidebarSectionTitleClass,

@@ -23,6 +23,13 @@ export {
 } from "../interfaces/workspace-tabs";
 
 export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/workspace-quick-access";
+
+export type {
   WorkspaceTabDevStatus,
   WorkspaceTabGroup,
   WorkspaceTabValue,
