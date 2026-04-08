@@ -32,6 +32,10 @@
 ## Tactical 對位
 
 - Aggregate Root：`Workspace`
+- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
+- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository` 與事件發布整合點
+- Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
 - Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
 - Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
 - Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
@@ -42,6 +46,10 @@
 - Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
 - Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
+- Ports（端口）→ 介面；宣告 bounded context 核心與外部協作的接縫
+- Adapters（適配器）→ 類別 / 函式 / 模組；把 driver 或外部系統轉成 port 可接受的契約
+- 外部系統 / 驅動器（Driver）→ 從 bounded context 外部發起工作的角色 / 系統，例如 UI、Server Action、其他 context 呼叫者
+- 投影 / Read Model → 查詢用途的物件；服務讀取與呈現，不承擔 write-side invariant
 - Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
 - Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
 - Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
@@ -92,6 +100,8 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
 - 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
 - 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
+- Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
+- `WorkspaceMemberView` 與 `Wiki*Node` 屬於 read model / projection，位於 query-side，不應回頭冒充 aggregate
 
 ## Tactical 建模守則
 
@@ -112,12 +122,12 @@ npm run build
 | 文件 | 說明 |
 |---|---|
 | [README.md](./README.md) | 模組定位與 tactical model 總覽 |
-| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及 selected strategic view |
-| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、ownership 與內部切面 |
-| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
-| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
-| [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
-| [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
-| [application-services.md](./application-services.md) | application layer use cases、query orchestration 與 factory 落點 |
-| [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
+| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
+| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
+| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |

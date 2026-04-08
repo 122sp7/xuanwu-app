@@ -6,6 +6,8 @@
 
 這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
 
+Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
+
 ## Write-side Aggregate Root
 
 ### `Workspace`
@@ -53,7 +55,7 @@
 | `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
 | `CapabilitySpec` | 能力定義的值型描述 |
 
-## Read-side Projections（不是 Aggregate）
+## Read-side Projections / Read Models（不是 Aggregate）
 
 | 類型 | 說明 |
 |------|------|
@@ -64,6 +66,12 @@
 | `WikiContentItemNode` | 導覽項 read projection |
 
 `WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+
+這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
+
+- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
+- 它們優先服務查詢與呈現，不優先服務 invariant 保護
+- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
 
 ## Strategic Reminder
 
@@ -77,6 +85,12 @@
 - Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
 - `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
 - Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## What This File Does Not Own
+
+- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
+- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
+- Port 定義本身：見 [repositories.md](./repositories.md)
 
 ## Tactical Debt Notes
 

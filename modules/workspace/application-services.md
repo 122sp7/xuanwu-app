@@ -18,6 +18,14 @@
 - 在持久化成功後觸發 domain event publishing
 - 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
 
+## Ports / Adapters / Drivers / Read Models
+
+- Driver / 外部驅動器：Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
+- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition；把 driver 的要求轉成 application 可處理的命令 / 查詢
+- Driven Ports：repository 介面與其他內核對外抽象
+- Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
+- Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
+
 ## 本文件涉及的 DDD 概念
 
 - Repository（倉儲）→ 介面或類別；application layer 依賴的是 repository port，而不是 infrastructure adapter 類別
@@ -50,12 +58,14 @@
 | `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
 | `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
 
-## Query-side Use Cases / Projection Builders
+## Query-side Use Cases / Projection Builders / Read Model Builders
 
 | Use Case / Function | 目的 |
 |---|---|
 | `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
 | `buildWikiContentTree` | 組合工作區導覽樹 projection |
+
+這些輸出是 read model / projection，不是 aggregate。
 
 ## Factories 與 Composition Points
 

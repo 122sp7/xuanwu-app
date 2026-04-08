@@ -14,6 +14,13 @@
 - 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
 - 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
 
+## Ports, Adapters, Drivers, and Projections
+
+- Drivers 先透過 command-side paths 觸發狀態改變，再由 application / adapter 協調發布事件
+- 若未來抽出 event publisher abstraction，該 abstraction 是 port；實際 bus / store connector 是 adapter
+- 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
+- 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
+
 ## Event Base Contract
 
 workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：

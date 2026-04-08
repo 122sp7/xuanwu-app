@@ -28,6 +28,8 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 1. 同步公開邊界：`api/`
 2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
 
+在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
+
 更完整的外部關係請看 [context-map.md](./context-map.md)。
 
 ## Internal Structure
@@ -42,6 +44,34 @@ workspace 以兩種主要方式與其他 bounded contexts 協作：
 | `infrastructure/` | driven adapters：Firebase 與其他外部技術整合 |
 
 這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
+
+## Drivers, Ports, Adapters, and Read Models
+
+### Drivers / 外部驅動器
+
+- Browser UI
+- Next.js Server Actions 與 query entrypoints
+- 其他 bounded context 經由 `api/` 的呼叫者
+- 未來可能的 incoming event handlers / scheduled jobs
+
+### Ports / 端口
+
+- 內核朝外的 driven ports 主要是 `domain/repositories/` 介面
+- `api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
+
+### Adapters / 適配器
+
+- Driving Adapters：`interfaces/` 下的 actions、queries、UI-oriented composition
+- Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
+
+### Projections / Read Models
+
+- `WorkspaceMemberView`
+- `WikiAccountContentNode`
+- `WikiWorkspaceContentNode`
+- `WikiContentItemNode`
+
+它們服務查詢與呈現，不是 write-side aggregate，也不是 infrastructure adapter。
 
 ## Ownership Guardrails
 

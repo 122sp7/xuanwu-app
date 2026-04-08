@@ -25,6 +25,8 @@ workspace 子域聚焦這些問題：
 - 它不定義組織成員真相來源
 - 它不定義檢索、RAG、文章治理等差異化業務能力
 
+Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
+
 換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
 
 ## Selected Strategic View
@@ -36,6 +38,15 @@ workspace 子域聚焦這些問題：
 - `workspace-flow`、`workspace-feed`、`workspace-scheduling` 等在工作區範圍內延伸自己的語言
 
 這是一個 selected view，不是整個 Xuanwu domain 的完整 subdomain 分析。
+
+## What Is Not a Subdomain
+
+以下概念雖然與 workspace 有關，但不應拿來當 subdomain：
+
+- Firestore、event bus 等 external systems
+- Browser UI、Server Actions、job triggers 等 drivers
+- repository ports、adapters 等 hexagonal 結構元件
+- `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
 
 ## Investment Posture
 

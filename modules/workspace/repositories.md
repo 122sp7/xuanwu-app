@@ -12,6 +12,12 @@
 
 從 event sourcing 視角補充：若未來採 event sourcing，Repository 會改為從 event store 讀取並重建 aggregate；但目前 workspace repository 是 current-state persistence，不是 event-sourced reconstitution。
 
+## Ports and Adapters Distinction
+
+- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
+- Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
+- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
+
 ## Write-side Repository Ports
 
 ### `WorkspaceRepository`
@@ -55,6 +61,8 @@
 - `subscribeToWorkspacesForAccount(accountId, onUpdate)`
 - `getWorkspaceMembers(workspaceId)`
 
+這個 port 主要輸出 projection / read model，而不是 aggregate。
+
 ### `WikiWorkspaceRepository`
 
 負責組合工作區導覽 tree 所需的最小工作區參照。
@@ -62,6 +70,8 @@
 #### 方法
 
 - `listByAccountId(accountId)`
+
+這個 port 服務的是 read-side composition，因此它的輸出也應視為 read model input，而不是 aggregate source of truth。
 
 ## Infrastructure Adapters
 

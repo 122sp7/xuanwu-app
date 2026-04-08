@@ -45,6 +45,10 @@
 | Aggregate Root | `Workspace` |
 | Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
 | Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
+| Drivers | Browser UI、Server Actions、其他 bounded context 經由 `api/` 的呼叫者 |
+| Driven Ports | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
+| Driving Adapters | `interfaces/_actions/`、`interfaces/queries/`、UI composition |
+| Driven Adapters | Firebase repositories 與事件整合 adapters |
 | Write-side Port | `WorkspaceRepository` |
 | Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
 | Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
@@ -72,6 +76,10 @@
 | Value Object（值對象） | 類別 / 物件 | `aggregates.md`、`ubiquitous-language.md` |
 | Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件 | `aggregates.md` |
 | Repository（倉儲） | 介面或類別（負責資料存取） | `repositories.md` |
+| Ports（端口） | 介面，宣告 collaboration seam | `repositories.md`、`application-services.md` |
+| Adapters（適配器） | 類別 / 函式 / 模組，連接 drivers 或外部系統 | `bounded-context.md`、`repositories.md`、`application-services.md` |
+| 外部系統 / Driver（驅動器） | 從外部啟動此 bounded context 的角色或系統 | `bounded-context.md`、`context-map.md` |
+| Projection / Read Model | 查詢導向的讀取模型 | `aggregates.md`、`application-services.md`、`ubiquitous-language.md` |
 | Domain Service（領域服務） | 類別 / 函式 | `domain-services.md` |
 | Factory（工廠） | 類別 / 函式 | `application-services.md`、`domain-events.md` |
 | Domain Event（領域事件） | 事件類別、訊息物件 | `domain-events.md`、`context-map.md` |
@@ -86,10 +94,12 @@
 
 | 文件 | 說明 |
 |---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
-| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
-| [application-services.md](./application-services.md) | application layer use cases、query orchestration 與 factory 落點 |
-| [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
-| [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
-| [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
+| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
+| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
+| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |

@@ -14,6 +14,13 @@
 
 它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
 
+## 與 Ports / Adapters / Drivers / Read Models 的區別
+
+- Port 宣告協作接縫；它不是業務規則本身
+- Adapter 轉譯外部系統或 driver；它不是 domain service
+- Driver 觸發工作開始；它不是 domain model 元件
+- Projection / Read Model 服務讀取；它不是領域規則容器
+
 ## 目前狀態
 
 - 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
