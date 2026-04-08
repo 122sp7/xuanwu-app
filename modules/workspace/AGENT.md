@@ -113,6 +113,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
 - `infrastructure/` 禁止 import `api/`
 - `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
+- `modules/workspace` 內禁止 `import { X as Y } from ...` 的 alias import；若出現命名衝突，應調整符號命名或改為 namespace import 以維持通用語言一致性
 
 ## 六邊形對位
 
