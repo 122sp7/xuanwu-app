@@ -24,6 +24,7 @@ function TreeNode({
   accountId,
   workspaceId,
   currentUserId,
+  allowCreate,
   onPageClick,
   onCreated,
   depth,
@@ -32,6 +33,7 @@ function TreeNode({
   accountId: string;
   workspaceId?: string;
   currentUserId: string;
+  allowCreate: boolean;
   onPageClick?: (pageId: string) => void;
   onCreated?: () => void;
   depth: number;
@@ -67,14 +69,16 @@ function TreeNode({
           {node.title}
         </button>
 
-        <button
-          type="button"
-          className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
-          onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
-          title="新增子頁面"
-        >
-          <FilePlus className="h-3.5 w-3.5" />
-        </button>
+        {allowCreate ? (
+          <button
+            type="button"
+            className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
+            onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
+            title="新增子頁面"
+          >
+            <FilePlus className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
       </div>
 
       {expanded && hasChildren && (
@@ -86,6 +90,7 @@ function TreeNode({
               accountId={accountId}
               workspaceId={workspaceId}
               currentUserId={currentUserId}
+              allowCreate={allowCreate}
               onPageClick={onPageClick}
               onCreated={onCreated}
               depth={depth + 1}
@@ -94,15 +99,17 @@ function TreeNode({
         </ul>
       )}
 
-      <PageDialog
-        open={addChildOpen}
-        onOpenChange={setAddChildOpen}
-        accountId={accountId}
-        workspaceId={workspaceId}
-        currentUserId={currentUserId}
-        parentPageId={node.id}
-        onSuccess={() => onCreated?.()}
-      />
+      {allowCreate ? (
+        <PageDialog
+          open={addChildOpen}
+          onOpenChange={setAddChildOpen}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          parentPageId={node.id}
+          onSuccess={() => onCreated?.()}
+        />
+      ) : null}
     </li>
   );
 }
@@ -150,6 +157,7 @@ export function PageTreeView({
                 accountId={accountId}
                 workspaceId={workspaceId}
                 currentUserId={currentUserId}
+                allowCreate={allowCreate}
                 onPageClick={onPageClick}
                 onCreated={onCreated}
                 depth={0}

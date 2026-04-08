@@ -28,8 +28,8 @@ function createPage(overrides: Partial<KnowledgePage>): KnowledgePage {
     verifiedByUserId: overrides.verifiedByUserId,
     verifiedAtISO: overrides.verifiedAtISO,
     verificationExpiresAtISO: overrides.verificationExpiresAtISO,
-    icon: overrides.icon,
-    coverImageUrl: overrides.coverImageUrl,
+    iconUrl: overrides.iconUrl,
+    coverUrl: overrides.coverUrl,
   };
 }
 
