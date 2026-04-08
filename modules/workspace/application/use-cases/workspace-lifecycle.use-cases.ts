@@ -11,43 +11,24 @@ import type {
   CreateWorkspaceCommand,
   UpdateWorkspaceSettingsCommand,
   Capability,
-  WorkspaceEntity,
 } from "../../domain/entities/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-
-function createInitialWorkspaceEntity(command: CreateWorkspaceCommand): WorkspaceEntity {
-  return {
-    id: crypto.randomUUID(),
-    name: createWorkspaceName(command.name),
-    accountId: command.accountId,
-    accountType: command.accountType,
-    lifecycleState: createWorkspaceLifecycleState("preparatory"),
-    visibility: createWorkspaceVisibility("visible"),
-    capabilities: [],
-    grants: [],
-    teamIds: [],
-    createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-  };
-}
+import { Workspace } from "../../domain/entities/Workspace";
 
 function sanitizeWorkspaceSettingsCommand(
+  workspace: Workspace,
   command: UpdateWorkspaceSettingsCommand,
 ): UpdateWorkspaceSettingsCommand {
+  workspace.applySettings(command);
+
   return {
-    ...command,
-    name: command.name !== undefined ? createWorkspaceName(command.name) : undefined,
-    visibility:
-      command.visibility !== undefined
-        ? createWorkspaceVisibility(command.visibility)
-        : undefined,
+    workspaceId: command.workspaceId,
+    accountId: command.accountId,
+    name: command.name !== undefined ? workspace.name : undefined,
+    visibility: command.visibility !== undefined ? workspace.visibility : undefined,
     lifecycleState:
-      command.lifecycleState !== undefined
-        ? createWorkspaceLifecycleState(command.lifecycleState)
-        : undefined,
-    address: command.address !== undefined ? createAddress(command.address) : undefined,
+      command.lifecycleState !== undefined ? workspace.lifecycleState : undefined,
+    address: command.address !== undefined ? workspace.address : undefined,
+    personnel: command.personnel !== undefined ? workspace.personnel : undefined,
   };
 }
 
@@ -58,7 +39,8 @@ export class CreateWorkspaceUseCase {
 
   async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
     try {
-      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
+      const workspace = Workspace.create(command);
+      const workspaceId = await this.workspaceRepo.save(workspace.toSnapshot());
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -82,7 +64,8 @@ export class CreateWorkspaceWithCapabilitiesUseCase {
     capabilities: Capability[] = [],
   ): Promise<CommandResult> {
     try {
-      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
+      const workspace = Workspace.create(command);
+      const workspaceId = await this.workspaceRepo.save(workspace.toSnapshot());
       if (capabilities.length > 0) {
         await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
       }
@@ -113,7 +96,12 @@ export class UpdateWorkspaceSettingsUseCase {
           `Workspace ${command.workspaceId} not found`,
         );
       }
-      await this.workspaceRepo.updateSettings(sanitizeWorkspaceSettingsCommand(command));
+      await this.workspaceRepo.updateSettings(
+        sanitizeWorkspaceSettingsCommand(
+          Workspace.reconstitute(workspace),
+          command,
+        ),
+      );
       return commandSuccess(command.workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(
