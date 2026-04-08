@@ -10,6 +10,7 @@ export default function WorkspaceDetailPage() {
   const searchParams = useSearchParams();
   const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
   const initialTab = searchParams.get("tab") ?? undefined;
+  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
   const {
     state: { activeAccount, accountsHydrated },
   } = useApp();
@@ -20,6 +21,7 @@ export default function WorkspaceDetailPage() {
       accountId={activeAccount?.id}
       accountsHydrated={accountsHydrated}
       initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
     />
   );
 }

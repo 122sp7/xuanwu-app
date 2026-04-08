@@ -11,10 +11,11 @@
 import Link from "next/link";
 import {
   PanelLeftClose,
-  Search,
+  Settings,
   SlidersHorizontal,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { createKnowledgePage } from "@/modules/knowledge/api";
@@ -36,7 +37,7 @@ import {
   type DashboardSidebarProps,
   ORGANIZATION_MANAGEMENT_ITEMS,
   ACCOUNT_NAV_ITEMS,
-  QUICK_ACCESS_ITEMS,
+  buildWorkspaceQuickAccessItems,
   SECTION_TITLES,
   sidebarItemClass,
   sidebarSectionTitleClass,
@@ -55,6 +56,7 @@ export function DashboardSidebar({
   onToggleCollapsed,
   onSelectWorkspace,
 }: DashboardSidebarProps) {
+  const searchParams = useSearchParams();
   const { state: authState } = useAuth();
   const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
     activeAccount?.id,
@@ -137,6 +139,23 @@ export function DashboardSidebar({
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
   const workspacePathId = getWorkspaceIdFromPath(pathname);
+  const currentPanel = searchParams.get("panel");
+  const currentWorkspaceTab = searchParams.get("tab");
+  const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
+  const hasWorkspaceKnowledgeContext =
+    Boolean(activeWorkspaceId) && (section === "knowledge" || section === "knowledge-base");
+  const workspaceQuickAccessId = workspacePathId || (hasWorkspaceKnowledgeContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceKnowledgeContext;
+  const workspaceSettingsHref = workspaceQuickAccessId
+    ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
+    : "";
+  const workspaceQuickAccessItems = useMemo(
+    () =>
+      showWorkspaceQuickAccess && workspaceQuickAccessId
+        ? buildWorkspaceQuickAccessItems(workspaceQuickAccessId)
+        : [],
+    [showWorkspaceQuickAccess, workspaceQuickAccessId],
+  );
 
   async function handleQuickCreatePage() {
     const accountId = activeAccount?.id ?? "";
@@ -207,37 +226,50 @@ export function DashboardSidebar({
         </div>
 
         {/* ── Quick access row ───────────────────────────────────── */}
-        <div className="shrink-0 border-b border-border/30 px-2 py-2">
-          <div className="flex items-center gap-1">
-            {QUICK_ACCESS_ITEMS.map((item) => {
-              const active = isActiveRoute(item.href);
-              return (
+        {workspaceQuickAccessItems.length > 0 ? (
+          <div className="shrink-0 border-b border-border/30 px-2 py-2">
+            <div className="flex items-center gap-1">
+              {workspaceQuickAccessItems.map((item) => {
+                const active = item.isActive?.(pathname, {
+                  panel: currentPanel,
+                  tab: currentWorkspaceTab,
+                }) ?? isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    title={item.label}
+                    aria-current={active ? "page" : undefined}
+                    className={`flex size-7 items-center justify-center rounded-md transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                    <span className="sr-only">{item.label}</span>
+                  </Link>
+                );
+              })}
+              {workspaceSettingsHref ? (
                 <Link
-                  key={item.href}
-                  href={item.href}
-                  title={item.label}
-                  aria-current={active ? "page" : undefined}
-                  className={`flex size-7 items-center justify-center rounded-md transition ${
-                    active
+                  href={workspaceSettingsHref}
+                  title="工作區設定"
+                  aria-label="工作區設定"
+                  aria-current={currentPanel === "settings" ? "page" : undefined}
+                  className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
+                    currentPanel === "settings"
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
                   }`}
                 >
-                  {item.icon}
-                  <span className="sr-only">{item.label}</span>
+                  <Settings className="size-3.5" />
+                  <span className="sr-only">工作區設定</span>
                 </Link>
-              );
-            })}
-            <button
-              type="button"
-              aria-label="搜尋"
-              title="搜尋"
-              className="ml-auto flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted/70 hover:text-foreground"
-            >
-              <Search className="size-3.5" />
-            </button>
+              ) : null}
+            </div>
           </div>
-        </div>
+        ) : null}
 
         {/* ── Scrollable nav body ─── section-specific ──────────── */}
         <div className="flex-1 overflow-y-auto px-2.5 py-2.5">

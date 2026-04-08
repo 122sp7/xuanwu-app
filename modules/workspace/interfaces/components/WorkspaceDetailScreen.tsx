@@ -41,6 +41,7 @@ interface WorkspaceDetailScreenProps {
   readonly accountsHydrated: boolean;
   /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
   readonly initialTab?: string;
+  readonly initialOverviewPanel?: string;
 }
 
 export function WorkspaceDetailScreen({
@@ -48,6 +49,7 @@ export function WorkspaceDetailScreen({
   accountId,
   accountsHydrated,
   initialTab,
+  initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
   const { state: appState, dispatch } = useApp();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
@@ -103,6 +105,7 @@ export function WorkspaceDetailScreen({
             activeWorkspaceId={appState.activeWorkspaceId}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();

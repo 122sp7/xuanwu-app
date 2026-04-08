@@ -11,17 +11,13 @@
 
 import Link from "next/link";
 import {
-  BookOpen,
   Building2,
   CalendarDays,
   ClipboardList,
-  FileText,
   FlaskConical,
   NotebookText,
   Plus,
-  Rss,
   SlidersHorizontal,
-  Table2,
   UserRound,
   Users,
 } from "lucide-react";
@@ -106,36 +102,11 @@ export function AppRail({
   }
 
   const railItems: RailItem[] = [
-    // ── Hub ──────────────────────────────────────────────────────────
+    // ── Organization / hub layer ─────────────────────────────────────
     {
       href: "/workspace",
       label: "工作區中心",
       icon: <Building2 className="size-[18px]" />,
-    },
-    // ── Content ──────────────────────────────────────────────────────
-    {
-      href: "/knowledge/pages",
-      label: "知識頁面",
-      icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
-    },
-    {
-      href: "/knowledge-base/articles",
-      label: "文章庫",
-      icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
-    },
-    {
-      href: "/knowledge-database/databases",
-      label: "資料庫",
-      icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
-    },
-    {
-      href: "/workspace-feed",
-      label: "動態消息",
-      icon: <Rss className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/workspace-feed", currentPathname),
     },
     // ── People (org-only) ─────────────────────────────────────────
     {

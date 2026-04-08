@@ -38,12 +38,9 @@ export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
 // ── Workspace / org-management items ──────────────────────────────────────
 
 export const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
-  { id: "home", tabKey: "Overview", fallbackLabel: "Home" },
   { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
   { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
   { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
-  { id: "files", tabKey: "Files", fallbackLabel: "Files" },
-  { id: "members", tabKey: "Members", fallbackLabel: "Members" },
   { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
   { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
   { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },

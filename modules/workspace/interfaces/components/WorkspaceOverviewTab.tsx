@@ -22,6 +22,7 @@ interface WorkspaceOverviewTabProps {
   readonly activeWorkspaceId: string | null | undefined;
   readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
   readonly addressLines: string[];
+  readonly showSettingsPanel?: boolean;
   readonly onEditClick: () => void;
   readonly onSetActiveWorkspace: () => void;
 }
@@ -31,9 +32,21 @@ export function WorkspaceOverviewTab({
   activeWorkspaceId,
   personnelEntries,
   addressLines,
+  showSettingsPanel = false,
   onEditClick,
   onSetActiveWorkspace,
 }: WorkspaceOverviewTabProps) {
+  if (showSettingsPanel) {
+    return (
+      <WorkspaceOverviewSettingsTab
+        workspace={workspace}
+        personnelEntries={personnelEntries}
+        addressLines={addressLines}
+        onEditClick={onEditClick}
+      />
+    );
+  }
+
   return (
     <Tabs defaultValue="home" className="space-y-4">
       <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
@@ -49,9 +62,6 @@ export function WorkspaceOverviewTab({
           </TabsTrigger>
           <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
             Profile
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="min-w-fit px-3 py-2">
-            Settings
           </TabsTrigger>
         </TabsList>
 
@@ -251,14 +261,6 @@ export function WorkspaceOverviewTab({
           </Card>
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-4 space-y-4">
-          <WorkspaceOverviewSettingsTab
-            workspace={workspace}
-            personnelEntries={personnelEntries}
-            addressLines={addressLines}
-            onEditClick={onEditClick}
-          />
-        </TabsContent>
       </div>
     </Tabs>
   );
