@@ -112,6 +112,8 @@ npm run build
 | 文件 | 說明 |
 |---|---|
 | [README.md](./README.md) | 模組定位與 tactical model 總覽 |
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及 selected strategic view |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、ownership 與內部切面 |
 | [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
 | [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
 | [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
