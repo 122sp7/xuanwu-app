@@ -10,6 +10,7 @@ export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen"
 export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
 export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
 export { CreateWorkspaceDialogRail } from "../interfaces/components/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "../interfaces/components/OrganizationWorkspacesScreen";
 
 export {
   WORKSPACE_TAB_GROUPS,
