@@ -5,6 +5,7 @@
  */
 
 export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/components/WorkspaceDetailRouteScreen";
 export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
 export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
 export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
