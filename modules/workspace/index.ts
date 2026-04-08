@@ -48,7 +48,6 @@ export {
 export { WorkspaceHubScreen } from "./interfaces/components/WorkspaceHubScreen";
 export { WorkspaceDetailScreen } from "./interfaces/components/WorkspaceDetailScreen";
 export { WorkspaceMembersTab } from "./interfaces/components/WorkspaceMembersTab";
-export { WorkspaceWikiView } from "./interfaces/components/WorkspaceWikiView";
 export {
   WORKSPACE_TAB_VALUES,
   WORKSPACE_TAB_META,

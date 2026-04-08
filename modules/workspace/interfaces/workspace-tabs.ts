@@ -4,7 +4,6 @@ export type WorkspaceTabGroup = "primary" | "spaces" | "databases" | "library" |
 
 export const WORKSPACE_TAB_VALUES = [
   "Overview",
-  "Wiki",
   "Members",
   "Daily",
   "Files",
@@ -25,7 +24,6 @@ interface WorkspaceTabMeta {
 
 export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
   Overview: { label: "Home", prefId: "home", group: "primary", status: "🏗️" },
-  Wiki: { label: "Wiki", prefId: "wiki", group: "spaces", status: "🏗️" },
   Members: { label: "Members", prefId: "members", group: "library", status: "✅" },
   Daily: { label: "Daily", prefId: "daily", group: "modules", status: "✅" },
   Files: { label: "Files", prefId: "files", group: "library", status: "✅" },
@@ -37,7 +35,7 @@ export const WORKSPACE_TAB_META: Record<WorkspaceTabValue, WorkspaceTabMeta> = {
 
 export const WORKSPACE_TAB_GROUPS: Record<WorkspaceTabGroup, readonly WorkspaceTabValue[]> = {
   primary: ["Overview"],
-  spaces: ["Wiki"],
+  spaces: [],
   databases: [],
   library: ["Files", "Members"],
   modules: ["Daily", "Schedule", "Audit", "Tasks", "Feed"],

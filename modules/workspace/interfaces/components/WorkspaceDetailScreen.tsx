@@ -21,7 +21,6 @@ import {
 } from "../../application/workspace-settings";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
 import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
@@ -122,8 +121,6 @@ export function WorkspaceDetailScreen({
         return <WorkspaceDailyTab workspace={workspace} />;
       case "Files":
         return <WorkspaceFilesTab workspace={workspace} />;
-      case "Wiki":
-        return <WorkspaceWikiView workspace={workspace} />;
       case "Schedule":
         return (
           <WorkspaceSchedulingTab

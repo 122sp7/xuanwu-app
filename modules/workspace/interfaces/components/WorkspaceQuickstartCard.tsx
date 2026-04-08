@@ -34,10 +34,10 @@ export function WorkspaceQuickstartCard({ workspaceId }: WorkspaceQuickstartCard
         <div className="rounded-xl border border-border/40 px-4 py-4">
           <p className="text-sm font-semibold">Step 2 · 建立頁面</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            在 Wiki 分頁建立第一個知識頁面，整理結構。
+            直接在工作區知識頁面建立第一個頁面，整理結構。
           </p>
           <Button asChild size="sm" variant="outline" className="mt-3">
-            <Link href={`/workspace/${workspaceId}?tab=Wiki`}>前往 Wiki</Link>
+            <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`}>前往知識頁面</Link>
           </Button>
         </div>
         <div className="rounded-xl border border-border/40 px-4 py-4">

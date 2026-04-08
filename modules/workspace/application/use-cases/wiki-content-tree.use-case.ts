@@ -1,7 +1,7 @@
 /**
  * Module: workspace
  * Layer: application/use-cases
- * Purpose: Build the Wiki sidebar content-tree from account/workspace seeds.
+ * Purpose: Build the workspace content-tree from account/workspace seeds.
  *          Lives in workspace because it aggregates workspace-scoped content nodes.
  */
 
@@ -15,13 +15,13 @@ import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWork
 
 function buildContentBaseItems(workspaceId: string): WikiContentItemNode[] {
   return [
-    { key: "spaces", label: "Wiki", href: `/workspace/${workspaceId}?tab=Wiki`, enabled: true },
-    { key: "pages", label: "Pages", href: "/knowledge/pages", enabled: true },
-    { key: "libraries", label: "Libraries", href: "/source/libraries", enabled: true },
+    { key: "spaces", label: "Workspace", href: `/workspace/${workspaceId}`, enabled: true },
+    { key: "pages", label: "Knowledge Pages", href: `/knowledge/pages?workspaceId=${workspaceId}`, enabled: true },
+    { key: "libraries", label: "Libraries", href: `/source/libraries?workspaceId=${workspaceId}`, enabled: true },
     { key: "documents", label: "Documents", href: `/workspace/${workspaceId}?tab=Files`, enabled: true },
     { key: "vector-index", label: "Vector Index", href: "/knowledge", enabled: false },
-    { key: "rag", label: "RAG", href: "/notebook/rag-query", enabled: true },
-    { key: "ai-tools", label: "AI Tools", href: "/ai-chat", enabled: true },
+    { key: "rag", label: "RAG", href: `/notebook/rag-query?workspaceId=${workspaceId}`, enabled: true },
+    { key: "ai-tools", label: "AI Tools", href: `/ai-chat?workspaceId=${workspaceId}`, enabled: true },
   ];
 }
 
@@ -29,7 +29,7 @@ function buildWorkspaceNode(workspaceId: string, workspaceName: string): WikiWor
   return {
     workspaceId,
     workspaceName,
-    href: `/workspace/${workspaceId}?tab=Wiki`,
+    href: `/workspace/${workspaceId}`,
     contentBaseItems: buildContentBaseItems(workspaceId),
   };
 }

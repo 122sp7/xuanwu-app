@@ -179,7 +179,7 @@ export default function AiChatPage() {
                   <div>
                     <p className="font-medium text-foreground">{currentWorkspace.name}</p>
                     <p className="mt-1 text-xs">
-                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
+                      Notebook 會優先消費這個工作區的 Knowledge、知識頁面與 RAG Query 結果。
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -187,7 +187,7 @@ export default function AiChatPage() {
                       <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
+                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(currentWorkspace.id)}`}>知識頁面</Link>
                     </Button>
                   </div>
                 </>

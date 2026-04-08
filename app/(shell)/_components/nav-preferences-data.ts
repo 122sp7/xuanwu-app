@@ -40,7 +40,6 @@ export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
 export const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
   { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
   { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
-  { id: "wiki", tabKey: "Wiki", fallbackLabel: "Wiki" },
   { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
   { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
   { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },

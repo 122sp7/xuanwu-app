@@ -80,7 +80,7 @@ export default function KnowledgePagesPage() {
         </p>
       ) : !isAccountSummary && !workspaceId ? (
         <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入 Wiki，或在網址帶入 workspaceId 後再查看頁面樹。
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
         </p>
       ) : loading ? (
         <div className="space-y-2">
