@@ -22,6 +22,9 @@ import {
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
 import type {
   WorkspaceEntity,
   Capability,
@@ -67,7 +70,12 @@ export function toWorkspaceEntity(id: string, data: Record<string, unknown>): Wo
 
 // ─── Repository ───────────────────────────────────────────────────────────────
 
-export class FirebaseWorkspaceRepository implements WorkspaceRepository {
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
   private get db() {
     return getFirestore(firebaseClientApp);
   }
@@ -98,7 +106,7 @@ export class FirebaseWorkspaceRepository implements WorkspaceRepository {
 
   async save(workspace: WorkspaceEntity): Promise<string> {
     const ref = doc(this.db, "workspaces", workspace.id);
-    await setDoc(ref, {
+    const payload: Record<string, unknown> = {
       name: workspace.name,
       accountId: workspace.accountId,
       accountType: workspace.accountType,
@@ -108,7 +116,14 @@ export class FirebaseWorkspaceRepository implements WorkspaceRepository {
       grants: workspace.grants,
       teamIds: workspace.teamIds,
       createdAt: serverTimestamp(),
-    });
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await setDoc(ref, payload);
     return workspace.id;
   }
 

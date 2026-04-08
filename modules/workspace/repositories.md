@@ -6,11 +6,11 @@
 
 本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
 
-## Write-side Repository Port
+## Write-side Repository Ports
 
 ### `WorkspaceRepository`
 
-`WorkspaceRepository` 服務 `Workspace` aggregate 的持久化與 supporting record 變更。
+`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
 
 #### 核心方法
 
@@ -21,14 +21,22 @@
 - `updateSettings(command)`
 - `delete(id)`
 
-#### 目前仍在此 Port 中的 supporting operations
+### Supporting Record Ports
+
+#### `WorkspaceCapabilityRepository`
 
 - `mountCapabilities()` / `unmountCapability()`
+
+#### `WorkspaceAccessRepository`
+
 - `grantTeamAccess()` / `revokeTeamAccess()`
 - `grantIndividualAccess()` / `revokeIndividualAccess()`
+
+#### `WorkspaceLocationRepository`
+
 - `createLocation()` / `updateLocation()` / `deleteLocation()`
 
-這些 supporting operations 目前仍由 workspace 擁有；若之後 ownership 外拆，應同步縮小此 port。
+這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
 
 ## Read-side Repository Ports
 
@@ -53,7 +61,7 @@
 
 | Adapter | 作用 |
 |---|---|
-| `FirebaseWorkspaceRepository` | `WorkspaceRepository` 的 Firestore 實作 |
+| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
 | `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
 | `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
 
@@ -66,5 +74,5 @@
 
 ## Tactical Debt Notes
 
-- `WorkspaceRepository` 目前範圍比理想的單一 aggregate persistence 更寬，因為 capabilities、grants、locations 仍留在 workspace 內
+- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
 - `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`

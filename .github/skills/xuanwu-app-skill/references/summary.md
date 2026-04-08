@@ -38,17 +38,17 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1071 files | 71,717 lines
+1119 files | 74,938 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 470 | 27,104 |
-| Markdown | 298 | 13,359 |
-| TypeScript (TSX) | 163 | 24,679 |
-| Python | 60 | 3,706 |
+| TypeScript | 500 | 29,183 |
+| Markdown | 299 | 13,682 |
+| TypeScript (TSX) | 179 | 25,359 |
+| Python | 61 | 3,823 |
 | No Extension | 52 | 136 |
 | MERMAID | 10 | 583 |
-| JSON | 8 | 877 |
+| JSON | 8 | 899 |
 | Text | 3 | 116 |
 | RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 386 |
@@ -56,12 +56,12 @@ This skill contains the following reference files:
 
 **Largest files:**
 - `docs/guides/explanation/architecture.md` (942 lines)
-- `app/(shell)/_components/dashboard-sidebar.tsx` (894 lines)
-- `app/(shell)/dev-tools/page.tsx` (872 lines)
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
-- `app/(shell)/_components/customize-navigation-dialog.tsx` (611 lines)
-- `app/(shell)/_components/app-rail.tsx` (576 lines)
+- `app/(shell)/_components/dashboard-sidebar.tsx` (554 lines)
 - `scripts/init-framework.sh` (492 lines)
-- `app/(shell)/knowledge/pages/[pageId]/page.tsx` (445 lines)
-- `firestore.indexes.json` (415 lines)
-- `app/(shell)/ai-chat/page.tsx` (392 lines)
+- `app/(shell)/dev-tools/page.tsx` (475 lines)
+- `firestore.indexes.json` (437 lines)
+- `modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (389 lines)
+- `eslint.config.mjs` (379 lines)
+- `app/(shell)/ai-chat/page.tsx` (370 lines)
+- `docs/guides/how-to/ui-ux/component-patterns.md` (362 lines)

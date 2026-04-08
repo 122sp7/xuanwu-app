@@ -5,17 +5,17 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
 import type { Capability } from "../../domain/entities/Workspace";
 
 // ─── Mount Capabilities ───────────────────────────────────────────────────────
 
 export class MountCapabilitiesUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+  constructor(private readonly capabilityRepo: WorkspaceCapabilityRepository) {}
 
   async execute(workspaceId: string, capabilities: Capability[]): Promise<CommandResult> {
     try {
-      await this.workspaceRepo.mountCapabilities(workspaceId, capabilities);
+      await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(

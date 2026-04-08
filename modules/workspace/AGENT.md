@@ -4,8 +4,12 @@
 > 本 BC 領域開發必須使用 Serena 指令：
 > ```
 > serena
+> #use skill xuanwu-app-skill
+> #use skill serena-mcp
+> #use skill context7
 > #use skill alistair-cockburn
 > #use skill iddd-implementing-ddd
+
 > ```
 
 ## 模組定位
@@ -20,7 +24,7 @@
 
 - Aggregate Root：`Workspace`
 - Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
-- Repository Ports：`WorkspaceRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
 - Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
 
 ## 通用語言（Ubiquitous Language）

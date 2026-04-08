@@ -19,13 +19,13 @@
 | Use Case | 目的 | 備註 |
 |---|---|---|
 | `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
-| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 過渡性 orchestration；之後可再評估是否抽離 capability ownership |
+| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
 | `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
 | `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
-| `MountCapabilitiesUseCase` | 掛載工作區能力 | 暫時留在 workspace application layer |
-| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 過渡性 use case |
-| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 過渡性 use case |
-| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | supporting entity 管理 |
+| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
+| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
+| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
+| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
 
 ## Query-side Use Cases / Projection Builders
 

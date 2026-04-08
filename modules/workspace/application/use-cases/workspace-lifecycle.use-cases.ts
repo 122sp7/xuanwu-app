@@ -6,11 +6,28 @@
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
 import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
 import type {
   CreateWorkspaceCommand,
   UpdateWorkspaceSettingsCommand,
   Capability,
+  WorkspaceEntity,
 } from "../../domain/entities/Workspace";
+
+function createInitialWorkspaceEntity(command: CreateWorkspaceCommand): WorkspaceEntity {
+  return {
+    id: crypto.randomUUID(),
+    name: command.name,
+    accountId: command.accountId,
+    accountType: command.accountType,
+    lifecycleState: "preparatory",
+    visibility: "visible",
+    capabilities: [],
+    grants: [],
+    teamIds: [],
+    createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+  };
+}
 
 // ─── Create Workspace ─────────────────────────────────────────────────────────
 
@@ -19,18 +36,7 @@ export class CreateWorkspaceUseCase {
 
   async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
     try {
-      const workspaceId = await this.workspaceRepo.save({
-        id: crypto.randomUUID(),
-        name: command.name,
-        accountId: command.accountId,
-        accountType: command.accountType,
-        lifecycleState: "preparatory",
-        visibility: "visible",
-        capabilities: [],
-        grants: [],
-        teamIds: [],
-        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-      });
+      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -44,27 +50,19 @@ export class CreateWorkspaceUseCase {
 // ─── Create Workspace with Capabilities ──────────────────────────────────────
 
 export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly capabilityRepo: WorkspaceCapabilityRepository,
+  ) {}
 
   async execute(
     command: CreateWorkspaceCommand,
     capabilities: Capability[] = [],
   ): Promise<CommandResult> {
     try {
-      const workspaceId = await this.workspaceRepo.save({
-        id: crypto.randomUUID(),
-        name: command.name,
-        accountId: command.accountId,
-        accountType: command.accountType,
-        lifecycleState: "preparatory",
-        visibility: "visible",
-        capabilities: [],
-        grants: [],
-        teamIds: [],
-        createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-      });
+      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
       if (capabilities.length > 0) {
-        await this.workspaceRepo.mountCapabilities(workspaceId, capabilities);
+        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
       }
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {

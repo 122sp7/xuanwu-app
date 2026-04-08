@@ -15,6 +15,7 @@ import {
   getWorkspaceInitials,
   lifecycleBadgeVariant,
 } from "./workspace-detail-helpers";
+import { getWorkspaceGovernanceSummary } from "../workspace-supporting-records";
 
 interface WorkspaceOverviewSummaryCardProps {
   readonly workspace: WorkspaceEntity;
@@ -29,6 +30,8 @@ export function WorkspaceOverviewSummaryCard({
   onEditClick,
   onSetActiveWorkspace,
 }: WorkspaceOverviewSummaryCardProps) {
+  const governanceSummary = getWorkspaceGovernanceSummary(workspace);
+
   return (
     <Card className="border border-border/50">
       <CardContent className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
@@ -71,19 +74,19 @@ export function WorkspaceOverviewSummaryCard({
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[20rem]">
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Capabilities</p>
-            <p className="mt-1 text-xl font-semibold">{workspace.capabilities.length}</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.capabilityCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Teams</p>
-            <p className="mt-1 text-xl font-semibold">{workspace.teamIds.length}</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.teamCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Locations</p>
-            <p className="mt-1 text-xl font-semibold">{workspace.locations?.length ?? 0}</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.locationCount}</p>
           </div>
           <div className="rounded-xl border border-border/40 px-4 py-3">
             <p className="text-xs text-muted-foreground">Grants</p>
-            <p className="mt-1 text-xl font-semibold">{workspace.grants.length}</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.grantCount}</p>
           </div>
         </div>
       </CardContent>

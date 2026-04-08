@@ -11,33 +11,18 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
+import {
+  getWorkspaceAddressLines,
+  getWorkspaceRoleAssignments,
+} from "../workspace-supporting-records";
 
 interface WorkspaceProductSpineCardProps {
   readonly workspace: WorkspaceEntity;
 }
 
 export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCardProps) {
-  const addressLines = workspace.address
-    ? [
-        workspace.address.street,
-        [workspace.address.city, workspace.address.state, workspace.address.postalCode]
-          .filter(Boolean)
-          .join(", "),
-        workspace.address.country,
-        workspace.address.details,
-      ].filter((line): line is string => Boolean(line))
-    : [];
-
-  const workspaceRoles = [
-    { id: "manager", roleName: "Manager", role: workspace.personnel?.managerId ?? "" },
-    { id: "supervisor", roleName: "Supervisor", role: workspace.personnel?.supervisorId ?? "" },
-    { id: "safety-officer", roleName: "Safety officer", role: workspace.personnel?.safetyOfficerId ?? "" },
-    ...(workspace.personnel?.customRoles ?? []).map((entry) => ({
-      id: entry.roleId,
-      roleName: entry.roleName,
-      role: entry.role,
-    })),
-  ].filter((entry) => entry.roleName || entry.role);
+  const addressLines = getWorkspaceAddressLines(workspace);
+  const workspaceRoles = getWorkspaceRoleAssignments(workspace);
 
   return (
     <Card className="border border-border/50 xl:col-span-2">

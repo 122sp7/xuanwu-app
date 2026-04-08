@@ -5,17 +5,18 @@
  */
 
 import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
 import type { WorkspaceGrant, WorkspaceLocation } from "../../domain/entities/Workspace";
 
 // ─── Grant Team Access ────────────────────────────────────────────────────────
 
 export class GrantTeamAccessUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
 
   async execute(workspaceId: string, teamId: string): Promise<CommandResult> {
     try {
-      await this.workspaceRepo.grantTeamAccess(workspaceId, teamId);
+      await this.workspaceAccessRepo.grantTeamAccess(workspaceId, teamId);
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -29,11 +30,11 @@ export class GrantTeamAccessUseCase {
 // ─── Grant Individual Access ──────────────────────────────────────────────────
 
 export class GrantIndividualAccessUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+  constructor(private readonly workspaceAccessRepo: WorkspaceAccessRepository) {}
 
   async execute(workspaceId: string, grant: WorkspaceGrant): Promise<CommandResult> {
     try {
-      await this.workspaceRepo.grantIndividualAccess(workspaceId, grant);
+      await this.workspaceAccessRepo.grantIndividualAccess(workspaceId, grant);
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -47,14 +48,14 @@ export class GrantIndividualAccessUseCase {
 // ─── Create Location ──────────────────────────────────────────────────────────
 
 export class CreateWorkspaceLocationUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+  constructor(private readonly workspaceLocationRepo: WorkspaceLocationRepository) {}
 
   async execute(
     workspaceId: string,
     location: Omit<WorkspaceLocation, "locationId">,
   ): Promise<CommandResult> {
     try {
-      const locationId = await this.workspaceRepo.createLocation(workspaceId, location);
+      const locationId = await this.workspaceLocationRepo.createLocation(workspaceId, location);
       return commandSuccess(locationId, Date.now());
     } catch (err) {
       return commandFailureFrom(

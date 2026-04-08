@@ -3,58 +3,17 @@
  */
 
 import type { Timestamp } from "@shared-types";
+import type { WorkspaceAccessPolicy } from "./WorkspaceAccess";
+import type { WorkspaceCapabilityAssignments } from "./WorkspaceCapability";
+import type {
+  Address,
+  WorkspaceOperationalProfile,
+  WorkspacePersonnel,
+} from "./WorkspaceProfile";
 
 export type WorkspaceLifecycleState = "preparatory" | "active" | "stopped";
 
-export interface WorkspacePersonnel {
-  managerId?: string;
-  supervisorId?: string;
-  safetyOfficerId?: string;
-  customRoles?: WorkspacePersonnelCustomRole[];
-}
-
-export interface WorkspacePersonnelCustomRole {
-  roleId: string;
-  roleName: string;
-  role: string;
-}
-
-export interface CapabilitySpec {
-  id: string;
-  name: string;
-  type: "ui" | "api" | "data" | "governance" | "monitoring";
-  status: "stable" | "beta";
-  description: string;
-}
-
-export interface Capability extends CapabilitySpec {
-  config?: object;
-}
-
-export interface Address {
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  details?: string;
-}
-
-export interface WorkspaceLocation {
-  locationId: string;
-  label: string;
-  description?: string;
-  capacity?: number;
-}
-
 export type WorkspaceVisibility = "visible" | "hidden";
-
-export interface WorkspaceGrant {
-  userId?: string;
-  teamId?: string;
-  role: string;
-  protocol?: string;
-}
 
 export interface WorkspaceEntity {
   id: string;
@@ -64,12 +23,20 @@ export interface WorkspaceEntity {
   visibility: WorkspaceVisibility;
   accountId: string;
   accountType: "user" | "organization";
-  capabilities: Capability[];
-  grants: WorkspaceGrant[];
-  teamIds: string[];
-  address?: Address;
-  locations?: WorkspaceLocation[];
-  personnel?: WorkspacePersonnel;
+  createdAt: Timestamp;
+}
+
+export interface WorkspaceEntity
+  extends WorkspaceCapabilityAssignments,
+    WorkspaceAccessPolicy,
+    WorkspaceOperationalProfile {
+  id: string;
+  name: string;
+  photoURL?: string;
+  lifecycleState: WorkspaceLifecycleState;
+  visibility: WorkspaceVisibility;
+  accountId: string;
+  accountType: "user" | "organization";
   createdAt: Timestamp;
 }
 
@@ -90,3 +57,12 @@ export interface UpdateWorkspaceSettingsCommand {
   readonly address?: Address;
   readonly personnel?: WorkspacePersonnel;
 }
+
+export type { WorkspaceGrant } from "./WorkspaceAccess";
+export type { Capability, CapabilitySpec } from "./WorkspaceCapability";
+export type { WorkspaceLocation } from "./WorkspaceLocation";
+export type {
+  Address,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+} from "./WorkspaceProfile";

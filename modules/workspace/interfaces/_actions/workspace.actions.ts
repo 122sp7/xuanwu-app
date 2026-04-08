@@ -23,6 +23,9 @@ import {
   CreateWorkspaceLocationUseCase,
 } from "../../application/use-cases/workspace.use-cases";
 import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
+import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
+import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
 import type {
   CreateWorkspaceCommand,
   UpdateWorkspaceSettingsCommand,
@@ -37,6 +40,9 @@ import {
 } from "../../domain/events/workspace.events";
 
 const workspaceRepo = new FirebaseWorkspaceRepository();
+const workspaceCapabilityRepo: WorkspaceCapabilityRepository = workspaceRepo;
+const workspaceAccessRepo: WorkspaceAccessRepository = workspaceRepo;
+const workspaceLocationRepo: WorkspaceLocationRepository = workspaceRepo;
 
 function makeWorkspaceEventPublisher() {
   const eventBus = process.env.QSTASH_TOKEN
@@ -111,7 +117,10 @@ export async function createWorkspaceWithCapabilities(
   capabilities: Capability[],
 ): Promise<CommandResult> {
   try {
-    const result = await new CreateWorkspaceWithCapabilitiesUseCase(workspaceRepo).execute(command, capabilities);
+    const result = await new CreateWorkspaceWithCapabilitiesUseCase(
+      workspaceRepo,
+      workspaceCapabilityRepo,
+    ).execute(command, capabilities);
     if (result.success) {
       await publishWorkspaceDomainEvent(
         createWorkspaceCreatedEvent({
@@ -187,7 +196,10 @@ export async function mountCapabilities(
   capabilities: Capability[],
 ): Promise<CommandResult> {
   try {
-    return await new MountCapabilitiesUseCase(workspaceRepo).execute(workspaceId, capabilities);
+    return await new MountCapabilitiesUseCase(workspaceCapabilityRepo).execute(
+      workspaceId,
+      capabilities,
+    );
   } catch (err) {
     return commandFailureFrom("CAPABILITIES_MOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -198,7 +210,7 @@ export async function authorizeWorkspaceTeam(
   teamId: string,
 ): Promise<CommandResult> {
   try {
-    return await new GrantTeamAccessUseCase(workspaceRepo).execute(workspaceId, teamId);
+    return await new GrantTeamAccessUseCase(workspaceAccessRepo).execute(workspaceId, teamId);
   } catch (err) {
     return commandFailureFrom("WORKSPACE_TEAM_AUTHORIZE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -209,7 +221,10 @@ export async function grantIndividualWorkspaceAccess(
   grant: WorkspaceGrant,
 ): Promise<CommandResult> {
   try {
-    return await new GrantIndividualAccessUseCase(workspaceRepo).execute(workspaceId, grant);
+    return await new GrantIndividualAccessUseCase(workspaceAccessRepo).execute(
+      workspaceId,
+      grant,
+    );
   } catch (err) {
     return commandFailureFrom("WORKSPACE_GRANT_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
@@ -220,7 +235,10 @@ export async function createWorkspaceLocation(
   location: Omit<WorkspaceLocation, "locationId">,
 ): Promise<CommandResult> {
   try {
-    return await new CreateWorkspaceLocationUseCase(workspaceRepo).execute(workspaceId, location);
+    return await new CreateWorkspaceLocationUseCase(workspaceLocationRepo).execute(
+      workspaceId,
+      location,
+    );
   } catch (err) {
     return commandFailureFrom("WORKSPACE_LOCATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }

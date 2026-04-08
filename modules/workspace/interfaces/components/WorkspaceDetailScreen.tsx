@@ -19,6 +19,10 @@ import {
   createSettingsDraft,
   type WorkspaceSettingsDraft,
 } from "../workspace-settings";
+import {
+  getWorkspaceAddressLines,
+  getWorkspacePersonnelEntries,
+} from "../workspace-supporting-records";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import {
@@ -70,27 +74,11 @@ export function WorkspaceDetailScreen({
   });
 
   const personnelEntries = useMemo(() => {
-    if (!workspace?.personnel) return [];
-    return [
-      { label: "Manager", value: workspace.personnel.managerId },
-      { label: "Supervisor", value: workspace.personnel.supervisorId },
-      { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
-      ...((workspace.personnel.customRoles ?? []).map((entry) => ({
-        label: entry.roleName,
-        value: entry.role,
-      }))),
-    ].filter((entry) => Boolean(entry.value));
+    return workspace ? getWorkspacePersonnelEntries(workspace) : [];
   }, [workspace]);
 
   const addressLines = useMemo(() => {
-    if (!workspace?.address) return [];
-    const { street, city, state, postalCode, country, details } = workspace.address;
-    return [
-      street,
-      [city, state, postalCode].filter(Boolean).join(", "),
-      country,
-      details,
-    ].filter((line): line is string => Boolean(line));
+    return workspace ? getWorkspaceAddressLines(workspace) : [];
   }, [workspace]);
 
   function renderTabContent(tab: WorkspaceTabValue) {

@@ -16,6 +16,7 @@ import {
 } from "@ui-shadcn/ui/card";
 
 import { useWorkspaceHub } from "../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../workspace-supporting-records";
 import { CreateWorkspaceDialog } from "./CreateWorkspaceDialog";
 
 const lifecycleBadgeVariant: Record<
@@ -186,7 +187,7 @@ export function WorkspaceHubScreen({
         <CardHeader>
           <CardTitle>Workspace Records</CardTitle>
           <CardDescription>
-            Lifecycle、capabilities、locations 與 grant counts 仍由 workspace 模組提供；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
+            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -215,38 +216,42 @@ export function WorkspaceHubScreen({
             </div>
           )}
 
-          {workspaces.map((workspace) => (
-            <Link
-              key={workspace.id}
-              href={`/workspace/${workspace.id}`}
-              className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">
-                      {workspace.name}
-                    </p>
-                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Account scope: {workspace.accountType}
-                  </p>
-                  <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                </div>
+          {workspaces.map((workspace) => {
+            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
 
-                <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                  <span>Capabilities: {workspace.capabilities.length}</span>
-                  <span>Teams: {workspace.teamIds.length}</span>
-                  <span>Locations: {workspace.locations?.length ?? 0}</span>
-                  <span>Grants: {workspace.grants.length}</span>
+            return (
+              <Link
+                key={workspace.id}
+                href={`/workspace/${workspace.id}`}
+                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {workspace.name}
+                      </p>
+                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                        {workspace.lifecycleState}
+                      </Badge>
+                      <Badge variant="outline">{workspace.visibility}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Account scope: {workspace.accountType}
+                    </p>
+                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
+                    <span>Teams: {governanceSummary.teamCount}</span>
+                    <span>Locations: {governanceSummary.locationCount}</span>
+                    <span>Grants: {governanceSummary.grantCount}</span>
+                  </div>
                 </div>
-              </div>
-            </Link>
-          ))}
+              </Link>
+            );
+          })}
         </CardContent>
       </Card>
 
