@@ -2,6 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
 const MAX_VISIBLE_RECENT_WORKSPACES = 10;
 const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
 
@@ -67,14 +73,14 @@ export function useRecentWorkspaces(
     return [currentId, ...stored.filter((id) => id !== currentId)];
   }, [accountId, pathname]);
 
-  const recentWorkspaceLinks = useMemo(() => {
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
     return recentWorkspaceIds
-      .map((workspaceId) => {
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
         const ws = workspacesById[workspaceId];
         if (!ws) return null;
         return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
       })
-      .filter((item): item is { id: string; name: string; href: string } => item !== null);
+      .filter((item): item is RecentWorkspaceLink => item !== null);
   }, [recentWorkspaceIds, workspacesById]);
 
   return { isExpanded, setIsExpanded, recentWorkspaceLinks };

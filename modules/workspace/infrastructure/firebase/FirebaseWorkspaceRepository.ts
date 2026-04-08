@@ -32,36 +32,42 @@ import type {
   UpdateWorkspaceSettingsCommand,
   WorkspaceLocation,
 } from "../../domain/entities/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
 
 const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
-const VALID_LIFECYCLE_STATES = new Set<WorkspaceEntity["lifecycleState"]>(["preparatory", "active", "stopped"]);
-const VALID_VISIBILITY = new Set<WorkspaceEntity["visibility"]>(["visible", "hidden"]);
 
 export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
   const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
     ? (data.accountType as WorkspaceEntity["accountType"])
     : "user";
-  const lifecycleState = VALID_LIFECYCLE_STATES.has(data.lifecycleState as WorkspaceEntity["lifecycleState"])
-    ? (data.lifecycleState as WorkspaceEntity["lifecycleState"])
-    : "preparatory";
-  const visibility = VALID_VISIBILITY.has(data.visibility as WorkspaceEntity["visibility"])
-    ? (data.visibility as WorkspaceEntity["visibility"])
-    : "visible";
 
   return {
     id,
-    name: typeof data.name === "string" ? data.name : "",
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
     accountId: typeof data.accountId === "string" ? data.accountId : "",
     accountType,
-    lifecycleState,
-    visibility,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
     capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
     grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
     teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
     photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? (data.address as WorkspaceEntity["address"]) : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
     locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
     personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
     createdAt: data.createdAt as WorkspaceEntity["createdAt"],

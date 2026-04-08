@@ -7,6 +7,7 @@
 
 export type {
   Address,
+  AddressInput,
   Capability,
   CapabilitySpec,
   CreateWorkspaceCommand,
@@ -14,11 +15,27 @@ export type {
   WorkspaceEntity,
   WorkspaceGrant,
   WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
   WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
   WorkspacePersonnel,
   WorkspacePersonnelCustomRole,
   WorkspaceVisibility,
+  WorkspaceVisibilityInput,
 } from "../domain/entities/Workspace";
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../domain/value-objects";
 
 export type {
   WorkspaceMemberAccessChannel,

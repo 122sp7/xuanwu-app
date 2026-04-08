@@ -1,4 +1,5 @@
 import type { WorkspaceLocationCatalog } from "./WorkspaceLocation";
+import type { Address } from "../value-objects/Address";
 
 export interface WorkspacePersonnel {
   managerId?: string;
@@ -13,16 +14,9 @@ export interface WorkspacePersonnelCustomRole {
   role: string;
 }
 
-export interface Address {
-  street: string;
-  city: string;
-  state: string;
-  postalCode: string;
-  country: string;
-  details?: string;
-}
-
 export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
   address?: Address;
   personnel?: WorkspacePersonnel;
 }
+
+export type { Address, AddressInput } from "../value-objects/Address";

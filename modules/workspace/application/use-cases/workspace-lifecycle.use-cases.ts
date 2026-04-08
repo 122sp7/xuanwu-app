@@ -13,19 +13,41 @@ import type {
   Capability,
   WorkspaceEntity,
 } from "../../domain/entities/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
 
 function createInitialWorkspaceEntity(command: CreateWorkspaceCommand): WorkspaceEntity {
   return {
     id: crypto.randomUUID(),
-    name: command.name,
+    name: createWorkspaceName(command.name),
     accountId: command.accountId,
     accountType: command.accountType,
-    lifecycleState: "preparatory",
-    visibility: "visible",
+    lifecycleState: createWorkspaceLifecycleState("preparatory"),
+    visibility: createWorkspaceVisibility("visible"),
     capabilities: [],
     grants: [],
     teamIds: [],
     createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+  };
+}
+
+function sanitizeWorkspaceSettingsCommand(
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  return {
+    ...command,
+    name: command.name !== undefined ? createWorkspaceName(command.name) : undefined,
+    visibility:
+      command.visibility !== undefined
+        ? createWorkspaceVisibility(command.visibility)
+        : undefined,
+    lifecycleState:
+      command.lifecycleState !== undefined
+        ? createWorkspaceLifecycleState(command.lifecycleState)
+        : undefined,
+    address: command.address !== undefined ? createAddress(command.address) : undefined,
   };
 }
 
@@ -91,7 +113,7 @@ export class UpdateWorkspaceSettingsUseCase {
           `Workspace ${command.workspaceId} not found`,
         );
       }
-      await this.workspaceRepo.updateSettings(command);
+      await this.workspaceRepo.updateSettings(sanitizeWorkspaceSettingsCommand(command));
       return commandSuccess(command.workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(

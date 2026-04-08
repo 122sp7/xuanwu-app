@@ -41,6 +41,7 @@
 |------|------|
 | `WorkspaceLifecycleState` | 工作區生命週期值 |
 | `WorkspaceVisibility` | 工作區可見性值 |
+| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
 | `Address` | 地址值型資料 |
 | `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
 | `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
@@ -61,5 +62,6 @@
 ## Tactical Debt Notes
 
 - `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
+- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
 - `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`

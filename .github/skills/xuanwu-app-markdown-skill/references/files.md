@@ -9144,6 +9144,113 @@ Application layer 只負責：
 - 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
 ````
 
+## File: modules/knowledge/domain-events.md
+````markdown
+# Domain Events — knowledge
+
+## 發出事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
+| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
+| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
+| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
+| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
+| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
+| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
+| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
+| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
+| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
+| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
+| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+
+## 最重要事件：knowledge.page_approved
+
+```typescript
+// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
+interface KnowledgePageApprovedEvent {
+  readonly type: "knowledge.page_approved";
+  readonly aggregateId: string;      // KnowledgePage ID
+  readonly pageId: string;
+  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
+  readonly extractedTasks: ReadonlyArray<{
+    readonly title: string;
+    readonly dueDate?: string;
+    readonly description?: string;
+  }>;
+  readonly extractedInvoices: ReadonlyArray<{
+    readonly amount: number;
+    readonly description: string;
+    readonly currency?: string;    // 預設 "TWD"
+  }>;
+  readonly actorId: string;          // 執行審批的使用者 ID
+  readonly causationId: string;      // 觸發命令 ID
+  readonly correlationId: string;    // 業務流程追蹤 ID
+}
+```
+
+## Knowledge Collection 驗證事件
+
+```typescript
+interface KnowledgePageVerifiedEvent {
+  readonly type: "knowledge.page_verified";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly verifiedByUserId: string;
+  readonly verifiedAtISO: string;
+  readonly verificationExpiresAtISO?: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageReviewRequestedEvent {
+  readonly type: "knowledge.page_review_requested";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly requestedByUserId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+
+interface KnowledgePageOwnerAssignedEvent {
+  readonly type: "knowledge.page_owner_assigned";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly ownerId: string;
+  readonly occurredAt: string;    // ISO 8601
+}
+```
+
+## Promote 事件（D3：Page → Article 提升協議）
+
+`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
+
+```typescript
+interface KnowledgePagePromotedEvent {
+  readonly type: "knowledge.page_promoted";
+  readonly pageId: string;
+  readonly accountId: string;
+  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
+  readonly promotedByUserId: string;
+  readonly occurredAt: string;       // ISO 8601
+}
+```
+
+## 訂閱事件（消費端）
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+
+## 消費 knowledge 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
+| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
+| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
+````
+
 ## File: modules/knowledge/domain-services.md
 ````markdown
 # knowledge — Domain Services
@@ -11707,6 +11814,318 @@ Application layer 只負責：
 | 轉貼目標 | repostOfPostId | 此貼文轉貼的原貼文 ID |
 ````
 
+## File: modules/workspace-flow/AGENT.md
+````markdown
+# AGENT.md — workspace-flow BC
+
+## 模組定位
+
+`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 KnowledgeToWorkflowMaterializer 訂閱 knowledge 事件。
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Task` | TodoItem、WorkItem |
+| `TaskStatus` | Status（單獨使用）、State |
+| `Issue` | Bug、Ticket、Problem |
+| `IssueStatus` | Status（單獨使用） |
+| `Invoice` | Bill、Receipt、Payment |
+| `InvoiceStatus` | Status（單獨使用） |
+| `MaterializedTask` | ConvertedTask、AutoTask |
+| `sourceReference` | Origin、Source（作為物化來源） |
+| `KnowledgeToWorkflowMaterializer` | ContentProcessor、PageConverter |
+
+## 狀態機（必須嚴格遵守）
+
+```
+TaskStatus:    draft → in_progress → qa → acceptance → accepted → archived
+IssueStatus:   open → investigating → fixing → retest → resolved → closed
+InvoiceStatus: draft → submitted → finance_review → approved → paid → closed
+```
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { workspaceFlowApi } from "@/modules/workspace-flow/api";
+import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
+```
+
+### ❌ 禁止
+```typescript
+import { Task } from "@/modules/workspace-flow/domain/entities/Task";
+```
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
+## File: modules/workspace-flow/aggregates.md
+````markdown
+# Aggregates — workspace-flow
+
+## 聚合根：Task
+
+### 職責
+可追蹤的工作單元，管理完整的任務生命週期狀態機。
+
+### 生命週期狀態機
+```
+draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
+```
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | Task 主鍵 |
+| `workspaceId` | `string` | 所屬工作區 |
+| `title` | `string` | 任務標題 |
+| `status` | `TaskStatus` | 當前狀態 |
+| `assigneeId` | `string \| null` | 負責人帳戶 ID |
+| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
+| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
+| `currentUserId` | `string` | 當前操作者 ID |
+
+---
+
+## 聚合根：Issue
+
+### 生命週期狀態機
+```
+open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
+```
+
+### 關鍵屬性
+
+| 屬性 | 說明 |
+|------|------|
+| `id`, `workspaceId`, `title` | 基本屬性 |
+| `status` | `IssueStatus` |
+| `severity` | `IssueStatus` 嚴重程度 |
+| `reporterId` | 報告者帳戶 ID |
+| `assigneeId` | 負責人帳戶 ID（可選） |
+
+---
+
+## 聚合根：Invoice
+
+### 生命週期狀態機
+```
+draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
+```
+
+### 關鍵屬性
+
+| 屬性 | 說明 |
+|------|------|
+| `id`, `workspaceId` | 基本屬性 |
+| `status` | `InvoiceStatus` |
+| `amount` | `number` |
+| `currency` | `string`（預設 "TWD"） |
+| `sourceReference` | 物化來源（可選） |
+
+---
+
+## 值物件
+
+| 值物件 | 說明 |
+|--------|------|
+| `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
+| `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
+| `InvoiceStatus` | `"draft" \| "submitted" \| "finance_review" \| "approved" \| "paid" \| "closed"` |
+| `SourceReference` | `{ pageId: string, causationId: string }` |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 說明 |
+|------|------|
+| `TaskRepository` | Task CRUD + 狀態查詢 |
+| `IssueRepository` | Issue CRUD + 狀態查詢 |
+| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
+
+---
+
+## Domain Services
+
+| 服務 | 說明 |
+|------|------|
+| `KnowledgeToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
+````
+
+## File: modules/workspace-flow/application-services.md
+````markdown
+# workspace-flow — Application Services
+
+> **Canonical bounded context:** `workspace-flow`
+> **模組路徑:** `modules/workspace-flow/`
+> **Domain Type:** Supporting Subdomain
+
+本文件記錄 `workspace-flow` 的 application layer 服務與 use cases。內容與 `modules/workspace-flow/application/` 實作保持一致。
+
+## Application Layer 職責
+
+管理 Task / Issue / Invoice 三條工作流程狀態機與流程物化。
+
+Application layer 只負責：
+- 協調 use cases / DTO / process manager
+- 呼叫 domain repository ports 與 domain services
+- 不承載 UI / framework-specific concerns
+
+## 實際檔案
+
+- `application/dto/add-invoice-item.dto.ts`
+- `application/dto/create-task.dto.ts`
+- `application/dto/invoice-query.dto.ts`
+- `application/dto/issue-query.dto.ts`
+- `application/dto/materialize-from-knowledge.dto.ts`
+- `application/dto/open-issue.dto.ts`
+- `application/dto/pagination.dto.ts`
+- `application/dto/remove-invoice-item.dto.ts`
+- `application/dto/resolve-issue.dto.ts`
+- `application/dto/task-query.dto.ts`
+- `application/dto/update-invoice-item.dto.ts`
+- `application/dto/update-task.dto.ts`
+- `application/ports/InvoiceService.ts`
+- `application/ports/IssueService.ts`
+- `application/ports/TaskService.ts`
+- `application/process-managers/knowledge-to-workflow-materializer.ts`
+- `application/use-cases/add-invoice-item.use-case.ts`
+- `application/use-cases/approve-invoice.use-case.ts`
+- `application/use-cases/approve-task-acceptance.use-case.ts`
+- `application/use-cases/archive-task.use-case.ts`
+- `application/use-cases/assign-task.use-case.ts`
+- `application/use-cases/close-invoice.use-case.ts`
+- `application/use-cases/close-issue.use-case.ts`
+- `application/use-cases/create-invoice.use-case.ts`
+- `application/use-cases/create-task.use-case.ts`
+- `application/use-cases/fail-issue-retest.use-case.ts`
+- `application/use-cases/fix-issue.use-case.ts`
+- `application/use-cases/materialize-tasks-from-knowledge.use-case.ts`
+- `application/use-cases/open-issue.use-case.ts`
+- `application/use-cases/pass-issue-retest.use-case.ts`
+- `application/use-cases/pass-task-qa.use-case.ts`
+- `application/use-cases/pay-invoice.use-case.ts`
+- `application/use-cases/reject-invoice.use-case.ts`
+- `application/use-cases/remove-invoice-item.use-case.ts`
+- `application/use-cases/resolve-issue.use-case.ts`
+- `application/use-cases/review-invoice.use-case.ts`
+- `application/use-cases/start-issue.use-case.ts`
+- `application/use-cases/submit-invoice.use-case.ts`
+- `application/use-cases/submit-issue-retest.use-case.ts`
+- `application/use-cases/submit-task-to-qa.use-case.ts`
+- `application/use-cases/update-invoice-item.use-case.ts`
+- `application/use-cases/update-task.use-case.ts`
+
+## 設計對齊
+
+- 模組 README：`../../../modules/workspace-flow/README.md`
+- 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
+- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
+````
+
+## File: modules/workspace-flow/context-map.md
+````markdown
+# Context Map — workspace-flow
+
+## 上游（依賴）
+
+### knowledge → workspace-flow（Published Language）
+
+**這是 workspace-flow 最重要的上游整合。**
+
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
+- 從 `extractedTasks[]` 建立 MaterializedTask
+- 從 `extractedInvoices[]` 建立 Invoice
+- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
+
+```
+knowledge.page_approved ──► KnowledgeToWorkflowMaterializer
+                            ├─► Task.create（extractedTask）
+                            └─► Invoice.create（extractedInvoice）
+```
+
+### workspace → workspace-flow（Conformist）
+
+- Task/Issue/Invoice 都隸屬 `workspaceId`
+- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
+
+---
+
+## 下游（被依賴）
+
+### workspace-flow → notification（Published Language）
+
+- 狀態變更事件觸發通知（如 task_assigned）
+
+### workspace-flow → workspace-audit（Published Language）
+
+- 狀態轉換事件供稽核紀錄消費
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| workspace → workspace-flow | workspace | workspace-flow | Conformist |
+| workspace-flow → notification | workspace-flow | notification | Published Language |
+| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |
+````
+
+## File: modules/workspace-flow/domain-events.md
+````markdown
+# Domain Events — workspace-flow
+
+## 發出事件
+
+### Task 事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-flow.task_created` | Task 建立 | `taskId`, `workspaceId`, `title`, `createdByUserId`, `occurredAt` |
+| `workspace-flow.task_status_changed` | Task 狀態變更 | `taskId`, `workspaceId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-flow.task_assigned` | Task 指派負責人 | `taskId`, `workspaceId`, `assigneeId`, `occurredAt` |
+| `workspace-flow.task_materialized` | Task 由 KnowledgeToWorkflowMaterializer 物化 | `taskId`, `workspaceId`, `sourceReference`, `occurredAt` |
+
+### Issue 事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-flow.issue_opened` | Issue 開啟 | `issueId`, `workspaceId`, `title`, `reporterId`, `occurredAt` |
+| `workspace-flow.issue_status_changed` | Issue 狀態變更 | `issueId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-flow.issue_resolved` | Issue 解決 | `issueId`, `workspaceId`, `occurredAt` |
+
+### Invoice 事件
+
+| 事件 | 觸發條件 | 關鍵欄位 |
+|------|---------|---------|
+| `workspace-flow.invoice_created` | Invoice 建立 | `invoiceId`, `workspaceId`, `amount`, `currency`, `occurredAt` |
+| `workspace-flow.invoice_status_changed` | Invoice 狀態變更 | `invoiceId`, `previousStatus`, `newStatus`, `occurredAt` |
+| `workspace-flow.invoice_paid` | Invoice 標記已付款 | `invoiceId`, `workspaceId`, `occurredAt` |
+
+## 訂閱事件
+
+| 來源 BC | 訂閱事件 | 行動 |
+|---------|---------|------|
+| `knowledge` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 MaterializedTask 與 Invoice |
+
+## 消費 workspace-flow 事件的其他 BC
+
+| 消費 BC | 事件 | 行動 |
+|---------|------|------|
+| `notification` | `workspace-flow.task_assigned` | 通知被指派者 |
+| `workspace-audit` | 所有狀態變更事件 | 記錄稽核軌跡 |
+````
+
 ## File: modules/workspace-flow/domain-services.md
 ````markdown
 # workspace-flow — Domain Services
@@ -11817,6 +12236,36 @@ Application layer 只負責：
 
 - `../../../modules/workspace-flow/repositories.md`
 - `../../../modules/workspace-flow/aggregates.md`
+````
+
+## File: modules/workspace-flow/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — workspace-flow
+
+> **範圍：** 僅限 `modules/workspace-flow/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 任務 | Task | 可追蹤的工作單元，有狀態機與負責人 |
+| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
+| 問題 | Issue | 問題追蹤記錄（Bug / 需求問題） |
+| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
+| 發票 | Invoice | 財務發票記錄 |
+| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
+| 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
+| 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
+| 工作流程物化器 | KnowledgeToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `Task` | `TodoItem`, `WorkItem`, `Job` |
+| `Issue` | `Bug`, `Ticket`, `Problem` |
+| `Invoice` | `Bill`, `Receipt` |
+| `MaterializedTask` | `ConvertedTask`, `AutoTask` |
 ````
 
 ## File: modules/workspace-flow/Workspace-Flow-File-Template.md
@@ -13087,111 +13536,75 @@ npm run build
 ```
 ````
 
-## File: modules/knowledge/domain-events.md
+## File: modules/knowledge/context-map.md
 ````markdown
-# Domain Events — knowledge
+# Context Map — knowledge
 
-## 發出事件
+## 上游（依賴）
 
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `knowledge.page_created` | 新頁面建立時 | `pageId`, `accountId`, `workspaceId?`, `title`, `createdByUserId`, `occurredAt` |
-| `knowledge.page_renamed` | 頁面標題變更 | `pageId`, `accountId`, `previousTitle`, `newTitle`, `occurredAt` |
-| `knowledge.page_moved` | 頁面移動（parentPageId 變更） | `pageId`, `accountId`, `previousParentPageId`, `newParentPageId`, `occurredAt` |
-| `knowledge.page_archived` | 頁面歸檔（含子頁級聯歸檔，可恢復） | `pageId`, `accountId`, `childPageIds`, `occurredAt` |
-| `knowledge.page_approved` | 使用者核准 AI 生成草稿 | 見下方詳細定義 |
-| `knowledge.page_promoted` | 頁面提升為 Article（由 knowledge-base 協議觸發） | `pageId`, `accountId`, `targetArticleId`, `promotedByUserId`, `occurredAt` |
-| `knowledge.page_verified` | 頁面在 Wiki Space 中被驗證 | `pageId`, `accountId`, `verifiedByUserId`, `verifiedAtISO`, `verificationExpiresAtISO?`, `occurredAt` |
-| `knowledge.page_review_requested` | 頁面被標記為待審閱 | `pageId`, `accountId`, `requestedByUserId`, `occurredAt` |
-| `knowledge.page_owner_assigned` | 頁面負責人被指定 | `pageId`, `accountId`, `ownerId`, `occurredAt` |
-| `knowledge.block_added` | 區塊新增 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_updated` | 區塊內容更新 | `blockId`, `pageId`, `accountId`, `contentText`, `occurredAt` |
-| `knowledge.block_deleted` | 區塊刪除 | `blockId`, `pageId`, `accountId`, `occurredAt` |
-| `knowledge.version_published` | 版本快照手動發佈 | `versionId`, `pageId`, `accountId`, `label`, `createdByUserId`, `occurredAt` |
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
 
-## 最重要事件：knowledge.page_approved
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+- `workspace` 供應 active workspace context；若要看 account / organization 跨工作區總覽，必須進入顯式 summary mode，而不是省略 workspaceId
 
-```typescript
-// 代碼位置：modules/knowledge/domain/events/knowledge.events.ts
-interface KnowledgePageApprovedEvent {
-  readonly type: "knowledge.page_approved";
-  readonly aggregateId: string;      // KnowledgePage ID
-  readonly pageId: string;
-  readonly occurredAt: string;       // ISO 8601（注意：此 BC 用 occurredAt，非 occurredAtISO）
-  readonly extractedTasks: ReadonlyArray<{
-    readonly title: string;
-    readonly dueDate?: string;
-    readonly description?: string;
-  }>;
-  readonly extractedInvoices: ReadonlyArray<{
-    readonly amount: number;
-    readonly description: string;
-    readonly currency?: string;    // 預設 "TWD"
-  }>;
-  readonly actorId: string;          // 執行審批的使用者 ID
-  readonly causationId: string;      // 觸發命令 ID
-  readonly correlationId: string;    // 業務流程追蹤 ID
-}
+---
+
+## 下游（被依賴）
+
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
+
+**這是平台最重要的跨 BC 整合點。**
+
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (KnowledgeToWorkflowMaterializer)
 ```
 
-## Knowledge Collection 驗證事件
+### knowledge → ai（Customer/Supplier）
 
-```typescript
-interface KnowledgePageVerifiedEvent {
-  readonly type: "knowledge.page_verified";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly verifiedByUserId: string;
-  readonly verifiedAtISO: string;
-  readonly verificationExpiresAtISO?: string;
-  readonly occurredAt: string;    // ISO 8601
-}
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
 
-interface KnowledgePageReviewRequestedEvent {
-  readonly type: "knowledge.page_review_requested";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly requestedByUserId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
+### knowledge → knowledge-database（Open Host Service / D1）
 
-interface KnowledgePageOwnerAssignedEvent {
-  readonly type: "knowledge.page_owner_assigned";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly ownerId: string;
-  readonly occurredAt: string;    // ISO 8601
-}
+- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
+- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
+- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
+
+```
+knowledge ──(KnowledgeCollection.id)──► knowledge-database
+                                        (Database / Record / View 管理)
 ```
 
-## Promote 事件（D3：Page → Article 提升協議）
+### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
 
-`knowledge` 發出 `knowledge.page_promoted`，`knowledge-base` 訂閱後建立 Article。
+- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
+- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
+- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
 
-```typescript
-interface KnowledgePagePromotedEvent {
-  readonly type: "knowledge.page_promoted";
-  readonly pageId: string;
-  readonly accountId: string;
-  readonly targetArticleId: string;  // knowledge-base 建立的 Article ID
-  readonly promotedByUserId: string;
-  readonly occurredAt: string;       // ISO 8601
-}
+```
+knowledge ─── knowledge.page_promoted ───► knowledge-base
+                                           (Article 建立，Promote 協議完成)
 ```
 
-## 訂閱事件（消費端）
+---
 
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `identity` | `TokenRefreshSignal` | 更新使用者 session |
+## IDDD 整合模式總結
 
-## 消費 knowledge 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `workspace-flow` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 Task、Invoice |
-| `ai` | `knowledge.page_approved` | 觸發 IngestionJob |
-| `knowledge-base` | `knowledge.page_promoted` | 依 pageId 建立 Article，完成 Promote 協議 |
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
+| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
 ````
 
 ## File: modules/knowledge/repositories.md
@@ -13249,430 +13662,6 @@ interface KnowledgePagePromotedEvent {
 - `../../../modules/knowledge/aggregates.md`
 ````
 
-## File: modules/workspace-flow/AGENT.md
-````markdown
-# AGENT.md — workspace-flow BC
-
-## 模組定位
-
-`workspace-flow` 是工作流程狀態機支援域，管理 Task/Issue/Invoice 三條業務線，並透過 KnowledgeToWorkflowMaterializer 訂閱 knowledge 事件。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Task` | TodoItem、WorkItem |
-| `TaskStatus` | Status（單獨使用）、State |
-| `Issue` | Bug、Ticket、Problem |
-| `IssueStatus` | Status（單獨使用） |
-| `Invoice` | Bill、Receipt、Payment |
-| `InvoiceStatus` | Status（單獨使用） |
-| `MaterializedTask` | ConvertedTask、AutoTask |
-| `sourceReference` | Origin、Source（作為物化來源） |
-| `KnowledgeToWorkflowMaterializer` | ContentProcessor、PageConverter |
-
-## 狀態機（必須嚴格遵守）
-
-```
-TaskStatus:    draft → in_progress → qa → acceptance → accepted → archived
-IssueStatus:   open → investigating → fixing → retest → resolved → closed
-InvoiceStatus: draft → submitted → finance_review → approved → paid → closed
-```
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { workspaceFlowApi } from "@/modules/workspace-flow/api";
-import { WorkspaceFlowTab } from "@/modules/workspace-flow/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Task } from "@/modules/workspace-flow/domain/entities/Task";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/workspace-flow/aggregates.md
-````markdown
-# Aggregates — workspace-flow
-
-## 聚合根：Task
-
-### 職責
-可追蹤的工作單元，管理完整的任務生命週期狀態機。
-
-### 生命週期狀態機
-```
-draft ──► in_progress ──► qa ──► acceptance ──► accepted ──► archived
-```
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Task 主鍵 |
-| `workspaceId` | `string` | 所屬工作區 |
-| `title` | `string` | 任務標題 |
-| `status` | `TaskStatus` | 當前狀態 |
-| `assigneeId` | `string \| null` | 負責人帳戶 ID |
-| `dueDate` | `string \| null` | 截止日期 ISO 8601 |
-| `sourceReference` | `SourceReference \| null` | 物化來源（pageId, causationId） |
-| `currentUserId` | `string` | 當前操作者 ID |
-
----
-
-## 聚合根：Issue
-
-### 生命週期狀態機
-```
-open ──► investigating ──► fixing ──► retest ──► resolved ──► closed
-```
-
-### 關鍵屬性
-
-| 屬性 | 說明 |
-|------|------|
-| `id`, `workspaceId`, `title` | 基本屬性 |
-| `status` | `IssueStatus` |
-| `severity` | `IssueStatus` 嚴重程度 |
-| `reporterId` | 報告者帳戶 ID |
-| `assigneeId` | 負責人帳戶 ID（可選） |
-
----
-
-## 聚合根：Invoice
-
-### 生命週期狀態機
-```
-draft ──► submitted ──► finance_review ──► approved ──► paid ──► closed
-```
-
-### 關鍵屬性
-
-| 屬性 | 說明 |
-|------|------|
-| `id`, `workspaceId` | 基本屬性 |
-| `status` | `InvoiceStatus` |
-| `amount` | `number` |
-| `currency` | `string`（預設 "TWD"） |
-| `sourceReference` | 物化來源（可選） |
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `TaskStatus` | `"draft" \| "in_progress" \| "qa" \| "acceptance" \| "accepted" \| "archived"` |
-| `IssueStatus` | `"open" \| "investigating" \| "fixing" \| "retest" \| "resolved" \| "closed"` |
-| `InvoiceStatus` | `"draft" \| "submitted" \| "finance_review" \| "approved" \| "paid" \| "closed"` |
-| `SourceReference` | `{ pageId: string, causationId: string }` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 說明 |
-|------|------|
-| `TaskRepository` | Task CRUD + 狀態查詢 |
-| `IssueRepository` | Issue CRUD + 狀態查詢 |
-| `InvoiceRepository` | Invoice CRUD + 狀態查詢 |
-
----
-
-## Domain Services
-
-| 服務 | 說明 |
-|------|------|
-| `KnowledgeToWorkflowMaterializer` | Process Manager：訂閱 `knowledge.page_approved`，建立 MaterializedTask 和 Invoice |
-````
-
-## File: modules/workspace-flow/application-services.md
-````markdown
-# workspace-flow — Application Services
-
-> **Canonical bounded context:** `workspace-flow`
-> **模組路徑:** `modules/workspace-flow/`
-> **Domain Type:** Supporting Subdomain
-
-本文件記錄 `workspace-flow` 的 application layer 服務與 use cases。內容與 `modules/workspace-flow/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理 Task / Issue / Invoice 三條工作流程狀態機與流程物化。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/dto/add-invoice-item.dto.ts`
-- `application/dto/create-task.dto.ts`
-- `application/dto/invoice-query.dto.ts`
-- `application/dto/issue-query.dto.ts`
-- `application/dto/materialize-from-knowledge.dto.ts`
-- `application/dto/open-issue.dto.ts`
-- `application/dto/pagination.dto.ts`
-- `application/dto/remove-invoice-item.dto.ts`
-- `application/dto/resolve-issue.dto.ts`
-- `application/dto/task-query.dto.ts`
-- `application/dto/update-invoice-item.dto.ts`
-- `application/dto/update-task.dto.ts`
-- `application/ports/InvoiceService.ts`
-- `application/ports/IssueService.ts`
-- `application/ports/TaskService.ts`
-- `application/process-managers/knowledge-to-workflow-materializer.ts`
-- `application/use-cases/add-invoice-item.use-case.ts`
-- `application/use-cases/approve-invoice.use-case.ts`
-- `application/use-cases/approve-task-acceptance.use-case.ts`
-- `application/use-cases/archive-task.use-case.ts`
-- `application/use-cases/assign-task.use-case.ts`
-- `application/use-cases/close-invoice.use-case.ts`
-- `application/use-cases/close-issue.use-case.ts`
-- `application/use-cases/create-invoice.use-case.ts`
-- `application/use-cases/create-task.use-case.ts`
-- `application/use-cases/fail-issue-retest.use-case.ts`
-- `application/use-cases/fix-issue.use-case.ts`
-- `application/use-cases/materialize-tasks-from-knowledge.use-case.ts`
-- `application/use-cases/open-issue.use-case.ts`
-- `application/use-cases/pass-issue-retest.use-case.ts`
-- `application/use-cases/pass-task-qa.use-case.ts`
-- `application/use-cases/pay-invoice.use-case.ts`
-- `application/use-cases/reject-invoice.use-case.ts`
-- `application/use-cases/remove-invoice-item.use-case.ts`
-- `application/use-cases/resolve-issue.use-case.ts`
-- `application/use-cases/review-invoice.use-case.ts`
-- `application/use-cases/start-issue.use-case.ts`
-- `application/use-cases/submit-invoice.use-case.ts`
-- `application/use-cases/submit-issue-retest.use-case.ts`
-- `application/use-cases/submit-task-to-qa.use-case.ts`
-- `application/use-cases/update-invoice-item.use-case.ts`
-- `application/use-cases/update-task.use-case.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/workspace-flow/README.md`
-- 模組 AGENT：`../../../modules/workspace-flow/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace-flow/application-services.md`
-````
-
-## File: modules/workspace-flow/context-map.md
-````markdown
-# Context Map — workspace-flow
-
-## 上游（依賴）
-
-### knowledge → workspace-flow（Published Language）
-
-**這是 workspace-flow 最重要的上游整合。**
-
-- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` 訂閱 `knowledge.page_approved`
-- 從 `extractedTasks[]` 建立 MaterializedTask
-- 從 `extractedInvoices[]` 建立 Invoice
-- 每個物化實體中記錄 `sourceReference`（pageId + causationId）
-
-```
-knowledge.page_approved ──► KnowledgeToWorkflowMaterializer
-                            ├─► Task.create（extractedTask）
-                            └─► Invoice.create（extractedInvoice）
-```
-
-### workspace → workspace-flow（Conformist）
-
-- Task/Issue/Invoice 都隸屬 `workspaceId`
-- `WorkspaceFlowTab` 接收 `workspaceId` + `currentUserId` 作為 props
-
----
-
-## 下游（被依賴）
-
-### workspace-flow → notification（Published Language）
-
-- 狀態變更事件觸發通知（如 task_assigned）
-
-### workspace-flow → workspace-audit（Published Language）
-
-- 狀態轉換事件供稽核紀錄消費
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| workspace → workspace-flow | workspace | workspace-flow | Conformist |
-| workspace-flow → notification | workspace-flow | notification | Published Language |
-| workspace-flow → workspace-audit | workspace-flow | workspace-audit | Published Language |
-````
-
-## File: modules/workspace-flow/domain-events.md
-````markdown
-# Domain Events — workspace-flow
-
-## 發出事件
-
-### Task 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.task_created` | Task 建立 | `taskId`, `workspaceId`, `title`, `createdByUserId`, `occurredAt` |
-| `workspace-flow.task_status_changed` | Task 狀態變更 | `taskId`, `workspaceId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.task_assigned` | Task 指派負責人 | `taskId`, `workspaceId`, `assigneeId`, `occurredAt` |
-| `workspace-flow.task_materialized` | Task 由 KnowledgeToWorkflowMaterializer 物化 | `taskId`, `workspaceId`, `sourceReference`, `occurredAt` |
-
-### Issue 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.issue_opened` | Issue 開啟 | `issueId`, `workspaceId`, `title`, `reporterId`, `occurredAt` |
-| `workspace-flow.issue_status_changed` | Issue 狀態變更 | `issueId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.issue_resolved` | Issue 解決 | `issueId`, `workspaceId`, `occurredAt` |
-
-### Invoice 事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `workspace-flow.invoice_created` | Invoice 建立 | `invoiceId`, `workspaceId`, `amount`, `currency`, `occurredAt` |
-| `workspace-flow.invoice_status_changed` | Invoice 狀態變更 | `invoiceId`, `previousStatus`, `newStatus`, `occurredAt` |
-| `workspace-flow.invoice_paid` | Invoice 標記已付款 | `invoiceId`, `workspaceId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 訂閱事件 | 行動 |
-|---------|---------|------|
-| `knowledge` | `knowledge.page_approved` | KnowledgeToWorkflowMaterializer 建立 MaterializedTask 與 Invoice |
-
-## 消費 workspace-flow 事件的其他 BC
-
-| 消費 BC | 事件 | 行動 |
-|---------|------|------|
-| `notification` | `workspace-flow.task_assigned` | 通知被指派者 |
-| `workspace-audit` | 所有狀態變更事件 | 記錄稽核軌跡 |
-````
-
-## File: modules/workspace-flow/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace-flow
-
-> **範圍：** 僅限 `modules/workspace-flow/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 任務 | Task | 可追蹤的工作單元，有狀態機與負責人 |
-| 任務狀態 | TaskStatus | `draft \| in_progress \| qa \| acceptance \| accepted \| archived` |
-| 問題 | Issue | 問題追蹤記錄（Bug / 需求問題） |
-| 問題狀態 | IssueStatus | `open \| investigating \| fixing \| retest \| resolved \| closed` |
-| 發票 | Invoice | 財務發票記錄 |
-| 發票狀態 | InvoiceStatus | `draft \| submitted \| finance_review \| approved \| paid \| closed` |
-| 物化任務 | MaterializedTask | 從 `knowledge.page_approved` 事件自動建立的任務 |
-| 來源參照 | sourceReference | 物化任務/發票的來源頁面引用（pageId, causationId） |
-| 工作流程物化器 | KnowledgeToWorkflowMaterializer | 監聽 knowledge 事件並建立 Task/Invoice 的 Process Manager |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Task` | `TodoItem`, `WorkItem`, `Job` |
-| `Issue` | `Bug`, `Ticket`, `Problem` |
-| `Invoice` | `Bill`, `Receipt` |
-| `MaterializedTask` | `ConvertedTask`, `AutoTask` |
-````
-
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-> **強制開發規範**  
-> 本 BC 領域開發必須使用 Serena 指令：
-> ```
-> serena
-> #use skill xuanwu-app-skill
-> #use skill serena-mcp
-> #use skill context7
-> #use skill alistair-cockburn
-> #use skill iddd-implementing-ddd
-
-> ```
-
-## 模組定位
-
-`workspace` 是協作容器 bounded context，也是 Xuanwu 中的 generic subdomain。
-
-它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
-
-`workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
-
-## Tactical 對位
-
-- Aggregate Root：`Workspace`
-- Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
-- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceLifecycleState` | WorkspaceStatus、ArchivedState |
-| `WorkspaceVisibility` | VisibilityMode、DiscoveryState |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 workspace BC 內） |
-| `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
-| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
-
-## 邊界規則
-
-### ✅ 允許
-
-```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-
-```typescript
-import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
-import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-cases/workspace.use-cases";
-```
-
-## 分層守衛
-
-- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
-- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
-- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
-- `infrastructure/` 禁止 import `api/`
-- `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
-
-## Tactical 建模守則
-
-- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
-- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
-- `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
-- 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
 ## File: modules/workspace/aggregates.md
 ````markdown
 # Aggregates — workspace
@@ -13718,6 +13707,7 @@ npm run build
 |------|------|
 | `WorkspaceLifecycleState` | 工作區生命週期值 |
 | `WorkspaceVisibility` | 工作區可見性值 |
+| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
 | `Address` | 地址值型資料 |
 | `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
 | `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
@@ -13738,76 +13728,9 @@ npm run build
 ## Tactical Debt Notes
 
 - `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
+- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
 - `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
-````
-
-## File: modules/workspace/application-services.md
-````markdown
-# workspace — Application Services
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
-
-## Application Layer 職責
-
-- 協調 command-side use cases
-- 協調 query-side use cases / projection builders
-- 呼叫 repository ports 與必要的 domain service
-- 在持久化成功後觸發 domain event publishing
-- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
-
-## Command-side Use Cases
-
-| Use Case | 目的 | 備註 |
-|---|---|---|
-| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
-| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
-| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
-| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
-| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
-| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
-| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
-| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
-
-## Query-side Use Cases / Projection Builders
-
-| Use Case / Function | 目的 |
-|---|---|
-| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
-| `buildWikiContentTree` | 組合工作區導覽樹 projection |
-
-## Factories 與 Composition Points
-
-- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
-- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
-- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
-
-## 非目標
-
-- 不保存 React component state
-- 不直接 new 外部 module 的 UI component
-- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
-
-## 實作對位
-
-### 目前 use-case 檔案
-
-- `application/use-cases/workspace-lifecycle.use-cases.ts`
-- `application/use-cases/workspace-capabilities.use-cases.ts`
-- `application/use-cases/workspace-access.use-cases.ts`
-- `application/use-cases/workspace-member.use-cases.ts`
-- `application/use-cases/wiki-content-tree.use-case.ts`
-- `application/use-cases/workspace.use-cases.ts`（barrel only）
-
-### 收斂方向
-
-- `interfaces/_actions/` 保持 thin orchestration
-- `interfaces/queries/` 保持 thin query wrappers
-- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
 ````
 
 ## File: modules/workspace/context-map.md
@@ -14054,88 +13977,6 @@ workspace module 應提供明確工廠函式來建立事件訊息物件，例如
 | [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
 | [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
-````
-
-## File: modules/workspace/repositories.md
-````markdown
-# workspace — Repositories
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
-
-## Write-side Repository Ports
-
-### `WorkspaceRepository`
-
-`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
-
-#### 核心方法
-
-- `findById(id)`
-- `findByIdForAccount(accountId, workspaceId)`
-- `findAllByAccountId(accountId)`
-- `save(workspace)`
-- `updateSettings(command)`
-- `delete(id)`
-
-### Supporting Record Ports
-
-#### `WorkspaceCapabilityRepository`
-
-- `mountCapabilities()` / `unmountCapability()`
-
-#### `WorkspaceAccessRepository`
-
-- `grantTeamAccess()` / `revokeTeamAccess()`
-- `grantIndividualAccess()` / `revokeIndividualAccess()`
-
-#### `WorkspaceLocationRepository`
-
-- `createLocation()` / `updateLocation()` / `deleteLocation()`
-
-這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
-
-## Read-side Repository Ports
-
-### `WorkspaceQueryRepository`
-
-負責工作區查詢投影，而非 aggregate 持久化。
-
-#### 方法
-
-- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
-- `getWorkspaceMembers(workspaceId)`
-
-### `WikiWorkspaceRepository`
-
-負責組合工作區導覽 tree 所需的最小工作區參照。
-
-#### 方法
-
-- `listByAccountId(accountId)`
-
-## Infrastructure Adapters
-
-| Adapter | 作用 |
-|---|---|
-| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
-| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
-| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
-
-## 設計規則
-
-- repository 介面定義在 `domain/repositories/`
-- infrastructure adapters 實作在 `infrastructure/`
-- `application/` 只依賴 repository ports，不依賴 adapter 類別
-- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
-
-## Tactical Debt Notes
-
-- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
-- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
 ````
 
 ## File: modules/workspace/ubiquitous-language.md
@@ -14545,77 +14386,6 @@ For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 - Keep documentation updates in the same change whenever scope, boundaries, or public workflows move
 ````
 
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-- `workspace` 供應 active workspace context；若要看 account / organization 跨工作區總覽，必須進入顯式 summary mode，而不是省略 workspaceId
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (KnowledgeToWorkflowMaterializer)
-```
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
-### knowledge → knowledge-database（Open Host Service / D1）
-
-- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
-- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
-- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
-
-```
-knowledge ──(KnowledgeCollection.id)──► knowledge-database
-                                        (Database / Record / View 管理)
-```
-
-### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
-
-- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
-- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
-- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
-
-```
-knowledge ─── knowledge.page_promoted ───► knowledge-base
-                                           (Article 建立，Promote 協議完成)
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
-| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
-````
-
 ## File: modules/knowledge/README.md
 ````markdown
 # knowledge — 知識內容上下文
@@ -14747,6 +14517,156 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
+## File: modules/workspace/application-services.md
+````markdown
+# workspace — Application Services
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+
+## Application Layer 職責
+
+- 協調 command-side use cases
+- 協調 query-side use cases / projection builders
+- 呼叫 repository ports 與必要的 domain service
+- 在持久化成功後觸發 domain event publishing
+- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
+
+## Command-side Use Cases
+
+| Use Case | 目的 | 備註 |
+|---|---|---|
+| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
+| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
+| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
+| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
+| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
+| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
+| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
+| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
+
+## Query-side Use Cases / Projection Builders
+
+| Use Case / Function | 目的 |
+|---|---|
+| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
+| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+
+## Factories 與 Composition Points
+
+- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
+- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
+- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
+
+## 非目標
+
+- 不保存 React component state
+- 不直接 new 外部 module 的 UI component
+- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+
+## 實作對位
+
+### 目前 use-case 檔案
+
+- `application/use-cases/workspace-lifecycle.use-cases.ts`
+- `application/use-cases/workspace-capabilities.use-cases.ts`
+- `application/use-cases/workspace-access.use-cases.ts`
+- `application/use-cases/workspace-member.use-cases.ts`
+- `application/use-cases/wiki-content-tree.use-case.ts`
+- `application/use-cases/workspace.use-cases.ts`（barrel only）
+
+### 收斂方向
+
+- `interfaces/_actions/` 保持 thin orchestration
+- `interfaces/queries/` 保持 thin query wrappers
+- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+````
+
+## File: modules/workspace/repositories.md
+````markdown
+# workspace — Repositories
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
+
+## Write-side Repository Ports
+
+### `WorkspaceRepository`
+
+`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
+
+#### 核心方法
+
+- `findById(id)`
+- `findByIdForAccount(accountId, workspaceId)`
+- `findAllByAccountId(accountId)`
+- `save(workspace)`
+- `updateSettings(command)`
+- `delete(id)`
+
+### Supporting Record Ports
+
+#### `WorkspaceCapabilityRepository`
+
+- `mountCapabilities()` / `unmountCapability()`
+
+#### `WorkspaceAccessRepository`
+
+- `grantTeamAccess()` / `revokeTeamAccess()`
+- `grantIndividualAccess()` / `revokeIndividualAccess()`
+
+#### `WorkspaceLocationRepository`
+
+- `createLocation()` / `updateLocation()` / `deleteLocation()`
+
+這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
+
+## Read-side Repository Ports
+
+### `WorkspaceQueryRepository`
+
+負責工作區查詢投影，而非 aggregate 持久化。
+
+#### 方法
+
+- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
+- `getWorkspaceMembers(workspaceId)`
+
+### `WikiWorkspaceRepository`
+
+負責組合工作區導覽 tree 所需的最小工作區參照。
+
+#### 方法
+
+- `listByAccountId(accountId)`
+
+## Infrastructure Adapters
+
+| Adapter | 作用 |
+|---|---|
+| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
+| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
+| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+
+## 設計規則
+
+- repository 介面定義在 `domain/repositories/`
+- infrastructure adapters 實作在 `infrastructure/`
+- `application/` 只依賴 repository ports，不依賴 adapter 類別
+- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
+
+## Tactical Debt Notes
+
+- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
+- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
+````
+
 ## File: modules/knowledge/aggregates.md
 ````markdown
 # Aggregates — knowledge
@@ -14876,4 +14796,99 @@ Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
 | `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
 | `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
 | `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+> **強制開發規範**  
+> 本 BC 領域開發必須使用 Serena 指令：
+> ```
+> serena
+> #use skill xuanwu-app-skill
+> #use skill serena-mcp
+> #use skill context7
+> #use skill alistair-cockburn
+> #use skill iddd-implementing-ddd
+
+> ```
+
+## 模組定位
+
+`workspace` 是協作容器 bounded context，也是 Xuanwu 中的 generic subdomain。
+
+它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
+
+`workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
+
+## Tactical 對位
+
+- Aggregate Root：`Workspace`
+- Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
+- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceLifecycleState` | WorkspaceStatus、ArchivedState |
+| `WorkspaceVisibility` | VisibilityMode、DiscoveryState |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 workspace BC 內） |
+| `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
+| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
+
+## 邊界規則
+
+### ✅ 允許
+
+```typescript
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+
+```typescript
+import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
+import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-cases/workspace.use-cases";
+```
+
+## 分層守衛
+
+- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
+- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
+- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
+- `infrastructure/` 禁止 import `api/`
+- `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
+
+## Tactical 建模守則
+
+- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
+- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
+- `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
+- 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [README.md](./README.md) | 模組定位與 tactical model 總覽 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
+| [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
+| [application-services.md](./application-services.md) | application layer use cases、query orchestration 與 factory 落點 |
+| [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
+| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 ````
