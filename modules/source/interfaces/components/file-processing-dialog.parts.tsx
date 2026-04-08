@@ -2,7 +2,7 @@
 
 import { CheckCircle2, FileText, Loader2, XCircle } from "lucide-react";
 
-import { cn, } from "@ui-shadcn";
+import { cn } from "@ui-shadcn";
 import { Badge } from "@ui-shadcn/ui/badge";
 import type { TaskResult } from "./file-processing-dialog.utils";
 

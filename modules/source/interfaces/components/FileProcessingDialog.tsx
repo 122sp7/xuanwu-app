@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ScanSearch, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/app/providers/auth-provider";
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
@@ -35,11 +34,7 @@ import {
   waitForParsedDocument,
 } from "./file-processing-dialog.utils";
 import { createKnowledgeDraftFromSourceDocument } from "../_actions/file-processing.actions";
-import {
-  FileProcessingPathValue,
-  FileProcessingResultRow,
-  FileProcessingSourceCard,
-} from "./file-processing-dialog.parts";
+import { FileProcessingDialogBody } from "./file-processing-dialog.body";
 
 interface FileProcessingDialogProps {
   readonly open: boolean;
@@ -230,105 +225,6 @@ export function FileProcessingDialog({
 
   const canContinue = shouldRunRag || shouldCreatePage;
 
-  const bodyContent = (
-    <>
-      <FileProcessingSourceCard
-        filename={filename}
-        mimeType={mimeType}
-        gcsUri={gcsUri}
-        sizeBytes={sizeBytes}
-      />
-
-      {step === "decide" && (
-        <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
-          <p className="text-sm font-medium text-foreground sm:text-base">這份文件需要進一步處理嗎？</p>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground text-pretty">
-            若先保留檔案，系統只會保存原始檔與 metadata，不會自動解析、建立 RAG 或生成頁面。
-          </p>
-        </div>
-      )}
-
-      {step === "select" && (
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <Checkbox
-                checked={shouldRunRag}
-                onCheckedChange={(checked) => setShouldRunRag(Boolean(checked))}
-                id="file-processing-rag"
-                className="mt-1"
-              />
-              <div className="min-w-0 space-y-2">
-                <Label htmlFor="file-processing-rag" className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground sm:text-base">
-                  <ScanSearch className="size-4" aria-hidden="true" />
-                  建立 RAG 索引
-                </Label>
-                <p className="text-sm leading-6 text-muted-foreground text-pretty">
-                  解析完成後建立 chunks 與 vectors，讓搜尋、引用與 AI 問答可以直接使用這份文件。
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
-            <div className="flex items-start gap-3 sm:gap-4">
-              <Checkbox
-                checked={shouldCreatePage}
-                onCheckedChange={(checked) => setShouldCreatePage(Boolean(checked))}
-                id="file-processing-page"
-                className="mt-1"
-              />
-              <div className="min-w-0 space-y-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Label htmlFor="file-processing-page" className="flex cursor-pointer items-center gap-2 text-sm font-medium text-foreground sm:text-base">
-                    <Sparkles className="size-4" aria-hidden="true" />
-                    建立 Knowledge Page
-                  </Label>
-                  <Badge variant="outline">Draft</Badge>
-                </div>
-                <p className="text-sm leading-6 text-muted-foreground text-pretty">
-                  第一版會先建立一個單頁 Draft，帶入來源資訊與解析節錄，之後再逐步迭代切頁與章節策略。
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {step === "executing" && (
-        <div className="space-y-3" aria-live="polite">
-          <FileProcessingResultRow label="文件解析" result={summary.parse} />
-          <FileProcessingResultRow label="RAG 索引" result={summary.rag} />
-          <FileProcessingResultRow label="Knowledge Page" result={summary.page} />
-        </div>
-      )}
-
-      {step === "done" && (
-        <div className="space-y-3" aria-live="polite">
-          <FileProcessingResultRow label="文件解析" result={summary.parse} />
-          <FileProcessingResultRow label="RAG 索引" result={summary.rag} />
-          <FileProcessingResultRow label="Knowledge Page" result={summary.page} />
-          {summary.pageCount > 0 && (
-            <div className="space-y-2 rounded-2xl border border-border/60 bg-card/70 p-4 shadow-sm sm:p-5">
-              <p className="text-sm font-medium text-foreground">解析輸出</p>
-              <p className="text-sm leading-6 text-muted-foreground">
-                共完成 {summary.pageCount} 頁解析結果。
-              </p>
-              {summary.jsonGcsUri ? (
-                <div className="space-y-1.5">
-                  <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    JSON URI
-                  </p>
-                  <FileProcessingPathValue value={summary.jsonGcsUri} />
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      )}
-    </>
-  );
-
   const footerActions = (
     <div className="flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
       {step === "decide" && (
@@ -372,7 +268,18 @@ export function FileProcessingDialog({
     <>
       <ScrollArea className="min-h-0 flex-1 overscroll-contain">
         <div className="space-y-4 px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
-          {bodyContent}
+          <FileProcessingDialogBody
+            step={step}
+            filename={filename}
+            mimeType={mimeType}
+            gcsUri={gcsUri}
+            sizeBytes={sizeBytes}
+            shouldRunRag={shouldRunRag}
+            shouldCreatePage={shouldCreatePage}
+            onShouldRunRagChange={setShouldRunRag}
+            onShouldCreatePageChange={setShouldCreatePage}
+            summary={summary}
+          />
         </div>
       </ScrollArea>
       {step !== "executing" ? (
@@ -412,7 +319,7 @@ export function FileProcessingDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="flex max-h-[90vh] gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className="[display:flex] max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
         showCloseButton={canDismiss}
       >
         <DialogHeader className="gap-3 border-b border-border/60 px-4 pb-4 pt-5 sm:px-6">
