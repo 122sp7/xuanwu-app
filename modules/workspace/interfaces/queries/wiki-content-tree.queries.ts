@@ -3,7 +3,7 @@ import type {
   WikiAccountSeed,
 } from "../../api/contracts";
 import type { WikiWorkspaceRepository } from "../../ports";
-import { buildWikiContentTree as buildWikiContentTreeProjection } from "../../application/use-cases/wiki-content-tree.use-case";
+import * as wikiContentTreeUseCase from "../../application/use-cases/wiki-content-tree.use-case";
 import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
 
 function makeWikiWorkspaceRepository(): WikiWorkspaceRepository {
@@ -14,5 +14,5 @@ export function buildWikiContentTree(
   seeds: WikiAccountSeed[],
   workspaceRepository: WikiWorkspaceRepository = makeWikiWorkspaceRepository(),
 ): Promise<WikiAccountContentNode[]> {
-  return buildWikiContentTreeProjection(seeds, workspaceRepository);
+  return wikiContentTreeUseCase.buildWikiContentTree(seeds, workspaceRepository);
 }

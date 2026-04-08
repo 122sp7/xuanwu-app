@@ -1,4 +1,4 @@
-import { v7 as generateId } from "@lib-uuid";
+import { v7 } from "@lib-uuid";
 import type { DomainEvent } from "@/modules/shared/api";
 
 import type {
@@ -45,7 +45,7 @@ export function createWorkspaceCreatedEvent(input: {
   name: string;
 }): WorkspaceCreatedEvent {
   return {
-    eventId: generateId(),
+    eventId: v7(),
     type: WORKSPACE_CREATED_EVENT_TYPE,
     aggregateId: input.workspaceId,
     occurredAt: new Date().toISOString(),
@@ -63,7 +63,7 @@ export function createWorkspaceLifecycleTransitionedEvent(input: {
   toState: WorkspaceLifecycleState;
 }): WorkspaceLifecycleTransitionedEvent {
   return {
-    eventId: generateId(),
+    eventId: v7(),
     type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
     aggregateId: input.workspaceId,
     occurredAt: new Date().toISOString(),
@@ -81,7 +81,7 @@ export function createWorkspaceVisibilityChangedEvent(input: {
   toVisibility: WorkspaceVisibility;
 }): WorkspaceVisibilityChangedEvent {
   return {
-    eventId: generateId(),
+    eventId: v7(),
     type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
     aggregateId: input.workspaceId,
     occurredAt: new Date().toISOString(),
