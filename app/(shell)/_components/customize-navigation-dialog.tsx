@@ -27,11 +27,11 @@ import { Label } from "@ui-shadcn/ui/label";
 import { Separator } from "@ui-shadcn/ui/separator";
 
 import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
+import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
 import {
   DIALOG_TEXT,
   ORGANIZATION_NAV_ITEMS,
   PERSONAL_ITEMS,
-  WORKSPACE_NAV_ITEMS,
   readNavPreferences,
   writeNavPreferences,
   type NavPreferences,
@@ -95,11 +95,11 @@ export function CustomizeNavigationDialog({
     () =>
       prefs.workspaceOrder
         .map((id) => workspaceItemsById[id])
-        .filter((item): item is (typeof WORKSPACE_NAV_ITEMS)[number] => item != null),
+        .filter((item): item is WorkspaceNavItem => item != null),
     [prefs.workspaceOrder, workspaceItemsById],
   );
 
-  const getWorkspaceLabel = (item: (typeof WORKSPACE_NAV_ITEMS)[number]) =>
+  const getWorkspaceLabel = (item: WorkspaceNavItem) =>
     localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
 
   const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) =>

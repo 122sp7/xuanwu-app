@@ -5,6 +5,15 @@
  * Constraints: No React imports. No UI imports. Pure data / serialization.
  */
 
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "@/modules/workspace/api";
+
+// Re-export so existing consumers of this file (customize-navigation-dialog
+// via nav-preferences-data) keep working during the transition.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export interface NavPreferences {
@@ -36,15 +45,8 @@ export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
 ];
 
 // ── Workspace / org-management items ──────────────────────────────────────
-
-export const WORKSPACE_NAV_ITEMS: { id: string; tabKey: string; fallbackLabel: string }[] = [
-  { id: "workspace-modules", tabKey: "workspaceModules", fallbackLabel: "Workspace Modules" },
-  { id: "spaces", tabKey: "Spaces", fallbackLabel: "Spaces" },
-  { id: "daily", tabKey: "Daily", fallbackLabel: "Daily" },
-  { id: "schedule", tabKey: "Schedule", fallbackLabel: "Schedule" },
-  { id: "audit", tabKey: "Audit", fallbackLabel: "Audit" },
-  { id: "tasks", tabKey: "Tasks", fallbackLabel: "Tasks" },
-];
+// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
+// It is re-exported above for backward-compatible consumers of this file.
 
 export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
   { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
@@ -99,7 +101,8 @@ const VALID_WORKSPACE_ITEM_IDS = new Set([
   ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
   ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
 ]);
-const VALID_WORKSPACE_ORDER_IDS = new Set(WORKSPACE_NAV_ITEMS.map((item) => item.id));
+// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
+// It is re-exported above.
 
 function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
   if (!Array.isArray(ids)) return fallback;
@@ -107,19 +110,6 @@ function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: strin
     .filter((id): id is string => typeof id === "string")
     .filter((id) => validSet.has(id));
   return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-export function normalizeWorkspaceOrder(order: unknown): string[] {
-  const fallback = DEFAULT_PREFS.workspaceOrder;
-  if (!Array.isArray(order)) return fallback;
-  const validOrder = order
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => VALID_WORKSPACE_ORDER_IDS.has(id));
-  const deduped = Array.from(new Set(validOrder));
-  for (const id of fallback) {
-    if (!deduped.includes(id)) deduped.push(id);
-  }
-  return deduped;
 }
 
 // ── localStorage helpers ───────────────────────────────────────────────────

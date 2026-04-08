@@ -25,6 +25,12 @@ export {
 
 export { getWorkspaceStorageKey, toWorkspaceMap } from "../interfaces/workspace-session";
 
+export type { WorkspaceNavItem } from "../interfaces/workspace-nav-items";
+export {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "../interfaces/workspace-nav-items";
+
 export type {
   WorkspaceQuickAccessItem,
   WorkspaceQuickAccessMatcherOptions,
