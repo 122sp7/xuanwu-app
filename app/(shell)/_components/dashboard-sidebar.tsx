@@ -9,7 +9,6 @@
  */
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import {
   PanelLeftClose,
   Search,
@@ -19,10 +18,6 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { createKnowledgePage } from "@/modules/knowledge/api";
-import {
-  isWorkspaceTabValue,
-  type WorkspaceTabValue,
-} from "@/modules/workspace/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
   CustomizeNavigationDialog,
@@ -45,11 +40,6 @@ import {
   SECTION_TITLES,
   sidebarItemClass,
   sidebarSectionTitleClass,
-  WORKSPACE_PRIMARY_LINK_ITEMS,
-  WORKSPACE_SPACE_ITEMS,
-  WORKSPACE_DATABASE_ITEMS,
-  WORKSPACE_LIBRARY_LINK_ITEMS,
-  WORKSPACE_MODULE_LINK_ITEMS,
   resolveNavSection,
   isActiveOrganizationAccount,
   SimpleNavLinks,
@@ -74,7 +64,6 @@ export function DashboardSidebar({
   const [creatingKind, setCreatingKind] = useState<"page" | "database" | null>(null);
   const [navPrefs, setNavPrefs] = useState<NavPreferences>(() => readNavPreferences());
   const [customizeOpen, setCustomizeOpen] = useState(false);
-  const searchParams = useSearchParams();
   const localeBundle = useSidebarLocale();
 
   const showAccountManagement = isActiveOrganizationAccount(activeAccount);
@@ -148,14 +137,6 @@ export function DashboardSidebar({
   const section = resolveNavSection(pathname);
   const sectionMeta = SECTION_TITLES[section];
   const workspacePathId = getWorkspaceIdFromPath(pathname);
-  const rawWorkspaceTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawWorkspaceTab)
-    ? rawWorkspaceTab
-    : "Overview";
-
-  function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue) {
-    return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-  }
 
   async function handleQuickCreatePage() {
     const accountId = activeAccount?.id ?? "";
@@ -322,16 +303,8 @@ export function DashboardSidebar({
               {workspacePathId ? (
                 <WorkspaceSidebarSection
                   workspacePathId={workspacePathId}
-                  activeWorkspaceTab={activeWorkspaceTab}
                   navPrefs={navPrefs}
                   localeBundle={localeBundle}
-                  primaryItems={WORKSPACE_PRIMARY_LINK_ITEMS}
-                  spaceItems={WORKSPACE_SPACE_ITEMS}
-                  databaseItems={WORKSPACE_DATABASE_ITEMS}
-                  libraryItems={WORKSPACE_LIBRARY_LINK_ITEMS}
-                  moduleItems={WORKSPACE_MODULE_LINK_ITEMS}
-                  buildWorkspaceTabHref={buildWorkspaceTabHref}
-                  sidebarItemClass={sidebarItemClass}
                 />
               ) : (
                 <div>

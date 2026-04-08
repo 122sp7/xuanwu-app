@@ -1,37 +1,56 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 import {
   getWorkspaceTabStatus,
   getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  getWorkspaceTabLabel,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
   type WorkspaceTabValue,
 } from "@/modules/workspace/api";
 
 import type { SidebarLocaleBundle } from "./use-sidebar-locale";
 import type { NavPreferences } from "./customize-navigation-dialog";
+import { sidebarItemClass } from "./sidebar-nav-data";
 
-// ── Re-usable tab link item shape ─────────────────────────────────────────────
+// ── Tab link item shape ────────────────────────────────────────────────────────
 
 interface TabLinkItem {
   value: WorkspaceTabValue;
   label: string;
 }
 
+// ── Workspace tab item constants ──────────────────────────────────────────────
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+// ── URL helper ────────────────────────────────────────────────────────────────
+
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
+  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+}
+
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 interface WorkspaceSidebarSectionProps {
   workspacePathId: string;
-  activeWorkspaceTab: WorkspaceTabValue;
   navPrefs: NavPreferences;
   localeBundle: SidebarLocaleBundle | null;
-  primaryItems: readonly TabLinkItem[];
-  spaceItems: readonly TabLinkItem[];
-  databaseItems: readonly TabLinkItem[];
-  libraryItems: readonly TabLinkItem[];
-  moduleItems: readonly TabLinkItem[];
-  buildWorkspaceTabHref: (workspaceId: string, tab: WorkspaceTabValue) => string;
-  sidebarItemClass: (active: boolean) => string;
 }
 
 // ── Helpers (workspace-scoped, no side effects) ───────────────────────────────
@@ -82,24 +101,20 @@ function sortByPreferenceOrder<T extends { value: string }>(
 
 export function WorkspaceSidebarSection({
   workspacePathId,
-  activeWorkspaceTab,
   navPrefs,
   localeBundle,
-  primaryItems,
-  spaceItems,
-  databaseItems,
-  libraryItems,
-  moduleItems,
-  buildWorkspaceTabHref,
-  sidebarItemClass,
 }: WorkspaceSidebarSectionProps) {
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
+
   // Collect all visible item groups in order, separated by dividers
   const groups: Array<{ key: string; items: readonly TabLinkItem[] }> = [
-    { key: "primary", items: primaryItems },
-    { key: "modules", items: moduleItems },
-    { key: "spaces", items: spaceItems },
-    { key: "databases", items: databaseItems },
-    { key: "library", items: libraryItems },
+    { key: "primary", items: WORKSPACE_PRIMARY_LINK_ITEMS },
+    { key: "modules", items: WORKSPACE_MODULE_LINK_ITEMS },
+    { key: "spaces", items: WORKSPACE_SPACE_ITEMS },
+    { key: "databases", items: WORKSPACE_DATABASE_ITEMS },
+    { key: "library", items: WORKSPACE_LIBRARY_LINK_ITEMS },
   ];
 
   const visibleGroups = groups

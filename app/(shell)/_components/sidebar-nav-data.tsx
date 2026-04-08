@@ -15,10 +15,7 @@ import Link from "next/link";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
 import {
-  getWorkspaceTabLabel,
-  getWorkspaceTabsByGroup,
   type WorkspaceEntity,
-  type WorkspaceTabGroup,
 } from "@/modules/workspace/api";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -102,21 +99,6 @@ export const sidebarSectionTitleClass =
 
 export const sidebarGroupButtonClass =
   "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Workspace link item factories ─────────────────────────────────────────────
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup) {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-export const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-export const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-export const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-export const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-export const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
 
 // ── Pure section helpers ──────────────────────────────────────────────────────
 
