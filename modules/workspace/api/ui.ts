@@ -23,6 +23,8 @@ export {
   isWorkspaceTabValue,
 } from "../interfaces/workspace-tabs";
 
+export { getWorkspaceStorageKey, toWorkspaceMap } from "../interfaces/workspace-session";
+
 export type {
   WorkspaceQuickAccessItem,
   WorkspaceQuickAccessMatcherOptions,

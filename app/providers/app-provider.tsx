@@ -20,8 +20,9 @@ import {
 
 import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
 import {
+  getWorkspaceStorageKey,
   subscribeToWorkspacesForAccount,
-  type WorkspaceEntity,
+  toWorkspaceMap,
 } from "@/modules/workspace/api";
 
 import { AppContext, type AppState, type AppAction } from "./app-context";
@@ -31,11 +32,6 @@ import { useAuth } from "./auth-provider";
 // ─── Initial State ────────────────────────────────────────────────────────────
 
 const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
-const LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX = "xuanwu_last_active_workspace:";
-
-function getWorkspaceStorageKey(accountId: string) {
-  return `${LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX}${accountId}`;
-}
 
 const initialState: AppState = {
   accounts: {},
@@ -46,10 +42,6 @@ const initialState: AppState = {
   workspaces: {},
   workspacesHydrated: false,
 };
-
-function toWorkspaceMap(workspaces: WorkspaceEntity[]) {
-  return Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace]));
-}
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
 
