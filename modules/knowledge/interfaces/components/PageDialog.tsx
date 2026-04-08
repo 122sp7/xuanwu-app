@@ -13,7 +13,7 @@ interface PageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   accountId: string;
-  workspaceId?: string;
+  workspaceId: string;
   currentUserId: string;
   parentPageId?: string | null;
   onSuccess?: (pageId?: string) => void;

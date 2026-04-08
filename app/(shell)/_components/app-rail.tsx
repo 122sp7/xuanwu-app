@@ -11,40 +11,23 @@
 
 import Link from "next/link";
 import {
-  BookOpen,
   Building2,
   CalendarDays,
   ClipboardList,
-  FileText,
   FlaskConical,
   NotebookText,
   Plus,
-  Rss,
   SlidersHorizontal,
-  Table2,
   UserRound,
   Users,
 } from "lucide-react";
-import { type FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
 import type { AccountEntity } from "@/modules/account/api";
-import { createOrganization } from "@/modules/organization/api";
-import {
-  createWorkspace,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
+import { type WorkspaceEntity } from "@/modules/workspace/api";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -53,13 +36,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@ui-shadcn/ui/dropdown-menu";
-import { Input } from "@ui-shadcn/ui/input";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@ui-shadcn/ui/tooltip";
+import { CreateOrganizationDialog } from "./create-organization-dialog";
+import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
 
 interface AppRailProps {
   readonly pathname: string;
@@ -111,126 +95,18 @@ export function AppRail({
 }: AppRailProps) {
   const router = useRouter();
   const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
   const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [workspaceCreateError, setWorkspaceCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  function resetDialog() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
-  }
-
-  function resetWorkspaceDialog() {
-    setWorkspaceName("");
-    setWorkspaceCreateError(null);
-    setIsCreatingWorkspace(false);
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setWorkspaceCreateError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setWorkspaceCreateError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreatingWorkspace(true);
-    setWorkspaceCreateError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setWorkspaceCreateError(result.error.message);
-      setIsCreatingWorkspace(false);
-      return;
-    }
-    resetWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    router.push("/workspace");
-  }
-
-  async function handleCreateOrg(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    resetDialog();
-    setIsCreateOrgOpen(false);
-    router.push("/organization");
-  }
 
   function isActive(href: string) {
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
   const railItems: RailItem[] = [
-    // ── Hub ──────────────────────────────────────────────────────────
+    // ── Organization / hub layer ─────────────────────────────────────
     {
       href: "/workspace",
       label: "工作區中心",
       icon: <Building2 className="size-[18px]" />,
-    },
-    // ── Content ──────────────────────────────────────────────────────
-    {
-      href: "/knowledge/pages",
-      label: "知識頁面",
-      icon: <FileText className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge/pages", currentPathname),
-    },
-    {
-      href: "/knowledge-base/articles",
-      label: "文章庫",
-      icon: <BookOpen className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-base/articles", currentPathname),
-    },
-    {
-      href: "/knowledge-database/databases",
-      label: "資料庫",
-      icon: <Table2 className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/knowledge-database/databases", currentPathname),
-    },
-    {
-      href: "/workspace-feed",
-      label: "動態消息",
-      icon: <Rss className="size-[18px]" />,
-      isActive: (currentPathname) => isExactOrChildPath("/workspace-feed", currentPathname),
     },
     // ── People (org-only) ─────────────────────────────────────────
     {
@@ -463,114 +339,22 @@ export function AppRail({
       </aside>
 
       {/* ── Create organization dialog ─────────────────────────────── */}
-      <Dialog
+      <CreateOrganizationDialog
         open={isCreateOrgOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrgOpen(open);
-          if (!open) resetDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-org-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="rail-create-org-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateOrg}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="rail-organization-name"
-                value={orgName}
-                onChange={(e) => {
-                  setOrgName(e.target.value);
-                  if (orgError) setOrgError(null);
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreating}
-                maxLength={80}
-              />
-              {orgError && <p className="text-sm text-destructive">{orgError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetDialog();
-                  setIsCreateOrgOpen(false);
-                }}
-                disabled={isCreating}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreating || !user}>
-                {isCreating ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
 
       {/* ── Create workspace dialog ────────────────────────────────── */}
-      <Dialog
+      <CreateWorkspaceDialogRail
         open={isCreateWorkspaceOpen}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetWorkspaceDialog();
-        }}
-      >
-        <DialogContent aria-describedby="rail-create-workspace-description">
-          <DialogHeader>
-            <DialogTitle>建立新工作區</DialogTitle>
-            <DialogDescription id="rail-create-workspace-description">
-              輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-            </DialogDescription>
-          </DialogHeader>
-          <form className="space-y-4" onSubmit={handleCreateWorkspace}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-                工作區名稱
-              </label>
-              <Input
-                id="rail-workspace-name"
-                value={workspaceName}
-                onChange={(e) => {
-                  setWorkspaceName(e.target.value);
-                  if (workspaceCreateError) setWorkspaceCreateError(null);
-                }}
-                placeholder="例如：Project Alpha"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingWorkspace}
-                maxLength={80}
-              />
-              {workspaceCreateError && <p className="text-sm text-destructive">{workspaceCreateError}</p>}
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetWorkspaceDialog();
-                  setIsCreateWorkspaceOpen(false);
-                }}
-                disabled={isCreatingWorkspace}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingWorkspace || !activeAccount}>
-                {isCreatingWorkspace ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+        onOpenChange={setIsCreateWorkspaceOpen}
+        activeAccount={activeAccount}
+        isOrganizationAccount={isOrganizationAccount}
+        onNavigate={(href) => { router.push(href); }}
+      />
     </TooltipProvider>
   );
 }

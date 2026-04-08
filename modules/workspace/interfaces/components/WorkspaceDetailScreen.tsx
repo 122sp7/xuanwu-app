@@ -21,7 +21,6 @@ import {
 } from "../../application/workspace-settings";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
-import { WorkspaceWikiView } from "./WorkspaceWikiView";
 import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
@@ -41,17 +40,7 @@ interface WorkspaceDetailScreenProps {
   readonly accountsHydrated: boolean;
   /** Optional tab to activate on first render (e.g. from ?tab= URL param). */
   readonly initialTab?: string;
-}
-
-function renderWorkspacePlaceholderTab(tab: WorkspaceTabValue) {
-  const status = getWorkspaceTabStatus(tab);
-  return (
-    <Card className="border border-border/50">
-      <CardContent className="px-6 py-5 text-sm text-muted-foreground">
-        {status} {getWorkspaceTabLabel(tab)} — 此分頁尚在開發中，功能將逐步開放。
-      </CardContent>
-    </Card>
-  );
+  readonly initialOverviewPanel?: string;
 }
 
 export function WorkspaceDetailScreen({
@@ -59,6 +48,7 @@ export function WorkspaceDetailScreen({
   accountId,
   accountsHydrated,
   initialTab,
+  initialOverviewPanel,
 }: WorkspaceDetailScreenProps) {
   const { state: appState, dispatch } = useApp();
   const { workspace, loadState, setWorkspace } = useWorkspaceDetail(
@@ -85,6 +75,10 @@ export function WorkspaceDetailScreen({
       { label: "Manager", value: workspace.personnel.managerId },
       { label: "Supervisor", value: workspace.personnel.supervisorId },
       { label: "Safety officer", value: workspace.personnel.safetyOfficerId },
+      ...((workspace.personnel.customRoles ?? []).map((entry) => ({
+        label: entry.roleName,
+        value: entry.role,
+      }))),
     ].filter((entry) => Boolean(entry.value));
   }, [workspace]);
 
@@ -110,6 +104,7 @@ export function WorkspaceDetailScreen({
             activeWorkspaceId={appState.activeWorkspaceId}
             personnelEntries={personnelEntries}
             addressLines={addressLines}
+            showSettingsPanel={initialOverviewPanel === "settings"}
             onEditClick={() => {
               setSettingsDraft(createSettingsDraft(workspace));
               clearSaveError();
@@ -126,8 +121,6 @@ export function WorkspaceDetailScreen({
         return <WorkspaceDailyTab workspace={workspace} />;
       case "Files":
         return <WorkspaceFilesTab workspace={workspace} />;
-      case "Wiki":
-        return <WorkspaceWikiView workspace={workspace} />;
       case "Schedule":
         return (
           <WorkspaceSchedulingTab
@@ -149,7 +142,7 @@ export function WorkspaceDetailScreen({
           />
         );
       default:
-        return renderWorkspacePlaceholderTab(tab);
+        return null;
     }
   }
 

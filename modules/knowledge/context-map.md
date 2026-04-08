@@ -7,6 +7,7 @@
 
 ### workspace → knowledge（Customer/Supplier）
 - 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+- `workspace` 供應 active workspace context；若要看 account / organization 跨工作區總覽，必須進入顯式 summary mode，而不是省略 workspaceId
 
 ---
 

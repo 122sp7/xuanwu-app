@@ -20,13 +20,19 @@ export {
   updateDatabase,
   addDatabaseField,
   archiveDatabase,
+} from "../interfaces/_actions/database.actions";
+
+export {
   createRecord,
   updateRecord,
   deleteRecord,
+} from "../interfaces/_actions/record.actions";
+
+export {
   createView,
   updateView,
   deleteView,
-} from "../interfaces/_actions/knowledge-database.actions";
+} from "../interfaces/_actions/view.actions";
 
 // Queries
 export {

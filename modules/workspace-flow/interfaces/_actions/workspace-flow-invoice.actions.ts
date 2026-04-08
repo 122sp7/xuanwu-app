@@ -8,18 +8,14 @@
  */
 
 import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
 import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
 import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
 import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
 import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
 
-function makeFacade(): WorkspaceFlowFacade {
-  return new WorkspaceFlowFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
+function makeFacade(): WorkspaceFlowInvoiceFacade {
+  return new WorkspaceFlowInvoiceFacade(
     new FirebaseInvoiceRepository(),
   );
 }

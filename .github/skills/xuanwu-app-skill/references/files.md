@@ -12027,52 +12027,6 @@ npm run build
 | `AccountPolicyRepository` | `save()`, `findByAccountId()` |
 ````
 
-## File: modules/account/api/index.ts
-````typescript
-/**
- * account 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-} from "../domain/entities/Account";
-
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-} from "../domain/entities/AccountPolicy";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getUserProfile,
-  subscribeToUserProfile,
-  subscribeToAccountsForUser,
-  getAccountRole,
-  subscribeToAccountRoles,
-  getAccountPolicies,
-  getActiveAccountPolicies,
-} from "../interfaces/queries/account.queries";
-
-// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
-
-export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
-
-// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
-
-export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
-````
-
 ## File: modules/account/application-services.md
 ````markdown
 # account — Application Services
@@ -14306,69 +14260,6 @@ npm run build
 |------|---------|------|
 | `IdentityRepository` | `signIn()`, `signOut()`, `getCurrentIdentity()` | Firebase Auth 操作 |
 | `TokenRefreshRepository` | `listenToTokenRefresh()` | 監聽 token 刷新事件 |
-````
-
-## File: modules/identity/api/index.ts
-````typescript
-/**
- * identity 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
- */
-
-import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
-import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
-import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
-
-// ─── DTO ──────────────────────────────────────────────────────────────────────
-
-/** 發送 Token Refresh 訊號所需的輸入參數。 */
-export interface EmitTokenRefreshSignalInput {
-  accountId: string;
-  reason: TokenRefreshReason;
-  traceId?: string;
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
-const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const identityApi = {
-  /**
-   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
-   * 應在角色或政策變更後呼叫。
-   */
-  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
-    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
-  },
-} as const;
-
-// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
-
-export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
-export {
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-  SignOutUseCase,
-} from "../application/use-cases/identity.use-cases";
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  signIn,
-  signInAnonymously,
-  register,
-  sendPasswordResetEmail,
-  signOut,
-} from "../interfaces/_actions/identity.actions";
-
-// ─── Client-only hook (import only from "use client" files) ──────────────────
-
-export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
 ````
 
 ## File: modules/identity/application-services.md
@@ -42689,311 +42580,6 @@ venv/
 .tmp-eslint*.json
 ````
 
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  FirebaseIdentityRepository,
-  SignInUseCase,
-  SignInAnonymouslyUseCase,
-  RegisterUseCase,
-  SendPasswordResetEmailUseCase,
-} from "@/modules/identity/api";
-import { CreateUserAccountUseCase, FirebaseAccountRepository } from "@/modules/account/api";
-import {
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => {
-      const identityRepo = new FirebaseIdentityRepository();
-      const accountRepo = new FirebaseAccountRepository();
-      return {
-        signInUseCase: new SignInUseCase(identityRepo),
-        signInAnonymouslyUseCase: new SignInAnonymouslyUseCase(identityRepo),
-        registerUseCase: new RegisterUseCase(identityRepo),
-        sendPasswordResetEmailUseCase: new SendPasswordResetEmailUseCase(identityRepo),
-        createUserAccountUseCase: new CreateUserAccountUseCase(accountRepo),
-      };
-    }, []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
-````
-
 ## File: app/(shell)/_components/account-switcher.tsx
 ````typescript
 "use client";
@@ -45543,6 +45129,68 @@ This document defines the documentation routing model for Xuanwu.
 - Internal AI delivery and agent workflow docs may live under `docs/`, but they should not replace product or architecture entrypoints.
 ````
 
+## File: modules/account/api/index.ts
+````typescript
+/**
+ * account 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
+ */
+
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
+
+export type {
+  AccountEntity,
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+} from "../domain/entities/Account";
+
+export type {
+  AccountPolicy,
+  PolicyRule,
+  PolicyEffect,
+} from "../domain/entities/AccountPolicy";
+
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
+
+export {
+  getUserProfile,
+  subscribeToUserProfile,
+  subscribeToAccountsForUser,
+  getAccountRole,
+  subscribeToAccountRoles,
+  getAccountPolicies,
+  getActiveAccountPolicies,
+} from "../interfaces/queries/account.queries";
+
+// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
+
+export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
+
+// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
+
+export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
+
+// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
+
+import { FirebaseAccountRepository as _AccountRepo } from "../infrastructure/firebase/FirebaseAccountRepository";
+import { CreateUserAccountUseCase as _CreateAccount } from "../application/use-cases/account.use-cases";
+
+/**
+ * Creates a wired set of client-side account use cases for use in "use client" components.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAccountUseCases() {
+  const repo = new _AccountRepo();
+  return {
+    createUserAccountUseCase: new _CreateAccount(repo),
+  };
+}
+````
+
 ## File: modules/account/domain-services.md
 ````markdown
 # account — Domain Services
@@ -45670,6 +45318,93 @@ This document defines the documentation routing model for Xuanwu.
 - ✅ Canonical Source: [`../docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md)
 - 若需調整界限上下文內容，請只編輯 canonical 檔案。
 - 各 bounded context 的術語、聚合、事件、儲存庫與應用服務文件仍以 `modules/<context>/*.md` 為詳細來源。
+````
+
+## File: modules/identity/api/index.ts
+````typescript
+/**
+ * identity 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 identity 模組內部實作。
+ */
+
+import { FirebaseTokenRefreshRepository } from "../infrastructure/firebase/FirebaseTokenRefreshRepository";
+import { EmitTokenRefreshSignalUseCase } from "../application/use-cases/token-refresh.use-cases";
+import type { TokenRefreshReason } from "../domain/entities/TokenRefreshSignal";
+
+// ─── DTO ──────────────────────────────────────────────────────────────────────
+
+/** 發送 Token Refresh 訊號所需的輸入參數。 */
+export interface EmitTokenRefreshSignalInput {
+  accountId: string;
+  reason: TokenRefreshReason;
+  traceId?: string;
+}
+
+// ─── 內部單例 ──────────────────────────────────────────────────────────────────
+
+const tokenRefreshRepo = new FirebaseTokenRefreshRepository();
+const emitUseCase = new EmitTokenRefreshSignalUseCase(tokenRefreshRepo);
+
+// ─── 公開 API Facade ──────────────────────────────────────────────────────────
+
+export const identityApi = {
+  /**
+   * [S6] 發送 TOKEN_REFRESH_SIGNAL，通知前端重新整理 Custom Claims。
+   * 應在角色或政策變更後呼叫。
+   */
+  async emitTokenRefreshSignal(input: EmitTokenRefreshSignalInput): Promise<void> {
+    await emitUseCase.execute(input.accountId, input.reason, input.traceId);
+  },
+} as const;
+
+// ─── 公開 Use Cases & Infrastructure (供 composition root 使用) ──────────────
+
+export { FirebaseIdentityRepository } from "../infrastructure/firebase/FirebaseIdentityRepository";
+export {
+  SignInUseCase,
+  SignInAnonymouslyUseCase,
+  RegisterUseCase,
+  SendPasswordResetEmailUseCase,
+  SignOutUseCase,
+} from "../application/use-cases/identity.use-cases";
+
+// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
+
+import { FirebaseIdentityRepository as _IdentityRepo } from "../infrastructure/firebase/FirebaseIdentityRepository";
+import {
+  SignInUseCase as _SignIn,
+  SignInAnonymouslyUseCase as _SignInAnon,
+  RegisterUseCase as _Register,
+  SendPasswordResetEmailUseCase as _ResetEmail,
+} from "../application/use-cases/identity.use-cases";
+
+/**
+ * Creates a wired set of client-side auth use cases for use in "use client" components.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
+ */
+export function createClientAuthUseCases() {
+  const repo = new _IdentityRepo();
+  return {
+    signInUseCase: new _SignIn(repo),
+    signInAnonymouslyUseCase: new _SignInAnon(repo),
+    registerUseCase: new _Register(repo),
+    sendPasswordResetEmailUseCase: new _ResetEmail(repo),
+  };
+}
+
+// ─── Server Actions ───────────────────────────────────────────────────────────
+
+export {
+  signIn,
+  signInAnonymously,
+  register,
+  sendPasswordResetEmail,
+  signOut,
+} from "../interfaces/_actions/identity.actions";
+
+// ─── Client-only hook (import only from "use client" files) ──────────────────
+
+export { useTokenRefreshListener } from "../interfaces/hooks/useTokenRefreshListener";
 ````
 
 ## File: modules/identity/domain-services.md
@@ -55054,41 +54789,21 @@ export type { PaginationDto, PagedResult } from "../application/dto/pagination.d
 export type { CommandResult } from "@shared-types";
 ````
 
-## File: modules/workspace-flow/api/workspace-flow.facade.ts
+## File: modules/workspace-flow/api/workspace-flow-invoice.facade.ts
 ````typescript
 /**
  * @module workspace-flow/api
- * @file workspace-flow.facade.ts
- * @description Public facade for executing workspace-flow operations from external consumers.
+ * @file workspace-flow-invoice.facade.ts
+ * @description Focused facade for Invoice aggregate write and summary-read operations.
  *
- * All CRUD and workflow write operations are exposed exclusively through this class.
- * List operations return {@link PagedResult} for uniform pagination.
- * Scalar-get summary operations return the appropriate {@link *Summary} projection.
+ * Consumers that only need Invoice operations should use this class directly
+ * instead of the composite {@link WorkspaceFlowFacade}.
  *
  * @author workspace-flow
- * @since 2026-03-24
+ * @since 2026-04-06
  */
 
-import type { TaskRepository } from "../domain/repositories/TaskRepository";
-import type { IssueRepository } from "../domain/repositories/IssueRepository";
 import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
-
-import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
-import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
-import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
-import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
-import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
-import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
-import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
-
-import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
-import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
-import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
-import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
-import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
-import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
-import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
-import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
 
 import { CreateInvoiceUseCase } from "../application/use-cases/create-invoice.use-case";
 import { AddInvoiceItemUseCase } from "../application/use-cases/add-invoice-item.use-case";
@@ -55101,28 +54816,14 @@ import { RejectInvoiceUseCase } from "../application/use-cases/reject-invoice.us
 import { PayInvoiceUseCase } from "../application/use-cases/pay-invoice.use-case";
 import { CloseInvoiceUseCase } from "../application/use-cases/close-invoice.use-case";
 
-import type { CreateTaskDto } from "../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../application/dto/update-task.dto";
-import type { OpenIssueDto } from "../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
 import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
 import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
 import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
-import type { TaskQueryDto } from "../application/dto/task-query.dto";
-import type { IssueQueryDto } from "../application/dto/issue-query.dto";
 import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
 import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
 
-import type {
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
-import {
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-} from "../interfaces/contracts/workspace-flow.contract";
+import type { InvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
+import { toInvoiceSummary } from "../interfaces/contracts/workspace-flow.contract";
 
 import type { CommandResult } from "@shared-types";
 
@@ -55137,122 +54838,15 @@ function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T
 }
 
 /**
- * WorkspaceFlowFacade
+ * WorkspaceFlowInvoiceFacade
  *
- * Single entry point for all workspace-flow write and read-summary operations.
- * External consumers must construct this with concrete repository implementations.
- *
- * @example
- * ```ts
- * const facade = new WorkspaceFlowFacade(
- *   new FirebaseTaskRepository(),
- *   new FirebaseIssueRepository(),
- *   new FirebaseInvoiceRepository(),
- * );
- * await facade.createTask({ workspaceId, title: "My task" });
- * ```
+ * Single entry point for all Invoice write and summary-read operations.
+ * Requires only InvoiceRepository — no cross-aggregate dependencies.
  */
-export class WorkspaceFlowFacade {
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly issueRepository: IssueRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
+export class WorkspaceFlowInvoiceFacade {
+  constructor(private readonly invoiceRepository: InvoiceRepository) {}
 
-  // ── Task write operations ────────────────────────────────────────────────────
-
-  async createTask(dto: CreateTaskDto): Promise<CommandResult> {
-    return new CreateTaskUseCase(this.taskRepository).execute(dto);
-  }
-
-  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
-  }
-
-  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);
-  }
-
-  async submitTaskToQa(taskId: string): Promise<CommandResult> {
-    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);
-  }
-
-  async passTaskQa(taskId: string): Promise<CommandResult> {
-    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);
-  }
-
-  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {
-    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);
-  }
-
-  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
-  }
-
-  // ── Task read operations ─────────────────────────────────────────────────────
-
-  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
-    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
-    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
-    const assigneeFiltered = query.assigneeId
-      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
-      : filtered;
-    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
-  }
-
-  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
-    const task = await this.taskRepository.findById(taskId);
-    return task ? toTaskSummary(task) : null;
-  }
-
-  // ── Issue write operations ───────────────────────────────────────────────────
-
-  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
-    return new OpenIssueUseCase(this.issueRepository).execute(dto);
-  }
-
-  async startIssue(issueId: string): Promise<CommandResult> {
-    return new StartIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async fixIssue(issueId: string): Promise<CommandResult> {
-    return new FixIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async submitIssueRetest(issueId: string): Promise<CommandResult> {
-    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async passIssueRetest(issueId: string): Promise<CommandResult> {
-    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async failIssueRetest(issueId: string): Promise<CommandResult> {
-    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
-  }
-
-  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
-  }
-
-  async closeIssue(issueId: string): Promise<CommandResult> {
-    return new CloseIssueUseCase(this.issueRepository).execute(issueId);
-  }
-
-  // ── Issue read operations ────────────────────────────────────────────────────
-
-  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
-    const all = await this.issueRepository.findByTaskId(query.taskId);
-    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
-    return toPagedResult(filtered.map(toIssueSummary), pagination);
-  }
-
-  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
-    const issue = await this.issueRepository.findById(issueId);
-    return issue ? toIssueSummary(issue) : null;
-  }
-
-  // ── Invoice write operations ─────────────────────────────────────────────────
+  // ── Write operations ─────────────────────────────────────────────────────────
 
   async createInvoice(workspaceId: string): Promise<CommandResult> {
     return new CreateInvoiceUseCase(this.invoiceRepository).execute(workspaceId);
@@ -55294,7 +54888,7 @@ export class WorkspaceFlowFacade {
     return new CloseInvoiceUseCase(this.invoiceRepository).execute(invoiceId);
   }
 
-  // ── Invoice read operations ──────────────────────────────────────────────────
+  // ── Read operations ──────────────────────────────────────────────────────────
 
   async listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> {
     const all = await this.invoiceRepository.findByWorkspaceId(query.workspaceId);
@@ -55305,6 +54899,221 @@ export class WorkspaceFlowFacade {
   async getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> {
     const invoice = await this.invoiceRepository.findById(invoiceId);
     return invoice ? toInvoiceSummary(invoice) : null;
+  }
+}
+````
+
+## File: modules/workspace-flow/api/workspace-flow-issue.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow-issue.facade.ts
+ * @description Focused facade for Issue aggregate write and summary-read operations.
+ *
+ * Consumers that only need Issue operations should use this class directly
+ * instead of the composite {@link WorkspaceFlowFacade}.
+ *
+ * @author workspace-flow
+ * @since 2026-04-06
+ */
+
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+
+import { OpenIssueUseCase } from "../application/use-cases/open-issue.use-case";
+import { StartIssueUseCase } from "../application/use-cases/start-issue.use-case";
+import { FixIssueUseCase } from "../application/use-cases/fix-issue.use-case";
+import { SubmitIssueRetestUseCase } from "../application/use-cases/submit-issue-retest.use-case";
+import { PassIssueRetestUseCase } from "../application/use-cases/pass-issue-retest.use-case";
+import { FailIssueRetestUseCase } from "../application/use-cases/fail-issue-retest.use-case";
+import { ResolveIssueUseCase } from "../application/use-cases/resolve-issue.use-case";
+import { CloseIssueUseCase } from "../application/use-cases/close-issue.use-case";
+
+import type { OpenIssueDto } from "../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+import type { IssueQueryDto } from "../application/dto/issue-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type { IssueSummary } from "../interfaces/contracts/workspace-flow.contract";
+import { toIssueSummary } from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
+
+/**
+ * WorkspaceFlowIssueFacade
+ *
+ * Single entry point for all Issue write and summary-read operations.
+ * Requires only IssueRepository — no cross-aggregate dependencies.
+ */
+export class WorkspaceFlowIssueFacade {
+  constructor(private readonly issueRepository: IssueRepository) {}
+
+  // ── Write operations ─────────────────────────────────────────────────────────
+
+  async openIssue(dto: OpenIssueDto): Promise<CommandResult> {
+    return new OpenIssueUseCase(this.issueRepository).execute(dto);
+  }
+
+  async startIssue(issueId: string): Promise<CommandResult> {
+    return new StartIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async fixIssue(issueId: string): Promise<CommandResult> {
+    return new FixIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async submitIssueRetest(issueId: string): Promise<CommandResult> {
+    return new SubmitIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async passIssueRetest(issueId: string): Promise<CommandResult> {
+    return new PassIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async failIssueRetest(issueId: string): Promise<CommandResult> {
+    return new FailIssueRetestUseCase(this.issueRepository).execute(issueId);
+  }
+
+  async resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+    return new ResolveIssueUseCase(this.issueRepository).execute(dto);
+  }
+
+  async closeIssue(issueId: string): Promise<CommandResult> {
+    return new CloseIssueUseCase(this.issueRepository).execute(issueId);
+  }
+
+  // ── Read operations ──────────────────────────────────────────────────────────
+
+  async listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> {
+    const all = await this.issueRepository.findByTaskId(query.taskId);
+    const filtered = query.status ? all.filter((i) => i.status === query.status) : all;
+    return toPagedResult(filtered.map(toIssueSummary), pagination);
+  }
+
+  async getIssueSummary(issueId: string): Promise<IssueSummary | null> {
+    const issue = await this.issueRepository.findById(issueId);
+    return issue ? toIssueSummary(issue) : null;
+  }
+}
+````
+
+## File: modules/workspace-flow/api/workspace-flow-task.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow-task.facade.ts
+ * @description Focused facade for Task aggregate write and summary-read operations.
+ *
+ * Consumers that only need Task operations should use this class directly
+ * instead of the composite {@link WorkspaceFlowFacade}.
+ *
+ * Note: `issueRepository` is required because `passTaskQa` and
+ * `approveTaskAcceptance` are cross-aggregate operations that create issues
+ * as a side-effect of task state transitions.
+ *
+ * @author workspace-flow
+ * @since 2026-04-06
+ */
+
+import type { TaskRepository } from "../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+
+import { CreateTaskUseCase } from "../application/use-cases/create-task.use-case";
+import { UpdateTaskUseCase } from "../application/use-cases/update-task.use-case";
+import { AssignTaskUseCase } from "../application/use-cases/assign-task.use-case";
+import { SubmitTaskToQaUseCase } from "../application/use-cases/submit-task-to-qa.use-case";
+import { PassTaskQaUseCase } from "../application/use-cases/pass-task-qa.use-case";
+import { ApproveTaskAcceptanceUseCase } from "../application/use-cases/approve-task-acceptance.use-case";
+import { ArchiveTaskUseCase } from "../application/use-cases/archive-task.use-case";
+
+import type { CreateTaskDto } from "../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../application/dto/update-task.dto";
+import type { TaskQueryDto } from "../application/dto/task-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type { TaskSummary } from "../interfaces/contracts/workspace-flow.contract";
+import { toTaskSummary } from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+
+function toPagedResult<T>(items: T[], pagination?: PaginationDto): PagedResult<T> {
+  const page = pagination?.page ?? 1;
+  const pageSize = pagination?.pageSize ?? (items.length || 20);
+  const start = (page - 1) * pageSize;
+  const paged = items.slice(start, start + pageSize);
+  return { items: paged, total: items.length, page, pageSize, hasMore: start + pageSize < items.length };
+}
+
+/**
+ * WorkspaceFlowTaskFacade
+ *
+ * Single entry point for all Task write and summary-read operations.
+ * Requires both TaskRepository and IssueRepository because QA pass and
+ * acceptance approval are cross-aggregate transitions that produce issues.
+ */
+export class WorkspaceFlowTaskFacade {
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly issueRepository: IssueRepository,
+  ) {}
+
+  // ── Write operations ─────────────────────────────────────────────────────────
+
+  async createTask(dto: CreateTaskDto): Promise<CommandResult> {
+    return new CreateTaskUseCase(this.taskRepository).execute(dto);
+  }
+
+  async updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+    return new UpdateTaskUseCase(this.taskRepository).execute(taskId, dto);
+  }
+
+  async assignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+    return new AssignTaskUseCase(this.taskRepository).execute(taskId, assigneeId);
+  }
+
+  async submitTaskToQa(taskId: string): Promise<CommandResult> {
+    return new SubmitTaskToQaUseCase(this.taskRepository).execute(taskId);
+  }
+
+  /** Cross-aggregate: transitions task to qa_passed and creates a linked issue. */
+  async passTaskQa(taskId: string): Promise<CommandResult> {
+    return new PassTaskQaUseCase(this.taskRepository, this.issueRepository).execute(taskId);
+  }
+
+  /** Cross-aggregate: transitions task to accepted and closes the linked issue. */
+  async approveTaskAcceptance(taskId: string): Promise<CommandResult> {
+    return new ApproveTaskAcceptanceUseCase(this.taskRepository, this.issueRepository).execute(taskId);
+  }
+
+  async archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+    return new ArchiveTaskUseCase(this.taskRepository).execute(taskId, invoiceStatus);
+  }
+
+  // ── Read operations ──────────────────────────────────────────────────────────
+
+  async listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> {
+    const all = await this.taskRepository.findByWorkspaceId(query.workspaceId);
+    const filtered = query.status ? all.filter((t) => t.status === query.status) : all;
+    const assigneeFiltered = query.assigneeId
+      ? filtered.filter((t) => t.assigneeId === query.assigneeId)
+      : filtered;
+    return toPagedResult(assigneeFiltered.map(toTaskSummary), pagination);
+  }
+
+  async getTaskSummary(taskId: string): Promise<TaskSummary | null> {
+    const task = await this.taskRepository.findById(taskId);
+    return task ? toTaskSummary(task) : null;
   }
 }
 ````
@@ -61049,6 +60858,298 @@ export default defineConfig({
 - Firebase CLI: `npx firebase` (no global install required)
 ````
 
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { createClientAuthUseCases } from "@/modules/identity/api";
+import { createClientAccountUseCases } from "@/modules/account/api";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+````
+
 ## File: app/globals.css
 ````css
 @import "tailwindcss";
@@ -64482,99 +64583,6 @@ export {
 } from "./workspace-feed-interaction.use-cases";
 ````
 
-## File: modules/workspace-flow/api/index.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file index.ts
- * @description Public cross-module boundary for workspace-flow.
- *
- * External consumers MUST import only from this path:
- *   @/modules/workspace-flow/api
- *
- * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
- * @author workspace-flow
- * @since 2026-03-24
- */
-
-// ── Facade (write + summary-read surface) ────────────────────────────────────
-
-export { WorkspaceFlowFacade } from "./workspace-flow.facade";
-
-// ── Public contracts ──────────────────────────────────────────────────────────
-
-export type {
-  // Entities
-  Task,
-  Issue,
-  Invoice,
-  InvoiceItem,
-  // Value objects
-  TaskStatus,
-  IssueStatus,
-  IssueStage,
-  InvoiceStatus,
-  // Summary projections
-  TaskSummary,
-  IssueSummary,
-  InvoiceSummary,
-  InvoiceItemSummary,
-  // CRUD / command DTOs
-  CreateTaskDto,
-  UpdateTaskDto,
-  OpenIssueDto,
-  ResolveIssueDto,
-  AddInvoiceItemDto,
-  UpdateInvoiceItemDto,
-  RemoveInvoiceItemDto,
-  // Query / pagination DTOs
-  TaskQueryDto,
-  IssueQueryDto,
-  InvoiceQueryDto,
-  PaginationDto,
-  PagedResult,
-  // Command result
-  CommandResult,
-} from "./contracts";
-
-export {
-  // Value object lists (enum arrays)
-  TASK_STATUSES,
-  ISSUE_STATUSES,
-  ISSUE_STAGES,
-  INVOICE_STATUSES,
-  // Summary projection helpers
-  toTaskSummary,
-  toIssueSummary,
-  toInvoiceSummary,
-  toInvoiceItemSummary,
-} from "./contracts";
-
-// ── Read queries (server-side) ────────────────────────────────────────────────
-
-export {
-  getWorkspaceFlowTasks,
-  getWorkspaceFlowTask,
-  getWorkspaceFlowIssues,
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowInvoiceItems,
-} from "../interfaces/queries/workspace-flow.queries";
-
-// ── UI components ─────────────────────────────────────────────────────────────
-
-export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
-
-// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
-
-export {
-  createKnowledgeToWorkflowListener,
-} from "./listeners";
-
-export type {
-  KnowledgePageApprovedHandler,
-} from "./listeners";
-````
-
 ## File: modules/workspace-flow/api/listeners.ts
 ````typescript
 /**
@@ -64623,6 +64631,128 @@ export interface KnowledgePageApprovedHandler {
 }
 
 export type { KnowledgePageApprovedEvent };
+````
+
+## File: modules/workspace-flow/api/workspace-flow.facade.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file workspace-flow.facade.ts
+ * @description Composite facade aggregating Task, Issue, and Invoice operations.
+ *
+ * Delegates entirely to the three focused facades:
+ *   - {@link WorkspaceFlowTaskFacade}   — Task aggregate
+ *   - {@link WorkspaceFlowIssueFacade}  — Issue aggregate
+ *   - {@link WorkspaceFlowInvoiceFacade} — Invoice aggregate
+ *
+ * Prefer the focused facades when only one aggregate is needed.
+ * Use this composite facade only when all three aggregates must be
+ * available through a single construction point.
+ *
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+import type { TaskRepository } from "../domain/repositories/TaskRepository";
+import type { IssueRepository } from "../domain/repositories/IssueRepository";
+import type { InvoiceRepository } from "../domain/repositories/InvoiceRepository";
+
+import { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
+import { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
+import { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
+
+import type { CreateTaskDto } from "../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../application/dto/update-task.dto";
+import type { OpenIssueDto } from "../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../application/dto/resolve-issue.dto";
+import type { AddInvoiceItemDto } from "../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../application/dto/remove-invoice-item.dto";
+import type { TaskQueryDto } from "../application/dto/task-query.dto";
+import type { IssueQueryDto } from "../application/dto/issue-query.dto";
+import type { InvoiceQueryDto } from "../application/dto/invoice-query.dto";
+import type { PaginationDto, PagedResult } from "../application/dto/pagination.dto";
+
+import type {
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+} from "../interfaces/contracts/workspace-flow.contract";
+
+import type { CommandResult } from "@shared-types";
+
+/**
+ * WorkspaceFlowFacade
+ *
+ * Composite entry point for all workspace-flow write and read-summary operations.
+ * Delegates to {@link WorkspaceFlowTaskFacade}, {@link WorkspaceFlowIssueFacade},
+ * and {@link WorkspaceFlowInvoiceFacade}.
+ *
+ * @example
+ * ```ts
+ * const facade = new WorkspaceFlowFacade(
+ *   new FirebaseTaskRepository(),
+ *   new FirebaseIssueRepository(),
+ *   new FirebaseInvoiceRepository(),
+ * );
+ * await facade.createTask({ workspaceId, title: "My task" });
+ * ```
+ */
+export class WorkspaceFlowFacade {
+  private readonly taskFacade: WorkspaceFlowTaskFacade;
+  private readonly issueFacade: WorkspaceFlowIssueFacade;
+  private readonly invoiceFacade: WorkspaceFlowInvoiceFacade;
+
+  constructor(
+    taskRepository: TaskRepository,
+    issueRepository: IssueRepository,
+    invoiceRepository: InvoiceRepository,
+  ) {
+    this.taskFacade = new WorkspaceFlowTaskFacade(taskRepository, issueRepository);
+    this.issueFacade = new WorkspaceFlowIssueFacade(issueRepository);
+    this.invoiceFacade = new WorkspaceFlowInvoiceFacade(invoiceRepository);
+  }
+
+  // ── Task operations (delegated) ──────────────────────────────────────────────
+
+  createTask(dto: CreateTaskDto): Promise<CommandResult> { return this.taskFacade.createTask(dto); }
+  updateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> { return this.taskFacade.updateTask(taskId, dto); }
+  assignTask(taskId: string, assigneeId: string): Promise<CommandResult> { return this.taskFacade.assignTask(taskId, assigneeId); }
+  submitTaskToQa(taskId: string): Promise<CommandResult> { return this.taskFacade.submitTaskToQa(taskId); }
+  passTaskQa(taskId: string): Promise<CommandResult> { return this.taskFacade.passTaskQa(taskId); }
+  approveTaskAcceptance(taskId: string): Promise<CommandResult> { return this.taskFacade.approveTaskAcceptance(taskId); }
+  archiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> { return this.taskFacade.archiveTask(taskId, invoiceStatus); }
+  listTasks(query: TaskQueryDto, pagination?: PaginationDto): Promise<PagedResult<TaskSummary>> { return this.taskFacade.listTasks(query, pagination); }
+  getTaskSummary(taskId: string): Promise<TaskSummary | null> { return this.taskFacade.getTaskSummary(taskId); }
+
+  // ── Issue operations (delegated) ─────────────────────────────────────────────
+
+  openIssue(dto: OpenIssueDto): Promise<CommandResult> { return this.issueFacade.openIssue(dto); }
+  startIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.startIssue(issueId); }
+  fixIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.fixIssue(issueId); }
+  submitIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.submitIssueRetest(issueId); }
+  passIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.passIssueRetest(issueId); }
+  failIssueRetest(issueId: string): Promise<CommandResult> { return this.issueFacade.failIssueRetest(issueId); }
+  resolveIssue(dto: ResolveIssueDto): Promise<CommandResult> { return this.issueFacade.resolveIssue(dto); }
+  closeIssue(issueId: string): Promise<CommandResult> { return this.issueFacade.closeIssue(issueId); }
+  listIssues(query: IssueQueryDto, pagination?: PaginationDto): Promise<PagedResult<IssueSummary>> { return this.issueFacade.listIssues(query, pagination); }
+  getIssueSummary(issueId: string): Promise<IssueSummary | null> { return this.issueFacade.getIssueSummary(issueId); }
+
+  // ── Invoice operations (delegated) ───────────────────────────────────────────
+
+  createInvoice(workspaceId: string): Promise<CommandResult> { return this.invoiceFacade.createInvoice(workspaceId); }
+  addInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.addInvoiceItem(dto); }
+  updateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.updateInvoiceItem(invoiceItemId, dto); }
+  removeInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> { return this.invoiceFacade.removeInvoiceItem(dto); }
+  submitInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.submitInvoice(invoiceId); }
+  reviewInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.reviewInvoice(invoiceId); }
+  approveInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.approveInvoice(invoiceId); }
+  rejectInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.rejectInvoice(invoiceId); }
+  payInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.payInvoice(invoiceId); }
+  closeInvoice(invoiceId: string): Promise<CommandResult> { return this.invoiceFacade.closeInvoice(invoiceId); }
+  listInvoices(query: InvoiceQueryDto, pagination?: PaginationDto): Promise<PagedResult<InvoiceSummary>> { return this.invoiceFacade.listInvoices(query, pagination); }
+  getInvoiceSummary(invoiceId: string): Promise<InvoiceSummary | null> { return this.invoiceFacade.getInvoiceSummary(invoiceId); }
+}
 ````
 
 ## File: modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
@@ -71540,6 +71670,105 @@ export function ensureUniqueLibrarySlug(baseSlug: string, libraries: WikiLibrary
 export { deriveSlugCandidate };
 ````
 
+## File: modules/workspace-flow/api/index.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file index.ts
+ * @description Public cross-module boundary for workspace-flow.
+ *
+ * External consumers MUST import only from this path:
+ *   @/modules/workspace-flow/api
+ *
+ * Never import from domain/, application/, infrastructure/, or interfaces/ directly.
+ * @author workspace-flow
+ * @since 2026-03-24
+ */
+
+// ── Facade (write + summary-read surface) ────────────────────────────────────
+
+// Composite facade (all three aggregates)
+export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+
+// Focused facades (prefer these when only one aggregate is needed)
+export { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
+export { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
+export { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
+
+// ── Public contracts ──────────────────────────────────────────────────────────
+
+export type {
+  // Entities
+  Task,
+  Issue,
+  Invoice,
+  InvoiceItem,
+  // Value objects
+  TaskStatus,
+  IssueStatus,
+  IssueStage,
+  InvoiceStatus,
+  // Summary projections
+  TaskSummary,
+  IssueSummary,
+  InvoiceSummary,
+  InvoiceItemSummary,
+  // CRUD / command DTOs
+  CreateTaskDto,
+  UpdateTaskDto,
+  OpenIssueDto,
+  ResolveIssueDto,
+  AddInvoiceItemDto,
+  UpdateInvoiceItemDto,
+  RemoveInvoiceItemDto,
+  // Query / pagination DTOs
+  TaskQueryDto,
+  IssueQueryDto,
+  InvoiceQueryDto,
+  PaginationDto,
+  PagedResult,
+  // Command result
+  CommandResult,
+} from "./contracts";
+
+export {
+  // Value object lists (enum arrays)
+  TASK_STATUSES,
+  ISSUE_STATUSES,
+  ISSUE_STAGES,
+  INVOICE_STATUSES,
+  // Summary projection helpers
+  toTaskSummary,
+  toIssueSummary,
+  toInvoiceSummary,
+  toInvoiceItemSummary,
+} from "./contracts";
+
+// ── Read queries (server-side) ────────────────────────────────────────────────
+
+export {
+  getWorkspaceFlowTasks,
+  getWorkspaceFlowTask,
+  getWorkspaceFlowIssues,
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowInvoiceItems,
+} from "../interfaces/queries/workspace-flow.queries";
+
+// ── UI components ─────────────────────────────────────────────────────────────
+
+export { WorkspaceFlowTab } from "../interfaces/components/WorkspaceFlowTab";
+
+// ── Event listeners (knowledge → workspace-flow integration) ─────────────────
+
+export {
+  createKnowledgeToWorkflowListener,
+} from "./listeners";
+
+export type {
+  KnowledgePageApprovedHandler,
+} from "./listeners";
+````
+
 ## File: modules/workspace-flow/domain/entities/Invoice.ts
 ````typescript
 /**
@@ -71633,291 +71862,6 @@ export interface UpdateTaskInput {
   readonly description?: string;
   readonly assigneeId?: string;
   readonly dueDateISO?: string;
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-invoice.actions.ts
- * @description Server Actions for workspace-flow Invoice write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
-import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
-import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
-
-function makeFacade(): WorkspaceFlowFacade {
-  return new WorkspaceFlowFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().createInvoice(workspaceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().addInvoiceItem(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().removeInvoiceItem(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().reviewInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().approveInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().rejectInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().payInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().closeInvoice(invoiceId);
-  } catch (err) {
-    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-issue.actions.ts
- * @description Server Actions for workspace-flow Issue write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
-import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
-
-function makeFacade(): WorkspaceFlowFacade {
-  return new WorkspaceFlowFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().openIssue(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfStartIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().startIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFixIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().fixIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().passIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().failIssueRetest(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().resolveIssue(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().closeIssue(issueId);
-  } catch (err) {
-    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
-````typescript
-"use server";
-
-/**
- * @module workspace-flow/interfaces/_actions
- * @file workspace-flow-task.actions.ts
- * @description Server Actions for workspace-flow Task write operations.
- * Delegates exclusively to WorkspaceFlowFacade.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { WorkspaceFlowFacade } from "../../api/workspace-flow.facade";
-import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
-import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { CreateTaskDto } from "../../application/dto/create-task.dto";
-import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
-
-function makeFacade(): WorkspaceFlowFacade {
-  return new WorkspaceFlowFacade(
-    new FirebaseTaskRepository(),
-    new FirebaseIssueRepository(),
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().createTask(dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
-  try {
-    return await makeFacade().updateTask(taskId, dto);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().assignTask(taskId, assigneeId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().submitTaskToQa(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().passTaskQa(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().approveTaskAcceptance(taskId);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
-  try {
-    return await makeFacade().archiveTask(taskId, invoiceStatus);
-  } catch (err) {
-    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
 }
 ````
 
@@ -73634,6 +73578,281 @@ export class KnowledgeApi {
     if (!page) return null;
     const blocks = await this.blockRepo.listByPageId(accountId, pageId);
     return { page, blocks };
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-invoice.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-invoice.actions.ts
+ * @description Server Actions for workspace-flow Invoice write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowInvoiceFacade } from "../../api/workspace-flow-invoice.facade";
+import { FirebaseInvoiceRepository } from "../../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { AddInvoiceItemDto } from "../../application/dto/add-invoice-item.dto";
+import type { UpdateInvoiceItemDto } from "../../application/dto/update-invoice-item.dto";
+import type { RemoveInvoiceItemDto } from "../../application/dto/remove-invoice-item.dto";
+
+function makeFacade(): WorkspaceFlowInvoiceFacade {
+  return new WorkspaceFlowInvoiceFacade(
+    new FirebaseInvoiceRepository(),
+  );
+}
+
+export async function wfCreateInvoice(workspaceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().createInvoice(workspaceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAddInvoiceItem(dto: AddInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().addInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_ADD_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateInvoiceItem(invoiceItemId: string, dto: UpdateInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateInvoiceItem(invoiceItemId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_UPDATE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRemoveInvoiceItem(dto: RemoveInvoiceItemDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().removeInvoiceItem(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REMOVE_ITEM_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfReviewInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().reviewInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REVIEW_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfRejectInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().rejectInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_REJECT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPayInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().payInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_PAY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseInvoice(invoiceId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeInvoice(invoiceId);
+  } catch (err) {
+    return commandFailureFrom("WF_INVOICE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-issue.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-issue.actions.ts
+ * @description Server Actions for workspace-flow Issue write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowIssueFacade } from "../../api/workspace-flow-issue.facade";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import type { OpenIssueDto } from "../../application/dto/open-issue.dto";
+import type { ResolveIssueDto } from "../../application/dto/resolve-issue.dto";
+
+function makeFacade(): WorkspaceFlowIssueFacade {
+  return new WorkspaceFlowIssueFacade(
+    new FirebaseIssueRepository(),
+  );
+}
+
+export async function wfOpenIssue(dto: OpenIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().openIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_OPEN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfStartIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().startIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_START_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFixIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().fixIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_FIX_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_SUBMIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_PASS_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfFailIssueRetest(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().failIssueRetest(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RETEST_FAIL_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfResolveIssue(dto: ResolveIssueDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().resolveIssue(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfCloseIssue(issueId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().closeIssue(issueId);
+  } catch (err) {
+    return commandFailureFrom("WF_ISSUE_CLOSE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/workspace-flow/interfaces/_actions/workspace-flow-task.actions.ts
+````typescript
+"use server";
+
+/**
+ * @module workspace-flow/interfaces/_actions
+ * @file workspace-flow-task.actions.ts
+ * @description Server Actions for workspace-flow Task write operations.
+ * Delegates exclusively to WorkspaceFlowFacade.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { WorkspaceFlowTaskFacade } from "../../api/workspace-flow-task.facade";
+import { FirebaseTaskRepository } from "../../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseIssueRepository } from "../../infrastructure/repositories/FirebaseIssueRepository";
+import type { CreateTaskDto } from "../../application/dto/create-task.dto";
+import type { UpdateTaskDto } from "../../application/dto/update-task.dto";
+
+function makeFacade(): WorkspaceFlowTaskFacade {
+  return new WorkspaceFlowTaskFacade(
+    new FirebaseTaskRepository(),
+    new FirebaseIssueRepository(),
+  );
+}
+
+export async function wfCreateTask(dto: CreateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().createTask(dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfUpdateTask(taskId: string, dto: UpdateTaskDto): Promise<CommandResult> {
+  try {
+    return await makeFacade().updateTask(taskId, dto);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfAssignTask(taskId: string, assigneeId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().assignTask(taskId, assigneeId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ASSIGN_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfSubmitTaskToQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().submitTaskToQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_SUBMIT_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfPassTaskQa(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().passTaskQa(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_PASS_QA_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfApproveTaskAcceptance(taskId: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().approveTaskAcceptance(taskId);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_APPROVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function wfArchiveTask(taskId: string, invoiceStatus?: string): Promise<CommandResult> {
+  try {
+    return await makeFacade().archiveTask(taskId, invoiceStatus);
+  } catch (err) {
+    return commandFailureFrom("WF_TASK_ARCHIVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 ````

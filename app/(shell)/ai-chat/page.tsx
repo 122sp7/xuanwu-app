@@ -16,38 +16,16 @@ import { v7 as uuid } from "@lib-uuid";
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
 import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import type { Thread } from "./_actions";
 import { cn } from "@shared-utils";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-const STORAGE_KEY = (accountId: string, workspaceId: string) =>
-  `nb_thread_${accountId}_${workspaceId || "default"}`;
-
-function buildContextPrompt(history: ChatMessage[]): string {
-  if (history.length === 0) return "";
-  const lines = history.map((m) => `[${m.role === "user" ? "User" : "Assistant"}]: ${m.content}`);
-  return `Previous conversation context (for reference):\n${lines.join("\n")}\n\nPlease continue the conversation, taking the above context into account.`;
-}
-
-function generateMsgId() {
-  return `msg_${Date.now()}_${Math.random().toString(16).slice(2, 8)}`;
-}
-
-function threadFromMessages(id: string, msgs: ChatMessage[], createdAt: string): Thread {
-  return {
-    id,
-    messages: msgs.map((m) => ({ id: m.id, role: m.role, content: m.content, createdAt: new Date().toISOString() })),
-    createdAt,
-    updatedAt: new Date().toISOString(),
-  };
-}
+import {
+  type ChatMessage,
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "./ai-chat-helpers";
 
 export default function AiChatPage() {
   const searchParams = useSearchParams();
@@ -183,7 +161,7 @@ export default function AiChatPage() {
                 Notebook / AI
               </CardTitle>
               <CardDescription>
-                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
               </CardDescription>
             </CardHeader>
           </Card>
@@ -201,7 +179,7 @@ export default function AiChatPage() {
                   <div>
                     <p className="font-medium text-foreground">{currentWorkspace.name}</p>
                     <p className="mt-1 text-xs">
-                      Notebook 會優先消費這個工作區的 Knowledge、Wiki 與 RAG Query 結果。
+                      Notebook 會優先消費這個工作區的 Knowledge、知識頁面與 RAG Query 結果。
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -209,7 +187,7 @@ export default function AiChatPage() {
                       <Link href={`/workspace/${currentWorkspace.id}`}>Workspace</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
-                      <Link href={`/workspace/${currentWorkspace.id}?tab=Wiki`}>Wiki</Link>
+                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(currentWorkspace.id)}`}>知識頁面</Link>
                     </Button>
                   </div>
                 </>

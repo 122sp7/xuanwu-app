@@ -11,7 +11,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
 import {
   Select,
   SelectContent,
@@ -20,6 +19,7 @@ import {
   SelectValue,
 } from "@ui-shadcn/ui/select";
 import type { WorkspaceSettingsDraft } from "../../application/workspace-settings";
+import { WorkspaceSettingsInformationFields } from "./WorkspaceSettingsInformationFields";
 
 interface WorkspaceSettingsDialogProps {
   readonly open: boolean;
@@ -53,23 +53,6 @@ export function WorkspaceSettingsDialog({
         {settingsDraft && (
           <form className="space-y-6" onSubmit={onSubmit}>
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2 sm:col-span-2">
-                <label className="text-sm font-medium text-foreground" htmlFor="workspace-detail-name">
-                  工作區名稱
-                </label>
-                <Input
-                  id="workspace-detail-name"
-                  value={settingsDraft.name}
-                  onChange={(event) =>
-                    setSettingsDraft((current) =>
-                      current ? { ...current, name: event.target.value } : current,
-                    )
-                  }
-                  disabled={isSaving}
-                  maxLength={80}
-                />
-              </div>
-
               <div className="space-y-2">
                 <span className="text-sm font-medium text-foreground">可見性</span>
                 <Select
@@ -114,162 +97,11 @@ export function WorkspaceSettingsDialog({
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">聯絡角色</p>
-                <p className="text-xs text-muted-foreground">
-                  個人與組織工作區都共用同一組工作區聯絡人欄位。
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-3">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-manager-id">
-                    Manager
-                  </label>
-                  <Input
-                    id="workspace-manager-id"
-                    value={settingsDraft.managerId}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, managerId: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-supervisor-id">
-                    Supervisor
-                  </label>
-                  <Input
-                    id="workspace-supervisor-id"
-                    value={settingsDraft.supervisorId}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, supervisorId: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-safety-officer-id">
-                    Safety officer
-                  </label>
-                  <Input
-                    id="workspace-safety-officer-id"
-                    value={settingsDraft.safetyOfficerId}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, safetyOfficerId: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-foreground">地址資訊</p>
-                <p className="text-xs text-muted-foreground">
-                  用於個人據點與組織營運工作區的基礎地址資料。
-                </p>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-street">
-                    Street
-                  </label>
-                  <Input
-                    id="workspace-address-street"
-                    value={settingsDraft.street}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, street: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-city">
-                    City
-                  </label>
-                  <Input
-                    id="workspace-address-city"
-                    value={settingsDraft.city}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, city: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-state">
-                    State
-                  </label>
-                  <Input
-                    id="workspace-address-state"
-                    value={settingsDraft.state}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, state: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-postal-code">
-                    Postal code
-                  </label>
-                  <Input
-                    id="workspace-address-postal-code"
-                    value={settingsDraft.postalCode}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, postalCode: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-country">
-                    Country
-                  </label>
-                  <Input
-                    id="workspace-address-country"
-                    value={settingsDraft.country}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, country: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-                <div className="space-y-2 sm:col-span-2">
-                  <label className="text-sm font-medium text-foreground" htmlFor="workspace-address-details">
-                    Details
-                  </label>
-                  <Input
-                    id="workspace-address-details"
-                    value={settingsDraft.details}
-                    onChange={(event) =>
-                      setSettingsDraft((current) =>
-                        current ? { ...current, details: event.target.value } : current,
-                      )
-                    }
-                    disabled={isSaving}
-                  />
-                </div>
-              </div>
-            </div>
+            <WorkspaceSettingsInformationFields
+              settingsDraft={settingsDraft}
+              setSettingsDraft={setSettingsDraft}
+              isSaving={isSaving}
+            />
 
             {saveError && <p className="text-sm text-destructive">{saveError}</p>}
 

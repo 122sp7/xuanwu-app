@@ -102,7 +102,9 @@ export type {
 export {
   getKnowledgePage,
   getKnowledgePages,
+  getKnowledgePagesByWorkspace,
   getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
   getKnowledgeBlocks,
   getKnowledgeVersions,
   getKnowledgeCollection,

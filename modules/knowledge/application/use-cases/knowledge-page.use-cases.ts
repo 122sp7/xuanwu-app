@@ -158,12 +158,31 @@ export class ListKnowledgePagesUseCase {
   }
 }
 
+export class ListKnowledgePagesByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listByWorkspaceId(accountId, workspaceId);
+  }
+}
+
 export class GetKnowledgePageTreeUseCase {
   constructor(private readonly repo: KnowledgePageRepository) {}
 
   async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
     if (!accountId.trim()) return [];
     const pages = await this.repo.listByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class GetKnowledgePageTreeByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    const pages = await this.repo.listByWorkspaceId(accountId, workspaceId);
     return buildKnowledgePageTree(pages);
   }
 }

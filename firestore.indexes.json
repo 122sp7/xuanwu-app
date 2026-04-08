@@ -397,6 +397,20 @@
       ]
     },
     {
+      "collectionGroup": "contentBlocks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "pageId",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "order",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "contentPages",
       "queryScope": "COLLECTION",
       "fields": [
@@ -405,7 +419,15 @@
           "order": "ASCENDING"
         },
         {
+          "fieldPath": "workspaceId",
+          "order": "ASCENDING"
+        },
+        {
           "fieldPath": "order",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "__name__",
           "order": "ASCENDING"
         }
       ]

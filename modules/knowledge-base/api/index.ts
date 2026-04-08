@@ -22,11 +22,14 @@ export {
   verifyArticle,
   requestArticleReview,
   deleteArticle,
+} from "../interfaces/_actions/article.actions";
+
+export {
   createCategory,
   renameCategory,
   moveCategory,
   deleteCategory,
-} from "../interfaces/_actions/knowledge-base.actions";
+} from "../interfaces/_actions/category.actions";
 
 // ─── Queries (read-side) ──────────────────────────────────────────────────────
 export {

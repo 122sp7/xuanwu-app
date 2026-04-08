@@ -6,11 +6,9 @@ import type {
 } from "../../domain/entities/AgentGeneration";
 import type { Thread } from "../../domain/entities/thread";
 import type { AnswerRagQueryInput, AnswerRagQueryResult } from "@/modules/search/api";
-import { AnswerRagQueryUseCase } from "@/modules/search/api/server";
+import { createAnswerRagQueryUseCase } from "@/modules/search/api/server";
 import { GenerateNotebookResponseUseCase } from "../../application/use-cases/generate-agent-response.use-case";
-import { FirebaseRagRetrievalRepository } from "@/modules/search/api/server";
 import { GenkitNotebookRepository } from "../../infrastructure/genkit/GenkitNotebookRepository";
-import { GenkitRagGenerationRepository } from "@/modules/search/api/server";
 import { FirebaseThreadRepository } from "../../infrastructure/firebase/FirebaseThreadRepository";
 
 function makeThreadRepo() {
@@ -25,11 +23,7 @@ export async function generateNotebookResponse(
 }
 
 export async function answerRagQuery(input: AnswerRagQueryInput): Promise<AnswerRagQueryResult> {
-  const useCase = new AnswerRagQueryUseCase(
-    new FirebaseRagRetrievalRepository(),
-    new GenkitRagGenerationRepository(),
-  );
-  return useCase.execute(input);
+  return createAnswerRagQueryUseCase().execute(input);
 }
 
 export async function saveThread(accountId: string, thread: Thread): Promise<void> {

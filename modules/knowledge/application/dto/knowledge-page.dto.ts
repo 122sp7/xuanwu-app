@@ -14,7 +14,7 @@ const AccountScopeSchema = z.object({
 export const KnowledgePageStatusSchema = z.enum(KNOWLEDGE_PAGE_STATUSES);
 
 export const CreateKnowledgePageSchema = AccountScopeSchema.extend({
-  workspaceId: z.string().min(1).optional(),
+  workspaceId: z.string().min(1),
   title: z.string().min(1).max(300),
   parentPageId: z.string().min(1).nullable().optional(),
   createdByUserId: z.string().min(1),

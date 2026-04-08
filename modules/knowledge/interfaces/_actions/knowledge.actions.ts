@@ -15,13 +15,19 @@ export {
   archiveKnowledgePage,
   reorderKnowledgePageBlocks,
   publishKnowledgeVersion,
+} from "./knowledge-page-lifecycle.actions";
+
+export {
   approveKnowledgePage,
   verifyKnowledgePage,
   requestKnowledgePageReview,
   assignKnowledgePageOwner,
+} from "./knowledge-page-review.actions";
+
+export {
   updateKnowledgePageIcon,
   updateKnowledgePageCover,
-} from "./knowledge-page.actions";
+} from "./knowledge-page-appearance.actions";
 
 export {
   addKnowledgeBlock,

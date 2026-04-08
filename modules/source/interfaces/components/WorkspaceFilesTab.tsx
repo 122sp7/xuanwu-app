@@ -8,6 +8,7 @@ import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
 import { getWorkspaceFiles } from "../queries/file.queries";
 import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
 import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
+import { FileProcessingDialog } from "./FileProcessingDialog";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -25,11 +26,20 @@ interface WorkspaceFilesTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
 export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
   const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
   const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
   const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
 
   const reloadFiles = useCallback(async () => {
     setLoadState("loading");
@@ -112,8 +122,15 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
 
       setUploadState("success");
       setUploadMessage(
-        `Uploaded ${file.name}; document ${completeResult.data.ragDocumentId} is ${completeResult.data.ragDocumentStatus}.`,
+        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
       );
+      setPendingUploadProcessing({
+        sourceFileId: initResult.data.fileId,
+        filename: file.name,
+        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
 
       await reloadFiles();
     } catch (error) {
@@ -243,6 +260,20 @@ export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
           ))}
         </div>
       </CardContent>
+
+      {pendingUploadProcessing && (
+        <FileProcessingDialog
+          open
+          onClose={() => setPendingUploadProcessing(null)}
+          accountId={workspace.accountId}
+          workspaceId={workspace.id}
+          sourceFileId={pendingUploadProcessing.sourceFileId}
+          filename={pendingUploadProcessing.filename}
+          gcsUri={pendingUploadProcessing.gcsUri}
+          mimeType={pendingUploadProcessing.mimeType}
+          sizeBytes={pendingUploadProcessing.sizeBytes}
+        />
+      )}
     </Card>
   );
 }

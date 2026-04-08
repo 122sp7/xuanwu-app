@@ -66,8 +66,17 @@ export function useWorkspaceSettingsSave({
     const hasPersonnelContent = Boolean(
       settingsDraft.managerId.trim() ||
         settingsDraft.supervisorId.trim() ||
-        settingsDraft.safetyOfficerId.trim(),
+        settingsDraft.safetyOfficerId.trim() ||
+        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
     );
+
+    const normalizedCustomRoles = settingsDraft.customRoles
+      .map((entry) => ({
+        roleId: entry.roleId,
+        roleName: entry.roleName.trim(),
+        role: entry.role.trim(),
+      }))
+      .filter((entry) => entry.roleName || entry.role);
 
     const result = await updateWorkspaceSettings({
       workspaceId: workspace.id,
@@ -92,6 +101,7 @@ export function useWorkspaceSettingsSave({
               managerId: trimOrUndefined(settingsDraft.managerId),
               supervisorId: trimOrUndefined(settingsDraft.supervisorId),
               safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
+              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
             }
           : undefined,
     });

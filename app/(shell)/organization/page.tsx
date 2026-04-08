@@ -66,7 +66,7 @@ export default function OrganizationPage() {
             <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
           </li>
           <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、Wiki、Notebook / AI。
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
           </li>
         </ol>
         <div className="mt-4 flex flex-wrap gap-2">

@@ -13,7 +13,13 @@
 
 // ── Facade (write + summary-read surface) ────────────────────────────────────
 
+// Composite facade (all three aggregates)
 export { WorkspaceFlowFacade } from "./workspace-flow.facade";
+
+// Focused facades (prefer these when only one aggregate is needed)
+export { WorkspaceFlowTaskFacade } from "./workspace-flow-task.facade";
+export { WorkspaceFlowIssueFacade } from "./workspace-flow-issue.facade";
+export { WorkspaceFlowInvoiceFacade } from "./workspace-flow-invoice.facade";
 
 // ── Public contracts ──────────────────────────────────────────────────────────
 

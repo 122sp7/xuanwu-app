@@ -30,6 +30,13 @@ import { EditorToolbar } from "./editor-toolbar";
 const DEBOUNCE_MS = 800;
 const TIPTAP_PROPERTY_KEY = "tiptapJson";
 
+interface TiptapJsonNode {
+  readonly type?: string;
+  readonly text?: string;
+  readonly attrs?: { readonly level?: number };
+  readonly content?: ReadonlyArray<TiptapJsonNode>;
+}
+
 interface RichTextEditorProps {
   accountId: string;
   pageId: string;
@@ -80,7 +87,13 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
         if (tiptapBlock) {
           blockIdRef.current = tiptapBlock.id;
           const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
-          if (mountedRef.current) editor.commands.setContent(json, { emitUpdate: false });
+          const fallbackHtml = buildHtmlFromTiptapJson(json as TiptapJsonNode);
+          if (mountedRef.current) {
+            editor.commands.setContent(json, { emitUpdate: false });
+            if (!editor.getText().trim() && fallbackHtml) {
+              editor.commands.setContent(fallbackHtml, { emitUpdate: false });
+            }
+          }
         } else if (blocks.length > 0) {
           const legacyHtml = blocks.map((b) => {
             switch (b.content.type) {
@@ -108,8 +121,7 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
     })();
 
     return () => { mountedRef.current = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- editor instance is stable
-  }, [accountId, pageId]);
+  }, [accountId, editor, pageId]);
 
   useEffect(() => {
     return () => {
@@ -162,6 +174,52 @@ export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichText
 
 function buildBlockContent(tiptapJson: object): BlockContent {
   return { type: "text", richText: [], properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson } };
+}
+
+function extractTextFromTiptapNode(node: TiptapJsonNode | undefined): string {
+  if (!node) return "";
+  if (node.type === "text") {
+    return node.text ?? "";
+  }
+
+  return (node.content ?? []).map((child) => extractTextFromTiptapNode(child)).join("");
+}
+
+function buildHtmlFromTiptapJson(node: TiptapJsonNode | undefined): string {
+  if (!node) return "";
+
+  if (node.type === "doc") {
+    return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
+  }
+
+  if (node.type === "heading") {
+    const level = node.attrs?.level;
+    const normalizedLevel = level && level >= 1 && level <= 3 ? level : 2;
+    return `<h${normalizedLevel}>${escapeHtml(extractTextFromTiptapNode(node))}</h${normalizedLevel}>`;
+  }
+
+  if (node.type === "paragraph") {
+    const text = extractTextFromTiptapNode(node);
+    return text ? `<p>${escapeHtml(text)}</p>` : "<p></p>";
+  }
+
+  if (node.type === "bulletList") {
+    return `<ul>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ul>`;
+  }
+
+  if (node.type === "orderedList") {
+    return `<ol>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ol>`;
+  }
+
+  if (node.type === "listItem") {
+    return `<li>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</li>`;
+  }
+
+  if (node.type === "text") {
+    return escapeHtml(node.text ?? "");
+  }
+
+  return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
 }
 
 function escapeHtml(str: string): string {

@@ -1,1 +1,1 @@
-export { FirebaseRagRetrievalRepository } from "./FirebaseRagRetrievalRepository";
+export { FirebaseThreadRepository } from "./FirebaseThreadRepository";

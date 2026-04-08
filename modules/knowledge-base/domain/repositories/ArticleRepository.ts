@@ -14,5 +14,5 @@ export interface IArticleRepository {
   save(article: Article): Promise<void>;
   getByIds(articleIds: string[]): Promise<Article[]>;
   findByLinkedArticleId(articleId: string): Promise<Article[]>;
-  delete(articleId: string): Promise<void>;
+  delete(accountId: string, articleId: string): Promise<void>;
 }

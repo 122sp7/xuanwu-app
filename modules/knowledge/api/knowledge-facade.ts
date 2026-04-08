@@ -38,7 +38,7 @@ import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/Fir
 
 export interface KnowledgeCreatePageParams {
   accountId: string;
-  workspaceId?: string;
+  workspaceId: string;
   title: string;
   parentPageId?: string | null;
   createdByUserId: string;
