@@ -146,6 +146,7 @@ Any of the following require a context7 lookup before proceeding:
 
 - Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
 - Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use [skills/alistair-cockburn/SKILL.md](skills/alistair-cockburn/SKILL.md) when designing module boundaries, writing use cases, evaluating methodology fit, or applying hexagonal architecture and Heart of Agile principles.
 - Use boundary or contract skills only when the task actually crosses those concerns.
 - Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
 
