@@ -12,7 +12,12 @@ import type {
   UpdateWorkspaceSettingsCommand,
   Capability,
 } from "../../domain/entities/Workspace";
-import { Workspace } from "../../domain/entities/Workspace";
+import {
+  createWorkspaceAggregate,
+  reconstituteWorkspaceAggregate,
+  toWorkspaceSnapshot,
+} from "../../domain/factories/WorkspaceFactory";
+import type { Workspace } from "../../domain/entities/Workspace";
 
 function sanitizeWorkspaceSettingsCommand(
   workspace: Workspace,
@@ -39,8 +44,8 @@ export class CreateWorkspaceUseCase {
 
   async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
     try {
-      const workspace = Workspace.create(command);
-      const workspaceId = await this.workspaceRepo.save(workspace.toSnapshot());
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
       return commandSuccess(workspaceId, Date.now());
     } catch (err) {
       return commandFailureFrom(
@@ -64,8 +69,8 @@ export class CreateWorkspaceWithCapabilitiesUseCase {
     capabilities: Capability[] = [],
   ): Promise<CommandResult> {
     try {
-      const workspace = Workspace.create(command);
-      const workspaceId = await this.workspaceRepo.save(workspace.toSnapshot());
+      const workspace = createWorkspaceAggregate(command);
+      const workspaceId = await this.workspaceRepo.save(toWorkspaceSnapshot(workspace));
       if (capabilities.length > 0) {
         await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
       }
@@ -98,7 +103,7 @@ export class UpdateWorkspaceSettingsUseCase {
       }
       await this.workspaceRepo.updateSettings(
         sanitizeWorkspaceSettingsCommand(
-          Workspace.reconstitute(workspace),
+          reconstituteWorkspaceAggregate(workspace),
           command,
         ),
       );

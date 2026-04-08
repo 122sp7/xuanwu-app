@@ -4,13 +4,6 @@
  * Workspace Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
  */
 
-import type { DomainEvent, EventMetadata } from "@/modules/shared/api";
-import {
-  InMemoryEventStoreRepository,
-  NoopEventBusRepository,
-  PublishDomainEventUseCase,
-  QStashEventBusRepository,
-} from "@/modules/shared/api";
 import { commandFailureFrom, type CommandResult } from "@shared-types";
 import {
   CreateWorkspaceUseCase,
@@ -37,55 +30,33 @@ import {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
+  type WorkspaceDomainEvent,
 } from "../../domain/events/workspace.events";
+import type {
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../domain/ports/WorkspaceDomainEventPublisher";
+import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
 
 const workspaceRepo = new FirebaseWorkspaceRepository();
 const workspaceCapabilityRepo: WorkspaceCapabilityRepository = workspaceRepo;
 const workspaceAccessRepo: WorkspaceAccessRepository = workspaceRepo;
 const workspaceLocationRepo: WorkspaceLocationRepository = workspaceRepo;
-
-function makeWorkspaceEventPublisher() {
-  const eventBus = process.env.QSTASH_TOKEN
-    ? new QStashEventBusRepository()
-    : new NoopEventBusRepository();
-
-  return new PublishDomainEventUseCase(
-    new InMemoryEventStoreRepository(),
-    eventBus,
-  );
-}
-
-function toEventPayload(event: DomainEvent) {
-  const { eventId: _eventId, type: _type, aggregateId: _aggregateId, occurredAt: _occurredAt, ...payload } = event;
-  return payload as Record<string, unknown>;
-}
+const workspaceDomainEventPublisher: WorkspaceDomainEventPublisher =
+  new SharedWorkspaceDomainEventPublisher();
 
 async function publishWorkspaceDomainEvent(
-  event: DomainEvent,
-  metadata?: EventMetadata,
+  event: WorkspaceDomainEvent,
+  metadata?: WorkspaceEventPublishMetadata,
 ): Promise<void> {
-  try {
-    await makeWorkspaceEventPublisher().execute({
-      id: event.eventId,
-      eventName: event.type,
-      aggregateType: "Workspace",
-      aggregateId: event.aggregateId,
-      occurredAt: new Date(event.occurredAt),
-      payload: toEventPayload(event),
-      metadata,
-    });
-  } catch (error) {
-    if (process.env.NODE_ENV !== "production") {
-      console.warn("[workspace.actions] Failed to publish workspace domain event:", error);
-    }
-  }
+  await workspaceDomainEventPublisher.publish(event, metadata);
 }
 
 function createWorkspaceEventMetadata(
   workspaceId: string,
   accountId: string,
   accountType?: "user" | "organization",
-): EventMetadata {
+): WorkspaceEventPublishMetadata {
   return {
     workspaceId,
     organizationId: accountType === "organization" ? accountId : undefined,
