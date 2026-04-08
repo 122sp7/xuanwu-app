@@ -103,6 +103,27 @@ const WORKSPACE_QUICK_ACCESS_ITEMS: readonly {
     isActive: (pathname: string, options) =>
       pathname.startsWith("/workspace/") && options?.tab === "Members",
   },
+  {
+    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
+  },
+  {
+    href: "/source/documents?workspaceId={workspaceId}",
+    label: "文件",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/source/documents" || pathname.startsWith("/source/documents/"),
+  },
+  {
+    href: "/source/libraries?workspaceId={workspaceId}",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
+  },
 ];
 
 export function buildWorkspaceQuickAccessItems(workspaceId: string) {

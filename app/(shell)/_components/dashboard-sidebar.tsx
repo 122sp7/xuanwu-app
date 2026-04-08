@@ -14,7 +14,7 @@ import {
   Settings,
   SlidersHorizontal,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
@@ -57,6 +57,13 @@ export function DashboardSidebar({
   onSelectWorkspace,
 }: DashboardSidebarProps) {
   const searchParams = useSearchParams();
+  const quickAccessDragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startScrollLeft: number;
+    didDrag: boolean;
+  } | null>(null);
+  const suppressQuickAccessClickRef = useRef(false);
   const { state: authState } = useAuth();
   const { isExpanded, setIsExpanded, recentWorkspaceLinks } = useRecentWorkspaces(
     activeAccount?.id,
@@ -90,6 +97,8 @@ export function DashboardSidebar({
     return pathname === href || pathname.startsWith(`${href}/`);
   }
 
+  const currentSearchWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+
   useEffect(() => {
     const pathWorkspaceId = getWorkspaceIdFromPath(pathname);
     if (pathWorkspaceId && pathWorkspaceId !== activeWorkspaceId) {
@@ -97,16 +106,19 @@ export function DashboardSidebar({
       return;
     }
 
-    if (typeof window === "undefined" || !pathname.startsWith("/knowledge")) {
+    const supportsWorkspaceSearchContext =
+      pathname.startsWith("/knowledge") ||
+      pathname.startsWith("/source") ||
+      pathname.startsWith("/notebook");
+
+    if (!supportsWorkspaceSearchContext) {
       return;
     }
 
-    const searchWorkspaceId =
-      new URLSearchParams(window.location.search).get("workspaceId")?.trim() || "";
-    if (searchWorkspaceId && searchWorkspaceId !== activeWorkspaceId) {
-      onSelectWorkspace(searchWorkspaceId);
+    if (currentSearchWorkspaceId && currentSearchWorkspaceId !== activeWorkspaceId) {
+      onSelectWorkspace(currentSearchWorkspaceId);
     }
-  }, [pathname, activeWorkspaceId, onSelectWorkspace]);
+  }, [pathname, activeWorkspaceId, currentSearchWorkspaceId, onSelectWorkspace]);
 
   const hasOverflow = recentWorkspaceLinks.length > effectiveMaxWorkspaces;
   const visibleRecentWorkspaceLinks = isExpanded
@@ -142,10 +154,15 @@ export function DashboardSidebar({
   const currentPanel = searchParams.get("panel");
   const currentWorkspaceTab = searchParams.get("tab");
   const hasSingleWorkspaceContext = section === "workspace" && Boolean(workspacePathId);
-  const hasWorkspaceKnowledgeContext =
-    Boolean(activeWorkspaceId) && (section === "knowledge" || section === "knowledge-base");
-  const workspaceQuickAccessId = workspacePathId || (hasWorkspaceKnowledgeContext ? activeWorkspaceId ?? "" : "");
-  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceKnowledgeContext;
+  const hasWorkspaceToolContext =
+    Boolean(activeWorkspaceId || currentSearchWorkspaceId) &&
+    (section === "knowledge" ||
+      section === "knowledge-base" ||
+      section === "source" ||
+      section === "notebook");
+  const workspaceQuickAccessId =
+    workspacePathId || currentSearchWorkspaceId || (hasWorkspaceToolContext ? activeWorkspaceId ?? "" : "");
+  const showWorkspaceQuickAccess = hasSingleWorkspaceContext || hasWorkspaceToolContext;
   const workspaceSettingsHref = workspaceQuickAccessId
     ? `/workspace/${encodeURIComponent(workspaceQuickAccessId)}?tab=Overview&panel=settings`
     : "";
@@ -189,6 +206,80 @@ export function DashboardSidebar({
     }
   }
 
+  function handleQuickAccessPointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== "mouse") {
+      return;
+    }
+
+    const container = event.currentTarget;
+    if (container.scrollWidth <= container.clientWidth) {
+      return;
+    }
+
+    quickAccessDragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startScrollLeft: container.scrollLeft,
+      didDrag: false,
+    };
+  }
+
+  function handleQuickAccessPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const dragState = quickAccessDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    const deltaX = event.clientX - dragState.startX;
+    if (!dragState.didDrag && Math.abs(deltaX) > 4) {
+      dragState.didDrag = true;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }
+    }
+
+    if (!dragState.didDrag) {
+      return;
+    }
+
+    event.preventDefault();
+    event.currentTarget.scrollLeft = dragState.startScrollLeft - deltaX;
+  }
+
+  function finishQuickAccessPointer(event: React.PointerEvent<HTMLDivElement>) {
+    const dragState = quickAccessDragStateRef.current;
+    if (!dragState || dragState.pointerId !== event.pointerId) {
+      return;
+    }
+
+    if (dragState.didDrag) {
+      suppressQuickAccessClickRef.current = true;
+      window.setTimeout(() => {
+        suppressQuickAccessClickRef.current = false;
+      }, 0);
+    }
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    quickAccessDragStateRef.current = null;
+  }
+
+  function handleQuickAccessItemClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    if (!suppressQuickAccessClickRef.current) {
+      return;
+    }
+
+    suppressQuickAccessClickRef.current = false;
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleQuickAccessDragStart(event: React.DragEvent<HTMLAnchorElement>) {
+    event.preventDefault();
+  }
+
   return (
     <div className="contents">
       <aside
@@ -229,34 +320,49 @@ export function DashboardSidebar({
         {workspaceQuickAccessItems.length > 0 ? (
           <div className="shrink-0 border-b border-border/30 px-2 py-2">
             <div className="flex items-center gap-1">
-              {workspaceQuickAccessItems.map((item) => {
-                const active = item.isActive?.(pathname, {
-                  panel: currentPanel,
-                  tab: currentWorkspaceTab,
-                }) ?? isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    title={item.label}
-                    aria-current={active ? "page" : undefined}
-                    className={`flex size-7 items-center justify-center rounded-md transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                    <span className="sr-only">{item.label}</span>
-                  </Link>
-                );
-              })}
+              <div
+                className="min-w-0 flex-1 cursor-grab overflow-x-auto overscroll-x-contain [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing"
+                onPointerDown={handleQuickAccessPointerDown}
+                onPointerMove={handleQuickAccessPointerMove}
+                onPointerUp={finishQuickAccessPointer}
+                onPointerCancel={finishQuickAccessPointer}
+              >
+                <div className="flex w-max items-center gap-1 pr-1 select-none">
+                  {workspaceQuickAccessItems.map((item) => {
+                    const active = item.isActive?.(pathname, {
+                      panel: currentPanel,
+                      tab: currentWorkspaceTab,
+                    }) ?? isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-label={item.label}
+                        aria-current={active ? "page" : undefined}
+                        onClick={handleQuickAccessItemClick}
+                        onDragStart={handleQuickAccessDragStart}
+                        draggable={false}
+                        className={`flex size-7 shrink-0 items-center justify-center rounded-md transition ${
+                          active
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted/70 hover:text-foreground"
+                        }`}
+                      >
+                        {item.icon}
+                        <span className="sr-only">{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
               {workspaceSettingsHref ? (
                 <Link
                   href={workspaceSettingsHref}
-                  title="工作區設定"
                   aria-label="工作區設定"
                   aria-current={currentPanel === "settings" ? "page" : undefined}
+                  onClick={handleQuickAccessItemClick}
+                  onDragStart={handleQuickAccessDragStart}
+                  draggable={false}
                   className={`ml-auto flex size-7 items-center justify-center rounded-md transition ${
                     currentPanel === "settings"
                       ? "bg-primary/10 text-primary"
