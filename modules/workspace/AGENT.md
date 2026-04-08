@@ -4,11 +4,11 @@
 > 本 BC 領域開發必須使用 Serena 指令：
 > ```
 > serena
-> #use skill xuanwu-app-skill
 > #use skill serena-mcp
-> #use skill context7
 > #use skill alistair-cockburn
 > #use skill iddd-implementing-ddd
+> #use skill xuanwu-app-skill
+> #use skill context7
 
 > ```
 
