@@ -131,7 +131,7 @@ export default function KnowledgeHubPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、Wiki、Notebook / AI。</CardDescription>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {loading ? (
@@ -150,7 +150,7 @@ export default function KnowledgeHubPage() {
                 <p className="text-xs text-muted-foreground">Workspace Coverage</p>
                 <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
                   <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可進入各自的 WorkSpace Wiki</span>
+                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
                 </div>
               </div>
             </div>
@@ -164,14 +164,14 @@ export default function KnowledgeHubPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
                 <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
                 <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開 Wiki 與 Notebook / AI。
+                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button asChild size="sm">
                     <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}?tab=Wiki`}>工作區 Wiki</Link>
+                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
                   </Button>
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
@@ -189,7 +189,7 @@ export default function KnowledgeHubPage() {
                   </p>
                 </div>
                 <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Wiki</p>
+                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
                   <p className="mt-1 text-xs text-muted-foreground">
                     再用頁面樹與內容脈絡整理知識結構。
                   </p>
@@ -229,7 +229,7 @@ export default function KnowledgeHubPage() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、Wiki 與 Notebook / AI。</CardDescription>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -262,7 +262,7 @@ export default function KnowledgeHubPage() {
                         <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}?tab=Wiki`}>Wiki</Link>
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
                       </Button>
                       <Button asChild size="sm" variant="outline">
                         <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>

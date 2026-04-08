@@ -44,7 +44,7 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
       <CardHeader>
         <CardTitle>Workspace Product Spine</CardTitle>
         <CardDescription>
-          從這個工作區穩定分流到 Knowledge、Wiki、Notebook / AI；Search、Source、Sync
+          從這個工作區穩定分流到 Knowledge、知識頁面、Notebook / AI；Search、Source、Sync
           則作為底層支撐能力。
         </CardDescription>
       </CardHeader>
@@ -82,7 +82,7 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
         <div className="rounded-xl border border-border/40 px-4 py-4">
           <p className="text-sm font-semibold text-foreground">Knowledge</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            先用文件、來源與資料庫建立工作區知識基底，再讓後續 Wiki / AI 消費。
+            先用文件、來源與資料庫建立工作區知識基底，再讓知識頁面與 AI 消費。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
@@ -97,17 +97,17 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
         </div>
 
         <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Wiki</p>
+          <p className="text-sm font-semibold text-foreground">Knowledge Pages</p>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            以工作區內容樹、頁面與結構化導覽承接知識脈絡，避免回到平行產品入口。
+            以工作區知識頁面與文章結構承接知識脈絡，不再透過獨立 Wiki tab 中轉。
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link href={`/workspace/${workspace.id}?tab=Wiki`}>工作區 Wiki</Link>
+              <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>
             </Button>
             <Button asChild size="sm" variant="outline">
-              <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                頁面
+              <Link href={`/knowledge-base/articles?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                文章
               </Link>
             </Button>
           </div>

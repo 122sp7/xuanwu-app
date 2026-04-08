@@ -161,7 +161,7 @@ export default function AiChatPage() {
                 Notebook / AI
               </CardTitle>
               <CardDescription>
-                將工作區知識、Wiki 與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
               </CardDescription>
             </CardHeader>
           </Card>
