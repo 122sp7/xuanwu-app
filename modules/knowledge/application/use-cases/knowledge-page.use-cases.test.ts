@@ -15,6 +15,7 @@ function createPage(overrides: Partial<KnowledgePage>): KnowledgePage {
     title: overrides.title ?? "Page",
     slug: overrides.slug ?? "page",
     parentPageId: overrides.parentPageId ?? null,
+    order: overrides.order ?? 0,
     blockIds: overrides.blockIds ?? [],
     status: overrides.status ?? "active",
     createdByUserId: overrides.createdByUserId ?? "user-1",
