@@ -32,11 +32,17 @@ export {
   updateComment,
   resolveComment,
   deleteComment,
+} from "../interfaces/_actions/comment.actions";
+
+export {
   createVersion,
   deleteVersion,
+} from "../interfaces/_actions/version.actions";
+
+export {
   grantPermission,
   revokePermission,
-} from "../interfaces/_actions/knowledge-collaboration.actions";
+} from "../interfaces/_actions/permission.actions";
 
 // ── Queries (reads) ────────────────────────────────────────────────────────────
 export {

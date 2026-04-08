@@ -120,12 +120,7 @@ export class FirebaseArticleRepository implements IArticleRepository {
     return snaps.docs.map((d) => toArticle(d.id, d.data() as Record<string, unknown>));
   }
 
-  async delete(_articleId: string): Promise<void> {
-    // articleId alone is insufficient — callers should use deleteArticle(accountId, articleId).
-    throw new Error("Use deleteArticle(accountId, articleId) instead");
-  }
-
-  async deleteArticle(accountId: string, articleId: string): Promise<void> {
+  async delete(accountId: string, articleId: string): Promise<void> {
     const db = this.db();
     await deleteDoc(articleDoc(db, accountId, articleId));
   }
