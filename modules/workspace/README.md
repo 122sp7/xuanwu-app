@@ -38,6 +38,18 @@
 | Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
 | Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
 
+## DDD 概念導讀
+
+| 概念 | 在 workspace 中的程式型態 | 主要查看文件 |
+|---|---|---|
+| Entity（實體） | 類別 / 物件 | `aggregates.md` |
+| Value Object（值對象） | 類別 / 物件 | `aggregates.md`、`ubiquitous-language.md` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件 | `aggregates.md` |
+| Repository（倉儲） | 介面或類別（負責資料存取） | `repositories.md` |
+| Domain Service（領域服務） | 類別 / 函式 | `domain-services.md` |
+| Factory（工廠） | 類別 / 函式 | `application-services.md`、`domain-events.md` |
+| Domain Event（領域事件） | 事件類別、訊息物件 | `domain-events.md`、`context-map.md` |
+
 ## 實作備註
 
 - 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向

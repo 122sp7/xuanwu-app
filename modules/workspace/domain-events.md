@@ -2,6 +2,8 @@
 
 本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
 
+在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
+
 ## Event Base Contract
 
 workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：

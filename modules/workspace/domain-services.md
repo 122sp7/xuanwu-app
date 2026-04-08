@@ -6,6 +6,8 @@
 
 目前 workspace 沒有獨立的 `domain/services/*` 檔案。這是刻意的 tactical 選擇，不是遺漏。
 
+在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
+
 ## 目前狀態
 
 - 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects

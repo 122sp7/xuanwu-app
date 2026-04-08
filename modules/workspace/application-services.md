@@ -14,6 +14,13 @@
 - 在持久化成功後觸發 domain event publishing
 - 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
 
+## 本文件涉及的 DDD 概念
+
+- Repository（倉儲）→ 介面或類別；application layer 依賴的是 repository port，而不是 infrastructure adapter 類別
+- Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
+- Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
+- Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
+
 ## Command-side Use Cases
 
 | Use Case | 目的 | 備註 |
@@ -37,6 +44,7 @@
 ## Factories 與 Composition Points
 
 - Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
+- Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
 - UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
 - Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
 

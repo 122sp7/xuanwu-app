@@ -1,5 +1,7 @@
 # Aggregates — workspace
 
+本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
+
 ## Write-side Aggregate Root
 
 ### `Workspace`
@@ -58,6 +60,12 @@
 | `WikiContentItemNode` | 導覽項 read projection |
 
 `WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+
+## Factory Boundary
+
+- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
+- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
+- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
 
 ## Tactical Debt Notes
 

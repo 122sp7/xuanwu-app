@@ -27,6 +27,16 @@
 - Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
 - Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
 
+## DDD 概念對位（文件讀法）
+
+- Entity（實體）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLocation`、`Capability`
+- Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
+- Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
+- Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
+- Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
+- Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
+
 ## 通用語言（Ubiquitous Language）
 
 | 正確術語 | 禁止使用 |

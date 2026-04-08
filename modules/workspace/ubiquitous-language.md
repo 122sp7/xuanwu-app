@@ -2,6 +2,8 @@
 
 > **範圍：** 僅限 `modules/workspace/` bounded context 內
 
+本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
+
 ## 核心術語
 
 | 術語 | 英文 | 定義 |
@@ -54,3 +56,15 @@
 - `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
 - `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
 - `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
+
+## 文件元術語對照
+
+| 概念 | 在這組文件中的意思 |
+|------|------------------|
+| Entity（實體） | 類別 / 物件，具備 identity，語意上可跨時間被辨識 |
+| Value Object（值對象） | 類別 / 物件，以值相等判斷語意，例如 `WorkspaceVisibility`、`Address` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件，負責保護 write-side 一致性；workspace 的 aggregate root 是 `Workspace` |
+| Repository（倉儲） | 介面或類別，負責 aggregate / projection 的資料存取 |
+| Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
+| Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
+| Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |

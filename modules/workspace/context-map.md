@@ -2,6 +2,8 @@
 
 `workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
 
+在這份文件裡，Aggregate Root 指的是對外提供 published language 的 domain 類別 / 物件；Domain Event 指的是跨 context 可發布的事件類別、訊息物件。Repository、Factory、Domain Service 不屬於 context map 的主體，但會支撐這些整合 surface 的實作。
+
 ## Upstream Contexts
 
 ### `account` → `workspace`（Customer/Supplier）
@@ -58,8 +60,8 @@
 | 類型 | Surface |
 |---|---|
 | 同步 API | `modules/workspace/api` |
-| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` |
-| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` |
+| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
+| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
 
 ## Non-Examples
 
