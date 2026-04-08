@@ -15865,6 +15865,63 @@ export class ListCommentsUseCase {
 }
 ````
 
+## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/use-cases
+ * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { Permission } from "../../domain/entities/permission.entity";
+import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
+import {
+  GrantPermissionSchema, type GrantPermissionDto,
+  RevokePermissionSchema, type RevokePermissionDto,
+} from "../dto/knowledge-collaboration.dto";
+
+export class GrantPermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: GrantPermissionDto): Promise<CommandResult> {
+    const parsed = GrantPermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO, linkToken } = parsed.data;
+    const permission = await this.repo.grant({
+      accountId, workspaceId, subjectId, subjectType,
+      principalId, principalType, level, grantedByUserId,
+      expiresAtISO: expiresAtISO ?? null,
+      linkToken: linkToken ?? null,
+    });
+    return commandSuccess(permission.id, Date.now());
+  }
+}
+
+export class RevokePermissionUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(input: RevokePermissionDto): Promise<CommandResult> {
+    const parsed = RevokePermissionSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
+    }
+    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListPermissionsBySubjectUseCase {
+  constructor(private readonly repo: IPermissionRepository) {}
+
+  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
+    return this.repo.listBySubject(accountId, subjectId);
+  }
+}
+````
+
 ## File: modules/knowledge-collaboration/application/use-cases/version.use-cases.ts
 ````typescript
 /**
@@ -16024,6 +16081,37 @@ export interface Version {
 }
 ````
 
+## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: domain/repositories
+ */
+
+import type { Permission, PermissionLevel, PrincipalType } from "../entities/permission.entity";
+
+export interface GrantPermissionInput {
+  readonly subjectId: string;
+  readonly subjectType: "page" | "article" | "database";
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly principalId: string;
+  readonly principalType: PrincipalType;
+  readonly level: PermissionLevel;
+  readonly grantedByUserId: string;
+  readonly expiresAtISO?: string | null;
+  readonly linkToken?: string | null;
+}
+
+export interface IPermissionRepository {
+  grant(input: GrantPermissionInput): Promise<Permission>;
+  revoke(accountId: string, permissionId: string): Promise<void>;
+  findById(accountId: string, permissionId: string): Promise<Permission | null>;
+  listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
+  listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
+}
+````
+
 ## File: modules/knowledge-collaboration/domain/repositories/IVersionRepository.ts
 ````typescript
 /**
@@ -16062,6 +16150,101 @@ export interface IVersionRepository {
  */
 
 export * from "./api";
+````
+
+## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/collaborationPermissions/{id}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { Permission, PermissionLevel, PrincipalType } from "../../domain/entities/permission.entity";
+import type {
+  IPermissionRepository,
+  GrantPermissionInput,
+} from "../../domain/repositories/IPermissionRepository";
+
+function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "collaborationPermissions");
+}
+
+function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "collaborationPermissions", id);
+}
+
+function toPermission(id: string, data: Record<string, unknown>): Permission {
+  return {
+    id,
+    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
+    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    principalId: typeof data.principalId === "string" ? data.principalId : "",
+    principalType: (data.principalType as PrincipalType) ?? "user",
+    level: (data.level as PermissionLevel) ?? "view",
+    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
+    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
+    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
+    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
+  };
+}
+
+export class FirebasePermissionRepository implements IPermissionRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async grant(input: GrantPermissionInput): Promise<Permission> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      subjectId: input.subjectId,
+      subjectType: input.subjectType,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      principalId: input.principalId,
+      principalType: input.principalType,
+      level: input.level,
+      grantedByUserId: input.grantedByUserId,
+      grantedAtISO: now,
+      expiresAtISO: input.expiresAtISO ?? null,
+      linkToken: input.linkToken ?? null,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(permissionDoc(db, input.accountId, id), data);
+    return toPermission(id, data);
+  }
+
+  async revoke(accountId: string, permissionId: string): Promise<void> {
+    const { deleteDoc } = await import("firebase/firestore");
+    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
+  }
+
+  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
+    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
+    if (!snap.exists()) return null;
+    return toPermission(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
+    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
+  }
+}
 ````
 
 ## File: modules/knowledge-collaboration/infrastructure/firebase/FirebaseVersionRepository.ts
@@ -16345,6 +16528,304 @@ Record: AddRecord, UpdateRecord, DeleteRecord, LinkRecords, UnlinkRecords, Query
 → [`modules/knowledge-database/application-services.md`](../../modules/knowledge-database/application-services.md)
 ````
 
+## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/dto
+ */
+
+import { z } from "@lib-zod";
+
+const WorkspaceScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+const FieldTypeSchema = z.enum([
+  "text", "number", "select", "multi_select", "date",
+  "checkbox", "url", "email", "relation", "formula", "rollup",
+]);
+
+const ViewTypeSchema = z.enum(["table", "board", "list", "calendar", "timeline", "gallery"]);
+
+// ── Database ──────────────────────────────────────────────────────────────────
+
+export const CreateDatabaseSchema = WorkspaceScopeSchema.extend({
+  name: z.string().min(1).max(200),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateDatabaseDto = z.infer<typeof CreateDatabaseSchema>;
+
+export const UpdateDatabaseSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).nullable().optional(),
+  icon: z.string().max(100).nullable().optional(),
+  coverImageUrl: z.string().url().nullable().optional(),
+});
+export type UpdateDatabaseDto = z.infer<typeof UpdateDatabaseSchema>;
+
+export const AddFieldSchema = z.object({
+  databaseId: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: FieldTypeSchema,
+  config: z.record(z.string(), z.unknown()).optional(),
+  required: z.boolean().optional(),
+});
+export type AddFieldDto = z.infer<typeof AddFieldSchema>;
+
+export const ArchiveDatabaseSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
+
+// ── Record ────────────────────────────────────────────────────────────────────
+
+export const CreateRecordSchema = WorkspaceScopeSchema.extend({
+  databaseId: z.string().min(1),
+  pageId: z.string().min(1).nullable().optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
+
+export const UpdateRecordSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  properties: z.record(z.string(), z.unknown()),
+});
+export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
+
+export const DeleteRecordSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteRecordDto = z.infer<typeof DeleteRecordSchema>;
+
+// ── View ──────────────────────────────────────────────────────────────────────
+
+export const CreateViewSchema = WorkspaceScopeSchema.extend({
+  databaseId: z.string().min(1),
+  name: z.string().min(1).max(100),
+  type: ViewTypeSchema,
+  createdByUserId: z.string().min(1),
+});
+export type CreateViewDto = z.infer<typeof CreateViewSchema>;
+
+export const UpdateViewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  name: z.string().min(1).max(100).optional(),
+  filters: z.array(z.object({
+    fieldId: z.string(),
+    operator: z.enum(["eq","neq","contains","not_contains","is_empty","is_not_empty","gt","lt"]),
+    value: z.unknown(),
+  })).optional(),
+  sorts: z.array(z.object({
+    fieldId: z.string(),
+    direction: z.enum(["asc","desc"]),
+  })).optional(),
+  visibleFieldIds: z.array(z.string()).optional(),
+  hiddenFieldIds: z.array(z.string()).optional(),
+});
+export type UpdateViewDto = z.infer<typeof UpdateViewSchema>;
+
+export const DeleteViewSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
+````
+
+## File: modules/knowledge-database/application/services/field-computation.service.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/services
+ * Purpose: FieldComputationService — resolves computed field values for a record.
+ *
+ * Handles: relation (link resolution), formula (expression evaluation), rollup (aggregation).
+ * This is pure application logic — no side effects, no I/O. Fully testable in isolation.
+ */
+
+import type { Field, FieldType } from "../../domain/entities/database.entity";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+
+// ── Relation ──────────────────────────────────────────────────────────────────
+
+export interface RelationFieldConfig {
+  readonly targetDatabaseId: string;
+  readonly syncReverse: boolean;
+  readonly reverseFieldName?: string;
+}
+
+export type RelationValue = ReadonlyArray<string>;
+
+export function resolveRelationValue(record: DatabaseRecord, field: Field): RelationValue {
+  if (field.type !== "relation") return [];
+  const raw = record.properties.get(field.id);
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((v): v is string => typeof v === "string");
+}
+
+// ── Formula ───────────────────────────────────────────────────────────────────
+
+export interface FormulaFieldConfig {
+  readonly expression: string;
+}
+
+export type FormulaResult = string | number | boolean | null;
+
+/**
+ * Evaluates a formula for a record using a safe restricted expression evaluator.
+ * Supports prop('FieldName') references, arithmetic, comparison, and boolean operators.
+ * Returns null on evaluation error or unsafe expression.
+ */
+export function evaluateFormula(
+  record: DatabaseRecord,
+  field: Field,
+  allFields: ReadonlyArray<Field>,
+): FormulaResult {
+  if (field.type !== "formula") return null;
+  const config = field.config as Partial<FormulaFieldConfig>;
+  if (!config.expression || typeof config.expression !== "string") return null;
+
+  const props: Record<string, unknown> = {};
+  for (const f of allFields) {
+    if (f.type === "formula" || f.type === "rollup") continue;
+    props[f.name] = record.properties.get(f.id) ?? null;
+  }
+
+  const resolved = config.expression.replace(
+    /prop\(['"]([^'"]+)['"]\)/g,
+    (_m, name: string) => {
+      const val = props[name];
+      if (val === null || val === undefined) return "null";
+      if (typeof val === "string") return JSON.stringify(val);
+      if (typeof val === "number" || typeof val === "boolean") return String(val);
+      return "null";
+    },
+  );
+
+  // Allowlist: digits, arithmetic operators, comparisons, booleans, null, spaces, parens, quotes, dots
+  if (!/^[\d\s+\-*/()!&|<>=."'nulltruefals]+$/.test(resolved)) return null;
+
+  try {
+    const result = new Function(`"use strict"; return (${resolved});`)() as unknown;
+    if (typeof result === "string" || typeof result === "number" || typeof result === "boolean") return result;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// ── Rollup ────────────────────────────────────────────────────────────────────
+
+export type RollupAggregation =
+  | "count" | "count_values" | "count_unique"
+  | "sum" | "average" | "min" | "max" | "range"
+  | "percent_checked" | "percent_unchecked";
+
+export interface RollupFieldConfig {
+  readonly relationFieldId: string;
+  readonly rollupFieldId: string;
+  readonly aggregation: RollupAggregation;
+}
+
+export type RollupResult = number | string | null;
+
+export function computeRollup(
+  record: DatabaseRecord,
+  field: Field,
+  relatedRecords: ReadonlyArray<DatabaseRecord>,
+  _relatedFields: ReadonlyArray<Field>,
+): RollupResult {
+  if (field.type !== "rollup") return null;
+  const config = field.config as Partial<RollupFieldConfig>;
+  if (!config.rollupFieldId || !config.aggregation) return null;
+
+  const values = relatedRecords.map((r) => r.properties.get(config.rollupFieldId!));
+
+  switch (config.aggregation) {
+    case "count": return relatedRecords.length;
+    case "count_values": return values.filter((v) => v !== null && v !== undefined && v !== "").length;
+    case "count_unique": return new Set(values.map((v) => JSON.stringify(v))).size;
+    case "sum": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.reduce((a, n) => a + n, 0);
+    }
+    case "average": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : nums.reduce((a, n) => a + n, 0) / nums.length;
+    }
+    case "min": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : Math.min(...nums);
+    }
+    case "max": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : Math.max(...nums);
+    }
+    case "range": {
+      const nums = values.filter((v): v is number => typeof v === "number");
+      return nums.length === 0 ? null : Math.max(...nums) - Math.min(...nums);
+    }
+    case "percent_checked": {
+      if (relatedRecords.length === 0) return 0;
+      return Math.round((values.filter((v) => v === true).length / relatedRecords.length) * 100);
+    }
+    case "percent_unchecked": {
+      if (relatedRecords.length === 0) return 0;
+      return Math.round((values.filter((v) => v !== true).length / relatedRecords.length) * 100);
+    }
+    default: return null;
+  }
+}
+
+// ── Unified entry point ───────────────────────────────────────────────────────
+
+export type ComputedFieldValue = RelationValue | FormulaResult | RollupResult;
+
+export function resolveComputedFields(input: {
+  readonly record: DatabaseRecord;
+  readonly fields: ReadonlyArray<Field>;
+  readonly relatedRecordsMap?: ReadonlyMap<string, ReadonlyArray<DatabaseRecord>>;
+  readonly relatedFieldsMap?: ReadonlyMap<string, ReadonlyArray<Field>>;
+}): Map<string, ComputedFieldValue> {
+  const { record, fields, relatedRecordsMap = new Map(), relatedFieldsMap = new Map() } = input;
+  const result = new Map<string, ComputedFieldValue>();
+  const computedTypes: ReadonlyArray<FieldType> = ["relation", "formula", "rollup"];
+
+  for (const field of fields) {
+    if (!computedTypes.includes(field.type)) continue;
+    switch (field.type) {
+      case "relation":
+        result.set(field.id, resolveRelationValue(record, field));
+        break;
+      case "formula":
+        result.set(field.id, evaluateFormula(record, field, fields));
+        break;
+      case "rollup": {
+        const cfg = field.config as Partial<RollupFieldConfig>;
+        const relField = cfg.relationFieldId ? fields.find((f) => f.id === cfg.relationFieldId) : undefined;
+        result.set(field.id, computeRollup(
+          record, field,
+          relField ? (relatedRecordsMap.get(relField.id) ?? []) : [],
+          relField ? (relatedFieldsMap.get(relField.id) ?? []) : [],
+        ));
+        break;
+      }
+    }
+  }
+  return result;
+}
+````
+
 ## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
 ````typescript
 /**
@@ -16424,6 +16905,67 @@ export class ListDatabasesUseCase {
   async execute(accountId: string, workspaceId: string): Promise<Database[]> {
     if (!accountId.trim() || !workspaceId.trim()) return [];
     return this.repo.listByWorkspace(accountId, workspaceId);
+  }
+}
+````
+
+## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
+import {
+  CreateRecordSchema, type CreateRecordDto,
+  UpdateRecordSchema, type UpdateRecordDto,
+  DeleteRecordSchema, type DeleteRecordDto,
+} from "../dto/knowledge-database.dto";
+
+export class CreateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: CreateRecordDto): Promise<CommandResult> {
+    const parsed = CreateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    const { accountId, workspaceId, databaseId, pageId, properties = {}, createdByUserId } = parsed.data;
+    const rec = await this.repo.create({ accountId, workspaceId, databaseId, pageId, properties, createdByUserId });
+    return commandSuccess(rec.id, Date.now());
+  }
+}
+
+export class UpdateRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: UpdateRecordDto): Promise<CommandResult> {
+    const parsed = UpdateRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    const result = await this.repo.update(parsed.data);
+    if (!result) return commandFailureFrom("RECORD_NOT_FOUND", "Record not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteRecordUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(input: DeleteRecordDto): Promise<CommandResult> {
+    const parsed = DeleteRecordSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
+    await this.repo.delete(parsed.data.accountId, parsed.data.id);
+    return commandSuccess(parsed.data.id, Date.now());
+  }
+}
+
+export class ListRecordsUseCase {
+  constructor(private readonly repo: IDatabaseRecordRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+    if (!accountId.trim() || !databaseId.trim()) return [];
+    return this.repo.listByDatabase(accountId, databaseId);
   }
 }
 ````
@@ -16885,6 +17427,114 @@ export class FirebaseDatabaseRepository implements IDatabaseRepository {
     const q = query(dbsCol(db, accountId), where("workspaceId", "==", workspaceId), where("archived", "==", false), orderBy("createdAtISO", "asc"));
     const snaps = await getDocs(q);
     return snaps.docs.map(d => toDatabase(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/databaseRecords/{recordId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import type { DatabaseRecord } from "../../domain/entities/record.entity";
+import type {
+  IDatabaseRecordRepository,
+  CreateRecordInput,
+  UpdateRecordInput,
+} from "../../domain/repositories/IDatabaseRecordRepository";
+
+function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "databaseRecords");
+}
+
+function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
+  return doc(db, "accounts", accountId, "databaseRecords", recordId);
+}
+
+function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    pageId: typeof data.pageId === "string" ? data.pageId : null,
+    properties: typeof data.properties === "object" && data.properties !== null
+      ? new Map(Object.entries(data.properties as Record<string, unknown>))
+      : new Map(),
+    order: typeof data.order === "number" ? data.order : 0,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+export class FirebaseRecordRepository implements IDatabaseRecordRepository {
+  private db() { return getFirestore(firebaseClientApp); }
+
+  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
+    const db = this.db();
+    const id = generateId();
+    const now = new Date().toISOString();
+    const data = {
+      databaseId: input.databaseId,
+      workspaceId: input.workspaceId,
+      accountId: input.accountId,
+      pageId: input.pageId ?? null,
+      properties: input.properties ?? {},
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+      _createdAt: serverTimestamp(),
+    };
+    await setDoc(recordDoc(db, input.accountId, id), data);
+    return toRecord(id, { ...data, properties: input.properties });
+  }
+
+  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const ref = recordDoc(db, input.accountId, input.id);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+    const now = new Date().toISOString();
+    const updates: Record<string, unknown> = { updatedAtISO: now };
+    if (input.properties !== undefined) {
+      updates.properties = input.properties;
+    }
+    await updateDoc(ref, updates);
+    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
+    return toRecord(snap.id, merged);
+  }
+
+  async delete(accountId: string, recordId: string): Promise<void> {
+    const db = this.db();
+    await deleteDoc(recordDoc(db, accountId, recordId));
+  }
+
+  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
+    const db = this.db();
+    const snap = await getDoc(recordDoc(db, accountId, recordId));
+    if (!snap.exists()) return null;
+    return toRecord(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
+    const db = this.db();
+    const q = query(
+      recordsCol(db, accountId),
+      where("databaseId", "==", databaseId),
+      orderBy("order", "asc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
   }
 }
 ````
@@ -17962,6 +18612,62 @@ Firestore: `knowledge_databases` / `knowledge_db_records` / `knowledge_db_views`
 → [`modules/knowledge-database/ubiquitous-language.md`](../../modules/knowledge-database/ubiquitous-language.md)
 ````
 
+## File: modules/knowledge/AGENT.md
+````markdown
+# AGENT.md — knowledge BC
+
+## 模組定位
+
+`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+
+`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `KnowledgePage` | Page、Document |
+| `ContentBlock` | Block、Node、Element |
+| `ContentVersion` | Version、Snapshot、History |
+| `BlockType` | Type、ContentType |
+| `KnowledgeCollection` | Database、Collection、Table |
+| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
+| `PageVerificationState` | verified、needs_review（需透過型別） |
+| `PageOwner` (`ownerId`) | Owner、Responsible |
+
+> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
+
+## 邊界規則
+
+### ✅ 允許
+```typescript
+import { knowledgeApi } from "@/modules/knowledge/api";
+import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
+```
+
+### ❌ 禁止
+```typescript
+import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
+import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
+import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
+```
+
+## page_approved 事件規則
+
+`knowledge.page_approved` 必須包含：
+- `extractedTasks[]` — 供 workspace-flow 建立 Task
+- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
+- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+````
+
 ## File: modules/knowledge/api/events.ts
 ````typescript
 /**
@@ -18201,6 +18907,116 @@ export class GetPageBacklinksUseCase {
 
   async execute(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
     return this.repo.findByTargetPage(accountId, targetPageId);
+  }
+}
+````
+
+## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: application/use-cases
+ * Purpose: Block use cases — add, update, delete, list.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { BlockContent } from "../../domain/value-objects/block-content";
+import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  AddKnowledgeBlockSchema,
+  type AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockSchema,
+  type UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockSchema,
+  type DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockSchema,
+  type NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockSchema,
+  type UnnestKnowledgeBlockDto,
+} from "../dto/knowledge.dto";
+
+export class AddKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = AddKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, content, index } = parsed.data;
+    const block = await this.repo.add({ accountId, pageId, content: content as BlockContent, index });
+    return commandSuccess(block.id, Date.now());
+  }
+}
+
+export class UpdateKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, blockId, content } = parsed.data;
+    const updated = await this.repo.update({ accountId, blockId, content: content as BlockContent });
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class DeleteKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, blockId } = parsed.data;
+    await this.repo.delete(accountId, blockId);
+    return commandSuccess(blockId, Date.now());
+  }
+}
+
+export class ListKnowledgeBlocksUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    if (!accountId.trim() || !pageId.trim()) return [];
+    return this.repo.listByPageId(accountId, pageId);
+  }
+}
+
+export class NestKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = NestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+    const updated = await this.repo.nest(parsed.data);
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent block not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class UnnestKnowledgeBlockUseCase {
+  constructor(private readonly repo: KnowledgeBlockRepository) {}
+
+  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
+    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
+    }
+    const updated = await this.repo.unnest(parsed.data);
+    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
+    return commandSuccess(updated.id, Date.now());
   }
 }
 ````
@@ -18967,6 +19783,103 @@ export type KnowledgeDomainEvent =
   | KnowledgePageOwnerAssignedEvent;
 ````
 
+## File: modules/knowledge/domain/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/barrel
+ */
+
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ArchiveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+} from "./entities/knowledge-page.entity";
+
+export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
+export type { PageVerificationState } from "./entities/knowledge-page.entity";
+
+export type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  DeleteKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "./entities/content-block.entity";
+
+export type {
+  KnowledgeVersion,
+  KnowledgeVersionBlock,
+  CreateKnowledgeVersionInput,
+} from "./entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./value-objects/block-content";
+export {
+  BLOCK_TYPES,
+  blockContentEquals,
+  emptyTextBlockContent,
+  plainTextBlockContent,
+  richTextToPlainText,
+  extractMentionedPageIds,
+  extractMentionedUserIds,
+} from "./value-objects/block-content";
+export type {
+  RichTextSpanType,
+  TextAnnotations,
+  TextSpan,
+  MentionPageSpan,
+  MentionUserSpan,
+  LinkSpan,
+  RichTextSpan,
+} from "./value-objects/block-content";
+
+export type {
+  KnowledgeDomainEvent,
+  KnowledgePageCreatedEvent,
+  KnowledgePageRenamedEvent,
+  KnowledgePageMovedEvent,
+  KnowledgePageArchivedEvent,
+  KnowledgeBlockAddedEvent,
+  KnowledgeBlockUpdatedEvent,
+  KnowledgeBlockDeletedEvent,
+  KnowledgeVersionPublishedEvent,
+  KnowledgePageVerifiedEvent,
+  KnowledgePageReviewRequestedEvent,
+  KnowledgePageOwnerAssignedEvent,
+} from "./events/knowledge.events";
+
+// ── KnowledgeCollection ───────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "./entities/knowledge-collection.entity";
+
+export type {
+  KnowledgePageRepository,
+  KnowledgeBlockRepository,
+  KnowledgeVersionRepository,
+} from "./repositories/knowledge.repositories";
+````
+
 ## File: modules/knowledge/domain/repositories/IBacklinkIndexRepository.ts
 ````typescript
 /**
@@ -18995,6 +19908,101 @@ export interface IBacklinkIndexRepository {
   findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null>;
   listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>>;
 }
+````
+
+## File: modules/knowledge/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: module/barrel (public API)
+ *
+ * This is the ONLY file that external modules should import from.
+ * All internal implementation details (domain, application, infrastructure)
+ * are NOT importable from outside — use the exports listed here.
+ *
+ * Boundary rule: other modules import via `@/modules/knowledge`, never from
+ * `@/modules/knowledge/domain/...` or deeper paths.
+ *
+ * Access pattern:
+ *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
+ *   - UI mutations                    → Server Actions below
+ *   - UI reads                        → Query functions below
+ *
+ * Current boundary note:
+ *   - `Page` / `Block` are owned by this module.
+ *   - `KnowledgeCollection` is still exported here as a transitional surface.
+ *   - `Article` / `Category` belong to `knowledge-base`.
+ */
+
+// ── API: Facade (cross-domain entry point) ────────────────────────────────────
+export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./api/knowledge-facade";
+
+// ── Domain: entity types ──────────────────────────────────────────────────────
+export type {
+  KnowledgePage,
+  KnowledgePageStatus,
+  KnowledgePageTreeNode,
+} from "./domain/entities/knowledge-page.entity";
+
+export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
+
+export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
+
+export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
+
+// ── Interfaces: Server Actions ────────────────────────────────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./interfaces/_actions/knowledge.actions";
+
+// ── Interfaces: Queries ───────────────────────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePageTree,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "./interfaces/queries/knowledge.queries";
+
+// ── Domain: Collection + Wiki types ──────────────────────────────────────────
+export type {
+  KnowledgeCollection,
+  CollectionSpaceType,
+} from "./domain/entities/knowledge-collection.entity";
+
+export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
+
+// ── Interfaces: Components ────────────────────────────────────────────────────
+export { BlockEditorView } from "./interfaces/components/BlockEditorView";
+export { PageTreeView } from "./interfaces/components/PageTreeView";
+export { PageDialog } from "./interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/infrastructure/firebase/FirebaseBacklinkIndexRepository.ts
@@ -19384,6 +20392,17 @@ export class FirebaseKnowledgeCollectionRepository implements KnowledgeCollectio
 }
 ````
 
+## File: modules/knowledge/infrastructure/index.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/barrel
+ */
+
+export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseKnowledgePageRepository";
+export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
+````
+
 ## File: modules/knowledge/interfaces/components/PageEditorView.tsx
 ````typescript
 "use client";
@@ -19526,6 +20545,61 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
     });
   },
 }));
+````
+
+## File: modules/knowledge/repositories.md
+````markdown
+# knowledge — Repositories
+
+> **Canonical bounded context:** `knowledge`
+> **模組路徑:** `modules/knowledge/`
+> **Domain Type:** Core Domain
+
+本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+
+## Domain Repository Ports
+
+- `domain/repositories/knowledge.repositories.ts`
+  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
+  - `KnowledgeBlockRepository`
+  - `KnowledgeVersionRepository`
+  - `KnowledgeCollectionRepository`
+
+## Infrastructure Implementations
+
+- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
+  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
+- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
+- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
+  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+
+## KnowledgePageRepository 方法對照
+
+| 方法 | 說明 |
+|------|------|
+| `create()` | 建立頁面 |
+| `rename()` | 重命名 |
+| `move()` | 移動層級 |
+| `archive()` | 歸檔 |
+| `reorderBlocks()` | 重排區塊 |
+| `approve()` | 審批（AI 草稿模式） |
+| `verify()` | 驗證頁面（Wiki Space 模式） |
+| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
+| `assignOwner()` | 指定頁面負責人 |
+| `findById()` | 取得單頁 |
+| `listByAccountId()` | 列出帳戶所有頁面 |
+| `listByWorkspaceId()` | 列出工作區所有頁面 |
+
+## 設計規則
+
+- Repository 介面定義在 `domain/repositories/`
+- Repository 實作放在 `infrastructure/`
+- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+
+## 模組內對應文件
+
+- `../../../modules/knowledge/repositories.md`
+- `../../../modules/knowledge/aggregates.md`
 ````
 
 ## File: modules/notebook/.gitkeep
@@ -29675,6 +30749,56 @@ export type { PaginationDto, PagedResult } from "../application/dto/pagination.d
 export type { CommandResult } from "@shared-types";
 ````
 
+## File: modules/workspace-flow/api/listeners.ts
+````typescript
+/**
+ * @module workspace-flow/api
+ * @file listeners.ts
+ * @description Public event listener interface for workspace-flow.
+ *
+ * External modules (primarily the `knowledge` module's event bus) subscribe to
+ * workspace-flow through this surface.  The concrete implementation is the
+ * `KnowledgeToWorkflowMaterializer` process manager.
+ *
+ * ## Usage
+ * ```ts
+ * import { createKnowledgeToWorkflowListener } from "@/modules/workspace-flow/api";
+ *
+ * const listener = createKnowledgeToWorkflowListener();
+ * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
+ * ```
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
+ */
+
+import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
+import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
+import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+
+// ── Public listener factory ───────────────────────────────────────────────────
+
+/**
+ * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
+ * Call `handle(event, workspaceId)` from your event bus subscriber.
+ */
+export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer {
+  return new KnowledgeToWorkflowMaterializer(
+    new FirebaseTaskRepository(),
+    new FirebaseInvoiceRepository(),
+  );
+}
+
+// ── Listener type contracts ───────────────────────────────────────────────────
+
+/** Shape of any handler that can process a `knowledge.page_approved` event. */
+export interface KnowledgePageApprovedHandler {
+  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
+}
+
+export type { KnowledgePageApprovedEvent };
+````
+
 ## File: modules/workspace-flow/application-services.md
 ````markdown
 # workspace-flow — Application Services
@@ -30069,6 +31193,97 @@ export interface TaskService {
   transitionStatus(taskId: string, to: TaskStatus): Promise<Task>;
   listTasks(query: TaskQueryDto): Promise<Task[]>;
   getTask(taskId: string): Promise<Task | null>;
+}
+````
+
+## File: modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
+````typescript
+/**
+ * @module workspace-flow/application/process-managers
+ * @file knowledge-to-workflow-materializer.ts
+ * @description Process Manager (Saga) that listens for `knowledge.page_approved`
+ * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
+ *
+ * ## Responsibility
+ * This class is the single entry point for the cross-module event-driven
+ * integration between the `knowledge` and `workspace-flow` bounded contexts.
+ *
+ * ## Idempotency
+ * The process manager tracks processed `causationId` values to prevent
+ * duplicate materialization if the same event is delivered more than once.
+ * The seen-set is in-memory by default; production implementations should
+ * persist to Firestore at:
+ *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
+ * using a Firestore transaction to provide atomic idempotency guarantees.
+ *
+ * ## Placement
+ * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
+ *   `SimpleEventBus` subscriber registered at application startup.
+ * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
+ *
+ * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
+ */
+
+import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
+import type { TaskRepository } from "../../domain/repositories/TaskRepository";
+import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
+import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
+import type { SourceReference } from "../../domain/value-objects/SourceReference";
+
+export class KnowledgeToWorkflowMaterializer {
+  /**
+   * In-memory idempotency guard.
+   * Replace with a persistent store in production.
+   */
+  private readonly processedCausationIds = new Set<string>();
+
+  constructor(
+    private readonly taskRepository: TaskRepository,
+    private readonly invoiceRepository: InvoiceRepository,
+  ) {}
+
+  /**
+   * Handle a `knowledge.page_approved` event.
+   *
+   * @param event - The full event payload from the knowledge module's public API.
+   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
+   *   Typically resolved from the event's `workspaceId` field if present.
+   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
+   */
+  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
+    if (this.processedCausationIds.has(event.causationId)) {
+      return false;
+    }
+
+    if (!workspaceId.trim()) return false;
+
+    const sourceReference: SourceReference = {
+      type: "KnowledgePage",
+      id: event.pageId,
+      causationId: event.causationId,
+      correlationId: event.correlationId,
+    };
+
+    const useCase = new MaterializeTasksFromKnowledgeUseCase(
+      this.taskRepository,
+      this.invoiceRepository,
+    );
+
+    const result = await useCase.execute({
+      workspaceId,
+      knowledgePageId: event.pageId,
+      sourceReference,
+      extractedTasks: event.extractedTasks,
+      extractedInvoices: event.extractedInvoices,
+    });
+
+    if (result.success) {
+      this.processedCausationIds.add(event.causationId);
+      return true;
+    }
+
+    return false;
+  }
 }
 ````
 
@@ -36102,223 +37317,6 @@ export interface WorkspaceQueryRepository {
     onUpdate: (workspaces: WorkspaceEntity[]) => void,
   ): Unsubscribe;
   getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]>;
-}
-````
-
-## File: modules/workspace/domain/value-objects/Address.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const AddressSchema = z
-  .object({
-    street: z.string().trim(),
-    city: z.string().trim(),
-    state: z.string().trim(),
-    postalCode: z.string().trim(),
-    country: z.string().trim(),
-    details: z.string().trim().optional(),
-  })
-  .brand<"Address">();
-
-export type Address = z.infer<typeof AddressSchema>;
-export type AddressInput = z.input<typeof AddressSchema>;
-
-export function createAddress(value: AddressInput): Address {
-  const parsed = AddressSchema.parse(value);
-  return Object.freeze({ ...parsed }) as Address;
-}
-
-export function formatAddress(address: Address): string[] {
-  return [
-    address.street,
-    [address.city, address.state, address.postalCode].filter(Boolean).join(", "),
-    address.country,
-    address.details,
-  ].filter((line): line is string => Boolean(line));
-}
-````
-
-## File: modules/workspace/domain/value-objects/index.ts
-````typescript
-export type {
-  Address,
-  AddressInput,
-} from "./Address";
-export {
-  AddressSchema,
-  createAddress,
-  formatAddress,
-} from "./Address";
-
-export type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "./WorkspaceLifecycleState";
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WorkspaceLifecycleStateSchema,
-  canTransitionWorkspaceLifecycleState,
-  createWorkspaceLifecycleState,
-  isTerminalWorkspaceLifecycleState,
-} from "./WorkspaceLifecycleState";
-
-export type {
-  WorkspaceName,
-  WorkspaceNameInput,
-} from "./WorkspaceName";
-export {
-  WorkspaceNameSchema,
-  createWorkspaceName,
-  workspaceNameEquals,
-} from "./WorkspaceName";
-
-export type {
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "./WorkspaceVisibility";
-export {
-  WORKSPACE_VISIBILITIES,
-  WorkspaceVisibilitySchema,
-  createWorkspaceVisibility,
-  isWorkspaceVisible,
-} from "./WorkspaceVisibility";
-````
-
-## File: modules/workspace/domain/value-objects/workspace-value-objects.test.ts
-````typescript
-import { describe, expect, it } from "vitest";
-
-import { createAddress, formatAddress } from "./Address";
-import {
-  createWorkspaceLifecycleState,
-  isTerminalWorkspaceLifecycleState,
-} from "./WorkspaceLifecycleState";
-import { createWorkspaceName } from "./WorkspaceName";
-import { createWorkspaceVisibility } from "./WorkspaceVisibility";
-
-describe("workspace value objects", () => {
-  it("normalizes and validates workspace names", () => {
-    expect(createWorkspaceName("  Demo Workspace  ")).toBe("Demo Workspace");
-    expect(() => createWorkspaceName("   ")).toThrow();
-  });
-
-  it("accepts only supported lifecycle states", () => {
-    expect(createWorkspaceLifecycleState("active")).toBe("active");
-    expect(isTerminalWorkspaceLifecycleState("stopped")).toBe(true);
-    expect(() => createWorkspaceLifecycleState("archived" as never)).toThrow();
-  });
-
-  it("accepts only supported visibility values", () => {
-    expect(createWorkspaceVisibility("visible")).toBe("visible");
-    expect(() => createWorkspaceVisibility("private" as never)).toThrow();
-  });
-
-  it("creates frozen address snapshots and formats lines", () => {
-    const address = createAddress({
-      street: " 1 Infinite Loop ",
-      city: "Cupertino",
-      state: "CA",
-      postalCode: "95014",
-      country: "USA",
-      details: "  Building A ",
-    });
-
-    expect(Object.isFrozen(address)).toBe(true);
-    expect(formatAddress(address)).toEqual([
-      "1 Infinite Loop",
-      "Cupertino, CA, 95014",
-      "USA",
-      "Building A",
-    ]);
-  });
-});
-````
-
-## File: modules/workspace/domain/value-objects/WorkspaceLifecycleState.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const WORKSPACE_LIFECYCLE_STATES = [
-  "preparatory",
-  "active",
-  "stopped",
-] as const;
-
-export const WorkspaceLifecycleStateSchema = z.enum(WORKSPACE_LIFECYCLE_STATES);
-
-export type WorkspaceLifecycleState = z.infer<typeof WorkspaceLifecycleStateSchema>;
-export type WorkspaceLifecycleStateInput = z.input<typeof WorkspaceLifecycleStateSchema>;
-
-const WORKSPACE_LIFECYCLE_NEXT: Readonly<
-  Record<WorkspaceLifecycleState, WorkspaceLifecycleState | null>
-> = {
-  preparatory: "active",
-  active: "stopped",
-  stopped: null,
-};
-
-export function createWorkspaceLifecycleState(
-  value: WorkspaceLifecycleStateInput,
-): WorkspaceLifecycleState {
-  return WorkspaceLifecycleStateSchema.parse(value);
-}
-
-export function canTransitionWorkspaceLifecycleState(
-  from: WorkspaceLifecycleState,
-  to: WorkspaceLifecycleState,
-): boolean {
-  return WORKSPACE_LIFECYCLE_NEXT[from] === to;
-}
-
-export function isTerminalWorkspaceLifecycleState(
-  state: WorkspaceLifecycleState,
-): boolean {
-  return WORKSPACE_LIFECYCLE_NEXT[state] === null;
-}
-````
-
-## File: modules/workspace/domain/value-objects/WorkspaceName.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const WorkspaceNameSchema = z
-  .string()
-  .trim()
-  .min(1, "Workspace name is required")
-  .max(80, "Workspace name must be 80 characters or less")
-  .brand<"WorkspaceName">();
-
-export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
-export type WorkspaceNameInput = z.input<typeof WorkspaceNameSchema>;
-
-export function createWorkspaceName(value: WorkspaceNameInput): WorkspaceName {
-  return WorkspaceNameSchema.parse(value);
-}
-
-export function workspaceNameEquals(left: WorkspaceName, right: WorkspaceName): boolean {
-  return left === right;
-}
-````
-
-## File: modules/workspace/domain/value-objects/WorkspaceVisibility.ts
-````typescript
-import { z } from "@lib-zod";
-
-export const WORKSPACE_VISIBILITIES = ["visible", "hidden"] as const;
-
-export const WorkspaceVisibilitySchema = z.enum(WORKSPACE_VISIBILITIES);
-
-export type WorkspaceVisibility = z.infer<typeof WorkspaceVisibilitySchema>;
-export type WorkspaceVisibilityInput = z.input<typeof WorkspaceVisibilitySchema>;
-
-export function createWorkspaceVisibility(
-  value: WorkspaceVisibilityInput,
-): WorkspaceVisibility {
-  return WorkspaceVisibilitySchema.parse(value);
-}
-
-export function isWorkspaceVisible(visibility: WorkspaceVisibility): boolean {
-  return visibility === "visible";
 }
 ````
 
@@ -49401,99 +50399,6 @@ export function WorkspaceCheckRow({
 }
 ````
 
-## File: app/(shell)/_components/use-recent-workspaces.ts
-````typescript
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
-  href: string;
-}
-
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
-}
-
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
-  }
-}
-
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
-
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
-
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [accountId, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
-    [workspaces],
-  );
-
-  const recentWorkspaceIds = useMemo(() => {
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [accountId, pathname]);
-
-  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
-    return recentWorkspaceIds
-      .map<RecentWorkspaceLink | null>((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
-
-  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
-}
-
-export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
-````
-
 ## File: app/(shell)/_components/use-sidebar-locale.ts
 ````typescript
 "use client";
@@ -52793,61 +53698,154 @@ export {
 } from "./category.actions";
 ````
 
-## File: modules/knowledge-collaboration/application/use-cases/permission.use-cases.ts
+## File: modules/knowledge-collaboration/api/index.ts
+````typescript
+/**
+ * knowledge-collaboration public API boundary
+ *
+ * Other modules MUST import knowledge-collaboration resources from this file only.
+ */
+
+// ── Domain types ───────────────────────────────────────────────────────────────
+export type { Comment } from "../domain/entities/comment.entity";
+export type { SelectionRange } from "../domain/entities/comment.entity";
+export type { Permission, PermissionLevel, PrincipalType } from "../domain/entities/permission.entity";
+export type { Version } from "../domain/entities/version.entity";
+
+export type CommentId = string;
+export type PermissionId = string;
+export type VersionId = string;
+
+// ── DTOs ───────────────────────────────────────────────────────────────────────
+export type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+  CreateVersionDto,
+  DeleteVersionDto,
+  GrantPermissionDto,
+  RevokePermissionDto,
+} from "../application/dto/knowledge-collaboration.dto";
+
+// ── Server Actions (mutations) ─────────────────────────────────────────────────
+export {
+  createComment,
+  updateComment,
+  resolveComment,
+  deleteComment,
+} from "../interfaces/_actions/comment.actions";
+
+export {
+  createVersion,
+  deleteVersion,
+} from "../interfaces/_actions/version.actions";
+
+export {
+  grantPermission,
+  revokePermission,
+} from "../interfaces/_actions/permission.actions";
+
+// ── Queries (reads) ────────────────────────────────────────────────────────────
+export {
+  getComments,
+  getVersions,
+  getPermissions,
+} from "../interfaces/queries/knowledge-collaboration.queries";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { CommentPanel } from "../interfaces/components/CommentPanel";
+export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
+````
+
+## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
 ````typescript
 /**
  * Module: knowledge-collaboration
- * Layer: application/use-cases
- * Permission use cases: GrantPermission, RevokePermission, ListPermissionsBySubject
+ * Layer: application/dto
  */
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { Permission } from "../../domain/entities/permission.entity";
-import type { IPermissionRepository } from "../../domain/repositories/IPermissionRepository";
-import {
-  GrantPermissionSchema, type GrantPermissionDto,
-  RevokePermissionSchema, type RevokePermissionDto,
-} from "../dto/knowledge-collaboration.dto";
+import { z } from "@lib-zod";
 
-export class GrantPermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
+const ContentScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
 
-  async execute(input: GrantPermissionDto): Promise<CommandResult> {
-    const parsed = GrantPermissionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
-    }
-    const { accountId, workspaceId, subjectId, subjectType, principalId, principalType, level, grantedByUserId, expiresAtISO, linkToken } = parsed.data;
-    const permission = await this.repo.grant({
-      accountId, workspaceId, subjectId, subjectType,
-      principalId, principalType, level, grantedByUserId,
-      expiresAtISO: expiresAtISO ?? null,
-      linkToken: linkToken ?? null,
-    });
-    return commandSuccess(permission.id, Date.now());
-  }
-}
+// ── Comment ───────────────────────────────────────────────────────────────────
 
-export class RevokePermissionUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
+export const CreateCommentSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  authorId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+  parentCommentId: z.string().min(1).nullable().optional(),
+  blockId: z.string().min(1).nullable().optional(),
+  mentionedUserIds: z.array(z.string().min(1)).optional(),
+  selectionRange: z
+    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
+    .nullable()
+    .optional(),
+});
+export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
 
-  async execute(input: RevokePermissionDto): Promise<CommandResult> {
-    const parsed = RevokePermissionSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("PERMISSION_INVALID_INPUT", parsed.error.message);
-    }
-    await this.repo.revoke(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
+export const UpdateCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+});
+export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
 
-export class ListPermissionsBySubjectUseCase {
-  constructor(private readonly repo: IPermissionRepository) {}
+export const ResolveCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  resolvedByUserId: z.string().min(1),
+});
+export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
 
-  async execute(accountId: string, subjectId: string): Promise<Permission[]> {
-    return this.repo.listBySubject(accountId, subjectId);
-  }
-}
+export const DeleteCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
+
+// ── Version ───────────────────────────────────────────────────────────────────
+
+export const CreateVersionSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  snapshotBlocks: z.array(z.unknown()),
+  label: z.string().max(200).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
+
+export const DeleteVersionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
+
+// ── Permission ────────────────────────────────────────────────────────────────
+
+export const GrantPermissionSchema = ContentScopeSchema.extend({
+  subjectId: z.string().min(1),
+  subjectType: z.enum(["page", "article", "database"]),
+  principalId: z.string().min(1),
+  principalType: z.enum(["user", "team", "public", "link"]),
+  level: z.enum(["view", "comment", "edit", "full"]),
+  grantedByUserId: z.string().min(1),
+  expiresAtISO: z.string().nullable().optional(),
+  linkToken: z.string().min(1).nullable().optional(),
+});
+export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
+
+export const RevokePermissionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
 ````
 
 ## File: modules/knowledge-collaboration/domain/repositories/ICommentRepository.ts
@@ -52898,37 +53896,6 @@ export interface ICommentRepository {
     contentId: string,
     onUpdate: (comments: Comment[]) => void,
   ): CommentUnsubscribe;
-}
-````
-
-## File: modules/knowledge-collaboration/domain/repositories/IPermissionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: domain/repositories
- */
-
-import type { Permission, PermissionLevel, PrincipalType } from "../entities/permission.entity";
-
-export interface GrantPermissionInput {
-  readonly subjectId: string;
-  readonly subjectType: "page" | "article" | "database";
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly principalId: string;
-  readonly principalType: PrincipalType;
-  readonly level: PermissionLevel;
-  readonly grantedByUserId: string;
-  readonly expiresAtISO?: string | null;
-  readonly linkToken?: string | null;
-}
-
-export interface IPermissionRepository {
-  grant(input: GrantPermissionInput): Promise<Permission>;
-  revoke(accountId: string, permissionId: string): Promise<void>;
-  findById(accountId: string, permissionId: string): Promise<Permission | null>;
-  listBySubject(accountId: string, subjectId: string): Promise<Permission[]>;
-  listByPrincipal(accountId: string, principalId: string): Promise<Permission[]>;
 }
 ````
 
@@ -53073,101 +54040,6 @@ export class FirebaseCommentRepository implements ICommentRepository {
     return onSnapshot(q, (snap) => {
       onUpdate(snap.docs.map(d => toComment(d.id, d.data() as Record<string, unknown>)));
     });
-  }
-}
-````
-
-## File: modules/knowledge-collaboration/infrastructure/firebase/FirebasePermissionRepository.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/collaborationPermissions/{id}
- */
-
-import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { Permission, PermissionLevel, PrincipalType } from "../../domain/entities/permission.entity";
-import type {
-  IPermissionRepository,
-  GrantPermissionInput,
-} from "../../domain/repositories/IPermissionRepository";
-
-function permissionsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "collaborationPermissions");
-}
-
-function permissionDoc(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
-  return doc(db, "accounts", accountId, "collaborationPermissions", id);
-}
-
-function toPermission(id: string, data: Record<string, unknown>): Permission {
-  return {
-    id,
-    subjectId: typeof data.subjectId === "string" ? data.subjectId : "",
-    subjectType: (data.subjectType as Permission["subjectType"]) ?? "page",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    principalId: typeof data.principalId === "string" ? data.principalId : "",
-    principalType: (data.principalType as PrincipalType) ?? "user",
-    level: (data.level as PermissionLevel) ?? "view",
-    grantedByUserId: typeof data.grantedByUserId === "string" ? data.grantedByUserId : "",
-    grantedAtISO: typeof data.grantedAtISO === "string" ? data.grantedAtISO : "",
-    expiresAtISO: typeof data.expiresAtISO === "string" ? data.expiresAtISO : null,
-    linkToken: typeof data.linkToken === "string" ? data.linkToken : null,
-  };
-}
-
-export class FirebasePermissionRepository implements IPermissionRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async grant(input: GrantPermissionInput): Promise<Permission> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      subjectId: input.subjectId,
-      subjectType: input.subjectType,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      principalId: input.principalId,
-      principalType: input.principalType,
-      level: input.level,
-      grantedByUserId: input.grantedByUserId,
-      grantedAtISO: now,
-      expiresAtISO: input.expiresAtISO ?? null,
-      linkToken: input.linkToken ?? null,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(permissionDoc(db, input.accountId, id), data);
-    return toPermission(id, data);
-  }
-
-  async revoke(accountId: string, permissionId: string): Promise<void> {
-    const { deleteDoc } = await import("firebase/firestore");
-    await deleteDoc(permissionDoc(this.db(), accountId, permissionId));
-  }
-
-  async findById(accountId: string, permissionId: string): Promise<Permission | null> {
-    const snap = await getDoc(permissionDoc(this.db(), accountId, permissionId));
-    if (!snap.exists()) return null;
-    return toPermission(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listBySubject(accountId: string, subjectId: string): Promise<Permission[]> {
-    const q = query(permissionsCol(this.db(), accountId), where("subjectId", "==", subjectId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByPrincipal(accountId: string, principalId: string): Promise<Permission[]> {
-    const q = query(permissionsCol(this.db(), accountId), where("principalId", "==", principalId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toPermission(d.id, d.data() as Record<string, unknown>));
   }
 }
 ````
@@ -53523,304 +54395,6 @@ function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: Comme
 }
 ````
 
-## File: modules/knowledge-database/application/dto/knowledge-database.dto.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/dto
- */
-
-import { z } from "@lib-zod";
-
-const WorkspaceScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-const FieldTypeSchema = z.enum([
-  "text", "number", "select", "multi_select", "date",
-  "checkbox", "url", "email", "relation", "formula", "rollup",
-]);
-
-const ViewTypeSchema = z.enum(["table", "board", "list", "calendar", "timeline", "gallery"]);
-
-// ── Database ──────────────────────────────────────────────────────────────────
-
-export const CreateDatabaseSchema = WorkspaceScopeSchema.extend({
-  name: z.string().min(1).max(200),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateDatabaseDto = z.infer<typeof CreateDatabaseSchema>;
-
-export const UpdateDatabaseSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(200).optional(),
-  description: z.string().max(2000).nullable().optional(),
-  icon: z.string().max(100).nullable().optional(),
-  coverImageUrl: z.string().url().nullable().optional(),
-});
-export type UpdateDatabaseDto = z.infer<typeof UpdateDatabaseSchema>;
-
-export const AddFieldSchema = z.object({
-  databaseId: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  type: FieldTypeSchema,
-  config: z.record(z.string(), z.unknown()).optional(),
-  required: z.boolean().optional(),
-});
-export type AddFieldDto = z.infer<typeof AddFieldSchema>;
-
-export const ArchiveDatabaseSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type ArchiveDatabaseDto = z.infer<typeof ArchiveDatabaseSchema>;
-
-// ── Record ────────────────────────────────────────────────────────────────────
-
-export const CreateRecordSchema = WorkspaceScopeSchema.extend({
-  databaseId: z.string().min(1),
-  pageId: z.string().min(1).nullable().optional(),
-  properties: z.record(z.string(), z.unknown()).optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
-
-export const UpdateRecordSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  properties: z.record(z.string(), z.unknown()),
-});
-export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
-
-export const DeleteRecordSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteRecordDto = z.infer<typeof DeleteRecordSchema>;
-
-// ── View ──────────────────────────────────────────────────────────────────────
-
-export const CreateViewSchema = WorkspaceScopeSchema.extend({
-  databaseId: z.string().min(1),
-  name: z.string().min(1).max(100),
-  type: ViewTypeSchema,
-  createdByUserId: z.string().min(1),
-});
-export type CreateViewDto = z.infer<typeof CreateViewSchema>;
-
-export const UpdateViewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  name: z.string().min(1).max(100).optional(),
-  filters: z.array(z.object({
-    fieldId: z.string(),
-    operator: z.enum(["eq","neq","contains","not_contains","is_empty","is_not_empty","gt","lt"]),
-    value: z.unknown(),
-  })).optional(),
-  sorts: z.array(z.object({
-    fieldId: z.string(),
-    direction: z.enum(["asc","desc"]),
-  })).optional(),
-  visibleFieldIds: z.array(z.string()).optional(),
-  hiddenFieldIds: z.array(z.string()).optional(),
-});
-export type UpdateViewDto = z.infer<typeof UpdateViewSchema>;
-
-export const DeleteViewSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteViewDto = z.infer<typeof DeleteViewSchema>;
-````
-
-## File: modules/knowledge-database/application/services/field-computation.service.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/services
- * Purpose: FieldComputationService — resolves computed field values for a record.
- *
- * Handles: relation (link resolution), formula (expression evaluation), rollup (aggregation).
- * This is pure application logic — no side effects, no I/O. Fully testable in isolation.
- */
-
-import type { Field, FieldType } from "../../domain/entities/database.entity";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-
-// ── Relation ──────────────────────────────────────────────────────────────────
-
-export interface RelationFieldConfig {
-  readonly targetDatabaseId: string;
-  readonly syncReverse: boolean;
-  readonly reverseFieldName?: string;
-}
-
-export type RelationValue = ReadonlyArray<string>;
-
-export function resolveRelationValue(record: DatabaseRecord, field: Field): RelationValue {
-  if (field.type !== "relation") return [];
-  const raw = record.properties.get(field.id);
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((v): v is string => typeof v === "string");
-}
-
-// ── Formula ───────────────────────────────────────────────────────────────────
-
-export interface FormulaFieldConfig {
-  readonly expression: string;
-}
-
-export type FormulaResult = string | number | boolean | null;
-
-/**
- * Evaluates a formula for a record using a safe restricted expression evaluator.
- * Supports prop('FieldName') references, arithmetic, comparison, and boolean operators.
- * Returns null on evaluation error or unsafe expression.
- */
-export function evaluateFormula(
-  record: DatabaseRecord,
-  field: Field,
-  allFields: ReadonlyArray<Field>,
-): FormulaResult {
-  if (field.type !== "formula") return null;
-  const config = field.config as Partial<FormulaFieldConfig>;
-  if (!config.expression || typeof config.expression !== "string") return null;
-
-  const props: Record<string, unknown> = {};
-  for (const f of allFields) {
-    if (f.type === "formula" || f.type === "rollup") continue;
-    props[f.name] = record.properties.get(f.id) ?? null;
-  }
-
-  const resolved = config.expression.replace(
-    /prop\(['"]([^'"]+)['"]\)/g,
-    (_m, name: string) => {
-      const val = props[name];
-      if (val === null || val === undefined) return "null";
-      if (typeof val === "string") return JSON.stringify(val);
-      if (typeof val === "number" || typeof val === "boolean") return String(val);
-      return "null";
-    },
-  );
-
-  // Allowlist: digits, arithmetic operators, comparisons, booleans, null, spaces, parens, quotes, dots
-  if (!/^[\d\s+\-*/()!&|<>=."'nulltruefals]+$/.test(resolved)) return null;
-
-  try {
-    const result = new Function(`"use strict"; return (${resolved});`)() as unknown;
-    if (typeof result === "string" || typeof result === "number" || typeof result === "boolean") return result;
-    return null;
-  } catch {
-    return null;
-  }
-}
-
-// ── Rollup ────────────────────────────────────────────────────────────────────
-
-export type RollupAggregation =
-  | "count" | "count_values" | "count_unique"
-  | "sum" | "average" | "min" | "max" | "range"
-  | "percent_checked" | "percent_unchecked";
-
-export interface RollupFieldConfig {
-  readonly relationFieldId: string;
-  readonly rollupFieldId: string;
-  readonly aggregation: RollupAggregation;
-}
-
-export type RollupResult = number | string | null;
-
-export function computeRollup(
-  record: DatabaseRecord,
-  field: Field,
-  relatedRecords: ReadonlyArray<DatabaseRecord>,
-  _relatedFields: ReadonlyArray<Field>,
-): RollupResult {
-  if (field.type !== "rollup") return null;
-  const config = field.config as Partial<RollupFieldConfig>;
-  if (!config.rollupFieldId || !config.aggregation) return null;
-
-  const values = relatedRecords.map((r) => r.properties.get(config.rollupFieldId!));
-
-  switch (config.aggregation) {
-    case "count": return relatedRecords.length;
-    case "count_values": return values.filter((v) => v !== null && v !== undefined && v !== "").length;
-    case "count_unique": return new Set(values.map((v) => JSON.stringify(v))).size;
-    case "sum": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.reduce((a, n) => a + n, 0);
-    }
-    case "average": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : nums.reduce((a, n) => a + n, 0) / nums.length;
-    }
-    case "min": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : Math.min(...nums);
-    }
-    case "max": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : Math.max(...nums);
-    }
-    case "range": {
-      const nums = values.filter((v): v is number => typeof v === "number");
-      return nums.length === 0 ? null : Math.max(...nums) - Math.min(...nums);
-    }
-    case "percent_checked": {
-      if (relatedRecords.length === 0) return 0;
-      return Math.round((values.filter((v) => v === true).length / relatedRecords.length) * 100);
-    }
-    case "percent_unchecked": {
-      if (relatedRecords.length === 0) return 0;
-      return Math.round((values.filter((v) => v !== true).length / relatedRecords.length) * 100);
-    }
-    default: return null;
-  }
-}
-
-// ── Unified entry point ───────────────────────────────────────────────────────
-
-export type ComputedFieldValue = RelationValue | FormulaResult | RollupResult;
-
-export function resolveComputedFields(input: {
-  readonly record: DatabaseRecord;
-  readonly fields: ReadonlyArray<Field>;
-  readonly relatedRecordsMap?: ReadonlyMap<string, ReadonlyArray<DatabaseRecord>>;
-  readonly relatedFieldsMap?: ReadonlyMap<string, ReadonlyArray<Field>>;
-}): Map<string, ComputedFieldValue> {
-  const { record, fields, relatedRecordsMap = new Map(), relatedFieldsMap = new Map() } = input;
-  const result = new Map<string, ComputedFieldValue>();
-  const computedTypes: ReadonlyArray<FieldType> = ["relation", "formula", "rollup"];
-
-  for (const field of fields) {
-    if (!computedTypes.includes(field.type)) continue;
-    switch (field.type) {
-      case "relation":
-        result.set(field.id, resolveRelationValue(record, field));
-        break;
-      case "formula":
-        result.set(field.id, evaluateFormula(record, field, fields));
-        break;
-      case "rollup": {
-        const cfg = field.config as Partial<RollupFieldConfig>;
-        const relField = cfg.relationFieldId ? fields.find((f) => f.id === cfg.relationFieldId) : undefined;
-        result.set(field.id, computeRollup(
-          record, field,
-          relField ? (relatedRecordsMap.get(relField.id) ?? []) : [],
-          relField ? (relatedFieldsMap.get(relField.id) ?? []) : [],
-        ));
-        break;
-      }
-    }
-  }
-  return result;
-}
-````
-
 ## File: modules/knowledge-database/application/use-cases/automation.use-cases.ts
 ````typescript
 /**
@@ -53872,67 +54446,6 @@ export class ListAutomationsUseCase {
   constructor(private readonly repo: IAutomationRepository) {}
 
   async execute(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
-````
-
-## File: modules/knowledge-database/application/use-cases/record.use-cases.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: application/use-cases
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type { IDatabaseRecordRepository } from "../../domain/repositories/IDatabaseRecordRepository";
-import {
-  CreateRecordSchema, type CreateRecordDto,
-  UpdateRecordSchema, type UpdateRecordDto,
-  DeleteRecordSchema, type DeleteRecordDto,
-} from "../dto/knowledge-database.dto";
-
-export class CreateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: CreateRecordDto): Promise<CommandResult> {
-    const parsed = CreateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const { accountId, workspaceId, databaseId, pageId, properties = {}, createdByUserId } = parsed.data;
-    const rec = await this.repo.create({ accountId, workspaceId, databaseId, pageId, properties, createdByUserId });
-    return commandSuccess(rec.id, Date.now());
-  }
-}
-
-export class UpdateRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: UpdateRecordDto): Promise<CommandResult> {
-    const parsed = UpdateRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    const result = await this.repo.update(parsed.data);
-    if (!result) return commandFailureFrom("RECORD_NOT_FOUND", "Record not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
-
-export class DeleteRecordUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(input: DeleteRecordDto): Promise<CommandResult> {
-    const parsed = DeleteRecordSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("RECORD_INVALID_INPUT", parsed.error.message);
-    await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, Date.now());
-  }
-}
-
-export class ListRecordsUseCase {
-  constructor(private readonly repo: IDatabaseRecordRepository) {}
-
-  async execute(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    if (!accountId.trim() || !databaseId.trim()) return [];
     return this.repo.listByDatabase(accountId, databaseId);
   }
 }
@@ -54140,114 +54653,6 @@ export class FirebaseAutomationRepository implements IAutomationRepository {
     );
     const snaps = await getDocs(q);
     return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseRecordRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/databaseRecords/{recordId}
- */
-
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import type { DatabaseRecord } from "../../domain/entities/record.entity";
-import type {
-  IDatabaseRecordRepository,
-  CreateRecordInput,
-  UpdateRecordInput,
-} from "../../domain/repositories/IDatabaseRecordRepository";
-
-function recordsCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "databaseRecords");
-}
-
-function recordDoc(db: ReturnType<typeof getFirestore>, accountId: string, recordId: string) {
-  return doc(db, "accounts", accountId, "databaseRecords", recordId);
-}
-
-function toRecord(id: string, data: Record<string, unknown>): DatabaseRecord {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    pageId: typeof data.pageId === "string" ? data.pageId : null,
-    properties: typeof data.properties === "object" && data.properties !== null
-      ? new Map(Object.entries(data.properties as Record<string, unknown>))
-      : new Map(),
-    order: typeof data.order === "number" ? data.order : 0,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
-  };
-}
-
-export class FirebaseRecordRepository implements IDatabaseRecordRepository {
-  private db() { return getFirestore(firebaseClientApp); }
-
-  async create(input: CreateRecordInput): Promise<DatabaseRecord> {
-    const db = this.db();
-    const id = generateId();
-    const now = new Date().toISOString();
-    const data = {
-      databaseId: input.databaseId,
-      workspaceId: input.workspaceId,
-      accountId: input.accountId,
-      pageId: input.pageId ?? null,
-      properties: input.properties ?? {},
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      _createdAt: serverTimestamp(),
-    };
-    await setDoc(recordDoc(db, input.accountId, id), data);
-    return toRecord(id, { ...data, properties: input.properties });
-  }
-
-  async update(input: UpdateRecordInput): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const ref = recordDoc(db, input.accountId, input.id);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-    const now = new Date().toISOString();
-    const updates: Record<string, unknown> = { updatedAtISO: now };
-    if (input.properties !== undefined) {
-      updates.properties = input.properties;
-    }
-    await updateDoc(ref, updates);
-    const merged = { ...snap.data() as Record<string, unknown>, ...updates };
-    return toRecord(snap.id, merged);
-  }
-
-  async delete(accountId: string, recordId: string): Promise<void> {
-    const db = this.db();
-    await deleteDoc(recordDoc(db, accountId, recordId));
-  }
-
-  async findById(accountId: string, recordId: string): Promise<DatabaseRecord | null> {
-    const db = this.db();
-    const snap = await getDoc(recordDoc(db, accountId, recordId));
-    if (!snap.exists()) return null;
-    return toRecord(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseRecord[]> {
-    const db = this.db();
-    const q = query(
-      recordsCol(db, accountId),
-      where("databaseId", "==", databaseId),
-      orderBy("order", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map(d => toRecord(d.id, d.data() as Record<string, unknown>));
   }
 }
 ````
@@ -55188,60 +55593,165 @@ export async function getAutomations(
 }
 ````
 
-## File: modules/knowledge/AGENT.md
-````markdown
-# AGENT.md — knowledge BC
+## File: modules/knowledge/api/knowledge-facade.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api
+ * Purpose: KnowledgeFacade — the ONLY authorised entry point for cross-domain
+ * access to the Content domain.
+ *
+ * BOUNDARY RULE:
+ *   Other modules MUST import from here:
+ *     import { knowledgeFacade } from "@/modules/knowledge";
+ *   They must NEVER reach into domain/, application/, infrastructure/ or
+ *   interfaces/ directly.
+ */
 
-## 模組定位
+import type { KnowledgePageRepository, KnowledgeBlockRepository } from "../domain/repositories/knowledge.repositories";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
+import type { KnowledgeVersion } from "../domain/entities/content-version.entity";
+import type { BlockContent } from "../domain/value-objects/block-content";
 
-`knowledge` 是 Core Domain，管理 KnowledgePage 的完整生命週期。`knowledge.page_approved` 是平台的核心整合事件，觸發 workspace-flow 物化流程。
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  GetKnowledgePageTreeUseCase,
+} from "../application/use-cases/knowledge-page.use-cases";
+import {
+  AddKnowledgeBlockUseCase,
+  UpdateKnowledgeBlockUseCase,
+  DeleteKnowledgeBlockUseCase,
+  ListKnowledgeBlocksUseCase,
+} from "../application/use-cases/knowledge-block.use-cases";
 
-`knowledge` 對應 Notion 的核心功能集：Pages（KnowledgePage）、Blocks（ContentBlock）、Wiki/Knowledge Base（KnowledgeCollection with spaceType="wiki"，帶頁面驗證與所有權）。**Databases（spaceType="database"）的完整 Schema/Record/View 生命週期由 `knowledge-database` BC 擁有（D1 決策）；`knowledge` 僅持有 KnowledgeCollection.id 作為 opaque reference。**
+import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
 
-## 通用語言（Ubiquitous Language）
+export interface KnowledgeCreatePageParams {
+  accountId: string;
+  workspaceId: string;
+  title: string;
+  parentPageId?: string | null;
+  createdByUserId: string;
+}
 
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `KnowledgePage` | Page、Document |
-| `ContentBlock` | Block、Node、Element |
-| `ContentVersion` | Version、Snapshot、History |
-| `BlockType` | Type、ContentType |
-| `KnowledgeCollection` | Database、Collection、Table |
-| `WikiSpace` | KB、KnowledgeBase（直接稱呼） |
-| `PageVerificationState` | verified、needs_review（需透過型別） |
-| `PageOwner` (`ownerId`) | Owner、Responsible |
+export interface KnowledgeRenamePageParams {
+  accountId: string;
+  pageId: string;
+  title: string;
+}
 
-> `WikiPage` 是歷史 wiki-module 術語；`knowledge` BC 不使用 `WikiPage` 作為通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與已移除的歷史 wiki 模組無關。
+export interface KnowledgeMovePageParams {
+  accountId: string;
+  pageId: string;
+  targetParentPageId: string | null;
+}
 
-## 邊界規則
+export interface KnowledgeAddBlockParams {
+  accountId: string;
+  pageId: string;
+  content: BlockContent;
+  index?: number;
+}
 
-### ✅ 允許
-```typescript
-import { knowledgeApi } from "@/modules/knowledge/api";
-import type { KnowledgePageDTO, ContentBlockDTO } from "@/modules/knowledge/api";
-```
+export interface KnowledgeUpdateBlockParams {
+  accountId: string;
+  blockId: string;
+  content: BlockContent;
+}
 
-### ❌ 禁止
-```typescript
-import { KnowledgePage } from "@/modules/knowledge/domain/entities/knowledge-page.entity";
-import { KnowledgePageCreatedEvent } from "@/modules/knowledge/domain/events/knowledge.events";
-import type { Article } from "@/modules/knowledge-base/domain/entities/Article";
-```
+export class KnowledgeFacade {
+  private readonly pageRepo: KnowledgePageRepository;
+  private readonly blockRepo: KnowledgeBlockRepository;
 
-## page_approved 事件規則
+  constructor(
+    pageRepo: KnowledgePageRepository = new FirebaseKnowledgePageRepository(),
+    blockRepo: KnowledgeBlockRepository = new FirebaseKnowledgeBlockRepository(),
+  ) {
+    this.pageRepo = pageRepo;
+    this.blockRepo = blockRepo;
+  }
 
-`knowledge.page_approved` 必須包含：
-- `extractedTasks[]` — 供 workspace-flow 建立 Task
-- `extractedInvoices[]` — 供 workspace-flow 建立 Invoice
-- `actorId`, `causationId`, `correlationId` — 追蹤鏈
+  async createPage(params: KnowledgeCreatePageParams): Promise<string | null> {
+    const result = await new CreateKnowledgePageUseCase(this.pageRepo).execute({
+      accountId: params.accountId,
+      workspaceId: params.workspaceId,
+      title: params.title,
+      parentPageId: params.parentPageId ?? null,
+      createdByUserId: params.createdByUserId,
+    });
+    return result.success ? result.aggregateId : null;
+  }
 
-## 驗證命令
+  async renamePage(params: KnowledgeRenamePageParams): Promise<boolean> {
+    const result = await new RenameKnowledgePageUseCase(this.pageRepo).execute(params);
+    return result.success;
+  }
 
-```bash
-npm run lint
-npm run build
-```
+  async movePage(params: KnowledgeMovePageParams): Promise<boolean> {
+    const result = await new MoveKnowledgePageUseCase(this.pageRepo).execute(params);
+    return result.success;
+  }
+
+  async archivePage(accountId: string, pageId: string): Promise<boolean> {
+    const result = await new ArchiveKnowledgePageUseCase(this.pageRepo).execute({
+      accountId,
+      pageId,
+    });
+    return result.success;
+  }
+
+  async getPage(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    return new GetKnowledgePageUseCase(this.pageRepo).execute(accountId, pageId);
+  }
+
+  async listPages(accountId: string): Promise<KnowledgePage[]> {
+    return new ListKnowledgePagesUseCase(this.pageRepo).execute(accountId);
+  }
+
+  async getPageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    return new GetKnowledgePageTreeUseCase(this.pageRepo).execute(accountId);
+  }
+
+  async addBlock(params: KnowledgeAddBlockParams): Promise<string | null> {
+    const result = await new AddKnowledgeBlockUseCase(this.blockRepo).execute({
+      accountId: params.accountId,
+      pageId: params.pageId,
+      content: params.content,
+      index: params.index,
+    });
+    return result.success ? result.aggregateId : null;
+  }
+
+  async updateBlock(params: KnowledgeUpdateBlockParams): Promise<boolean> {
+    const result = await new UpdateKnowledgeBlockUseCase(this.blockRepo).execute(params);
+    return result.success;
+  }
+
+  async deleteBlock(accountId: string, blockId: string): Promise<boolean> {
+    const result = await new DeleteKnowledgeBlockUseCase(this.blockRepo).execute({
+      accountId,
+      blockId,
+    });
+    return result.success;
+  }
+
+  async listBlocks(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    return new ListKnowledgeBlocksUseCase(this.blockRepo).execute(accountId, pageId);
+  }
+
+  async listVersions(_accountId: string, _pageId: string): Promise<KnowledgeVersion[]> {
+    return [];
+  }
+}
+
+export const knowledgeFacade = new KnowledgeFacade();
 ````
 
 ## File: modules/knowledge/application/dto/knowledge-block.dto.ts
@@ -55451,116 +55961,6 @@ export const UpdatePageCoverSchema = AccountScopeSchema.extend({
 });
 
 export type UpdatePageCoverDto = z.infer<typeof UpdatePageCoverSchema>;
-````
-
-## File: modules/knowledge/application/use-cases/knowledge-block.use-cases.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Block use cases — add, update, delete, list.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-
-import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { BlockContent } from "../../domain/value-objects/block-content";
-import type { KnowledgeBlockRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  AddKnowledgeBlockSchema,
-  type AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockSchema,
-  type UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockSchema,
-  type DeleteKnowledgeBlockDto,
-  NestKnowledgeBlockSchema,
-  type NestKnowledgeBlockDto,
-  UnnestKnowledgeBlockSchema,
-  type UnnestKnowledgeBlockDto,
-} from "../dto/knowledge.dto";
-
-export class AddKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(input: AddKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = AddKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, content, index } = parsed.data;
-    const block = await this.repo.add({ accountId, pageId, content: content as BlockContent, index });
-    return commandSuccess(block.id, Date.now());
-  }
-}
-
-export class UpdateKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(input: UpdateKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = UpdateKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, blockId, content } = parsed.data;
-    const updated = await this.repo.update({ accountId, blockId, content: content as BlockContent });
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class DeleteKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(input: DeleteKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = DeleteKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, blockId } = parsed.data;
-    await this.repo.delete(accountId, blockId);
-    return commandSuccess(blockId, Date.now());
-  }
-}
-
-export class ListKnowledgeBlocksUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    if (!accountId.trim() || !pageId.trim()) return [];
-    return this.repo.listByPageId(accountId, pageId);
-  }
-}
-
-export class NestKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(input: NestKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = NestKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    }
-    const updated = await this.repo.nest(parsed.data);
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block or parent block not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class UnnestKnowledgeBlockUseCase {
-  constructor(private readonly repo: KnowledgeBlockRepository) {}
-
-  async execute(input: UnnestKnowledgeBlockDto): Promise<CommandResult> {
-    const parsed = UnnestKnowledgeBlockSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_BLOCK_INVALID_INPUT", parsed.error.message);
-    }
-    const updated = await this.repo.unnest(parsed.data);
-    if (!updated) return commandFailureFrom("CONTENT_BLOCK_NOT_FOUND", "Block not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
 ````
 
 ## File: modules/knowledge/application/use-cases/knowledge-page-appearance.use-cases.ts
@@ -55828,6 +56228,102 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 | knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
 ````
 
+## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: domain/repositories
+ * Purpose: Repository port interfaces for Content domain persistence.
+ */
+
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
+} from "../entities/knowledge-page.entity";
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "../entities/content-block.entity";
+import type {
+  KnowledgeVersion,
+  CreateKnowledgeVersionInput,
+} from "../entities/content-version.entity";
+import type {
+  KnowledgeCollection,
+  CreateKnowledgeCollectionInput,
+  RenameKnowledgeCollectionInput,
+  AddPageToCollectionInput,
+  RemovePageFromCollectionInput,
+  AddCollectionColumnInput,
+  ArchiveKnowledgeCollectionInput,
+} from "../entities/knowledge-collection.entity";
+
+export interface KnowledgePageRepository {
+  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
+  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
+  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
+  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
+  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
+  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Mark a wiki page as verified (verificationState = "verified"). */
+  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
+  /** Flag a wiki page for review (verificationState = "needs_review"). */
+  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
+  /** Assign or change the owner of a wiki page. */
+  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
+  /** Set or clear the page icon (emoji or image URL). */
+  updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null>;
+  /** Set or clear the page cover image URL. */
+  updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null>;
+  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
+  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
+}
+
+export interface KnowledgeBlockRepository {
+  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
+  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  delete(accountId: string, blockId: string): Promise<void>;
+  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
+  /** Nest a block under a parent block (creates parent → child relationship). */
+  nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+  /** Unnest a block, moving it back to page-level. */
+  unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+}
+
+export interface KnowledgeVersionRepository {
+  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
+  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
+  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
+}
+
+export interface KnowledgeCollectionRepository {
+  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
+  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
+  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
+  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
+  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
+  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
+  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
+  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
+}
+````
+
 ## File: modules/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
 ````typescript
 /**
@@ -56036,15 +56532,634 @@ export class FirebaseKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
-## File: modules/knowledge/infrastructure/index.ts
+## File: modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: infrastructure/barrel
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
+ *
+ * Firestore collection: accounts/{accountId}/contentPages/{pageId}
  */
 
-export { FirebaseKnowledgePageRepository } from "./firebase/FirebaseKnowledgePageRepository";
-export { FirebaseKnowledgeBlockRepository } from "./firebase/FirebaseContentBlockRepository";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
+} from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+
+function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentPages");
+}
+
+function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
+  return doc(db, "accounts", accountId, "contentPages", pageId);
+}
+
+function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
+  return {
+    id,
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
+    title: typeof data.title === "string" ? data.title : "",
+    slug: typeof data.slug === "string" ? data.slug : "",
+    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
+    order: typeof data.order === "number" ? data.order : 0,
+    blockIds: Array.isArray(data.blockIds)
+      ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
+      : [],
+    status: data.status === "archived" ? "archived" : "active",
+    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
+    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
+    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
+    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
+    iconUrl: typeof data.iconUrl === "string" ? data.iconUrl : undefined,
+    coverUrl: typeof data.coverUrl === "string" ? data.coverUrl : undefined,
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  };
+}
+
+function slugify(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 100) || "page";
+}
+
+export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
+    const nowISO = new Date().toISOString();
+    const slug = slugify(input.title);
+    const id = generateId();
+
+    const existing = await getDocs(
+      query(pagesCol(this.db, input.accountId), where("parentPageId", "==", input.parentPageId ?? null)),
+    );
+    const order = existing.size;
+
+    const docRef = doc(pagesCol(this.db, input.accountId), id);
+    const data: Record<string, unknown> = {
+      accountId: input.accountId,
+      title: input.title,
+      slug,
+      parentPageId: input.parentPageId ?? null,
+      order,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: nowISO,
+      updatedAtISO: nowISO,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+    if (input.workspaceId) data.workspaceId = input.workspaceId;
+
+    await setDoc(docRef, data);
+
+    return toKnowledgePage(id, { ...data, id });
+  }
+
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      title: input.title,
+      slug: slugify(input.title),
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      parentPageId: input.targetParentPageId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      blockIds: [...input.blockIds],
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, accountId, pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      status: "archived",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const data = snap.data() as Record<string, unknown>;
+    if (data.status === "archived") return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
+    if (!snap.exists()) return null;
+    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(
+        pagesCol(this.db, accountId),
+        where("status", "==", "active"),
+        orderBy("order", "asc"),
+      ),
+    );
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(
+        pagesCol(this.db, accountId),
+        where("workspaceId", "==", workspaceId),
+        where("status", "==", "active"),
+        orderBy("order", "asc"),
+      ),
+    );
+    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "verified",
+      verifiedByUserId: input.verifiedByUserId,
+      verifiedAtISO: nowISO,
+      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      verificationState: "needs_review",
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      ownerId: input.ownerId,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      iconUrl: input.iconUrl || null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+
+  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
+    const ref = pageDoc(this.db, input.accountId, input.pageId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) return null;
+
+    const nowISO = new Date().toISOString();
+    await updateDoc(ref, {
+      coverUrl: input.coverUrl || null,
+      updatedAtISO: nowISO,
+      updatedAt: serverTimestamp(),
+    });
+
+    const updated = await getDoc(ref);
+    if (!updated.exists()) return null;
+    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
+  }
+}
+````
+
+## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: infrastructure/in-memory
+ * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
+ *          Uses plain Map<string, …> — no external database required.
+ *          Designed for local demos and unit tests (Occam's Razor).
+ */
+
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  KnowledgeBlock,
+  AddKnowledgeBlockInput,
+  UpdateKnowledgeBlockInput,
+  NestKnowledgeBlockInput,
+  UnnestKnowledgeBlockInput,
+} from "../domain/entities/content-block.entity";
+import type {
+  KnowledgePage,
+  CreateKnowledgePageInput,
+  RenameKnowledgePageInput,
+  MoveKnowledgePageInput,
+  ReorderKnowledgePageBlocksInput,
+  ApproveKnowledgePageInput,
+  VerifyKnowledgePageInput,
+  RequestPageReviewInput,
+  AssignPageOwnerInput,
+  UpdatePageIconInput,
+  UpdatePageCoverInput,
+} from "../domain/entities/knowledge-page.entity";
+import type {
+  KnowledgeBlockRepository,
+  KnowledgePageRepository,
+} from "../domain/repositories/knowledge.repositories";
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function generateSlug(title: string): string {
+  return title
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/\s+/g, "-");
+}
+
+// ─── Page repository ──────────────────────────────────────────────────────────
+
+export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
+  private readonly pages = new Map<string, KnowledgePage>();
+
+  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const page: KnowledgePage = {
+      id,
+      accountId: input.accountId,
+      workspaceId: input.workspaceId,
+      title: input.title,
+      slug: generateSlug(input.title),
+      parentPageId: input.parentPageId ?? null,
+      order: this.pages.size,
+      blockIds: [],
+      status: "active",
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    this.pages.set(id, page);
+    return page;
+  }
+
+  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      title: input.title,
+      slug: generateSlug(input.title),
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      parentPageId: input.targetParentPageId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      blockIds: [...input.blockIds],
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const page = this.pages.get(pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = {
+      ...page,
+      status: "archived",
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(pageId, updated);
+    return updated;
+  }
+
+  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    if (page.status === "archived") return null;
+    const updated: KnowledgePage = {
+      ...page,
+      approvalState: "approved",
+      approvedAtISO: input.approvedAtISO,
+      approvedByUserId: input.approvedByUserId,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, iconUrl: input.iconUrl || undefined, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
+    const page = this.pages.get(input.pageId);
+    if (!page) return null;
+    const updated: KnowledgePage = { ...page, coverUrl: input.coverUrl || undefined, updatedAtISO: new Date().toISOString() };
+    this.pages.set(input.pageId, updated);
+    return updated;
+  }
+
+  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    return this.pages.get(pageId) ?? null;
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    return [...this.pages.values()].filter((p) => p.accountId === accountId);
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    return [...this.pages.values()].filter(
+      (p) => p.accountId === accountId && p.workspaceId === workspaceId,
+    );
+  }
+
+  /** Append a blockId to a page's blockIds list (called by block operations). */
+  async appendBlockId(pageId: string, blockId: string): Promise<void> {
+    const page = this.pages.get(pageId);
+    if (!page) return;
+    this.pages.set(pageId, {
+      ...page,
+      blockIds: [...page.blockIds, blockId],
+      updatedAtISO: new Date().toISOString(),
+    });
+  }
+}
+
+// ─── Block repository ─────────────────────────────────────────────────────────
+
+export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
+  private readonly blocks = new Map<string, KnowledgeBlock>();
+
+  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
+    const now = new Date().toISOString();
+    const id = generateId();
+    const siblingsCount = [...this.blocks.values()].filter(
+      (b) => b.pageId === input.pageId && b.accountId === input.accountId,
+    ).length;
+    const block: KnowledgeBlock = {
+      id,
+      pageId: input.pageId,
+      accountId: input.accountId,
+      content: input.content,
+      order: input.index ?? siblingsCount,
+      parentBlockId: input.parentBlockId ?? null,
+      childBlockIds: [],
+      createdAtISO: now,
+      updatedAtISO: now,
+    };
+    this.blocks.set(id, block);
+    return block;
+  }
+
+  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    if (!block) return null;
+    const updated: KnowledgeBlock = {
+      ...block,
+      content: input.content,
+      updatedAtISO: new Date().toISOString(),
+    };
+    this.blocks.set(input.blockId, updated);
+    return updated;
+  }
+
+  async delete(_accountId: string, blockId: string): Promise<void> {
+    this.blocks.delete(blockId);
+  }
+
+  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
+    return this.blocks.get(blockId) ?? null;
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
+    return [...this.blocks.values()]
+      .filter((b) => b.accountId === accountId && b.pageId === pageId)
+      .sort((a, b) => a.order - b.order);
+  }
+
+  async nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    const parent = this.blocks.get(input.parentBlockId);
+    if (!block || !parent) return null;
+    const now = new Date().toISOString();
+
+    const idx = input.index !== undefined ? input.index : parent.childBlockIds.length;
+    const updatedChildren = [...parent.childBlockIds];
+    updatedChildren.splice(idx, 0, input.blockId);
+
+    this.blocks.set(input.parentBlockId, { ...parent, childBlockIds: updatedChildren, updatedAtISO: now });
+    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: input.parentBlockId, updatedAtISO: now };
+    this.blocks.set(input.blockId, updatedBlock);
+    return updatedBlock;
+  }
+
+  async unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
+    const block = this.blocks.get(input.blockId);
+    if (!block) return null;
+    const now = new Date().toISOString();
+
+    if (block.parentBlockId) {
+      const parent = this.blocks.get(block.parentBlockId);
+      if (parent) {
+        this.blocks.set(block.parentBlockId, {
+          ...parent,
+          childBlockIds: parent.childBlockIds.filter((id) => id !== input.blockId),
+          updatedAtISO: now,
+        });
+      }
+    }
+
+    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: null, updatedAtISO: now };
+    this.blocks.set(input.blockId, updatedBlock);
+    return updatedBlock;
+  }
+}
 ````
 
 ## File: modules/knowledge/interfaces/_actions/knowledge-block.actions.ts
@@ -56785,59 +57900,187 @@ export function PageDialog({
 }
 ````
 
-## File: modules/knowledge/repositories.md
+## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side query helpers for reading Content domain data.
+ */
+
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
+import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
+  GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
+} from "../../application/use-cases/knowledge-page.use-cases";
+import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsByAccountUseCase,
+} from "../../application/use-cases/knowledge-collection.use-cases";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
+import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+
+export async function getKnowledgePage(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgePage | null> {
+  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
+  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgePagesByWorkspace(
+  accountId: string,
+  workspaceId: string,
+): Promise<KnowledgePage[]> {
+  return new ListKnowledgePagesByWorkspaceUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    workspaceId,
+  );
+}
+
+export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
+  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
+}
+
+export async function getKnowledgePageTreeByWorkspace(
+  accountId: string,
+  workspaceId: string,
+): Promise<KnowledgePageTreeNode[]> {
+  return new GetKnowledgePageTreeByWorkspaceUseCase(new FirebaseKnowledgePageRepository()).execute(
+    accountId,
+    workspaceId,
+  );
+}
+
+export async function getKnowledgeBlocks(
+  accountId: string,
+  pageId: string,
+): Promise<KnowledgeBlock[]> {
+  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
+    accountId,
+    pageId,
+  );
+}
+
+export async function getKnowledgeVersions(
+  _accountId: string,
+  _pageId: string,
+): Promise<KnowledgeVersion[]> {
+  return [];
+}
+
+// ── Collection queries ────────────────────────────────────────────────────────
+
+export async function getKnowledgeCollection(
+  accountId: string,
+  collectionId: string,
+): Promise<KnowledgeCollection | null> {
+  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+    collectionId,
+  );
+}
+
+export async function getKnowledgeCollections(
+  accountId: string,
+): Promise<KnowledgeCollection[]> {
+  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
+    accountId,
+  );
+}
+````
+
+## File: modules/knowledge/ubiquitous-language.md
 ````markdown
-# knowledge — Repositories
+# Ubiquitous Language — knowledge
 
-> **Canonical bounded context:** `knowledge`
-> **模組路徑:** `modules/knowledge/`
-> **Domain Type:** Core Domain
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
 
-本文件整理 `knowledge` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
+## 術語定義
 
-## Domain Repository Ports
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
+| 工作區預設視角 | Workspace-first Scope | 日常頁面樹、建立與整理流程預設綁定 active workspace 的規則 | `app/(shell)/knowledge/pages/page.tsx` |
+| 帳戶總覽模式 | Account Summary Mode | 顯式跨工作區總覽模式，只用於 summary，不作為隱含預設建立入口 | `app/(shell)/knowledge/pages/page.tsx` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
 
-- `domain/repositories/knowledge.repositories.ts`
-  - `KnowledgePageRepository` — 含 `verify()`, `requestReview()`, `assignOwner()` 等 Wiki Space 方法
-  - `KnowledgeBlockRepository`
-  - `KnowledgeVersionRepository`
-  - `KnowledgeCollectionRepository`
+## 頁面生命周期操作（Page Lifecycle Actions）
 
-## Infrastructure Implementations
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
 
-- `infrastructure/firebase/FirebaseKnowledgePageRepository.ts`
-  - 實作 `KnowledgePageRepository`，含 `verify()`, `requestReview()`, `assignOwner()` 三個新方法
-- `infrastructure/firebase/FirebaseContentBlockRepository.ts`
-- `infrastructure/firebase/FirebaseContentCollectionRepository.ts`
-  - 實作 `KnowledgeCollectionRepository`，`toKnowledgeCollection()` mapper 已對應 `spaceType` 欄位
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
 
-## KnowledgePageRepository 方法對照
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
 
-| 方法 | 說明 |
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
 |------|------|
-| `create()` | 建立頁面 |
-| `rename()` | 重命名 |
-| `move()` | 移動層級 |
-| `archive()` | 歸檔 |
-| `reorderBlocks()` | 重排區塊 |
-| `approve()` | 審批（AI 草稿模式） |
-| `verify()` | 驗證頁面（Wiki Space 模式） |
-| `requestReview()` | 標記為待審閱（Wiki Space 模式） |
-| `assignOwner()` | 指定頁面負責人 |
-| `findById()` | 取得單頁 |
-| `listByAccountId()` | 列出帳戶所有頁面 |
-| `listByWorkspaceId()` | 列出工作區所有頁面 |
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
 
-## 設計規則
+## 禁止替換術語
 
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
 
-## 模組內對應文件
-
-- `../../../modules/knowledge/repositories.md`
-- `../../../modules/knowledge/aggregates.md`
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
 ## File: modules/notebook/application/index.ts
@@ -60152,56 +61395,6 @@ export type {
 } from "./listeners";
 ````
 
-## File: modules/workspace-flow/api/listeners.ts
-````typescript
-/**
- * @module workspace-flow/api
- * @file listeners.ts
- * @description Public event listener interface for workspace-flow.
- *
- * External modules (primarily the `knowledge` module's event bus) subscribe to
- * workspace-flow through this surface.  The concrete implementation is the
- * `KnowledgeToWorkflowMaterializer` process manager.
- *
- * ## Usage
- * ```ts
- * import { createKnowledgeToWorkflowListener } from "@/modules/workspace-flow/api";
- *
- * const listener = createKnowledgeToWorkflowListener();
- * eventBus.subscribe("knowledge.page_approved", (event) => listener.handle(event));
- * ```
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-
-import { KnowledgeToWorkflowMaterializer } from "../application/process-managers/knowledge-to-workflow-materializer";
-import { FirebaseTaskRepository } from "../infrastructure/repositories/FirebaseTaskRepository";
-import { FirebaseInvoiceRepository } from "../infrastructure/repositories/FirebaseInvoiceRepository";
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-
-// ── Public listener factory ───────────────────────────────────────────────────
-
-/**
- * Creates a pre-wired `KnowledgeToWorkflowMaterializer` backed by Firebase repos.
- * Call `handle(event, workspaceId)` from your event bus subscriber.
- */
-export function createKnowledgeToWorkflowListener(): KnowledgeToWorkflowMaterializer {
-  return new KnowledgeToWorkflowMaterializer(
-    new FirebaseTaskRepository(),
-    new FirebaseInvoiceRepository(),
-  );
-}
-
-// ── Listener type contracts ───────────────────────────────────────────────────
-
-/** Shape of any handler that can process a `knowledge.page_approved` event. */
-export interface KnowledgePageApprovedHandler {
-  handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean>;
-}
-
-export type { KnowledgePageApprovedEvent };
-````
-
 ## File: modules/workspace-flow/api/workspace-flow-invoice.facade.ts
 ````typescript
 /**
@@ -60653,97 +61846,6 @@ export class WorkspaceFlowFacade {
 }
 ````
 
-## File: modules/workspace-flow/application/process-managers/knowledge-to-workflow-materializer.ts
-````typescript
-/**
- * @module workspace-flow/application/process-managers
- * @file knowledge-to-workflow-materializer.ts
- * @description Process Manager (Saga) that listens for `knowledge.page_approved`
- * events and orchestrates the creation of Tasks and Invoices in workspace-flow.
- *
- * ## Responsibility
- * This class is the single entry point for the cross-module event-driven
- * integration between the `knowledge` and `workspace-flow` bounded contexts.
- *
- * ## Idempotency
- * The process manager tracks processed `causationId` values to prevent
- * duplicate materialization if the same event is delivered more than once.
- * The seen-set is in-memory by default; production implementations should
- * persist to Firestore at:
- *   `workspaces/{workspaceId}/materializedEvents/{causationId}`
- * using a Firestore transaction to provide atomic idempotency guarantees.
- *
- * ## Placement
- * - Wired in: Cloud Function trigger (Firestore `onDocumentUpdated`) or
- *   `SimpleEventBus` subscriber registered at application startup.
- * - Alternative: `modules/shared/application/sagas/` for shared saga registry.
- *
- * @see ADR-001: docs/architecture/adr/ADR-001-knowledge-to-workflow-boundary.md
- */
-
-import type { KnowledgePageApprovedEvent } from "@/modules/knowledge/api/events";
-import type { TaskRepository } from "../../domain/repositories/TaskRepository";
-import type { InvoiceRepository } from "../../domain/repositories/InvoiceRepository";
-import { MaterializeTasksFromKnowledgeUseCase } from "../use-cases/materialize-tasks-from-knowledge.use-case";
-import type { SourceReference } from "../../domain/value-objects/SourceReference";
-
-export class KnowledgeToWorkflowMaterializer {
-  /**
-   * In-memory idempotency guard.
-   * Replace with a persistent store in production.
-   */
-  private readonly processedCausationIds = new Set<string>();
-
-  constructor(
-    private readonly taskRepository: TaskRepository,
-    private readonly invoiceRepository: InvoiceRepository,
-  ) {}
-
-  /**
-   * Handle a `knowledge.page_approved` event.
-   *
-   * @param event - The full event payload from the knowledge module's public API.
-   * @param workspaceId - Target workspace where Tasks/Invoices will be created.
-   *   Typically resolved from the event's `workspaceId` field if present.
-   * @returns true if materialization succeeded, false if skipped (idempotency) or failed.
-   */
-  async handle(event: KnowledgePageApprovedEvent, workspaceId: string): Promise<boolean> {
-    if (this.processedCausationIds.has(event.causationId)) {
-      return false;
-    }
-
-    if (!workspaceId.trim()) return false;
-
-    const sourceReference: SourceReference = {
-      type: "KnowledgePage",
-      id: event.pageId,
-      causationId: event.causationId,
-      correlationId: event.correlationId,
-    };
-
-    const useCase = new MaterializeTasksFromKnowledgeUseCase(
-      this.taskRepository,
-      this.invoiceRepository,
-    );
-
-    const result = await useCase.execute({
-      workspaceId,
-      knowledgePageId: event.pageId,
-      sourceReference,
-      extractedTasks: event.extractedTasks,
-      extractedInvoices: event.extractedInvoices,
-    });
-
-    if (result.success) {
-      this.processedCausationIds.add(event.causationId);
-      return true;
-    }
-
-    return false;
-  }
-}
-````
-
 ## File: modules/workspace-flow/domain/entities/Invoice.ts
 ````typescript
 /**
@@ -60891,209 +61993,6 @@ export interface SourceReference {
 export * from "./api";
 ````
 
-## File: modules/workspace/aggregates.md
-````markdown
-# Aggregates — workspace
-
-## Write-side Aggregate Root
-
-### `Workspace`
-
-`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
-
-### 核心屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 工作區主鍵；建立後不可變更 |
-| `name` | `string` | 工作區名稱 |
-| `accountId` | `string` | 擁有工作區的 account / organization |
-| `accountType` | `"user" \| "organization"` | 擁有者類型 |
-| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-### 不變條件
-
-- `id`、`accountId`、`accountType` 在建立後不可變更
-- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
-- `visibility` 的 canonical 語言是 `visible | hidden`
-- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
-
-## Supporting Domain Objects Inside `Workspace`
-
-### Entities
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
-| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
-| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
-
-### Value Objects
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceLifecycleState` | 工作區生命週期值 |
-| `WorkspaceVisibility` | 工作區可見性值 |
-| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
-| `Address` | 地址值型資料 |
-| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
-| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
-| `CapabilitySpec` | 能力定義的值型描述 |
-
-## Read-side Projections（不是 Aggregate）
-
-| 類型 | 說明 |
-|------|------|
-| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
-| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
-| `WikiAccountContentNode` | 帳戶導覽節點 |
-| `WikiWorkspaceContentNode` | 工作區導覽節點 |
-| `WikiContentItemNode` | 導覽項 read projection |
-
-`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
-
-## Tactical Debt Notes
-
-- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
-- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
-- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
-- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
-````
-
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  Address,
-  AddressInput,
-  Capability,
-  CapabilitySpec,
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceEntity,
-  WorkspaceGrant,
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-  WorkspaceLocation,
-  WorkspaceName,
-  WorkspaceNameInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../domain/entities/Workspace";
-export {
-  WORKSPACE_LIFECYCLE_STATES,
-  WORKSPACE_VISIBILITIES,
-  createAddress,
-  createWorkspaceLifecycleState,
-  createWorkspaceName,
-  createWorkspaceVisibility,
-  formatAddress,
-  isTerminalWorkspaceLifecycleState,
-  isWorkspaceVisible,
-  workspaceNameEquals,
-} from "../domain/value-objects";
-
-export type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberAccessSource,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../domain/entities/WorkspaceMember";
-
-export type {
-  WorkspaceCreatedEvent,
-  WorkspaceDomainEvent,
-  WorkspaceLifecycleTransitionedEvent,
-  WorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
-
-export {
-  WORKSPACE_CREATED_EVENT_TYPE,
-  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-  createWorkspaceCreatedEvent,
-  createWorkspaceLifecycleTransitionedEvent,
-  createWorkspaceVisibilityChangedEvent,
-} from "../domain/events/workspace.events";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getWorkspaceById,
-  getWorkspaceByIdForAccount,
-  getWorkspacesForAccount,
-  subscribeToWorkspacesForAccount,
-} from "../interfaces/queries/workspace.queries";
-
-export { getWorkspaceMembers } from "../interfaces/queries/workspace-member.queries";
-
-// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
-
-export type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-  WikiAccountType,
-  WikiContentItemNode,
-  WikiWorkspaceContentNode,
-  WikiWorkspaceRef,
-} from "../domain/entities/WikiContentTree";
-
-// ─── Wiki content-tree use-case ────────────────────────────────────────────
-
-export { buildWikiContentTree } from "../interfaces/queries/wiki-content-tree.queries";
-
-// ─── Server actions (client-callable via Next.js action proxy) ──────────────
-
-export {
-  authorizeWorkspaceTeam,
-  createWorkspace,
-  createWorkspaceLocation,
-  createWorkspaceWithCapabilities,
-  deleteWorkspace,
-  grantIndividualWorkspaceAccess,
-  mountCapabilities,
-  updateWorkspaceSettings,
-} from "../interfaces/_actions/workspace.actions";
-
-// ─── UI components (cross-module public) ─────────────────────────────────────
-
-export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
-
-// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
-````
-
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
 ````typescript
 /**
@@ -61160,191 +62059,6 @@ export async function buildWikiContentTree(
 }
 ````
 
-## File: modules/workspace/context-map.md
-````markdown
-# Context Map — workspace
-
-`workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
-
-## Upstream Contexts
-
-### `account` → `workspace`（Customer/Supplier）
-
-- `account` 提供 personal ownership 與 actor identity 的基礎語言
-- `workspace.accountId` 在 personal scope 下對齊 `account`
-- `workspace` 依賴 `account` 的存在，但不複製 account 的完整模型
-
-### `organization` → `workspace`（Customer/Supplier + Read-side ACL）
-
-- `organization` 提供 team、member 與 organization ownership 的真相來源
-- `workspace.accountId + accountType="organization"` 讓工作區對齊組織範圍
-- 在 query side，workspace 會把 organization 的成員/團隊語言翻譯成 `WorkspaceMemberView`
-- 這種翻譯屬於 read-side anti-corruption / translation 行為，不代表 `workspace` 擁有組織模型
-
-## Downstream / Dependent Contexts
-
-### `workspace` → `knowledge`（Conformist）
-
-- `knowledge` 使用 `workspaceId` 對齊知識頁面的工作區範圍
-- `knowledge` 對工作區存在性、範圍與可見性語言採 conformist
-
-### `workspace` → `knowledge-base`（Conformist）
-
-- `knowledge-base` 以 `workspaceId` 作為文章與知識資產的工作區範圍鍵
-
-### `workspace` → `source`（Conformist）
-
-- `source` 以 `workspaceId` 管理文件與 library 的工作區範圍
-
-### `workspace` → `notebook`（Conformist）
-
-- `notebook` 以 `workspaceId` 作為查詢與 RAG 工作流範圍
-
-### `workspace` → `workspace-flow`（Conformist）
-
-- `workspace-flow` 以 `workspaceId` 對齊任務、issue、invoice 的工作區範圍
-
-### `workspace` → `workspace-scheduling`（Conformist）
-
-- `workspace-scheduling` 以 `workspaceId` 對齊排程與容量規劃範圍
-
-### `workspace` → `workspace-feed`（Conformist）
-
-- `workspace-feed` 以 `workspaceId` 對齊活動流範圍
-
-### `workspace` → `workspace-audit`（Published Language / Conformist）
-
-- `workspace-audit` 會消費工作區範圍資訊與後續 workspace domain events
-- 在事件真正落地前，雙方仍主要透過同步 API 與共同範圍語言協作
-
-## Public Integration Surfaces
-
-| 類型 | Surface |
-|---|---|
-| 同步 API | `modules/workspace/api` |
-| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` |
-| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` |
-
-## Non-Examples
-
-- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
-- `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
-
-## IDDD 整合模式總結
-
-| 關係 | 模式 | 備註 |
-|------|------|------|
-| `account` → `workspace` | Customer/Supplier | 個人 ownership 與 actor identity |
-| `organization` → `workspace` | Customer/Supplier + Read-side ACL | workspace 讀模型翻譯 organization 資料 |
-| `workspace` → `knowledge` | Conformist | 以 `workspaceId` 對齊內容範圍 |
-| `workspace` → `knowledge-base` | Conformist | 以 `workspaceId` 對齊知識資產範圍 |
-| `workspace` → `source` | Conformist | 以 `workspaceId` 對齊來源範圍 |
-| `workspace` → `notebook` | Conformist | 以 `workspaceId` 對齊研究與 RAG 範圍 |
-| `workspace` → `workspace-flow` | Conformist | 以 `workspaceId` 對齊工作流範圍 |
-| `workspace` → `workspace-scheduling` | Conformist | 以 `workspaceId` 對齊排程範圍 |
-| `workspace` → `workspace-feed` | Conformist | 以 `workspaceId` 對齊活動流範圍 |
-| `workspace` → `workspace-audit` | Published Language / Conformist | 範圍資訊與後續事件消費 |
-````
-
-## File: modules/workspace/domain-events.md
-````markdown
-# Domain Events — workspace
-
-本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
-
-## Event Base Contract
-
-workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
-
-- `eventId`
-- `type`
-- `aggregateId`
-- `occurredAt`
-
-`aggregateId` 在 workspace 事件中一律對應 `workspaceId`。
-
-## Canonical Events
-
-| 事件物件 | Discriminant | 觸發條件 | 關鍵欄位 |
-|---|---|---|---|
-| `WorkspaceCreatedEvent` | `workspace.created` | 工作區建立完成後 | `workspaceId`, `accountId`, `accountType`, `name` |
-| `WorkspaceLifecycleTransitionedEvent` | `workspace.lifecycle_transitioned` | `lifecycleState` 發生改變後 | `workspaceId`, `accountId`, `fromState`, `toState` |
-| `WorkspaceVisibilityChangedEvent` | `workspace.visibility_changed` | `visibility` 發生改變後 | `workspaceId`, `accountId`, `fromVisibility`, `toVisibility` |
-
-## Event Factories
-
-workspace module 應提供明確工廠函式來建立事件訊息物件，例如：
-
-- `createWorkspaceCreatedEvent(...)`
-- `createWorkspaceLifecycleTransitionedEvent(...)`
-- `createWorkspaceVisibilityChangedEvent(...)`
-
-這些工廠屬於 domain event language，不是 React helper，也不應放在 page / component 內。
-
-## Publishing Rules
-
-- 先成功持久化 aggregate，再發布事件
-- 事件 payload 只包含下游所需的最小資訊
-- 不把 React state、router path、UI label 放進事件語言
-- application layer / interface adapter 可以組裝 event publisher，但事件物件本身屬於 domain language
-
-## 明確排除的事件
-
-| 不再作為 workspace 事件的名稱 | 原因 |
-|---|---|
-| `workspace.archived` | 此 bounded context 的生命週期語言是 `stopped`，不是 `archived` |
-| `workspace.member_joined` | 工作區成員清單目前是 read projection；成員真相來源屬於 organization / access language |
-| `workspace.member_removed` | 同上 |
-
-## 目前落地策略
-
-- 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
-- event publishing 依賴 `modules/shared/api` 的 `PublishDomainEventUseCase` 與 event store / event bus adapters
-- 在事件完全接線前，文件仍以此處為 canonical published language
-````
-
-## File: modules/workspace/domain-services.md
-````markdown
-# workspace — Domain Services
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-目前 workspace 沒有獨立的 `domain/services/*` 檔案。這是刻意的 tactical 選擇，不是遺漏。
-
-## 目前狀態
-
-- 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
-- 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
-- 還沒有出現足以穩定抽成 domain service 的跨 aggregate、純領域規則
-
-## 何時應新增 Domain Service
-
-只有在出現以下情況時，才應把規則抽成 domain service：
-
-- 規則跨越多個 aggregate 或多個 supporting domain objects
-- 規則不是單純的 repository 查詢，也不是 UI composition
-- 規則不依賴 React、Firebase SDK、HTTP client 或 router
-- 規則本身是穩定的領域語言，而不是暫時性的流程拼裝
-
-## 可能的候選服務（尚未落地）
-
-| 候選服務 | 何時需要 |
-|---|---|
-| `WorkspaceLifecyclePolicy` | 若生命週期轉移規則持續增加，超出 aggregate 本身可讀性時 |
-| `WorkspaceAccessResolutionService` | 若 direct grant、team grant、personnel 解析邏輯需要在多個 use case 重複使用時 |
-| `WorkspaceCapabilityMountPolicy` | 若 capability mounting 有穩定、可重用的領域規則時 |
-
-## 明確不是 Domain Service 的內容
-
-- React hooks
-- Server Actions
-- query wrappers
-- UI draft factories
-- 只服務單一 page 的 tab composition helper
-````
-
 ## File: modules/workspace/domain/entities/WorkspaceAccess.ts
 ````typescript
 export interface WorkspaceGrant {
@@ -61391,32 +62105,6 @@ export interface WorkspaceLocation {
 export interface WorkspaceLocationCatalog {
   locations?: WorkspaceLocation[];
 }
-````
-
-## File: modules/workspace/domain/entities/WorkspaceProfile.ts
-````typescript
-import type { WorkspaceLocationCatalog } from "./WorkspaceLocation";
-import type { Address } from "../value-objects/Address";
-
-export interface WorkspacePersonnel {
-  managerId?: string;
-  supervisorId?: string;
-  safetyOfficerId?: string;
-  customRoles?: WorkspacePersonnelCustomRole[];
-}
-
-export interface WorkspacePersonnelCustomRole {
-  roleId: string;
-  roleName: string;
-  role: string;
-}
-
-export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
-  address?: Address;
-  personnel?: WorkspacePersonnel;
-}
-
-export type { Address, AddressInput } from "../value-objects/Address";
 ````
 
 ## File: modules/workspace/domain/events/workspace.events.ts
@@ -61567,6 +62255,223 @@ export interface WorkspaceRepository {
   save(workspace: WorkspaceEntity): Promise<string>;
   updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;
   delete(id: string): Promise<void>;
+}
+````
+
+## File: modules/workspace/domain/value-objects/Address.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const AddressSchema = z
+  .object({
+    street: z.string().trim(),
+    city: z.string().trim(),
+    state: z.string().trim(),
+    postalCode: z.string().trim(),
+    country: z.string().trim(),
+    details: z.string().trim().optional(),
+  })
+  .brand<"Address">();
+
+export type Address = z.infer<typeof AddressSchema>;
+export type AddressInput = z.input<typeof AddressSchema>;
+
+export function createAddress(value: AddressInput): Address {
+  const parsed = AddressSchema.parse(value);
+  return Object.freeze({ ...parsed }) as Address;
+}
+
+export function formatAddress(address: Address): string[] {
+  return [
+    address.street,
+    [address.city, address.state, address.postalCode].filter(Boolean).join(", "),
+    address.country,
+    address.details,
+  ].filter((line): line is string => Boolean(line));
+}
+````
+
+## File: modules/workspace/domain/value-objects/index.ts
+````typescript
+export type {
+  Address,
+  AddressInput,
+} from "./Address";
+export {
+  AddressSchema,
+  createAddress,
+  formatAddress,
+} from "./Address";
+
+export type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "./WorkspaceLifecycleState";
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WorkspaceLifecycleStateSchema,
+  canTransitionWorkspaceLifecycleState,
+  createWorkspaceLifecycleState,
+  isTerminalWorkspaceLifecycleState,
+} from "./WorkspaceLifecycleState";
+
+export type {
+  WorkspaceName,
+  WorkspaceNameInput,
+} from "./WorkspaceName";
+export {
+  WorkspaceNameSchema,
+  createWorkspaceName,
+  workspaceNameEquals,
+} from "./WorkspaceName";
+
+export type {
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "./WorkspaceVisibility";
+export {
+  WORKSPACE_VISIBILITIES,
+  WorkspaceVisibilitySchema,
+  createWorkspaceVisibility,
+  isWorkspaceVisible,
+} from "./WorkspaceVisibility";
+````
+
+## File: modules/workspace/domain/value-objects/workspace-value-objects.test.ts
+````typescript
+import { describe, expect, it } from "vitest";
+
+import { createAddress, formatAddress } from "./Address";
+import {
+  createWorkspaceLifecycleState,
+  isTerminalWorkspaceLifecycleState,
+} from "./WorkspaceLifecycleState";
+import { createWorkspaceName } from "./WorkspaceName";
+import { createWorkspaceVisibility } from "./WorkspaceVisibility";
+
+describe("workspace value objects", () => {
+  it("normalizes and validates workspace names", () => {
+    expect(createWorkspaceName("  Demo Workspace  ")).toBe("Demo Workspace");
+    expect(() => createWorkspaceName("   ")).toThrow();
+  });
+
+  it("accepts only supported lifecycle states", () => {
+    expect(createWorkspaceLifecycleState("active")).toBe("active");
+    expect(isTerminalWorkspaceLifecycleState("stopped")).toBe(true);
+    expect(() => createWorkspaceLifecycleState("archived" as never)).toThrow();
+  });
+
+  it("accepts only supported visibility values", () => {
+    expect(createWorkspaceVisibility("visible")).toBe("visible");
+    expect(() => createWorkspaceVisibility("private" as never)).toThrow();
+  });
+
+  it("creates frozen address snapshots and formats lines", () => {
+    const address = createAddress({
+      street: " 1 Infinite Loop ",
+      city: "Cupertino",
+      state: "CA",
+      postalCode: "95014",
+      country: "USA",
+      details: "  Building A ",
+    });
+
+    expect(Object.isFrozen(address)).toBe(true);
+    expect(formatAddress(address)).toEqual([
+      "1 Infinite Loop",
+      "Cupertino, CA, 95014",
+      "USA",
+      "Building A",
+    ]);
+  });
+});
+````
+
+## File: modules/workspace/domain/value-objects/WorkspaceLifecycleState.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const WORKSPACE_LIFECYCLE_STATES = [
+  "preparatory",
+  "active",
+  "stopped",
+] as const;
+
+export const WorkspaceLifecycleStateSchema = z.enum(WORKSPACE_LIFECYCLE_STATES);
+
+export type WorkspaceLifecycleState = z.infer<typeof WorkspaceLifecycleStateSchema>;
+export type WorkspaceLifecycleStateInput = z.input<typeof WorkspaceLifecycleStateSchema>;
+
+const WORKSPACE_LIFECYCLE_NEXT: Readonly<
+  Record<WorkspaceLifecycleState, WorkspaceLifecycleState | null>
+> = {
+  preparatory: "active",
+  active: "stopped",
+  stopped: null,
+};
+
+export function createWorkspaceLifecycleState(
+  value: WorkspaceLifecycleStateInput,
+): WorkspaceLifecycleState {
+  return WorkspaceLifecycleStateSchema.parse(value);
+}
+
+export function canTransitionWorkspaceLifecycleState(
+  from: WorkspaceLifecycleState,
+  to: WorkspaceLifecycleState,
+): boolean {
+  return WORKSPACE_LIFECYCLE_NEXT[from] === to;
+}
+
+export function isTerminalWorkspaceLifecycleState(
+  state: WorkspaceLifecycleState,
+): boolean {
+  return WORKSPACE_LIFECYCLE_NEXT[state] === null;
+}
+````
+
+## File: modules/workspace/domain/value-objects/WorkspaceName.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const WorkspaceNameSchema = z
+  .string()
+  .trim()
+  .min(1, "Workspace name is required")
+  .max(80, "Workspace name must be 80 characters or less")
+  .brand<"WorkspaceName">();
+
+export type WorkspaceName = z.infer<typeof WorkspaceNameSchema>;
+export type WorkspaceNameInput = z.input<typeof WorkspaceNameSchema>;
+
+export function createWorkspaceName(value: WorkspaceNameInput): WorkspaceName {
+  return WorkspaceNameSchema.parse(value);
+}
+
+export function workspaceNameEquals(left: WorkspaceName, right: WorkspaceName): boolean {
+  return left === right;
+}
+````
+
+## File: modules/workspace/domain/value-objects/WorkspaceVisibility.ts
+````typescript
+import { z } from "@lib-zod";
+
+export const WORKSPACE_VISIBILITIES = ["visible", "hidden"] as const;
+
+export const WorkspaceVisibilitySchema = z.enum(WORKSPACE_VISIBILITIES);
+
+export type WorkspaceVisibility = z.infer<typeof WorkspaceVisibilitySchema>;
+export type WorkspaceVisibilityInput = z.input<typeof WorkspaceVisibilitySchema>;
+
+export function createWorkspaceVisibility(
+  value: WorkspaceVisibilityInput,
+): WorkspaceVisibility {
+  return WorkspaceVisibilitySchema.parse(value);
+}
+
+export function isWorkspaceVisible(visibility: WorkspaceVisibility): boolean {
+  return visibility === "visible";
 }
 ````
 
@@ -61785,247 +62690,6 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     return Array.from(members.values()).sort((left, right) =>
       left.displayName.localeCompare(right.displayName),
     );
-  }
-}
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
-````typescript
-/**
- * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
- * Translates Firestore documents ↔ Domain WorkspaceEntity.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  getDocs,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  query,
-  where,
-  documentId,
-  arrayUnion,
-  arrayRemove,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
-import type {
-  WorkspaceEntity,
-  Capability,
-  WorkspaceGrant,
-  UpdateWorkspaceSettingsCommand,
-  WorkspaceLocation,
-} from "../../domain/entities/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
-
-// ─── Mapper ───────────────────────────────────────────────────────────────────
-
-const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
-
-export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
-  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
-    ? (data.accountType as WorkspaceEntity["accountType"])
-    : "user";
-
-  return {
-    id,
-    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    accountType,
-    lifecycleState: createWorkspaceLifecycleState(
-      data.lifecycleState === "active" ||
-        data.lifecycleState === "stopped" ||
-        data.lifecycleState === "preparatory"
-        ? data.lifecycleState
-        : "preparatory",
-    ),
-    visibility: createWorkspaceVisibility(
-      data.visibility === "hidden" || data.visibility === "visible"
-        ? data.visibility
-        : "visible",
-    ),
-    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
-    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
-    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
-    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
-    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
-    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
-  };
-}
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseWorkspaceRepository
-  implements
-    WorkspaceRepository,
-    WorkspaceCapabilityRepository,
-    WorkspaceAccessRepository,
-    WorkspaceLocationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<WorkspaceEntity | null> {
-    const snap = await getDoc(doc(this.db, "workspaces", id));
-    if (!snap.exists()) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", accountId),
-      where(documentId(), "==", workspaceId),
-    );
-    const snaps = await getDocs(q);
-    const snap = snaps.docs[0];
-    if (!snap) return null;
-    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
-    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async save(workspace: WorkspaceEntity): Promise<string> {
-    const ref = doc(this.db, "workspaces", workspace.id);
-    const payload: Record<string, unknown> = {
-      name: workspace.name,
-      accountId: workspace.accountId,
-      accountType: workspace.accountType,
-      lifecycleState: workspace.lifecycleState,
-      visibility: workspace.visibility,
-      capabilities: workspace.capabilities,
-      grants: workspace.grants,
-      teamIds: workspace.teamIds,
-      createdAt: serverTimestamp(),
-    };
-
-    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
-    if (workspace.address !== undefined) payload.address = workspace.address;
-    if (workspace.locations !== undefined) payload.locations = workspace.locations;
-    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
-
-    await setDoc(ref, payload);
-    return workspace.id;
-  }
-
-  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.visibility !== undefined) updates.visibility = command.visibility;
-    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
-    if (command.address !== undefined) updates.address = command.address;
-    if (command.personnel !== undefined) updates.personnel = command.personnel;
-    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
-  }
-
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "workspaces", id));
-  }
-
-  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: arrayUnion(...capabilities),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      capabilities: caps,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayUnion(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      teamIds: arrayRemove(teamId),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants: arrayUnion(grant),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      grants,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async createLocation(
-    workspaceId: string,
-    location: Omit<WorkspaceLocation, "locationId">,
-  ): Promise<string> {
-    const locationId = crypto.randomUUID();
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations: arrayUnion({ ...location, locationId }),
-      updatedAt: serverTimestamp(),
-    });
-    return locationId;
-  }
-
-  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
-      l.locationId === location.locationId ? location : l,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
-    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
-    if (!snap.exists()) return;
-    const data = snap.data() as Record<string, unknown>;
-    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
-      (l) => l.locationId !== locationId,
-    );
-    await updateDoc(doc(this.db, "workspaces", workspaceId), {
-      locations,
-      updatedAt: serverTimestamp(),
-    });
   }
 }
 ````
@@ -62564,127 +63228,6 @@ export function getWorkspaceGovernanceSummary(
 }
 ````
 
-## File: modules/workspace/README.md
-````markdown
-# workspace — 協作容器上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/workspace/`  
-> **定位:** 協作範圍、生命週期與工作區公開邊界
-
-## Strategic Role
-
-`workspace` 是 Xuanwu 的協作容器 bounded context。它提供工作區作為協作範圍的 identity、生命週期與可見性語言，讓知識、來源、工作流、稽核、動態與排程等上下文可以用同一個 `workspaceId` 對齊範圍。
-
-它是 generic subdomain，不是產品差異化核心；真正差異化的知識內容、檢索與協作語意由其他 bounded context 擁有。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
-| 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
-| 工作區公開邊界 | 透過 `api/` 暴露穩定查詢、命令入口與 UI composition surface |
-| Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
-
-## 不屬於此 Context 的責任
-
-- `organization` 擁有組織成員、團隊與組織治理真相來源
-- `knowledge` / `knowledge-base` / `source` / `notebook` 擁有內容與知識工作流語意
-- `shared` 擁有跨 bounded context 的事件基底與 event publishing 基礎設施
-- UI tab 組裝屬於 interface composition，不等於 context map
-
-## Tactical Model Summary
-
-| 類型 | 目前契約 |
-|---|---|
-| Aggregate Root | `Workspace` |
-| Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
-| Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
-| Write-side Port | `WorkspaceRepository` |
-| Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
-| Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
-| Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
-
-## 實作備註
-
-- 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
-- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
-- `index.ts` 的目標是薄入口；跨模組 consumer 應優先依賴 `@/modules/workspace/api`
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
-| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
-| [application-services.md](./application-services.md) | application layer use cases、query orchestration 與 factory 落點 |
-| [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
-| [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
-| [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
-| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
-````
-
-## File: modules/workspace/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — workspace
-
-> **範圍：** 僅限 `modules/workspace/` bounded context 內
-
-## 核心術語
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區 | `Workspace` | 協作容器的 aggregate root，代表一個工作區範圍 |
-| 工作區 ID | `workspaceId` | `Workspace` 的業務識別子，也是跨 context 的範圍鍵 |
-| 帳戶 ID | `accountId` | 擁有工作區的 account 或 organization 識別子 |
-| 工作區生命週期 | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
-| 工作區可見性 | `WorkspaceVisibility` | `visible | hidden`，控制工作區是否可被發現 |
-
-## Supporting Domain Objects
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區授權 | `WorkspaceGrant` | 工作區上的直接授權記錄，描述 user/team 與 role 關係 |
-| 工作區能力 | `Capability` | 目前掛載在工作區上的功能能力記錄 |
-| 工作區位置 | `WorkspaceLocation` | 工作區底下帶 identity 的位置節點 |
-| 工作區人員資訊 | `WorkspacePersonnel` | 工作區上的管理/監督/安全等角色參照集合 |
-| 工作區地址 | `Address` | 工作區地址值型資料 |
-
-## Read-side Projection Terms
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 工作區成員檢視 | `WorkspaceMemberView` | 由 workspace + organization 資料組裝出的成員查詢投影 |
-| 工作區成員接入通道 | `WorkspaceMemberAccessChannel` | 成員透過 owner/direct/team/personnel 進入工作區的路徑描述 |
-| 工作區帳戶節點 | `WikiAccountContentNode` | 用於導覽查詢的帳戶層節點 |
-| 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
-| 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
-
-## 命名守則
-
-- aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
-- `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
-- `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
-- 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Workspace` | `Project`, `Space`, `Room` |
-| `WorkspaceLifecycleState` | `WorkspaceStatus`, `ArchivedState` |
-| `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
-| `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
-| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
-
-## 語意說明
-
-- `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
-- `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
-- `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
-````
-
 ## File: package.json
 ````json
 {
@@ -62941,6 +63484,62 @@ def test_handleParseDocument_WithoutDocId_KeepsDefaultRagBehavior(monkeypatch) -
     assert runtime.mark_rag_ready_kwargs["chunk_count"] == 2
 ````
 
+## File: scripts/demo-flow.ts
+````typescript
+/**
+ * scripts/demo-flow.ts
+ *
+ * Architecture Phase 2 — The Proof (Occam's Razor Edition)
+ *
+ * Demonstrates the Content → EventBus loop using only in-memory adapters.
+ * Note: modules/wiki has been removed; graph steps are no longer included.
+ *
+ * Run with:
+ *   npx tsx scripts/demo-flow.ts
+ */
+
+import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
+import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
+
+async function main() {
+  const ACCOUNT_ID = "demo-account";
+  const WORKSPACE_ID = "demo-workspace";
+  const USER_ID = "demo-user";
+
+  console.log("[1] Initialising event bus...");
+  const eventBus = new SimpleEventBus();
+  console.log("    ✓ SimpleEventBus ready\n");
+
+  console.log("[2] Creating KnowledgeApi...");
+  const contentApi = new ContentKnowledgeApi(eventBus);
+  console.log("    ✓ KnowledgeApi ready\n");
+
+  console.log('[3] Creating page "Hello World"...');
+  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID, {
+    workspaceId: WORKSPACE_ID,
+  });
+  console.log(`    ✓ page created  id=${page.id}\n`);
+
+  console.log("[4] Adding an empty block to the page...");
+  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
+  console.log(`    ✓ block created  id=${block.id}\n`);
+
+  console.log('[5] Updating block → "Hello [[World]]"...');
+  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
+  if (!updated) {
+    throw new Error("ASSERTION FAILED: updateBlock returned null");
+  }
+  console.log(`    ✓ block updated  content="${updated.content.richText.map((s) => (s as { plainText?: string }).plainText ?? "").join("")}"\n`);
+
+  console.log("✅  Demo flow completed successfully.");
+}
+
+main().catch((err) => {
+  console.error("❌  Demo flow failed:", err);
+  process.exit(1);
+});
+````
+
 ## File: .github/agents/commands.md
 ````markdown
 # Build, Lint & Development Commands
@@ -63165,6 +63764,99 @@ For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS
 ## Full Rules
 
 See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
+````
+
+## File: app/(shell)/_components/use-recent-workspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
+    return recentWorkspaceIds
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+      })
+      .filter((item): item is RecentWorkspaceLink => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+}
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: app/(shell)/dev-tools/dev-tools-helpers.ts
@@ -64298,156 +64990,6 @@ For larger or cross-module changes, prefer the formal Copilot delivery workflow:
 }
 ````
 
-## File: modules/knowledge-collaboration/api/index.ts
-````typescript
-/**
- * knowledge-collaboration public API boundary
- *
- * Other modules MUST import knowledge-collaboration resources from this file only.
- */
-
-// ── Domain types ───────────────────────────────────────────────────────────────
-export type { Comment } from "../domain/entities/comment.entity";
-export type { SelectionRange } from "../domain/entities/comment.entity";
-export type { Permission, PermissionLevel, PrincipalType } from "../domain/entities/permission.entity";
-export type { Version } from "../domain/entities/version.entity";
-
-export type CommentId = string;
-export type PermissionId = string;
-export type VersionId = string;
-
-// ── DTOs ───────────────────────────────────────────────────────────────────────
-export type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-  CreateVersionDto,
-  DeleteVersionDto,
-  GrantPermissionDto,
-  RevokePermissionDto,
-} from "../application/dto/knowledge-collaboration.dto";
-
-// ── Server Actions (mutations) ─────────────────────────────────────────────────
-export {
-  createComment,
-  updateComment,
-  resolveComment,
-  deleteComment,
-} from "../interfaces/_actions/comment.actions";
-
-export {
-  createVersion,
-  deleteVersion,
-} from "../interfaces/_actions/version.actions";
-
-export {
-  grantPermission,
-  revokePermission,
-} from "../interfaces/_actions/permission.actions";
-
-// ── Queries (reads) ────────────────────────────────────────────────────────────
-export {
-  getComments,
-  getVersions,
-  getPermissions,
-} from "../interfaces/queries/knowledge-collaboration.queries";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { CommentPanel } from "../interfaces/components/CommentPanel";
-export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
-````
-
-## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/dto
- */
-
-import { z } from "@lib-zod";
-
-const ContentScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-// ── Comment ───────────────────────────────────────────────────────────────────
-
-export const CreateCommentSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  authorId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-  parentCommentId: z.string().min(1).nullable().optional(),
-  blockId: z.string().min(1).nullable().optional(),
-  mentionedUserIds: z.array(z.string().min(1)).optional(),
-  selectionRange: z
-    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
-    .nullable()
-    .optional(),
-});
-export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
-
-export const UpdateCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-});
-export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
-
-export const ResolveCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  resolvedByUserId: z.string().min(1),
-});
-export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
-
-export const DeleteCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
-
-// ── Version ───────────────────────────────────────────────────────────────────
-
-export const CreateVersionSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  snapshotBlocks: z.array(z.unknown()),
-  label: z.string().max(200).nullable().optional(),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
-
-export const DeleteVersionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
-
-// ── Permission ────────────────────────────────────────────────────────────────
-
-export const GrantPermissionSchema = ContentScopeSchema.extend({
-  subjectId: z.string().min(1),
-  subjectType: z.enum(["page", "article", "database"]),
-  principalId: z.string().min(1),
-  principalType: z.enum(["user", "team", "public", "link"]),
-  level: z.enum(["view", "comment", "edit", "full"]),
-  grantedByUserId: z.string().min(1),
-  expiresAtISO: z.string().nullable().optional(),
-  linkToken: z.string().min(1).nullable().optional(),
-});
-export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
-
-export const RevokePermissionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
-````
-
 ## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
 ````typescript
 /**
@@ -64866,165 +65408,373 @@ export function DatabaseAutomationView({
 }
 ````
 
-## File: modules/knowledge/api/knowledge-facade.ts
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區；workspace-first 頁面必須帶值，僅顯式 summary / legacy migration 情境可為空 |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- 頁面樹與日常建立流程預設以 workspaceId 為邊界；account 層級只能做顯式 summary，不可作為隱含預設
+- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；若需 account-level summary，應以獨立 summary flow 實作，而不是沿用一般建立流程
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區；wiki 與日常集合操作預設為 workspace-first |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
+## File: modules/knowledge/api/index.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: api
- * Purpose: KnowledgeFacade — the ONLY authorised entry point for cross-domain
- * access to the Content domain.
- *
- * BOUNDARY RULE:
- *   Other modules MUST import from here:
- *     import { knowledgeFacade } from "@/modules/knowledge";
- *   They must NEVER reach into domain/, application/, infrastructure/ or
- *   interfaces/ directly.
+ * Layer: api/barrel
+ * Purpose: Public anti-corruption layer — the sole cross-domain entry point
+ * for the knowledge domain.
  */
 
-import type { KnowledgePageRepository, KnowledgeBlockRepository } from "../domain/repositories/knowledge.repositories";
-import type { KnowledgePage, KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
+export type {
+  KnowledgeCreatePageParams,
+  KnowledgeRenamePageParams,
+  KnowledgeMovePageParams,
+  KnowledgeAddBlockParams,
+  KnowledgeUpdateBlockParams,
+} from "./knowledge-facade";
+
+export { KnowledgeApi } from "./knowledge-api";
+
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { Block } from "../interfaces/store/block-editor.store";
+
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+
+export { RichTextEditor } from "../interfaces/components/RichTextEditor";
+
+// ── Server Actions (write-side) ───────────────────────────────────────────────
+
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  // Collection actions
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+  // Wiki / Knowledge Base verification actions
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "../interfaces/_actions/knowledge.actions";
+
+export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
+
+// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
+
+export type {
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Collection types ──────────────────────────────────────────────────────────
+
+export type {
+  KnowledgeCollection,
+  CollectionColumn,
+  CollectionColumnType,
+  CollectionStatus,
+  CollectionSpaceType,
+} from "../domain/entities/knowledge-collection.entity";
+
+export type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../application/dto/knowledge.dto";
+
+// ── Public event contracts ────────────────────────────────────────────────────
+
+export {
+  KNOWLEDGE_EVENT_TYPES,
+} from "./events";
+
+export type {
+  KnowledgePageApprovedEvent,
+  KnowledgeDomainEvent,
+  ExtractedTask,
+  ExtractedInvoice,
+  KnowledgeEventType,
+} from "./events";
+
+// ── Queries (read-side) ──────────────────────────────────────────────
+
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePagesByWorkspace,
+  getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
+  getKnowledgeBlocks,
+  getKnowledgeVersions,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries/knowledge.queries";
+
+export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
+export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
+
+// ── BacklinkIndex ─────────────────────────────────────────────────────────────
+export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
+export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
+export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
+````
+
+## File: modules/knowledge/api/knowledge-api.ts
+````typescript
+/**
+ * Module: knowledge
+ * Layer: api (cross-module facade)
+ * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
+ *          exposes the minimal surface needed by the demo-flow script and by
+ *          other modules that communicate through the event bus.
+ *
+ * This is intentionally separate from KnowledgeFacade (which uses Firebase).
+ * KnowledgeApi uses InMemory repos so it can run without any external service.
+ */
+
+import {
+  createKnowledgePageCreatedEvent,
+} from "../../shared/domain/events/knowledge-page-created.event";
+import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
+
 import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgeVersion } from "../domain/entities/content-version.entity";
-import type { BlockContent } from "../domain/value-objects/block-content";
-
+import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
+import { BlockService } from "../application/block-service";
 import {
-  CreateKnowledgePageUseCase,
-  RenameKnowledgePageUseCase,
-  MoveKnowledgePageUseCase,
-  ArchiveKnowledgePageUseCase,
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  GetKnowledgePageTreeUseCase,
-} from "../application/use-cases/knowledge-page.use-cases";
-import {
-  AddKnowledgeBlockUseCase,
-  UpdateKnowledgeBlockUseCase,
-  DeleteKnowledgeBlockUseCase,
-  ListKnowledgeBlocksUseCase,
-} from "../application/use-cases/knowledge-block.use-cases";
+  InMemoryKnowledgePageRepository,
+  InMemoryKnowledgeBlockRepository,
+} from "../infrastructure/InMemoryKnowledgeRepository";
 
-import { FirebaseKnowledgePageRepository } from "../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../infrastructure/firebase/FirebaseContentBlockRepository";
+export class KnowledgeApi {
+  private readonly pageRepo: InMemoryKnowledgePageRepository;
+  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
+  private readonly blockService: BlockService;
+  private readonly eventBus: SimpleEventBus;
 
-export interface KnowledgeCreatePageParams {
-  accountId: string;
-  workspaceId: string;
-  title: string;
-  parentPageId?: string | null;
-  createdByUserId: string;
-}
-
-export interface KnowledgeRenamePageParams {
-  accountId: string;
-  pageId: string;
-  title: string;
-}
-
-export interface KnowledgeMovePageParams {
-  accountId: string;
-  pageId: string;
-  targetParentPageId: string | null;
-}
-
-export interface KnowledgeAddBlockParams {
-  accountId: string;
-  pageId: string;
-  content: BlockContent;
-  index?: number;
-}
-
-export interface KnowledgeUpdateBlockParams {
-  accountId: string;
-  blockId: string;
-  content: BlockContent;
-}
-
-export class KnowledgeFacade {
-  private readonly pageRepo: KnowledgePageRepository;
-  private readonly blockRepo: KnowledgeBlockRepository;
-
-  constructor(
-    pageRepo: KnowledgePageRepository = new FirebaseKnowledgePageRepository(),
-    blockRepo: KnowledgeBlockRepository = new FirebaseKnowledgeBlockRepository(),
-  ) {
-    this.pageRepo = pageRepo;
-    this.blockRepo = blockRepo;
+  constructor(eventBus: SimpleEventBus) {
+    this.pageRepo = new InMemoryKnowledgePageRepository();
+    this.blockRepo = new InMemoryKnowledgeBlockRepository();
+    this.blockService = new BlockService(this.blockRepo, eventBus);
+    this.eventBus = eventBus;
   }
 
-  async createPage(params: KnowledgeCreatePageParams): Promise<string | null> {
-    const result = await new CreateKnowledgePageUseCase(this.pageRepo).execute({
-      accountId: params.accountId,
-      workspaceId: params.workspaceId,
-      title: params.title,
-      parentPageId: params.parentPageId ?? null,
-      createdByUserId: params.createdByUserId,
+  /**
+   * Create a new page in the in-memory store and publish a
+   * `KnowledgePageCreatedEvent` so downstream modules can register
+   * page-related projections or structure-aware read models.
+   */
+  async createPage(
+    accountId: string,
+    title: string,
+    createdByUserId = "system",
+    options: { workspaceId: string; parentPageId?: string | null },
+  ): Promise<KnowledgePage> {
+    const page = await this.pageRepo.create({
+      accountId,
+      workspaceId: options.workspaceId,
+      title,
+      createdByUserId,
+      parentPageId: options?.parentPageId ?? null,
     });
-    return result.success ? result.aggregateId : null;
+
+    const event = createKnowledgePageCreatedEvent(
+      page.id,
+      page.title,
+      accountId,
+      createdByUserId,
+      { workspaceId: options.workspaceId, parentPageId: options.parentPageId },
+    );
+    await this.eventBus.publish(event);
+
+    return page;
   }
 
-  async renamePage(params: KnowledgeRenamePageParams): Promise<boolean> {
-    const result = await new RenameKnowledgePageUseCase(this.pageRepo).execute(params);
-    return result.success;
-  }
-
-  async movePage(params: KnowledgeMovePageParams): Promise<boolean> {
-    const result = await new MoveKnowledgePageUseCase(this.pageRepo).execute(params);
-    return result.success;
-  }
-
-  async archivePage(accountId: string, pageId: string): Promise<boolean> {
-    const result = await new ArchiveKnowledgePageUseCase(this.pageRepo).execute({
+  /** Add a block to an existing page and return the new block. */
+  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
+    return this.blockRepo.add({
       accountId,
       pageId,
+      content: { type: "text", richText: [{ type: "text", plainText: text }] },
     });
-    return result.success;
   }
 
-  async getPage(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    return new GetKnowledgePageUseCase(this.pageRepo).execute(accountId, pageId);
+  /**
+   * Update a block's text content.
+   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
+   * (e.g. search or notebook-adjacent ingestion flows) can react.
+   */
+  async updateBlock(
+    accountId: string,
+    blockId: string,
+    text: string,
+  ): Promise<KnowledgeBlock | null> {
+    return this.blockService.updateBlock({ accountId, blockId, text });
   }
 
+  /** Return all pages for an account. */
   async listPages(accountId: string): Promise<KnowledgePage[]> {
-    return new ListKnowledgePagesUseCase(this.pageRepo).execute(accountId);
+    return this.pageRepo.listByAccountId(accountId);
   }
 
-  async getPageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    return new GetKnowledgePageTreeUseCase(this.pageRepo).execute(accountId);
-  }
-
-  async addBlock(params: KnowledgeAddBlockParams): Promise<string | null> {
-    const result = await new AddKnowledgeBlockUseCase(this.blockRepo).execute({
-      accountId: params.accountId,
-      pageId: params.pageId,
-      content: params.content,
-      index: params.index,
-    });
-    return result.success ? result.aggregateId : null;
-  }
-
-  async updateBlock(params: KnowledgeUpdateBlockParams): Promise<boolean> {
-    const result = await new UpdateKnowledgeBlockUseCase(this.blockRepo).execute(params);
-    return result.success;
-  }
-
-  async deleteBlock(accountId: string, blockId: string): Promise<boolean> {
-    const result = await new DeleteKnowledgeBlockUseCase(this.blockRepo).execute({
-      accountId,
-      blockId,
-    });
-    return result.success;
-  }
-
-  async listBlocks(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    return new ListKnowledgeBlocksUseCase(this.blockRepo).execute(accountId, pageId);
-  }
-
-  async listVersions(_accountId: string, _pageId: string): Promise<KnowledgeVersion[]> {
-    return [];
+  /** Return the page with all its blocks (flat list, ordered). */
+  async getPageStructure(
+    accountId: string,
+    pageId: string,
+  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
+    const page = await this.pageRepo.findById(accountId, pageId);
+    if (!page) return null;
+    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
+    return { page, blocks };
   }
 }
-
-export const knowledgeFacade = new KnowledgeFacade();
 ````
 
 ## File: modules/knowledge/application/dto/knowledge-page.dto.ts
@@ -65115,196 +65865,231 @@ export const ReorderKnowledgePageBlocksSchema = AccountScopeSchema.extend({
 export type ReorderKnowledgePageBlocksDto = z.infer<typeof ReorderKnowledgePageBlocksSchema>;
 ````
 
-## File: modules/knowledge/domain/index.ts
+## File: modules/knowledge/application/dto/knowledge.dto.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: domain/barrel
+ * Layer: application/dto
+ * Purpose: Barrel re-export for all knowledge DTOs.
+ * Split into focused files per IDDD single-responsibility principle:
+ *  - knowledge-page.dto.ts        (page lifecycle + approve)
+ *  - knowledge-block.dto.ts       (block CRUD + nesting)
+ *  - knowledge-collection.dto.ts  (collection management)
+ *  - knowledge-wiki.dto.ts        (wiki, verification, appearance)
  */
 
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ArchiveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-} from "./entities/knowledge-page.entity";
-
-export { KNOWLEDGE_PAGE_STATUSES, PAGE_VERIFICATION_STATES } from "./entities/knowledge-page.entity";
-export type { PageVerificationState } from "./entities/knowledge-page.entity";
-
-export type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  DeleteKnowledgeBlockInput,
-  NestKnowledgeBlockInput,
-  UnnestKnowledgeBlockInput,
-} from "./entities/content-block.entity";
-
-export type {
-  KnowledgeVersion,
-  KnowledgeVersionBlock,
-  CreateKnowledgeVersionInput,
-} from "./entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./value-objects/block-content";
 export {
-  BLOCK_TYPES,
-  blockContentEquals,
-  emptyTextBlockContent,
-  plainTextBlockContent,
-  richTextToPlainText,
-  extractMentionedPageIds,
-  extractMentionedUserIds,
-} from "./value-objects/block-content";
+  KnowledgePageStatusSchema,
+  CreateKnowledgePageSchema,
+  RenameKnowledgePageSchema,
+  MoveKnowledgePageSchema,
+  ArchiveKnowledgePageSchema,
+  ReorderKnowledgePageBlocksSchema,
+  CreateKnowledgeVersionSchema,
+  ExtractedTaskSchema,
+  ExtractedInvoiceSchema,
+  ApproveKnowledgePageSchema,
+} from "./knowledge-page.dto";
 export type {
-  RichTextSpanType,
-  TextAnnotations,
-  TextSpan,
-  MentionPageSpan,
-  MentionUserSpan,
-  LinkSpan,
-  RichTextSpan,
-} from "./value-objects/block-content";
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  CreateKnowledgeVersionDto,
+  ApproveKnowledgePageDto,
+} from "./knowledge-page.dto";
 
+export {
+  BlockTypeSchema,
+  BlockContentSchema,
+  AddKnowledgeBlockSchema,
+  UpdateKnowledgeBlockSchema,
+  DeleteKnowledgeBlockSchema,
+  NestKnowledgeBlockSchema,
+  UnnestKnowledgeBlockSchema,
+} from "./knowledge-block.dto";
 export type {
-  KnowledgeDomainEvent,
-  KnowledgePageCreatedEvent,
-  KnowledgePageRenamedEvent,
-  KnowledgePageMovedEvent,
-  KnowledgePageArchivedEvent,
-  KnowledgeBlockAddedEvent,
-  KnowledgeBlockUpdatedEvent,
-  KnowledgeBlockDeletedEvent,
-  KnowledgeVersionPublishedEvent,
-  KnowledgePageVerifiedEvent,
-  KnowledgePageReviewRequestedEvent,
-  KnowledgePageOwnerAssignedEvent,
-} from "./events/knowledge.events";
+  BlockContentDto,
+  AddKnowledgeBlockDto,
+  UpdateKnowledgeBlockDto,
+  DeleteKnowledgeBlockDto,
+  NestKnowledgeBlockDto,
+  UnnestKnowledgeBlockDto,
+} from "./knowledge-block.dto";
 
-// ── KnowledgeCollection ───────────────────────────────────────────────────────
-
+export {
+  CollectionColumnTypeSchema,
+  CollectionColumnInputSchema,
+  CreateKnowledgeCollectionSchema,
+  RenameKnowledgeCollectionSchema,
+  AddPageToCollectionSchema,
+  RemovePageFromCollectionSchema,
+  AddCollectionColumnSchema,
+  ArchiveKnowledgeCollectionSchema,
+} from "./knowledge-collection.dto";
 export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "./entities/knowledge-collection.entity";
+  CollectionColumnTypeDto,
+  CollectionColumnInputDto,
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "./knowledge-collection.dto";
 
+export {
+  PageVerificationStateSchema,
+  VerifyKnowledgePageSchema,
+  RequestPageReviewSchema,
+  AssignPageOwnerSchema,
+  CreateWikiSpaceSchema,
+  UpdatePageIconSchema,
+  UpdatePageCoverSchema,
+} from "./knowledge-wiki.dto";
 export type {
-  KnowledgePageRepository,
-  KnowledgeBlockRepository,
-  KnowledgeVersionRepository,
-} from "./repositories/knowledge.repositories";
+  VerifyKnowledgePageDto,
+  RequestPageReviewDto,
+  AssignPageOwnerDto,
+  CreateWikiSpaceDto,
+  UpdatePageIconDto,
+  UpdatePageCoverDto,
+} from "./knowledge-wiki.dto";
 ````
 
-## File: modules/knowledge/domain/repositories/knowledge.repositories.ts
+## File: modules/knowledge/domain/entities/knowledge-page.entity.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: domain/repositories
- * Purpose: Repository port interfaces for Content domain persistence.
+ * Layer: domain/entity
+ * Purpose: Page aggregate root — the central document unit in the Content domain.
  */
 
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-  UpdatePageIconInput,
-  UpdatePageCoverInput,
-} from "../entities/knowledge-page.entity";
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  NestKnowledgeBlockInput,
-  UnnestKnowledgeBlockInput,
-} from "../entities/content-block.entity";
-import type {
-  KnowledgeVersion,
-  CreateKnowledgeVersionInput,
-} from "../entities/content-version.entity";
-import type {
-  KnowledgeCollection,
-  CreateKnowledgeCollectionInput,
-  RenameKnowledgeCollectionInput,
-  AddPageToCollectionInput,
-  RemovePageFromCollectionInput,
-  AddCollectionColumnInput,
-  ArchiveKnowledgeCollectionInput,
-} from "../entities/knowledge-collection.entity";
+export type KnowledgePageStatus = "active" | "archived";
+export type KnowledgePageApprovalState = "pending" | "approved";
+/** Notion Wiki page verification state */
+export type PageVerificationState = "verified" | "needs_review";
 
-export interface KnowledgePageRepository {
-  create(input: CreateKnowledgePageInput): Promise<KnowledgePage>;
-  rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null>;
-  move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null>;
-  reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null>;
-  archive(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  /** Mark a page as approved (approvalState = "approved"), stamping approvedAtISO. */
-  approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null>;
-  /** Mark a wiki page as verified (verificationState = "verified"). */
-  verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null>;
-  /** Flag a wiki page for review (verificationState = "needs_review"). */
-  requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null>;
-  /** Assign or change the owner of a wiki page. */
-  assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null>;
-  /** Set or clear the page icon (emoji or image URL). */
-  updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null>;
-  /** Set or clear the page cover image URL. */
-  updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null>;
-  findById(accountId: string, pageId: string): Promise<KnowledgePage | null>;
-  listByAccountId(accountId: string): Promise<KnowledgePage[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]>;
+export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
+export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
+export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
+
+export interface KnowledgePage {
+  readonly id: string;
+  readonly accountId: string;
+  readonly workspaceId?: string;
+  readonly title: string;
+  readonly slug: string;
+  readonly parentPageId: string | null;
+  readonly order: number;
+  readonly blockIds: readonly string[];
+  readonly status: KnowledgePageStatus;
+  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
+  readonly approvalState?: KnowledgePageApprovalState;
+  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
+  readonly approvedAtISO?: string;
+  /** Actor who approved the page. */
+  readonly approvedByUserId?: string;
+  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
+  /**
+   * Verification state for Wiki (Knowledge Base) pages.
+   * undefined = page is not in wiki verification mode.
+   * "verified" = marked as up-to-date by a verifier.
+   * "needs_review" = flagged for review (may be stale).
+   */
+  readonly verificationState?: PageVerificationState;
+  /** User responsible for keeping this page accurate. */
+  readonly ownerId?: string;
+  /** User who last set verificationState to "verified". */
+  readonly verifiedByUserId?: string;
+  /** ISO timestamp when the page was last verified. */
+  readonly verifiedAtISO?: string;
+  /** ISO timestamp after which the page auto-transitions to "needs_review". */
+  readonly verificationExpiresAtISO?: string;
+  // ── Visual identity (Notion-equivalent) ─────────────────────────────────────
+  /** Emoji or image URL used as the page icon (shown next to title). */
+  readonly iconUrl?: string;
+  /** URL of the cover image displayed at the top of the page. */
+  readonly coverUrl?: string;
+  readonly createdByUserId: string;
+  readonly createdAtISO: string;
+  readonly updatedAtISO: string;
 }
 
-export interface KnowledgeBlockRepository {
-  add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock>;
-  update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-  delete(accountId: string, blockId: string): Promise<void>;
-  findById(accountId: string, blockId: string): Promise<KnowledgeBlock | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]>;
-  /** Nest a block under a parent block (creates parent → child relationship). */
-  nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
-  /** Unnest a block, moving it back to page-level. */
-  unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null>;
+export interface KnowledgePageTreeNode extends KnowledgePage {
+  readonly children: readonly KnowledgePageTreeNode[];
 }
 
-export interface KnowledgeVersionRepository {
-  create(input: CreateKnowledgeVersionInput): Promise<KnowledgeVersion>;
-  findById(accountId: string, versionId: string): Promise<KnowledgeVersion | null>;
-  listByPageId(accountId: string, pageId: string): Promise<KnowledgeVersion[]>;
+export interface CreateKnowledgePageInput {
+  readonly accountId: string;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly parentPageId?: string | null;
+  readonly createdByUserId: string;
 }
 
-export interface KnowledgeCollectionRepository {
-  create(input: CreateKnowledgeCollectionInput): Promise<KnowledgeCollection>;
-  rename(input: RenameKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
-  addPage(input: AddPageToCollectionInput): Promise<KnowledgeCollection | null>;
-  removePage(input: RemovePageFromCollectionInput): Promise<KnowledgeCollection | null>;
-  addColumn(input: AddCollectionColumnInput): Promise<KnowledgeCollection | null>;
-  archive(input: ArchiveKnowledgeCollectionInput): Promise<KnowledgeCollection | null>;
-  findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null>;
-  listByAccountId(accountId: string): Promise<KnowledgeCollection[]>;
-  listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]>;
+export interface RenameKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly title: string;
+}
+
+export interface MoveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly targetParentPageId: string | null;
+}
+
+export interface ReorderKnowledgePageBlocksInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly blockIds: readonly string[];
+}
+
+export interface ArchiveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+}
+
+export interface ApproveKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly approvedByUserId: string;
+  readonly approvedAtISO: string;
+}
+
+export interface VerifyKnowledgePageInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly verifiedByUserId: string;
+  readonly verificationExpiresAtISO?: string;
+}
+
+export interface RequestPageReviewInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly requestedByUserId: string;
+}
+
+export interface AssignPageOwnerInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  readonly ownerId: string;
+}
+
+export interface UpdatePageIconInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  /** Emoji character or image URL. Pass empty string to clear. */
+  readonly iconUrl: string;
+}
+
+export interface UpdatePageCoverInput {
+  readonly accountId: string;
+  readonly pageId: string;
+  /** Image URL for the cover. Pass empty string to clear. */
+  readonly coverUrl: string;
 }
 ````
 
@@ -65471,101 +66256,6 @@ export function emptyTextBlockContent(): BlockContent {
 export function plainTextBlockContent(text: string, type: BlockType = "text"): BlockContent {
   return { type, richText: [{ type: "text", plainText: text }] };
 }
-````
-
-## File: modules/knowledge/index.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: module/barrel (public API)
- *
- * This is the ONLY file that external modules should import from.
- * All internal implementation details (domain, application, infrastructure)
- * are NOT importable from outside — use the exports listed here.
- *
- * Boundary rule: other modules import via `@/modules/knowledge`, never from
- * `@/modules/knowledge/domain/...` or deeper paths.
- *
- * Access pattern:
- *   - Cross-domain programmatic usage → `knowledgeFacade` (or `KnowledgeFacade`)
- *   - UI mutations                    → Server Actions below
- *   - UI reads                        → Query functions below
- *
- * Current boundary note:
- *   - `Page` / `Block` are owned by this module.
- *   - `KnowledgeCollection` is still exported here as a transitional surface.
- *   - `Article` / `Category` belong to `knowledge-base`.
- */
-
-// ── API: Facade (cross-domain entry point) ────────────────────────────────────
-export { KnowledgeFacade, knowledgeFacade } from "./api/knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./api/knowledge-facade";
-
-// ── Domain: entity types ──────────────────────────────────────────────────────
-export type {
-  KnowledgePage,
-  KnowledgePageStatus,
-  KnowledgePageTreeNode,
-} from "./domain/entities/knowledge-page.entity";
-
-export type { KnowledgeBlock } from "./domain/entities/content-block.entity";
-
-export type { KnowledgeVersion } from "./domain/entities/content-version.entity";
-
-export type { BlockContent, BlockType } from "./domain/value-objects/block-content";
-
-// ── Interfaces: Server Actions ────────────────────────────────────────────────
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "./interfaces/_actions/knowledge.actions";
-
-// ── Interfaces: Queries ───────────────────────────────────────────────────────
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePageTree,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "./interfaces/queries/knowledge.queries";
-
-// ── Domain: Collection + Wiki types ──────────────────────────────────────────
-export type {
-  KnowledgeCollection,
-  CollectionSpaceType,
-} from "./domain/entities/knowledge-collection.entity";
-
-export type { PageVerificationState } from "./domain/entities/knowledge-page.entity";
-
-// ── Interfaces: Components ────────────────────────────────────────────────────
-export { BlockEditorView } from "./interfaces/components/BlockEditorView";
-export { PageTreeView } from "./interfaces/components/PageTreeView";
-export { PageDialog } from "./interfaces/components/PageDialog";
 ````
 
 ## File: modules/knowledge/interfaces/components/block-row.tsx
@@ -65784,85 +66474,6 @@ export function TypeSelectorButton({ currentType, open, onOpenChange, onSelect }
 | [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
 | [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
 | [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/knowledge/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — knowledge
-
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
-| 工作區預設視角 | Workspace-first Scope | 日常頁面樹、建立與整理流程預設綁定 active workspace 的規則 | `app/(shell)/knowledge/pages/page.tsx` |
-| 帳戶總覽模式 | Account Summary Mode | 顯式跨工作區總覽模式，只用於 summary，不作為隱含預設建立入口 | `app/(shell)/knowledge/pages/page.tsx` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
-
-## 頁面生命周期操作（Page Lifecycle Actions）
-
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
-
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
-
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
-
-## 頁面操作選單（PageContextMenu）
-
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
-
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
-
-## 頁面樹狀視圖（PageTreeView）
-
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
-
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
-
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
 ## File: modules/organization/api/index.ts
@@ -66995,72 +67606,136 @@ export {
 } from "./workspace-feed-interaction.use-cases";
 ````
 
-## File: modules/workspace/application-services.md
-````markdown
-# workspace — Application Services
+## File: modules/workspace/api/index.ts
+````typescript
+/**
+ * workspace 模組公開跨域 API。
+ * 所有跨模組呼叫均需透過此檔案，禁止直接引用 workspace 模組內部實作。
+ */
 
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
+// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
 
-本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+export type {
+  Address,
+  AddressInput,
+  Capability,
+  CapabilitySpec,
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceEntity,
+  WorkspaceGrant,
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+  WorkspaceLocation,
+  WorkspaceName,
+  WorkspaceNameInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../domain/entities/Workspace";
+export {
+  WORKSPACE_LIFECYCLE_STATES,
+  WORKSPACE_VISIBILITIES,
+  createAddress,
+  createWorkspaceLifecycleState,
+  createWorkspaceName,
+  createWorkspaceVisibility,
+  formatAddress,
+  isTerminalWorkspaceLifecycleState,
+  isWorkspaceVisible,
+  workspaceNameEquals,
+} from "../domain/value-objects";
 
-## Application Layer 職責
+export type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberAccessSource,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../domain/entities/WorkspaceMember";
 
-- 協調 command-side use cases
-- 協調 query-side use cases / projection builders
-- 呼叫 repository ports 與必要的 domain service
-- 在持久化成功後觸發 domain event publishing
-- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
+export type {
+  WorkspaceCreatedEvent,
+  WorkspaceDomainEvent,
+  WorkspaceLifecycleTransitionedEvent,
+  WorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
 
-## Command-side Use Cases
+export {
+  WORKSPACE_CREATED_EVENT_TYPE,
+  WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+  WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+  createWorkspaceCreatedEvent,
+  createWorkspaceLifecycleTransitionedEvent,
+  createWorkspaceVisibilityChangedEvent,
+} from "../domain/events/workspace.events";
 
-| Use Case | 目的 | 備註 |
-|---|---|---|
-| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
-| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
-| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
-| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
-| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
-| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
-| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
-| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
+// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
 
-## Query-side Use Cases / Projection Builders
+export {
+  getWorkspaceById,
+  getWorkspaceByIdForAccount,
+  getWorkspacesForAccount,
+  subscribeToWorkspacesForAccount,
+} from "../interfaces/queries/workspace.queries";
 
-| Use Case / Function | 目的 |
-|---|---|
-| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
-| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+export { getWorkspaceMembers } from "../interfaces/queries/workspace-member.queries";
 
-## Factories 與 Composition Points
+// ─── Wiki content-tree types (owned by workspace domain) ───────────────────
 
-- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
-- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
-- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
+export type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+  WikiAccountType,
+  WikiContentItemNode,
+  WikiWorkspaceContentNode,
+  WikiWorkspaceRef,
+} from "../domain/entities/WikiContentTree";
 
-## 非目標
+// ─── Wiki content-tree use-case ────────────────────────────────────────────
 
-- 不保存 React component state
-- 不直接 new 外部 module 的 UI component
-- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+export { buildWikiContentTree } from "../interfaces/queries/wiki-content-tree.queries";
 
-## 實作對位
+// ─── Server actions (client-callable via Next.js action proxy) ──────────────
 
-### 目前 use-case 檔案
+export {
+  authorizeWorkspaceTeam,
+  createWorkspace,
+  createWorkspaceLocation,
+  createWorkspaceWithCapabilities,
+  deleteWorkspace,
+  grantIndividualWorkspaceAccess,
+  mountCapabilities,
+  updateWorkspaceSettings,
+} from "../interfaces/_actions/workspace.actions";
 
-- `application/use-cases/workspace-lifecycle.use-cases.ts`
-- `application/use-cases/workspace-capabilities.use-cases.ts`
-- `application/use-cases/workspace-access.use-cases.ts`
-- `application/use-cases/workspace-member.use-cases.ts`
-- `application/use-cases/wiki-content-tree.use-case.ts`
-- `application/use-cases/workspace.use-cases.ts`（barrel only）
+// ─── UI components (cross-module public) ─────────────────────────────────────
 
-### 收斂方向
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
 
-- `interfaces/_actions/` 保持 thin orchestration
-- `interfaces/queries/` 保持 thin query wrappers
-- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+// ─── Workspace tab metadata helpers (UI-only helpers) ───────────────────────
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
 ````
 
 ## File: modules/workspace/application/use-cases/workspace.use-cases.ts
@@ -67091,111 +67766,271 @@ export {
 } from "./workspace-access.use-cases";
 ````
 
-## File: modules/workspace/domain/entities/Workspace.ts
+## File: modules/workspace/domain/entities/WorkspaceProfile.ts
 ````typescript
-/**
- * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
- */
+import type { WorkspaceLocationCatalog } from "./WorkspaceLocation";
+import type { Address } from "../value-objects/Address";
 
-import type { Timestamp } from "@shared-types";
-import type { WorkspaceAccessPolicy } from "./WorkspaceAccess";
-import type { WorkspaceCapabilityAssignments } from "./WorkspaceCapability";
-import type {
-  WorkspaceOperationalProfile,
-  WorkspacePersonnel,
-} from "./WorkspaceProfile";
-import type {
-  AddressInput,
-} from "../value-objects/Address";
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "../value-objects/WorkspaceLifecycleState";
-import type {
-  WorkspaceName,
-  WorkspaceNameInput,
-} from "../value-objects/WorkspaceName";
-import type {
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../value-objects/WorkspaceVisibility";
-
-export interface WorkspaceEntity {
-  id: string;
-  name: WorkspaceName;
-  photoURL?: string;
-  lifecycleState: WorkspaceLifecycleState;
-  visibility: WorkspaceVisibility;
-  accountId: string;
-  accountType: "user" | "organization";
-  createdAt: Timestamp;
+export interface WorkspacePersonnel {
+  managerId?: string;
+  supervisorId?: string;
+  safetyOfficerId?: string;
+  customRoles?: WorkspacePersonnelCustomRole[];
 }
 
-export interface WorkspaceEntity
-  extends WorkspaceCapabilityAssignments,
-    WorkspaceAccessPolicy,
-    WorkspaceOperationalProfile {
-  id: string;
-  name: WorkspaceName;
-  photoURL?: string;
-  lifecycleState: WorkspaceLifecycleState;
-  visibility: WorkspaceVisibility;
-  accountId: string;
-  accountType: "user" | "organization";
-  createdAt: Timestamp;
+export interface WorkspacePersonnelCustomRole {
+  roleId: string;
+  roleName: string;
+  role: string;
 }
 
-// ─── Commands ─────────────────────────────────────────────────────────────────
-
-export interface CreateWorkspaceCommand {
-  readonly name: WorkspaceNameInput;
-  readonly accountId: string;
-  readonly accountType: "user" | "organization";
+export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
+  address?: Address;
+  personnel?: WorkspacePersonnel;
 }
 
-export interface UpdateWorkspaceSettingsCommand {
-  readonly workspaceId: string;
-  readonly accountId: string;
-  readonly name?: WorkspaceNameInput;
-  readonly visibility?: WorkspaceVisibilityInput;
-  readonly lifecycleState?: WorkspaceLifecycleStateInput;
-  readonly address?: AddressInput;
-  readonly personnel?: WorkspacePersonnel;
-}
-
-export type { WorkspaceGrant } from "./WorkspaceAccess";
-export type { Capability, CapabilitySpec } from "./WorkspaceCapability";
-export type { WorkspaceLocation } from "./WorkspaceLocation";
-export type {
-  Address,
-  AddressInput,
-  WorkspacePersonnel,
-  WorkspacePersonnelCustomRole,
-} from "./WorkspaceProfile";
-export type {
-  WorkspaceLifecycleState,
-  WorkspaceLifecycleStateInput,
-} from "../value-objects/WorkspaceLifecycleState";
-export type {
-  WorkspaceName,
-  WorkspaceNameInput,
-} from "../value-objects/WorkspaceName";
-export type {
-  WorkspaceVisibility,
-  WorkspaceVisibilityInput,
-} from "../value-objects/WorkspaceVisibility";
+export type { Address, AddressInput } from "../value-objects/Address";
 ````
 
-## File: modules/workspace/index.ts
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
 ````typescript
 /**
- * workspace module root entry.
- *
- * Keep this file as a thin aggregate export only.
- * Cross-module consumers should prefer `@/modules/workspace/api` directly.
+ * FirebaseWorkspaceRepository — Infrastructure adapter for workspace persistence.
+ * Translates Firestore documents ↔ Domain WorkspaceEntity.
+ * Firebase SDK only exists in this file.
  */
 
-export * from "./api";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  query,
+  where,
+  documentId,
+  arrayUnion,
+  arrayRemove,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
+import type {
+  WorkspaceEntity,
+  Capability,
+  WorkspaceGrant,
+  UpdateWorkspaceSettingsCommand,
+  WorkspaceLocation,
+} from "../../domain/entities/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+const VALID_ACCOUNT_TYPES = new Set<WorkspaceEntity["accountType"]>(["user", "organization"]);
+
+export function toWorkspaceEntity(id: string, data: Record<string, unknown>): WorkspaceEntity {
+  const accountType = VALID_ACCOUNT_TYPES.has(data.accountType as WorkspaceEntity["accountType"])
+    ? (data.accountType as WorkspaceEntity["accountType"])
+    : "user";
+
+  return {
+    id,
+    name: createWorkspaceName(typeof data.name === "string" ? data.name : "Untitled workspace"),
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    accountType,
+    lifecycleState: createWorkspaceLifecycleState(
+      data.lifecycleState === "active" ||
+        data.lifecycleState === "stopped" ||
+        data.lifecycleState === "preparatory"
+        ? data.lifecycleState
+        : "preparatory",
+    ),
+    visibility: createWorkspaceVisibility(
+      data.visibility === "hidden" || data.visibility === "visible"
+        ? data.visibility
+        : "visible",
+    ),
+    capabilities: Array.isArray(data.capabilities) ? (data.capabilities as Capability[]) : [],
+    grants: Array.isArray(data.grants) ? (data.grants as WorkspaceGrant[]) : [],
+    teamIds: Array.isArray(data.teamIds) ? (data.teamIds as string[]) : [],
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    address: data.address != null ? createAddress(data.address as NonNullable<UpdateWorkspaceSettingsCommand["address"]>) : undefined,
+    locations: Array.isArray(data.locations) ? (data.locations as WorkspaceLocation[]) : undefined,
+    personnel: data.personnel != null ? (data.personnel as WorkspaceEntity["personnel"]) : undefined,
+    createdAt: data.createdAt as WorkspaceEntity["createdAt"],
+  };
+}
+
+// ─── Repository ───────────────────────────────────────────────────────────────
+
+export class FirebaseWorkspaceRepository
+  implements
+    WorkspaceRepository,
+    WorkspaceCapabilityRepository,
+    WorkspaceAccessRepository,
+    WorkspaceLocationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<WorkspaceEntity | null> {
+    const snap = await getDoc(doc(this.db, "workspaces", id));
+    if (!snap.exists()) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findByIdForAccount(accountId: string, workspaceId: string): Promise<WorkspaceEntity | null> {
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", accountId),
+      where(documentId(), "==", workspaceId),
+    );
+    const snaps = await getDocs(q);
+    const snap = snaps.docs[0];
+    if (!snap) return null;
+    return toWorkspaceEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findAllByAccountId(accountId: string): Promise<WorkspaceEntity[]> {
+    const q = query(collection(this.db, "workspaces"), where("accountId", "==", accountId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toWorkspaceEntity(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async save(workspace: WorkspaceEntity): Promise<string> {
+    const ref = doc(this.db, "workspaces", workspace.id);
+    const payload: Record<string, unknown> = {
+      name: workspace.name,
+      accountId: workspace.accountId,
+      accountType: workspace.accountType,
+      lifecycleState: workspace.lifecycleState,
+      visibility: workspace.visibility,
+      capabilities: workspace.capabilities,
+      grants: workspace.grants,
+      teamIds: workspace.teamIds,
+      createdAt: serverTimestamp(),
+    };
+
+    if (workspace.photoURL !== undefined) payload.photoURL = workspace.photoURL;
+    if (workspace.address !== undefined) payload.address = workspace.address;
+    if (workspace.locations !== undefined) payload.locations = workspace.locations;
+    if (workspace.personnel !== undefined) payload.personnel = workspace.personnel;
+
+    await setDoc(ref, payload);
+    return workspace.id;
+  }
+
+  async updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.visibility !== undefined) updates.visibility = command.visibility;
+    if (command.lifecycleState !== undefined) updates.lifecycleState = command.lifecycleState;
+    if (command.address !== undefined) updates.address = command.address;
+    if (command.personnel !== undefined) updates.personnel = command.personnel;
+    await updateDoc(doc(this.db, "workspaces", command.workspaceId), updates);
+  }
+
+  async delete(id: string): Promise<void> {
+    await deleteDoc(doc(this.db, "workspaces", id));
+  }
+
+  async mountCapabilities(workspaceId: string, capabilities: Capability[]): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      capabilities: arrayUnion(...capabilities),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async unmountCapability(workspaceId: string, capabilityId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const caps = ((data.capabilities as Capability[]) ?? []).filter((c) => c.id !== capabilityId);
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      capabilities: caps,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async grantTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      teamIds: arrayUnion(teamId),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async revokeTeamAccess(workspaceId: string, teamId: string): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      teamIds: arrayRemove(teamId),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async grantIndividualAccess(workspaceId: string, grant: WorkspaceGrant): Promise<void> {
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      grants: arrayUnion(grant),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async revokeIndividualAccess(workspaceId: string, userId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const grants = ((data.grants as WorkspaceGrant[]) ?? []).filter((g) => g.userId !== userId);
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      grants,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async createLocation(
+    workspaceId: string,
+    location: Omit<WorkspaceLocation, "locationId">,
+  ): Promise<string> {
+    const locationId = crypto.randomUUID();
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations: arrayUnion({ ...location, locationId }),
+      updatedAt: serverTimestamp(),
+    });
+    return locationId;
+  }
+
+  async updateLocation(workspaceId: string, location: WorkspaceLocation): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).map((l) =>
+      l.locationId === location.locationId ? location : l,
+    );
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations,
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async deleteLocation(workspaceId: string, locationId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "workspaces", workspaceId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const locations = ((data.locations as WorkspaceLocation[]) ?? []).filter(
+      (l) => l.locationId !== locationId,
+    );
+    await updateDoc(doc(this.db, "workspaces", workspaceId), {
+      locations,
+      updatedAt: serverTimestamp(),
+    });
+  }
+}
 ````
 
 ## File: modules/workspace/interfaces/_actions/workspace.actions.ts
@@ -68009,88 +68844,6 @@ export function getWorkspaceTabPrefId(tab: WorkspaceTabValue): string {
 export function getWorkspaceTabsByGroup(group: WorkspaceTabGroup): readonly WorkspaceTabValue[] {
   return WORKSPACE_TAB_GROUPS[group];
 }
-````
-
-## File: modules/workspace/repositories.md
-````markdown
-# workspace — Repositories
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
-
-## Write-side Repository Ports
-
-### `WorkspaceRepository`
-
-`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
-
-#### 核心方法
-
-- `findById(id)`
-- `findByIdForAccount(accountId, workspaceId)`
-- `findAllByAccountId(accountId)`
-- `save(workspace)`
-- `updateSettings(command)`
-- `delete(id)`
-
-### Supporting Record Ports
-
-#### `WorkspaceCapabilityRepository`
-
-- `mountCapabilities()` / `unmountCapability()`
-
-#### `WorkspaceAccessRepository`
-
-- `grantTeamAccess()` / `revokeTeamAccess()`
-- `grantIndividualAccess()` / `revokeIndividualAccess()`
-
-#### `WorkspaceLocationRepository`
-
-- `createLocation()` / `updateLocation()` / `deleteLocation()`
-
-這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
-
-## Read-side Repository Ports
-
-### `WorkspaceQueryRepository`
-
-負責工作區查詢投影，而非 aggregate 持久化。
-
-#### 方法
-
-- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
-- `getWorkspaceMembers(workspaceId)`
-
-### `WikiWorkspaceRepository`
-
-負責組合工作區導覽 tree 所需的最小工作區參照。
-
-#### 方法
-
-- `listByAccountId(accountId)`
-
-## Infrastructure Adapters
-
-| Adapter | 作用 |
-|---|---|
-| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
-| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
-| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
-
-## 設計規則
-
-- repository 介面定義在 `domain/repositories/`
-- infrastructure adapters 實作在 `infrastructure/`
-- `application/` 只依賴 repository ports，不依賴 adapter 類別
-- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
-
-## Tactical Debt Notes
-
-- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
-- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
 ````
 
 ## File: py_fn/src/application/use_cases/__init__.py
@@ -69665,62 +70418,6 @@ def handle_rag_reindex_document(req: https_fn.CallableRequest) -> dict:
             https_fn.FunctionsErrorCode.INTERNAL,
             f"rag_reindex_document 失敗：{str(exc)[:200]}",
         ) from exc
-````
-
-## File: scripts/demo-flow.ts
-````typescript
-/**
- * scripts/demo-flow.ts
- *
- * Architecture Phase 2 — The Proof (Occam's Razor Edition)
- *
- * Demonstrates the Content → EventBus loop using only in-memory adapters.
- * Note: modules/wiki has been removed; graph steps are no longer included.
- *
- * Run with:
- *   npx tsx scripts/demo-flow.ts
- */
-
-import { SimpleEventBus } from "../modules/shared/infrastructure/SimpleEventBus";
-import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/knowledge-api";
-
-async function main() {
-  const ACCOUNT_ID = "demo-account";
-  const WORKSPACE_ID = "demo-workspace";
-  const USER_ID = "demo-user";
-
-  console.log("[1] Initialising event bus...");
-  const eventBus = new SimpleEventBus();
-  console.log("    ✓ SimpleEventBus ready\n");
-
-  console.log("[2] Creating KnowledgeApi...");
-  const contentApi = new ContentKnowledgeApi(eventBus);
-  console.log("    ✓ KnowledgeApi ready\n");
-
-  console.log('[3] Creating page "Hello World"...');
-  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID, {
-    workspaceId: WORKSPACE_ID,
-  });
-  console.log(`    ✓ page created  id=${page.id}\n`);
-
-  console.log("[4] Adding an empty block to the page...");
-  const block = await contentApi.addBlock(ACCOUNT_ID, page.id, "");
-  console.log(`    ✓ block created  id=${block.id}\n`);
-
-  console.log('[5] Updating block → "Hello [[World]]"...');
-  const updated = await contentApi.updateBlock(ACCOUNT_ID, block.id, "Hello [[World]]");
-  if (!updated) {
-    throw new Error("ASSERTION FAILED: updateBlock returned null");
-  }
-  console.log(`    ✓ block updated  content="${updated.content.richText.map((s) => (s as { plainText?: string }).plainText ?? "").join("")}"\n`);
-
-  console.log("✅  Demo flow completed successfully.");
-}
-
-main().catch((err) => {
-  console.error("❌  Demo flow failed:", err);
-  process.exit(1);
-});
 ````
 
 ## File: vitest.config.ts
@@ -71613,1026 +72310,194 @@ export default function KnowledgePageDetailPage() {
 }
 ````
 
-## File: modules/knowledge/aggregates.md
-````markdown
-# Aggregates — knowledge
-
-## 聚合根：KnowledgePage
-
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區；workspace-first 頁面必須帶值，僅顯式 summary / legacy migration 情境可為空 |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
-
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
-
-### KnowledgePageStatus 與 UI 標籤對照
-
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
-
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
-
-### 不變數
-
-- `slug` 在同一 accountId 下必須唯一
-- 頁面樹與日常建立流程預設以 workspaceId 為邊界；account 層級只能做顯式 summary，不可作為隱含預設
-- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；若需 account-level summary，應以獨立 summary flow 實作，而不是沿用一般建立流程
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
-
----
-
-## 實體：ContentBlock（KnowledgeBlock）
-
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
-
----
-
-## 實體：ContentVersion（KnowledgeVersion）
-
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區；wiki 與日常集合操作預設為 workspace-first |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-````
-
-## File: modules/knowledge/api/index.ts
+## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: api/barrel
- * Purpose: Public anti-corruption layer — the sole cross-domain entry point
- * for the knowledge domain.
+ * Layer: application/use-cases
+ * Purpose: Page lifecycle use cases — create, rename, move, reorder blocks, archive, list.
+ * Review workflow: see knowledge-page-review.use-cases.ts
+ * Appearance: see knowledge-page-appearance.use-cases.ts
  */
 
-export { KnowledgeFacade, knowledgeFacade } from "./knowledge-facade";
-export type {
-  KnowledgeCreatePageParams,
-  KnowledgeRenamePageParams,
-  KnowledgeMovePageParams,
-  KnowledgeAddBlockParams,
-  KnowledgeUpdateBlockParams,
-} from "./knowledge-facade";
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
 
-export { KnowledgeApi } from "./knowledge-api";
-
-export { BlockEditorView } from "../interfaces/components/BlockEditorView";
-export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
-export type { Block } from "../interfaces/store/block-editor.store";
-
-export { PageEditorView } from "../interfaces/components/PageEditorView";
-export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
-
-export { RichTextEditor } from "../interfaces/components/RichTextEditor";
-
-// ── Server Actions (write-side) ───────────────────────────────────────────────
-
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-  publishKnowledgeVersion,
-  approveKnowledgePage,
-  // Collection actions
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-  // Wiki / Knowledge Base verification actions
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "../interfaces/_actions/knowledge.actions";
-
-export type { ApproveKnowledgePageDto } from "../application/dto/knowledge.dto";
-
-// ── Wiki / Knowledge Base DTO types ──────────────────────────────────────────
-
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Collection types ──────────────────────────────────────────────────────────
-
-export type {
-  KnowledgeCollection,
-  CollectionColumn,
-  CollectionColumnType,
-  CollectionStatus,
-  CollectionSpaceType,
-} from "../domain/entities/knowledge-collection.entity";
-
-export type {
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "../application/dto/knowledge.dto";
-
-// ── Public event contracts ────────────────────────────────────────────────────
-
-export {
-  KNOWLEDGE_EVENT_TYPES,
-} from "./events";
-
-export type {
-  KnowledgePageApprovedEvent,
-  KnowledgeDomainEvent,
-  ExtractedTask,
-  ExtractedInvoice,
-  KnowledgeEventType,
-} from "./events";
-
-// ── Queries (read-side) ──────────────────────────────────────────────
-
-export {
-  getKnowledgePage,
-  getKnowledgePages,
-  getKnowledgePagesByWorkspace,
-  getKnowledgePageTree,
-  getKnowledgePageTreeByWorkspace,
-  getKnowledgeBlocks,
-  getKnowledgeVersions,
-  getKnowledgeCollection,
-  getKnowledgeCollections,
-} from "../interfaces/queries/knowledge.queries";
-
-export type { KnowledgePageTreeNode } from "../domain/entities/knowledge-page.entity";
-export type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
-
-// ── UI Components ─────────────────────────────────────────────────────────────
-export { PageTreeView } from "../interfaces/components/PageTreeView";
-export { PageDialog } from "../interfaces/components/PageDialog";
-
-// ── BacklinkIndex ─────────────────────────────────────────────────────────────
-export type { BacklinkEntry, BacklinkIndex } from "../domain/entities/backlink-index.entity";
-export type { IBacklinkIndexRepository } from "../domain/repositories/IBacklinkIndexRepository";
-export { UpdatePageBacklinksUseCase, RemovePageBacklinksUseCase, GetPageBacklinksUseCase } from "../application/use-cases/backlink-index.use-cases";
-````
-
-## File: modules/knowledge/domain/entities/knowledge-page.entity.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: domain/entity
- * Purpose: Page aggregate root — the central document unit in the Content domain.
- */
-
-export type KnowledgePageStatus = "active" | "archived";
-export type KnowledgePageApprovalState = "pending" | "approved";
-/** Notion Wiki page verification state */
-export type PageVerificationState = "verified" | "needs_review";
-
-export const KNOWLEDGE_PAGE_STATUSES = ["active", "archived"] as const satisfies readonly KnowledgePageStatus[];
-export const KNOWLEDGE_PAGE_APPROVAL_STATES = ["pending", "approved"] as const satisfies readonly KnowledgePageApprovalState[];
-export const PAGE_VERIFICATION_STATES = ["verified", "needs_review"] as const satisfies readonly PageVerificationState[];
-
-export interface KnowledgePage {
-  readonly id: string;
-  readonly accountId: string;
-  readonly workspaceId?: string;
-  readonly title: string;
-  readonly slug: string;
-  readonly parentPageId: string | null;
-  readonly order: number;
-  readonly blockIds: readonly string[];
-  readonly status: KnowledgePageStatus;
-  /** Approval state for AI-parsed draft pages. Populated when the page originates from an ingestion pipeline. */
-  readonly approvalState?: KnowledgePageApprovalState;
-  /** ISO timestamp when this page was approved by an actor (approvalState = "approved"). */
-  readonly approvedAtISO?: string;
-  /** Actor who approved the page. */
-  readonly approvedByUserId?: string;
-  // ── Wiki / Knowledge Base fields (Notion-equivalent) ────────────────────────
-  /**
-   * Verification state for Wiki (Knowledge Base) pages.
-   * undefined = page is not in wiki verification mode.
-   * "verified" = marked as up-to-date by a verifier.
-   * "needs_review" = flagged for review (may be stale).
-   */
-  readonly verificationState?: PageVerificationState;
-  /** User responsible for keeping this page accurate. */
-  readonly ownerId?: string;
-  /** User who last set verificationState to "verified". */
-  readonly verifiedByUserId?: string;
-  /** ISO timestamp when the page was last verified. */
-  readonly verifiedAtISO?: string;
-  /** ISO timestamp after which the page auto-transitions to "needs_review". */
-  readonly verificationExpiresAtISO?: string;
-  // ── Visual identity (Notion-equivalent) ─────────────────────────────────────
-  /** Emoji or image URL used as the page icon (shown next to title). */
-  readonly iconUrl?: string;
-  /** URL of the cover image displayed at the top of the page. */
-  readonly coverUrl?: string;
-  readonly createdByUserId: string;
-  readonly createdAtISO: string;
-  readonly updatedAtISO: string;
-}
-
-export interface KnowledgePageTreeNode extends KnowledgePage {
-  readonly children: readonly KnowledgePageTreeNode[];
-}
-
-export interface CreateKnowledgePageInput {
-  readonly accountId: string;
-  readonly workspaceId: string;
-  readonly title: string;
-  readonly parentPageId?: string | null;
-  readonly createdByUserId: string;
-}
-
-export interface RenameKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly title: string;
-}
-
-export interface MoveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly targetParentPageId: string | null;
-}
-
-export interface ReorderKnowledgePageBlocksInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly blockIds: readonly string[];
-}
-
-export interface ArchiveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-}
-
-export interface ApproveKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly approvedByUserId: string;
-  readonly approvedAtISO: string;
-}
-
-export interface VerifyKnowledgePageInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly verifiedByUserId: string;
-  readonly verificationExpiresAtISO?: string;
-}
-
-export interface RequestPageReviewInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly requestedByUserId: string;
-}
-
-export interface AssignPageOwnerInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  readonly ownerId: string;
-}
-
-export interface UpdatePageIconInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  /** Emoji character or image URL. Pass empty string to clear. */
-  readonly iconUrl: string;
-}
-
-export interface UpdatePageCoverInput {
-  readonly accountId: string;
-  readonly pageId: string;
-  /** Image URL for the cover. Pass empty string to clear. */
-  readonly coverUrl: string;
-}
-````
-
-## File: modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/firebase
- * Purpose: Firebase Firestore implementation of KnowledgePageRepository.
- *
- * Firestore collection: accounts/{accountId}/contentPages/{pageId}
- */
-
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-  UpdatePageIconInput,
-  UpdatePageCoverInput,
-} from "../../domain/entities/knowledge-page.entity";
+import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
+import {
+  CreateKnowledgePageSchema,
+  type CreateKnowledgePageDto,
+  RenameKnowledgePageSchema,
+  type RenameKnowledgePageDto,
+  MoveKnowledgePageSchema,
+  type MoveKnowledgePageDto,
+  ArchiveKnowledgePageSchema,
+  type ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksSchema,
+  type ReorderKnowledgePageBlocksDto,
+} from "../dto/knowledge.dto";
 
-function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentPages");
-}
+export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
+  const map = new Map<string, KnowledgePageTreeNode>();
+  for (const page of pages) {
+    map.set(page.id, { ...page, children: [] });
+  }
 
-function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
-  return doc(db, "accounts", accountId, "contentPages", pageId);
-}
+  const roots: KnowledgePageTreeNode[] = [];
+  for (const node of map.values()) {
+    if (node.parentPageId === null || !map.has(node.parentPageId)) {
+      roots.push(node);
+    } else {
+      const parent = map.get(node.parentPageId)!;
+      (parent.children as KnowledgePageTreeNode[]).push(node);
+    }
+  }
 
-function toKnowledgePage(id: string, data: Record<string, unknown>): KnowledgePage {
-  return {
-    id,
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    workspaceId: typeof data.workspaceId === "string" ? data.workspaceId : undefined,
-    title: typeof data.title === "string" ? data.title : "",
-    slug: typeof data.slug === "string" ? data.slug : "",
-    parentPageId: typeof data.parentPageId === "string" ? data.parentPageId : null,
-    order: typeof data.order === "number" ? data.order : 0,
-    blockIds: Array.isArray(data.blockIds)
-      ? (data.blockIds as unknown[]).filter((v): v is string => typeof v === "string")
-      : [],
-    status: data.status === "archived" ? "archived" : "active",
-    approvalState: data.approvalState === "approved" ? "approved" : data.approvalState === "pending" ? "pending" : undefined,
-    approvedAtISO: typeof data.approvedAtISO === "string" ? data.approvedAtISO : undefined,
-    approvedByUserId: typeof data.approvedByUserId === "string" ? data.approvedByUserId : undefined,
-    verificationState: data.verificationState === "verified" ? "verified" : data.verificationState === "needs_review" ? "needs_review" : undefined,
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
-    verifiedByUserId: typeof data.verifiedByUserId === "string" ? data.verifiedByUserId : undefined,
-    verifiedAtISO: typeof data.verifiedAtISO === "string" ? data.verifiedAtISO : undefined,
-    verificationExpiresAtISO: typeof data.verificationExpiresAtISO === "string" ? data.verificationExpiresAtISO : undefined,
-    iconUrl: typeof data.iconUrl === "string" ? data.iconUrl : undefined,
-    coverUrl: typeof data.coverUrl === "string" ? data.coverUrl : undefined,
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : "",
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : "",
+  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
+    nodes.sort((a, b) => a.order - b.order);
+    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
   };
+  sortByOrder(roots);
+
+  return roots;
 }
 
-function slugify(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/[\s_]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 100) || "page";
-}
-
-export class FirebaseKnowledgePageRepository implements KnowledgePageRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
-    const nowISO = new Date().toISOString();
-    const slug = slugify(input.title);
-    const id = generateId();
-
-    const existing = await getDocs(
-      query(pagesCol(this.db, input.accountId), where("parentPageId", "==", input.parentPageId ?? null)),
-    );
-    const order = existing.size;
-
-    const docRef = doc(pagesCol(this.db, input.accountId), id);
-    const data: Record<string, unknown> = {
-      accountId: input.accountId,
-      title: input.title,
-      slug,
-      parentPageId: input.parentPageId ?? null,
-      order,
-      blockIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: nowISO,
-      updatedAtISO: nowISO,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-    if (input.workspaceId) data.workspaceId = input.workspaceId;
-
-    await setDoc(docRef, data);
-
-    return toKnowledgePage(id, { ...data, id });
-  }
-
-  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      title: input.title,
-      slug: slugify(input.title),
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      parentPageId: input.targetParentPageId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      blockIds: [...input.blockIds],
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async archive(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, accountId, pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      status: "archived",
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const data = snap.data() as Record<string, unknown>;
-    if (data.status === "archived") return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      approvalState: "approved",
-      approvedAtISO: input.approvedAtISO,
-      approvedByUserId: input.approvedByUserId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
-    if (!snap.exists()) return null;
-    return toKnowledgePage(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(
-        pagesCol(this.db, accountId),
-        where("status", "==", "active"),
-        orderBy("order", "asc"),
-      ),
-    );
-    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(
-        pagesCol(this.db, accountId),
-        where("workspaceId", "==", workspaceId),
-        where("status", "==", "active"),
-        orderBy("order", "asc"),
-      ),
-    );
-    return snaps.docs.map((d) => toKnowledgePage(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      verificationState: "verified",
-      verifiedByUserId: input.verifiedByUserId,
-      verifiedAtISO: nowISO,
-      verificationExpiresAtISO: input.verificationExpiresAtISO ?? null,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      verificationState: "needs_review",
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      ownerId: input.ownerId,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      iconUrl: input.iconUrl || null,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-
-  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
-    const ref = pageDoc(this.db, input.accountId, input.pageId);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) return null;
-
-    const nowISO = new Date().toISOString();
-    await updateDoc(ref, {
-      coverUrl: input.coverUrl || null,
-      updatedAtISO: nowISO,
-      updatedAt: serverTimestamp(),
-    });
-
-    const updated = await getDoc(ref);
-    if (!updated.exists()) return null;
-    return toKnowledgePage(updated.id, updated.data() as Record<string, unknown>);
-  }
-}
-````
-
-## File: modules/knowledge/infrastructure/InMemoryKnowledgeRepository.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: infrastructure/in-memory
- * Purpose: In-memory adapter for KnowledgePageRepository and KnowledgeBlockRepository.
- *          Uses plain Map<string, …> — no external database required.
- *          Designed for local demos and unit tests (Occam's Razor).
- */
-
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  KnowledgeBlock,
-  AddKnowledgeBlockInput,
-  UpdateKnowledgeBlockInput,
-  NestKnowledgeBlockInput,
-  UnnestKnowledgeBlockInput,
-} from "../domain/entities/content-block.entity";
-import type {
-  KnowledgePage,
-  CreateKnowledgePageInput,
-  RenameKnowledgePageInput,
-  MoveKnowledgePageInput,
-  ReorderKnowledgePageBlocksInput,
-  ApproveKnowledgePageInput,
-  VerifyKnowledgePageInput,
-  RequestPageReviewInput,
-  AssignPageOwnerInput,
-  UpdatePageIconInput,
-  UpdatePageCoverInput,
-} from "../domain/entities/knowledge-page.entity";
-import type {
-  KnowledgeBlockRepository,
-  KnowledgePageRepository,
-} from "../domain/repositories/knowledge.repositories";
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function generateSlug(title: string): string {
-  return title
-    .trim()
-    .toLowerCase()
-    .replace(/[^\w\s-]/g, "")
-    .replace(/\s+/g, "-");
-}
-
-// ─── Page repository ──────────────────────────────────────────────────────────
-
-export class InMemoryKnowledgePageRepository implements KnowledgePageRepository {
-  private readonly pages = new Map<string, KnowledgePage>();
-
-  async create(input: CreateKnowledgePageInput): Promise<KnowledgePage> {
-    const now = new Date().toISOString();
-    const id = generateId();
-    const page: KnowledgePage = {
-      id,
-      accountId: input.accountId,
-      workspaceId: input.workspaceId,
-      title: input.title,
-      slug: generateSlug(input.title),
-      parentPageId: input.parentPageId ?? null,
-      order: this.pages.size,
-      blockIds: [],
-      status: "active",
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    this.pages.set(id, page);
-    return page;
-  }
-
-  async rename(input: RenameKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      title: input.title,
-      slug: generateSlug(input.title),
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async move(input: MoveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      parentPageId: input.targetParentPageId,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async reorderBlocks(input: ReorderKnowledgePageBlocksInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      blockIds: [...input.blockIds],
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async archive(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const page = this.pages.get(pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = {
-      ...page,
-      status: "archived",
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(pageId, updated);
-    return updated;
-  }
-
-  async approve(input: ApproveKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    if (page.status === "archived") return null;
-    const updated: KnowledgePage = {
-      ...page,
-      approvalState: "approved",
-      approvedAtISO: input.approvedAtISO,
-      approvedByUserId: input.approvedByUserId,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async verify(input: VerifyKnowledgePageInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, verificationState: "verified", updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async requestReview(input: RequestPageReviewInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, verificationState: "needs_review", updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async assignOwner(input: AssignPageOwnerInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, ownerId: input.ownerId, updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async updateIcon(input: UpdatePageIconInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, iconUrl: input.iconUrl || undefined, updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async updateCover(input: UpdatePageCoverInput): Promise<KnowledgePage | null> {
-    const page = this.pages.get(input.pageId);
-    if (!page) return null;
-    const updated: KnowledgePage = { ...page, coverUrl: input.coverUrl || undefined, updatedAtISO: new Date().toISOString() };
-    this.pages.set(input.pageId, updated);
-    return updated;
-  }
-
-  async findById(_accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    return this.pages.get(pageId) ?? null;
-  }
-
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    return [...this.pages.values()].filter((p) => p.accountId === accountId);
-  }
-
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    return [...this.pages.values()].filter(
-      (p) => p.accountId === accountId && p.workspaceId === workspaceId,
-    );
-  }
-
-  /** Append a blockId to a page's blockIds list (called by block operations). */
-  async appendBlockId(pageId: string, blockId: string): Promise<void> {
-    const page = this.pages.get(pageId);
-    if (!page) return;
-    this.pages.set(pageId, {
-      ...page,
-      blockIds: [...page.blockIds, blockId],
-      updatedAtISO: new Date().toISOString(),
-    });
-  }
-}
-
-// ─── Block repository ─────────────────────────────────────────────────────────
-
-export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepository {
-  private readonly blocks = new Map<string, KnowledgeBlock>();
-
-  async add(input: AddKnowledgeBlockInput): Promise<KnowledgeBlock> {
-    const now = new Date().toISOString();
-    const id = generateId();
-    const siblingsCount = [...this.blocks.values()].filter(
-      (b) => b.pageId === input.pageId && b.accountId === input.accountId,
-    ).length;
-    const block: KnowledgeBlock = {
-      id,
-      pageId: input.pageId,
-      accountId: input.accountId,
-      content: input.content,
-      order: input.index ?? siblingsCount,
-      parentBlockId: input.parentBlockId ?? null,
-      childBlockIds: [],
-      createdAtISO: now,
-      updatedAtISO: now,
-    };
-    this.blocks.set(id, block);
-    return block;
-  }
-
-  async update(input: UpdateKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
-    const block = this.blocks.get(input.blockId);
-    if (!block) return null;
-    const updated: KnowledgeBlock = {
-      ...block,
-      content: input.content,
-      updatedAtISO: new Date().toISOString(),
-    };
-    this.blocks.set(input.blockId, updated);
-    return updated;
-  }
-
-  async delete(_accountId: string, blockId: string): Promise<void> {
-    this.blocks.delete(blockId);
-  }
-
-  async findById(_accountId: string, blockId: string): Promise<KnowledgeBlock | null> {
-    return this.blocks.get(blockId) ?? null;
-  }
-
-  async listByPageId(accountId: string, pageId: string): Promise<KnowledgeBlock[]> {
-    return [...this.blocks.values()]
-      .filter((b) => b.accountId === accountId && b.pageId === pageId)
-      .sort((a, b) => a.order - b.order);
-  }
-
-  async nest(input: NestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
-    const block = this.blocks.get(input.blockId);
-    const parent = this.blocks.get(input.parentBlockId);
-    if (!block || !parent) return null;
-    const now = new Date().toISOString();
-
-    const idx = input.index !== undefined ? input.index : parent.childBlockIds.length;
-    const updatedChildren = [...parent.childBlockIds];
-    updatedChildren.splice(idx, 0, input.blockId);
-
-    this.blocks.set(input.parentBlockId, { ...parent, childBlockIds: updatedChildren, updatedAtISO: now });
-    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: input.parentBlockId, updatedAtISO: now };
-    this.blocks.set(input.blockId, updatedBlock);
-    return updatedBlock;
-  }
-
-  async unnest(input: UnnestKnowledgeBlockInput): Promise<KnowledgeBlock | null> {
-    const block = this.blocks.get(input.blockId);
-    if (!block) return null;
-    const now = new Date().toISOString();
-
-    if (block.parentBlockId) {
-      const parent = this.blocks.get(block.parentBlockId);
-      if (parent) {
-        this.blocks.set(block.parentBlockId, {
-          ...parent,
-          childBlockIds: parent.childBlockIds.filter((id) => id !== input.blockId),
-          updatedAtISO: now,
-        });
-      }
+export class CreateKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
+    const parsed = CreateKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
     }
 
-    const updatedBlock: KnowledgeBlock = { ...block, parentBlockId: null, updatedAtISO: now };
-    this.blocks.set(input.blockId, updatedBlock);
-    return updatedBlock;
+    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
+
+    const page = await this.repo.create({
+      accountId,
+      workspaceId,
+      title: title.trim(),
+      parentPageId: parentPageId ?? null,
+      createdByUserId,
+    });
+
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RenameKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
+    const parsed = RenameKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, title } = parsed.data;
+    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class MoveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = MoveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, targetParentPageId } = parsed.data;
+
+    if (pageId === targetParentPageId) {
+      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
+    }
+
+    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ArchiveKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId } = parsed.data;
+    const updated = await this.repo.archive(accountId, pageId);
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class ReorderKnowledgePageBlocksUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
+    if (!parsed.success) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+    }
+
+    const { accountId, pageId, blockIds } = parsed.data;
+    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
+    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    return commandSuccess(updated.id, Date.now());
+  }
+}
+
+export class GetKnowledgePageUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    if (!accountId.trim() || !pageId.trim()) return null;
+    return this.repo.findById(accountId, pageId);
+  }
+}
+
+export class ListKnowledgePagesUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim()) return [];
+    return this.repo.listByAccountId(accountId);
+  }
+}
+
+export class ListKnowledgePagesByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    return this.repo.listByWorkspaceId(accountId, workspaceId);
+  }
+}
+
+export class GetKnowledgePageTreeUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim()) return [];
+    const pages = await this.repo.listByAccountId(accountId);
+    return buildKnowledgePageTree(pages);
+  }
+}
+
+export class GetKnowledgePageTreeByWorkspaceUseCase {
+  constructor(private readonly repo: KnowledgePageRepository) {}
+
+  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
+    if (!accountId.trim() || !workspaceId.trim()) return [];
+    const pages = await this.repo.listByWorkspaceId(accountId, workspaceId);
+    return buildKnowledgePageTree(pages);
   }
 }
 ````
@@ -72760,106 +72625,191 @@ export function BlockEditorView() {
 }
 ````
 
-## File: modules/knowledge/interfaces/queries/knowledge.queries.ts
+## File: modules/knowledge/interfaces/components/PageTreeView.tsx
 ````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/queries
- * Purpose: Server-side query helpers for reading Content domain data.
- */
+"use client";
 
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
-import type { KnowledgeBlock } from "../../domain/entities/content-block.entity";
-import type { KnowledgeCollection } from "../../domain/entities/knowledge-collection.entity";
-import {
-  GetKnowledgePageUseCase,
-  ListKnowledgePagesUseCase,
-  ListKnowledgePagesByWorkspaceUseCase,
-  GetKnowledgePageTreeUseCase,
-  GetKnowledgePageTreeByWorkspaceUseCase,
-} from "../../application/use-cases/knowledge-page.use-cases";
-import { ListKnowledgeBlocksUseCase } from "../../application/use-cases/knowledge-block.use-cases";
-import {
-  GetKnowledgeCollectionUseCase,
-  ListKnowledgeCollectionsByAccountUseCase,
-} from "../../application/use-cases/knowledge-collection.use-cases";
-import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
-import { FirebaseKnowledgeBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
-import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseContentCollectionRepository";
-import type { KnowledgeVersion } from "../../domain/entities/content-version.entity";
+import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
+import { useState } from "react";
 
-export async function getKnowledgePage(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgePage | null> {
-  return new GetKnowledgePageUseCase(new FirebaseKnowledgePageRepository()).execute(
-    accountId,
-    pageId,
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
+import { PageDialog } from "./PageDialog";
+
+interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  allowCreate?: boolean;
+  emptyStateDescription?: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node,
+  accountId,
+  workspaceId,
+  currentUserId,
+  allowCreate,
+  onPageClick,
+  onCreated,
+  depth,
+}: {
+  node: KnowledgePageTreeNode;
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  allowCreate: boolean;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+  const canCreate = allowCreate && Boolean(workspaceId);
+
+  return (
+    <li>
+      <div
+        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
+        style={{ paddingLeft: `${8 + depth * 16}px` }}
+      >
+        <button
+          type="button"
+          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "折疊" : "展開"}
+        >
+          {hasChildren ? (
+            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
+          ) : (
+            <FileText className="h-3.5 w-3.5" />
+          )}
+        </button>
+
+        <button
+          type="button"
+          className="min-w-0 flex-1 truncate text-left text-sm"
+          onClick={() => onPageClick?.(node.id)}
+        >
+          {node.title}
+        </button>
+
+        {canCreate ? (
+          <button
+            type="button"
+            className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
+            onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
+            title="新增子頁面"
+          >
+            <FilePlus className="h-3.5 w-3.5" />
+          </button>
+        ) : null}
+      </div>
+
+      {expanded && hasChildren && (
+        <ul className="list-none">
+          {node.children.map((child) => (
+            <TreeNode
+              key={child.id}
+              node={child}
+              accountId={accountId}
+              workspaceId={workspaceId}
+              currentUserId={currentUserId}
+              allowCreate={canCreate}
+              onPageClick={onPageClick}
+              onCreated={onCreated}
+              depth={depth + 1}
+            />
+          ))}
+        </ul>
+      )}
+
+      {canCreate && workspaceId ? (
+        <PageDialog
+          open={addChildOpen}
+          onOpenChange={setAddChildOpen}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          parentPageId={node.id}
+          onSuccess={() => onCreated?.()}
+        />
+      ) : null}
+    </li>
   );
 }
 
-export async function getKnowledgePages(accountId: string): Promise<KnowledgePage[]> {
-  return new ListKnowledgePagesUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
+export function PageTreeView({
+  nodes,
+  accountId,
+  workspaceId,
+  currentUserId,
+  allowCreate = true,
+  emptyStateDescription = "尚無頁面。點擊「新增頁面」開始建立。",
+  onPageClick,
+  onCreated,
+}: PageTreeViewProps) {
+  const [addRootOpen, setAddRootOpen] = useState(false);
+  const canCreate = allowCreate && Boolean(workspaceId);
 
-export async function getKnowledgePagesByWorkspace(
-  accountId: string,
-  workspaceId: string,
-): Promise<KnowledgePage[]> {
-  return new ListKnowledgePagesByWorkspaceUseCase(new FirebaseKnowledgePageRepository()).execute(
-    accountId,
-    workspaceId,
-  );
-}
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
+        {canCreate ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            onClick={() => setAddRootOpen(true)}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
+          </Button>
+        ) : null}
+      </div>
 
-export async function getKnowledgePageTree(accountId: string): Promise<KnowledgePageTreeNode[]> {
-  return new GetKnowledgePageTreeUseCase(new FirebaseKnowledgePageRepository()).execute(accountId);
-}
+      {nodes.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
+          <FileText className="h-8 w-8 text-muted-foreground/50" />
+          <p className="text-sm text-muted-foreground">{emptyStateDescription}</p>
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border/60 bg-background py-1">
+          <ul className="list-none">
+            {nodes.map((node) => (
+              <TreeNode
+                key={node.id}
+                node={node}
+                accountId={accountId}
+                workspaceId={workspaceId}
+                currentUserId={currentUserId}
+                allowCreate={canCreate}
+                onPageClick={onPageClick}
+                onCreated={onCreated}
+                depth={0}
+              />
+            ))}
+          </ul>
+        </div>
+      )}
 
-export async function getKnowledgePageTreeByWorkspace(
-  accountId: string,
-  workspaceId: string,
-): Promise<KnowledgePageTreeNode[]> {
-  return new GetKnowledgePageTreeByWorkspaceUseCase(new FirebaseKnowledgePageRepository()).execute(
-    accountId,
-    workspaceId,
-  );
-}
-
-export async function getKnowledgeBlocks(
-  accountId: string,
-  pageId: string,
-): Promise<KnowledgeBlock[]> {
-  return new ListKnowledgeBlocksUseCase(new FirebaseKnowledgeBlockRepository()).execute(
-    accountId,
-    pageId,
-  );
-}
-
-export async function getKnowledgeVersions(
-  _accountId: string,
-  _pageId: string,
-): Promise<KnowledgeVersion[]> {
-  return [];
-}
-
-// ── Collection queries ────────────────────────────────────────────────────────
-
-export async function getKnowledgeCollection(
-  accountId: string,
-  collectionId: string,
-): Promise<KnowledgeCollection | null> {
-  return new GetKnowledgeCollectionUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
-    collectionId,
-  );
-}
-
-export async function getKnowledgeCollections(
-  accountId: string,
-): Promise<KnowledgeCollection[]> {
-  return new ListKnowledgeCollectionsByAccountUseCase(new FirebaseKnowledgeCollectionRepository()).execute(
-    accountId,
+      {canCreate && workspaceId ? (
+        <PageDialog
+          open={addRootOpen}
+          onOpenChange={setAddRootOpen}
+          accountId={accountId}
+          workspaceId={workspaceId}
+          currentUserId={currentUserId}
+          parentPageId={null}
+          onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
+        />
+      ) : null}
+    </div>
   );
 }
 ````
@@ -74998,101 +74948,6 @@ export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: W
 }
 ````
 
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-> **強制開發規範**  
-> 本 BC 領域開發必須使用 Serena 指令：
-> ```
-> serena
-> #use skill xuanwu-app-skill
-> #use skill serena-mcp
-> #use skill context7
-> #use skill alistair-cockburn
-> #use skill iddd-implementing-ddd
-
-> ```
-
-## 模組定位
-
-`workspace` 是協作容器 bounded context，也是 Xuanwu 中的 generic subdomain。
-
-它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
-
-`workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
-
-## Tactical 對位
-
-- Aggregate Root：`Workspace`
-- Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
-- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceLifecycleState` | WorkspaceStatus、ArchivedState |
-| `WorkspaceVisibility` | VisibilityMode、DiscoveryState |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 workspace BC 內） |
-| `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
-| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
-
-## 邊界規則
-
-### ✅ 允許
-
-```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-
-```typescript
-import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
-import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-cases/workspace.use-cases";
-```
-
-## 分層守衛
-
-- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
-- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
-- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
-- `infrastructure/` 禁止 import `api/`
-- `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
-
-## Tactical 建模守則
-
-- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
-- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
-- `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
-- 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [README.md](./README.md) | 模組定位與 tactical model 總覽 |
-| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
-| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
-| [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
-| [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
-| [application-services.md](./application-services.md) | application layer use cases、query orchestration 與 factory 落點 |
-| [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
-| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
-````
-
 ## File: modules/workspace/application/use-cases/workspace-access.use-cases.ts
 ````typescript
 /**
@@ -75195,155 +75050,191 @@ export class MountCapabilitiesUseCase {
 }
 ````
 
-## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+## File: modules/workspace/bounded-context.md
+````markdown
+# Bounded Context — workspace
+
+`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapter 的 bounded context。
+
+全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的細節，不重複整份全域地圖。
+
+## Boundaries
+
+### 這個 bounded context 擁有的語言
+
+- `Workspace`
+- `workspaceId`
+- `WorkspaceLifecycleState`
+- `WorkspaceVisibility`
+- 與工作區範圍直接相關的 aggregate、value object、domain event language
+
+### 這個 bounded context 不擁有的語言
+
+- 組織成員、團隊與治理真相來源：由 `organization` 擁有
+- 知識內容與知識工作流：由 `knowledge`、`knowledge-base`、`notebook` 等擁有
+- 事件儲存與 event bus 基礎設施：由 `shared` 與對應 integration layers 擁有
+- 頁面 tab 組裝與 route composition：屬於 UI / interface composition，不是 bounded-context boundary 本體
+
+## Collaboration Surface
+
+workspace 以兩種主要方式與其他 bounded contexts 協作：
+
+1. 同步公開邊界：`api/`
+2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
+
+在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
+
+更完整的外部關係請看 [context-map.md](./context-map.md)。
+
+## Internal Structure
+
+從六邊形架構看，這個 bounded context 的內部切面如下：
+
+| 區域 | 角色 |
+|---|---|
+| `domain/` | aggregate、entity、value object、domain event language |
+| `application/` | use cases 與 orchestration |
+| `interfaces/` | driving adapters：Server Actions、queries、UI composition |
+| `infrastructure/` | driven adapters：Firebase 與其他外部技術整合 |
+
+這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
+
+## Drivers, Ports, Adapters, and Read Models
+
+### Drivers / 外部驅動器
+
+- Browser UI
+- Next.js Server Actions 與 query entrypoints
+- 其他 bounded context 經由 `api/` 的呼叫者
+- 未來可能的 incoming event handlers / scheduled jobs
+
+### Ports / 端口
+
+- 內核朝外的 driven ports 主要是 `domain/repositories/` 介面
+- `api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
+
+### Adapters / 適配器
+
+- Driving Adapters：`interfaces/` 下的 actions、queries、UI-oriented composition
+- Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
+
+### Projections / Read Models
+
+- `WorkspaceMemberView`
+- `WikiAccountContentNode`
+- `WikiWorkspaceContentNode`
+- `WikiContentItemNode`
+
+它們服務查詢與呈現，不是 write-side aggregate，也不是 infrastructure adapter。
+
+## Ownership Guardrails
+
+- 跨模組 consumer 應透過 `@/modules/workspace/api` 協作
+- `domain/` 不感知 React、Firebase SDK、HTTP client
+- `infrastructure/` 不透過 `api/` 反向回繞
+- `WorkspaceMemberView` 與 `Wiki*Node` 是 query-side projection，不是此 bounded context 的 write-side aggregate
+
+## Related Local Docs
+
+- [README.md](./README.md) — 總覽與 tactical summary
+- [context-map.md](./context-map.md) — 對外關係與 integration patterns
+- [aggregates.md](./aggregates.md) — bounded context 內部核心模型
+- [repositories.md](./repositories.md) — ports 與 adapters
+````
+
+## File: modules/workspace/domain/entities/Workspace.ts
 ````typescript
 /**
- * Module: workspace
- * Layer: application/use-cases
- * Purpose: Workspace lifecycle use cases — create and delete.
+ * Workspace Domain Entities — pure TypeScript, zero framework dependencies.
  */
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
+import type { Timestamp } from "@shared-types";
+import type { WorkspaceAccessPolicy } from "./WorkspaceAccess";
+import type { WorkspaceCapabilityAssignments } from "./WorkspaceCapability";
 import type {
-  CreateWorkspaceCommand,
-  UpdateWorkspaceSettingsCommand,
-  Capability,
-  WorkspaceEntity,
-} from "../../domain/entities/Workspace";
-import { createAddress } from "../../domain/value-objects/Address";
-import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
-import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
-import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+  WorkspaceOperationalProfile,
+  WorkspacePersonnel,
+} from "./WorkspaceProfile";
+import type {
+  AddressInput,
+} from "../value-objects/Address";
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "../value-objects/WorkspaceLifecycleState";
+import type {
+  WorkspaceName,
+  WorkspaceNameInput,
+} from "../value-objects/WorkspaceName";
+import type {
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../value-objects/WorkspaceVisibility";
 
-function createInitialWorkspaceEntity(command: CreateWorkspaceCommand): WorkspaceEntity {
-  return {
-    id: crypto.randomUUID(),
-    name: createWorkspaceName(command.name),
-    accountId: command.accountId,
-    accountType: command.accountType,
-    lifecycleState: createWorkspaceLifecycleState("preparatory"),
-    visibility: createWorkspaceVisibility("visible"),
-    capabilities: [],
-    grants: [],
-    teamIds: [],
-    createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-  };
+export interface WorkspaceEntity {
+  id: string;
+  name: WorkspaceName;
+  photoURL?: string;
+  lifecycleState: WorkspaceLifecycleState;
+  visibility: WorkspaceVisibility;
+  accountId: string;
+  accountType: "user" | "organization";
+  createdAt: Timestamp;
 }
 
-function sanitizeWorkspaceSettingsCommand(
-  command: UpdateWorkspaceSettingsCommand,
-): UpdateWorkspaceSettingsCommand {
-  return {
-    ...command,
-    name: command.name !== undefined ? createWorkspaceName(command.name) : undefined,
-    visibility:
-      command.visibility !== undefined
-        ? createWorkspaceVisibility(command.visibility)
-        : undefined,
-    lifecycleState:
-      command.lifecycleState !== undefined
-        ? createWorkspaceLifecycleState(command.lifecycleState)
-        : undefined,
-    address: command.address !== undefined ? createAddress(command.address) : undefined,
-  };
+export interface WorkspaceEntity
+  extends WorkspaceCapabilityAssignments,
+    WorkspaceAccessPolicy,
+    WorkspaceOperationalProfile {
+  id: string;
+  name: WorkspaceName;
+  photoURL?: string;
+  lifecycleState: WorkspaceLifecycleState;
+  visibility: WorkspaceVisibility;
+  accountId: string;
+  accountType: "user" | "organization";
+  createdAt: Timestamp;
 }
 
-// ─── Create Workspace ─────────────────────────────────────────────────────────
+// ─── Commands ─────────────────────────────────────────────────────────────────
 
-export class CreateWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
-    try {
-      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace",
-      );
-    }
-  }
+export interface CreateWorkspaceCommand {
+  readonly name: WorkspaceNameInput;
+  readonly accountId: string;
+  readonly accountType: "user" | "organization";
 }
 
-// ─── Create Workspace with Capabilities ──────────────────────────────────────
-
-export class CreateWorkspaceWithCapabilitiesUseCase {
-  constructor(
-    private readonly workspaceRepo: WorkspaceRepository,
-    private readonly capabilityRepo: WorkspaceCapabilityRepository,
-  ) {}
-
-  async execute(
-    command: CreateWorkspaceCommand,
-    capabilities: Capability[] = [],
-  ): Promise<CommandResult> {
-    try {
-      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
-      if (capabilities.length > 0) {
-        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
-      }
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
-        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
-      );
-    }
-  }
+export interface UpdateWorkspaceSettingsCommand {
+  readonly workspaceId: string;
+  readonly accountId: string;
+  readonly name?: WorkspaceNameInput;
+  readonly visibility?: WorkspaceVisibilityInput;
+  readonly lifecycleState?: WorkspaceLifecycleStateInput;
+  readonly address?: AddressInput;
+  readonly personnel?: WorkspacePersonnel;
 }
 
-// ─── Update Settings ──────────────────────────────────────────────────────────
-
-export class UpdateWorkspaceSettingsUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findByIdForAccount(
-        command.accountId,
-        command.workspaceId,
-      );
-      if (!workspace) {
-        return commandFailureFrom(
-          "WORKSPACE_NOT_FOUND",
-          `Workspace ${command.workspaceId} not found`,
-        );
-      }
-      await this.workspaceRepo.updateSettings(sanitizeWorkspaceSettingsCommand(command));
-      return commandSuccess(command.workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_UPDATE_FAILED",
-        err instanceof Error ? err.message : "Failed to update workspace settings",
-      );
-    }
-  }
-}
-
-// ─── Delete Workspace ─────────────────────────────────────────────────────────
-
-export class DeleteWorkspaceUseCase {
-  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
-
-  async execute(workspaceId: string): Promise<CommandResult> {
-    try {
-      const workspace = await this.workspaceRepo.findById(workspaceId);
-      if (!workspace) {
-        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
-      }
-      await this.workspaceRepo.delete(workspaceId);
-      return commandSuccess(workspaceId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WORKSPACE_DELETE_FAILED",
-        err instanceof Error ? err.message : "Failed to delete workspace",
-      );
-    }
-  }
-}
+export type { WorkspaceGrant } from "./WorkspaceAccess";
+export type { Capability, CapabilitySpec } from "./WorkspaceCapability";
+export type { WorkspaceLocation } from "./WorkspaceLocation";
+export type {
+  Address,
+  AddressInput,
+  WorkspacePersonnel,
+  WorkspacePersonnelCustomRole,
+} from "./WorkspaceProfile";
+export type {
+  WorkspaceLifecycleState,
+  WorkspaceLifecycleStateInput,
+} from "../value-objects/WorkspaceLifecycleState";
+export type {
+  WorkspaceName,
+  WorkspaceNameInput,
+} from "../value-objects/WorkspaceName";
+export type {
+  WorkspaceVisibility,
+  WorkspaceVisibilityInput,
+} from "../value-objects/WorkspaceVisibility";
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceHubScreen.tsx
@@ -75896,6 +75787,74 @@ export function useWorkspaceSettingsSave({
     handleSave,
   };
 }
+````
+
+## File: modules/workspace/subdomain.md
+````markdown
+# Subdomain — workspace
+
+`workspace` 所對應的問題空間在 Xuanwu 的戰略分類中屬於 generic subdomain。
+
+全域 subdomain 分類由 [docs/ddd/subdomains.md](../../docs/ddd/subdomains.md) 擁有；本文件只說明 workspace 為什麼落在這個分類，以及它在 selected problem-space view 中的意義。
+
+## Why Generic
+
+workspace 解決的是「協作範圍、生命週期與公開邊界」問題，而不是 Xuanwu 的主要差異化來源。
+
+它的重要性很高，但它不是產品獨特價值本身。真正形成產品差異化的，仍是知識內容、檢索、協作語意與工作流等上下文。
+
+## What Problem Space It Covers
+
+workspace 子域聚焦這些問題：
+
+- 工作區作為協作容器的存在性
+- 工作區範圍鍵 `workspaceId`
+- 工作區生命週期與可見性
+- 讓其他 bounded contexts 能以共同範圍語言協作
+
+## What It Deliberately Does Not Differentiate
+
+- 它不定義知識內容本身
+- 它不定義組織成員真相來源
+- 它不定義檢索、RAG、文章治理等差異化業務能力
+
+Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 bounded context 內部或邊界上的實作 / 協作概念。
+
+換句話說，workspace 子域提供的是必要的結構性能力，而不是核心競爭優勢。
+
+## Selected Strategic View
+
+這份文件只用 workspace 為中心看它周邊牽涉到的問題空間：
+
+- `organization` 提供 ownership 與 member/team truth
+- `knowledge`、`knowledge-base`、`source`、`notebook` 等透過 `workspaceId` 對齊範圍
+- `workspace-flow`、`workspace-feed`、`workspace-scheduling` 等在工作區範圍內延伸自己的語言
+
+這是一個 selected view，不是整個 Xuanwu domain 的完整 subdomain 分析。
+
+## What Is Not a Subdomain
+
+以下概念雖然與 workspace 有關，但不應拿來當 subdomain：
+
+- Firestore、event bus 等 external systems
+- Browser UI、Server Actions、job triggers 等 drivers
+- repository ports、adapters 等 hexagonal 結構元件
+- `WorkspaceMemberView`、`Wiki*Node` 這類 read models / projections
+
+## Investment Posture
+
+作為 generic subdomain，workspace 的策略不是追求花俏建模，而是：
+
+- 穩定邊界
+- 穩定 published language
+- 清楚 ownership
+- 對其他 bounded contexts 提供低摩擦協作面
+
+## Related Local Docs
+
+- [README.md](./README.md) — 模組總覽
+- [bounded-context.md](./bounded-context.md) — 本地 bounded context 邊界
+- [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
 ````
 
 ## File: py_fn/src/application/use_cases/rag_ingestion.py
@@ -76752,209 +76711,6 @@ export {
 } from "../application/services/field-computation.service";
 ````
 
-## File: modules/knowledge/api/knowledge-api.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: api (cross-module facade)
- * Purpose: KnowledgeApi — lightweight facade that wires in-memory adapters and
- *          exposes the minimal surface needed by the demo-flow script and by
- *          other modules that communicate through the event bus.
- *
- * This is intentionally separate from KnowledgeFacade (which uses Firebase).
- * KnowledgeApi uses InMemory repos so it can run without any external service.
- */
-
-import {
-  createKnowledgePageCreatedEvent,
-} from "../../shared/domain/events/knowledge-page-created.event";
-import type { SimpleEventBus } from "../../shared/infrastructure/SimpleEventBus";
-
-import type { KnowledgeBlock } from "../domain/entities/content-block.entity";
-import type { KnowledgePage } from "../domain/entities/knowledge-page.entity";
-import { BlockService } from "../application/block-service";
-import {
-  InMemoryKnowledgePageRepository,
-  InMemoryKnowledgeBlockRepository,
-} from "../infrastructure/InMemoryKnowledgeRepository";
-
-export class KnowledgeApi {
-  private readonly pageRepo: InMemoryKnowledgePageRepository;
-  private readonly blockRepo: InMemoryKnowledgeBlockRepository;
-  private readonly blockService: BlockService;
-  private readonly eventBus: SimpleEventBus;
-
-  constructor(eventBus: SimpleEventBus) {
-    this.pageRepo = new InMemoryKnowledgePageRepository();
-    this.blockRepo = new InMemoryKnowledgeBlockRepository();
-    this.blockService = new BlockService(this.blockRepo, eventBus);
-    this.eventBus = eventBus;
-  }
-
-  /**
-   * Create a new page in the in-memory store and publish a
-   * `KnowledgePageCreatedEvent` so downstream modules can register
-   * page-related projections or structure-aware read models.
-   */
-  async createPage(
-    accountId: string,
-    title: string,
-    createdByUserId = "system",
-    options: { workspaceId: string; parentPageId?: string | null },
-  ): Promise<KnowledgePage> {
-    const page = await this.pageRepo.create({
-      accountId,
-      workspaceId: options.workspaceId,
-      title,
-      createdByUserId,
-      parentPageId: options?.parentPageId ?? null,
-    });
-
-    const event = createKnowledgePageCreatedEvent(
-      page.id,
-      page.title,
-      accountId,
-      createdByUserId,
-      { workspaceId: options.workspaceId, parentPageId: options.parentPageId },
-    );
-    await this.eventBus.publish(event);
-
-    return page;
-  }
-
-  /** Add a block to an existing page and return the new block. */
-  async addBlock(accountId: string, pageId: string, text: string): Promise<KnowledgeBlock> {
-    return this.blockRepo.add({
-      accountId,
-      pageId,
-      content: { type: "text", richText: [{ type: "text", plainText: text }] },
-    });
-  }
-
-  /**
-   * Update a block's text content.
-   * Publishes `KnowledgeUpdatedEvent` via the event bus so downstream modules
-   * (e.g. search or notebook-adjacent ingestion flows) can react.
-   */
-  async updateBlock(
-    accountId: string,
-    blockId: string,
-    text: string,
-  ): Promise<KnowledgeBlock | null> {
-    return this.blockService.updateBlock({ accountId, blockId, text });
-  }
-
-  /** Return all pages for an account. */
-  async listPages(accountId: string): Promise<KnowledgePage[]> {
-    return this.pageRepo.listByAccountId(accountId);
-  }
-
-  /** Return the page with all its blocks (flat list, ordered). */
-  async getPageStructure(
-    accountId: string,
-    pageId: string,
-  ): Promise<{ page: KnowledgePage; blocks: KnowledgeBlock[] } | null> {
-    const page = await this.pageRepo.findById(accountId, pageId);
-    if (!page) return null;
-    const blocks = await this.blockRepo.listByPageId(accountId, pageId);
-    return { page, blocks };
-  }
-}
-````
-
-## File: modules/knowledge/application/dto/knowledge.dto.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: application/dto
- * Purpose: Barrel re-export for all knowledge DTOs.
- * Split into focused files per IDDD single-responsibility principle:
- *  - knowledge-page.dto.ts        (page lifecycle + approve)
- *  - knowledge-block.dto.ts       (block CRUD + nesting)
- *  - knowledge-collection.dto.ts  (collection management)
- *  - knowledge-wiki.dto.ts        (wiki, verification, appearance)
- */
-
-export {
-  KnowledgePageStatusSchema,
-  CreateKnowledgePageSchema,
-  RenameKnowledgePageSchema,
-  MoveKnowledgePageSchema,
-  ArchiveKnowledgePageSchema,
-  ReorderKnowledgePageBlocksSchema,
-  CreateKnowledgeVersionSchema,
-  ExtractedTaskSchema,
-  ExtractedInvoiceSchema,
-  ApproveKnowledgePageSchema,
-} from "./knowledge-page.dto";
-export type {
-  CreateKnowledgePageDto,
-  RenameKnowledgePageDto,
-  MoveKnowledgePageDto,
-  ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksDto,
-  CreateKnowledgeVersionDto,
-  ApproveKnowledgePageDto,
-} from "./knowledge-page.dto";
-
-export {
-  BlockTypeSchema,
-  BlockContentSchema,
-  AddKnowledgeBlockSchema,
-  UpdateKnowledgeBlockSchema,
-  DeleteKnowledgeBlockSchema,
-  NestKnowledgeBlockSchema,
-  UnnestKnowledgeBlockSchema,
-} from "./knowledge-block.dto";
-export type {
-  BlockContentDto,
-  AddKnowledgeBlockDto,
-  UpdateKnowledgeBlockDto,
-  DeleteKnowledgeBlockDto,
-  NestKnowledgeBlockDto,
-  UnnestKnowledgeBlockDto,
-} from "./knowledge-block.dto";
-
-export {
-  CollectionColumnTypeSchema,
-  CollectionColumnInputSchema,
-  CreateKnowledgeCollectionSchema,
-  RenameKnowledgeCollectionSchema,
-  AddPageToCollectionSchema,
-  RemovePageFromCollectionSchema,
-  AddCollectionColumnSchema,
-  ArchiveKnowledgeCollectionSchema,
-} from "./knowledge-collection.dto";
-export type {
-  CollectionColumnTypeDto,
-  CollectionColumnInputDto,
-  CreateKnowledgeCollectionDto,
-  RenameKnowledgeCollectionDto,
-  AddPageToCollectionDto,
-  RemovePageFromCollectionDto,
-  AddCollectionColumnDto,
-  ArchiveKnowledgeCollectionDto,
-} from "./knowledge-collection.dto";
-
-export {
-  PageVerificationStateSchema,
-  VerifyKnowledgePageSchema,
-  RequestPageReviewSchema,
-  AssignPageOwnerSchema,
-  CreateWikiSpaceSchema,
-  UpdatePageIconSchema,
-  UpdatePageCoverSchema,
-} from "./knowledge-wiki.dto";
-export type {
-  VerifyKnowledgePageDto,
-  RequestPageReviewDto,
-  AssignPageOwnerDto,
-  CreateWikiSpaceDto,
-  UpdatePageIconDto,
-  UpdatePageCoverDto,
-} from "./knowledge-wiki.dto";
-````
-
 ## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.test.ts
 ````typescript
 import { describe, expect, it, vi } from "vitest";
@@ -77057,385 +76813,53 @@ describe("knowledge-page.use-cases", () => {
 });
 ````
 
-## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.ts
+## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
 ````typescript
 /**
  * Module: knowledge
- * Layer: application/use-cases
- * Purpose: Page lifecycle use cases — create, rename, move, reorder blocks, archive, list.
- * Review workflow: see knowledge-page-review.use-cases.ts
- * Appearance: see knowledge-page-appearance.use-cases.ts
+ * Layer: interfaces/_actions
+ * Purpose: Re-export barrel for all knowledge Server Actions.
+ *          Implementations are split by subdomain for IDDD layer-purity.
+ *          Each sub-file carries its own "use server" directive; this barrel
+ *          must NOT repeat it — Turbopack cannot resolve re-exports from a
+ *          "use server" barrel that itself re-exports other "use server" files.
  */
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+} from "./knowledge-page-lifecycle.actions";
 
-import type { KnowledgePage, KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
-import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
-import {
-  CreateKnowledgePageSchema,
-  type CreateKnowledgePageDto,
-  RenameKnowledgePageSchema,
-  type RenameKnowledgePageDto,
-  MoveKnowledgePageSchema,
-  type MoveKnowledgePageDto,
-  ArchiveKnowledgePageSchema,
-  type ArchiveKnowledgePageDto,
-  ReorderKnowledgePageBlocksSchema,
-  type ReorderKnowledgePageBlocksDto,
-} from "../dto/knowledge.dto";
+export {
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+} from "./knowledge-page-review.actions";
 
-export function buildKnowledgePageTree(pages: KnowledgePage[]): KnowledgePageTreeNode[] {
-  const map = new Map<string, KnowledgePageTreeNode>();
-  for (const page of pages) {
-    map.set(page.id, { ...page, children: [] });
-  }
+export {
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "./knowledge-page-appearance.actions";
 
-  const roots: KnowledgePageTreeNode[] = [];
-  for (const node of map.values()) {
-    if (node.parentPageId === null || !map.has(node.parentPageId)) {
-      roots.push(node);
-    } else {
-      const parent = map.get(node.parentPageId)!;
-      (parent.children as KnowledgePageTreeNode[]).push(node);
-    }
-  }
+export {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+} from "./knowledge-block.actions";
 
-  const sortByOrder = (nodes: KnowledgePageTreeNode[]): void => {
-    nodes.sort((a, b) => a.order - b.order);
-    for (const n of nodes) sortByOrder(n.children as KnowledgePageTreeNode[]);
-  };
-  sortByOrder(roots);
-
-  return roots;
-}
-
-export class CreateKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: CreateKnowledgePageDto): Promise<CommandResult> {
-    const parsed = CreateKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, workspaceId, title, parentPageId, createdByUserId } = parsed.data;
-
-    const page = await this.repo.create({
-      accountId,
-      workspaceId,
-      title: title.trim(),
-      parentPageId: parentPageId ?? null,
-      createdByUserId,
-    });
-
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RenameKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: RenameKnowledgePageDto): Promise<CommandResult> {
-    const parsed = RenameKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, title } = parsed.data;
-    const updated = await this.repo.rename({ accountId, pageId, title: title.trim() });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class MoveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: MoveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = MoveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, targetParentPageId } = parsed.data;
-
-    if (pageId === targetParentPageId) {
-      return commandFailureFrom("CONTENT_PAGE_CIRCULAR_MOVE", "A page cannot be its own parent.");
-    }
-
-    const updated = await this.repo.move({ accountId, pageId, targetParentPageId });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ArchiveKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ArchiveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId } = parsed.data;
-    const updated = await this.repo.archive(accountId, pageId);
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class ReorderKnowledgePageBlocksUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
-    const parsed = ReorderKnowledgePageBlocksSchema.safeParse(input);
-    if (!parsed.success) {
-      return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-    }
-
-    const { accountId, pageId, blockIds } = parsed.data;
-    const updated = await this.repo.reorderBlocks({ accountId, pageId, blockIds });
-    if (!updated) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    return commandSuccess(updated.id, Date.now());
-  }
-}
-
-export class GetKnowledgePageUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    if (!accountId.trim() || !pageId.trim()) return null;
-    return this.repo.findById(accountId, pageId);
-  }
-}
-
-export class ListKnowledgePagesUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim()) return [];
-    return this.repo.listByAccountId(accountId);
-  }
-}
-
-export class ListKnowledgePagesByWorkspaceUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    return this.repo.listByWorkspaceId(accountId, workspaceId);
-  }
-}
-
-export class GetKnowledgePageTreeUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim()) return [];
-    const pages = await this.repo.listByAccountId(accountId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-
-export class GetKnowledgePageTreeByWorkspaceUseCase {
-  constructor(private readonly repo: KnowledgePageRepository) {}
-
-  async execute(accountId: string, workspaceId: string): Promise<KnowledgePageTreeNode[]> {
-    if (!accountId.trim() || !workspaceId.trim()) return [];
-    const pages = await this.repo.listByWorkspaceId(accountId, workspaceId);
-    return buildKnowledgePageTree(pages);
-  }
-}
-````
-
-## File: modules/knowledge/interfaces/components/PageTreeView.tsx
-````typescript
-"use client";
-
-import { ChevronDown, ChevronRight, FilePlus, FileText, Plus } from "lucide-react";
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { KnowledgePageTreeNode } from "../../domain/entities/knowledge-page.entity";
-import { PageDialog } from "./PageDialog";
-
-interface PageTreeViewProps {
-  nodes: KnowledgePageTreeNode[];
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  allowCreate?: boolean;
-  emptyStateDescription?: string;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-}
-
-function TreeNode({
-  node,
-  accountId,
-  workspaceId,
-  currentUserId,
-  allowCreate,
-  onPageClick,
-  onCreated,
-  depth,
-}: {
-  node: KnowledgePageTreeNode;
-  accountId: string;
-  workspaceId?: string;
-  currentUserId: string;
-  allowCreate: boolean;
-  onPageClick?: (pageId: string) => void;
-  onCreated?: () => void;
-  depth: number;
-}) {
-  const [expanded, setExpanded] = useState(depth < 1);
-  const [addChildOpen, setAddChildOpen] = useState(false);
-  const hasChildren = node.children && node.children.length > 0;
-  const canCreate = allowCreate && Boolean(workspaceId);
-
-  return (
-    <li>
-      <div
-        className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30"
-        style={{ paddingLeft: `${8 + depth * 16}px` }}
-      >
-        <button
-          type="button"
-          className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground"
-          onClick={() => setExpanded((v) => !v)}
-          aria-label={expanded ? "折疊" : "展開"}
-        >
-          {hasChildren ? (
-            expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />
-          ) : (
-            <FileText className="h-3.5 w-3.5" />
-          )}
-        </button>
-
-        <button
-          type="button"
-          className="min-w-0 flex-1 truncate text-left text-sm"
-          onClick={() => onPageClick?.(node.id)}
-        >
-          {node.title}
-        </button>
-
-        {canCreate ? (
-          <button
-            type="button"
-            className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
-            onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}
-            title="新增子頁面"
-          >
-            <FilePlus className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
-      </div>
-
-      {expanded && hasChildren && (
-        <ul className="list-none">
-          {node.children.map((child) => (
-            <TreeNode
-              key={child.id}
-              node={child}
-              accountId={accountId}
-              workspaceId={workspaceId}
-              currentUserId={currentUserId}
-              allowCreate={canCreate}
-              onPageClick={onPageClick}
-              onCreated={onCreated}
-              depth={depth + 1}
-            />
-          ))}
-        </ul>
-      )}
-
-      {canCreate && workspaceId ? (
-        <PageDialog
-          open={addChildOpen}
-          onOpenChange={setAddChildOpen}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-          parentPageId={node.id}
-          onSuccess={() => onCreated?.()}
-        />
-      ) : null}
-    </li>
-  );
-}
-
-export function PageTreeView({
-  nodes,
-  accountId,
-  workspaceId,
-  currentUserId,
-  allowCreate = true,
-  emptyStateDescription = "尚無頁面。點擊「新增頁面」開始建立。",
-  onPageClick,
-  onCreated,
-}: PageTreeViewProps) {
-  const [addRootOpen, setAddRootOpen] = useState(false);
-  const canCreate = allowCreate && Boolean(workspaceId);
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
-        {canCreate ? (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => setAddRootOpen(true)}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" /> 新增頁面
-          </Button>
-        ) : null}
-      </div>
-
-      {nodes.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
-          <FileText className="h-8 w-8 text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">{emptyStateDescription}</p>
-        </div>
-      ) : (
-        <div className="rounded-lg border border-border/60 bg-background py-1">
-          <ul className="list-none">
-            {nodes.map((node) => (
-              <TreeNode
-                key={node.id}
-                node={node}
-                accountId={accountId}
-                workspaceId={workspaceId}
-                currentUserId={currentUserId}
-                allowCreate={canCreate}
-                onPageClick={onPageClick}
-                onCreated={onCreated}
-                depth={0}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {canCreate && workspaceId ? (
-        <PageDialog
-          open={addRootOpen}
-          onOpenChange={setAddRootOpen}
-          accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
-          parentPageId={null}
-          onSuccess={() => { onCreated?.(); setAddRootOpen(false); }}
-        />
-      ) : null}
-    </div>
-  );
-}
+export {
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "./knowledge-collection.actions";
 ````
 
 ## File: modules/organization/interfaces/_actions/organization.actions.ts
@@ -77935,6 +77359,414 @@ export {
 } from "./workspace-flow-invoice.actions";
 ````
 
+## File: modules/workspace/application/use-cases/workspace-lifecycle.use-cases.ts
+````typescript
+/**
+ * Module: workspace
+ * Layer: application/use-cases
+ * Purpose: Workspace lifecycle use cases — create and delete.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
+import type {
+  CreateWorkspaceCommand,
+  UpdateWorkspaceSettingsCommand,
+  Capability,
+  WorkspaceEntity,
+} from "../../domain/entities/Workspace";
+import { createAddress } from "../../domain/value-objects/Address";
+import { createWorkspaceLifecycleState } from "../../domain/value-objects/WorkspaceLifecycleState";
+import { createWorkspaceName } from "../../domain/value-objects/WorkspaceName";
+import { createWorkspaceVisibility } from "../../domain/value-objects/WorkspaceVisibility";
+
+function createInitialWorkspaceEntity(command: CreateWorkspaceCommand): WorkspaceEntity {
+  return {
+    id: crypto.randomUUID(),
+    name: createWorkspaceName(command.name),
+    accountId: command.accountId,
+    accountType: command.accountType,
+    lifecycleState: createWorkspaceLifecycleState("preparatory"),
+    visibility: createWorkspaceVisibility("visible"),
+    capabilities: [],
+    grants: [],
+    teamIds: [],
+    createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+  };
+}
+
+function sanitizeWorkspaceSettingsCommand(
+  command: UpdateWorkspaceSettingsCommand,
+): UpdateWorkspaceSettingsCommand {
+  return {
+    ...command,
+    name: command.name !== undefined ? createWorkspaceName(command.name) : undefined,
+    visibility:
+      command.visibility !== undefined
+        ? createWorkspaceVisibility(command.visibility)
+        : undefined,
+    lifecycleState:
+      command.lifecycleState !== undefined
+        ? createWorkspaceLifecycleState(command.lifecycleState)
+        : undefined,
+    address: command.address !== undefined ? createAddress(command.address) : undefined,
+  };
+}
+
+// ─── Create Workspace ─────────────────────────────────────────────────────────
+
+export class CreateWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: CreateWorkspaceCommand): Promise<CommandResult> {
+    try {
+      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace",
+      );
+    }
+  }
+}
+
+// ─── Create Workspace with Capabilities ──────────────────────────────────────
+
+export class CreateWorkspaceWithCapabilitiesUseCase {
+  constructor(
+    private readonly workspaceRepo: WorkspaceRepository,
+    private readonly capabilityRepo: WorkspaceCapabilityRepository,
+  ) {}
+
+  async execute(
+    command: CreateWorkspaceCommand,
+    capabilities: Capability[] = [],
+  ): Promise<CommandResult> {
+    try {
+      const workspaceId = await this.workspaceRepo.save(createInitialWorkspaceEntity(command));
+      if (capabilities.length > 0) {
+        await this.capabilityRepo.mountCapabilities(workspaceId, capabilities);
+      }
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_CREATE_WITH_CAPABILITIES_FAILED",
+        err instanceof Error ? err.message : "Failed to create workspace with capabilities",
+      );
+    }
+  }
+}
+
+// ─── Update Settings ──────────────────────────────────────────────────────────
+
+export class UpdateWorkspaceSettingsUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(command: UpdateWorkspaceSettingsCommand): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findByIdForAccount(
+        command.accountId,
+        command.workspaceId,
+      );
+      if (!workspace) {
+        return commandFailureFrom(
+          "WORKSPACE_NOT_FOUND",
+          `Workspace ${command.workspaceId} not found`,
+        );
+      }
+      await this.workspaceRepo.updateSettings(sanitizeWorkspaceSettingsCommand(command));
+      return commandSuccess(command.workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_UPDATE_FAILED",
+        err instanceof Error ? err.message : "Failed to update workspace settings",
+      );
+    }
+  }
+}
+
+// ─── Delete Workspace ─────────────────────────────────────────────────────────
+
+export class DeleteWorkspaceUseCase {
+  constructor(private readonly workspaceRepo: WorkspaceRepository) {}
+
+  async execute(workspaceId: string): Promise<CommandResult> {
+    try {
+      const workspace = await this.workspaceRepo.findById(workspaceId);
+      if (!workspace) {
+        return commandFailureFrom("WORKSPACE_NOT_FOUND", `Workspace ${workspaceId} not found`);
+      }
+      await this.workspaceRepo.delete(workspaceId);
+      return commandSuccess(workspaceId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WORKSPACE_DELETE_FAILED",
+        err instanceof Error ? err.message : "Failed to delete workspace",
+      );
+    }
+  }
+}
+````
+
+## File: modules/workspace/context-map.md
+````markdown
+# Context Map — workspace
+
+`workspace` 的 context map 只描述 bounded context 之間的關係與 integration patterns，不描述頁面 tab 組裝。
+
+在這份文件裡，Aggregate Root 指的是對外提供 published language 的 domain 類別 / 物件；Domain Event 指的是跨 context 可發布的事件類別、訊息物件。Repository、Factory、Domain Service 不屬於 context map 的主體，但會支撐這些整合 surface 的實作。
+
+## Domain / Subdomain / Bounded Context 層級
+
+- `Xuanwu` 是整體 domain
+- `workspace` 對應的是 generic subdomain 中的協作容器問題空間
+- `modules/workspace/` 是承載這組語言的 bounded context
+- context map 描述的是這個 bounded context 在整體 domain 裡與其他 bounded context 的關係，而不是描述 bounded context 內部的六邊形分層
+- 這是一個 problem-space selected view：只聚焦與 workspace 有關的 subdomains / bounded contexts，不試圖覆蓋整個 Xuanwu domain inventory
+- 某些相關 bounded contexts 可能位於同一 subdomain，也可能來自 supporting / external / generic 區域；關係圖關注的是邊界互動，不是所有權想像
+
+## Drivers and External Systems（不是 Bounded Context）
+
+下列對象會影響 workspace，但不應畫成 context map 中的 bounded context：
+
+- Browser UI / Next.js 頁面與 Server Actions：它們是 drivers
+- Firestore、event bus 等技術系統：它們是 external systems，由 adapters 整合
+- Query projections / read models：它們是讀取結果，不是獨立 bounded context
+
+## Upstream Contexts
+
+### `account` → `workspace`（Customer/Supplier）
+
+- `account` 提供 personal ownership 與 actor identity 的基礎語言
+- `workspace.accountId` 在 personal scope 下對齊 `account`
+- `workspace` 依賴 `account` 的存在，但不複製 account 的完整模型
+
+### `organization` → `workspace`（Customer/Supplier + Read-side ACL）
+
+- `organization` 提供 team、member 與 organization ownership 的真相來源
+- `workspace.accountId + accountType="organization"` 讓工作區對齊組織範圍
+- 在 query side，workspace 會把 organization 的成員/團隊語言翻譯成 `WorkspaceMemberView`
+- 這種翻譯屬於 read-side anti-corruption / translation 行為，不代表 `workspace` 擁有組織模型
+
+## Downstream / Dependent Contexts
+
+### `workspace` → `knowledge`（Conformist）
+
+- `knowledge` 使用 `workspaceId` 對齊知識頁面的工作區範圍
+- `knowledge` 對工作區存在性、範圍與可見性語言採 conformist
+
+### `workspace` → `knowledge-base`（Conformist）
+
+- `knowledge-base` 以 `workspaceId` 作為文章與知識資產的工作區範圍鍵
+
+### `workspace` → `source`（Conformist）
+
+- `source` 以 `workspaceId` 管理文件與 library 的工作區範圍
+
+### `workspace` → `notebook`（Conformist）
+
+- `notebook` 以 `workspaceId` 作為查詢與 RAG 工作流範圍
+
+### `workspace` → `workspace-flow`（Conformist）
+
+- `workspace-flow` 以 `workspaceId` 對齊任務、issue、invoice 的工作區範圍
+
+### `workspace` → `workspace-scheduling`（Conformist）
+
+- `workspace-scheduling` 以 `workspaceId` 對齊排程與容量規劃範圍
+
+### `workspace` → `workspace-feed`（Conformist）
+
+- `workspace-feed` 以 `workspaceId` 對齊活動流範圍
+
+### `workspace` → `workspace-audit`（Published Language / Conformist）
+
+- `workspace-audit` 會消費工作區範圍資訊與後續 workspace domain events
+- 在事件真正落地前，雙方仍主要透過同步 API 與共同範圍語言協作
+
+## Public Integration Surfaces
+
+| 類型 | Surface |
+|---|---|
+| 同步 API | `modules/workspace/api` |
+| Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
+| 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
+
+每一個對外 surface 都可視為一個 hexagon-to-hexagon integration point：不是 page 組裝，不是 repository 內部細節，而是 bounded context 對其他 bounded context 的協作面。
+
+## Read Models in Collaboration
+
+- `WorkspaceMemberView` 這類 read model 主要服務本地查詢與 ACL translation
+- 除非明確定義為 published language，projection 不應被當成跨 bounded context 的 canonical contract
+
+## Non-Examples
+
+- `WorkspaceDetailScreen` 組合 `WorkspaceFlowTab`、`WorkspaceSchedulingTab`、`WorkspaceAuditTab` 是 UI composition，不是 strategic context map
+- `WikiContentTree` 導覽節點是 query model，不是 context-to-context contract 的替代物
+- `domain/`、`application/`、`interfaces/`、`infrastructure/` 的分工屬於六邊形架構內部切面，不是 context map 本身
+
+## IDDD 整合模式總結
+
+| 關係 | 模式 | 備註 |
+|------|------|------|
+| `account` → `workspace` | Customer/Supplier | 個人 ownership 與 actor identity |
+| `organization` → `workspace` | Customer/Supplier + Read-side ACL | workspace 讀模型翻譯 organization 資料 |
+| `workspace` → `knowledge` | Conformist | 以 `workspaceId` 對齊內容範圍 |
+| `workspace` → `knowledge-base` | Conformist | 以 `workspaceId` 對齊知識資產範圍 |
+| `workspace` → `source` | Conformist | 以 `workspaceId` 對齊來源範圍 |
+| `workspace` → `notebook` | Conformist | 以 `workspaceId` 對齊研究與 RAG 範圍 |
+| `workspace` → `workspace-flow` | Conformist | 以 `workspaceId` 對齊工作流範圍 |
+| `workspace` → `workspace-scheduling` | Conformist | 以 `workspaceId` 對齊排程範圍 |
+| `workspace` → `workspace-feed` | Conformist | 以 `workspaceId` 對齊活動流範圍 |
+| `workspace` → `workspace-audit` | Published Language / Conformist | 範圍資訊與後續事件消費 |
+````
+
+## File: modules/workspace/domain-events.md
+````markdown
+# Domain Events — workspace
+
+本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
+
+在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
+
+從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
+
+從六邊形架構角度看，事件型別與工廠屬於內核語言；event bus / event store 與實際發布機制屬於外層 adapter 協作。
+
+## Event-Driven Architecture Position
+
+- `workspace` 可以作為一個 hexagonal system 發出 outgoing events，也可能在未來接收 incoming events
+- 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
+- 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
+
+## Ports, Adapters, Drivers, and Projections
+
+- Drivers 先透過 command-side paths 觸發狀態改變，再由 application / adapter 協調發布事件
+- 若未來抽出 event publisher abstraction，該 abstraction 是 port；實際 bus / store connector 是 adapter
+- 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
+- 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
+
+## Event Base Contract
+
+workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
+
+- `eventId`
+- `type`
+- `aggregateId`
+- `occurredAt`
+
+`aggregateId` 在 workspace 事件中一律對應 `workspaceId`。
+
+## Canonical Events
+
+| 事件物件 | Discriminant | 觸發條件 | 關鍵欄位 |
+|---|---|---|---|
+| `WorkspaceCreatedEvent` | `workspace.created` | 工作區建立完成後 | `workspaceId`, `accountId`, `accountType`, `name` |
+| `WorkspaceLifecycleTransitionedEvent` | `workspace.lifecycle_transitioned` | `lifecycleState` 發生改變後 | `workspaceId`, `accountId`, `fromState`, `toState` |
+| `WorkspaceVisibilityChangedEvent` | `workspace.visibility_changed` | `visibility` 發生改變後 | `workspaceId`, `accountId`, `fromVisibility`, `toVisibility` |
+
+## Event Factories
+
+workspace module 應提供明確工廠函式來建立事件訊息物件，例如：
+
+- `createWorkspaceCreatedEvent(...)`
+- `createWorkspaceLifecycleTransitionedEvent(...)`
+- `createWorkspaceVisibilityChangedEvent(...)`
+
+這些工廠屬於 domain event language，不是 React helper，也不應放在 page / component 內。
+
+## Publishing Rules
+
+- 先成功持久化 aggregate，再發布事件
+- 事件 payload 只包含下游所需的最小資訊
+- 不把 React state、router path、UI label 放進事件語言
+- application layer / interface adapter 可以組裝 event publisher，但事件物件本身屬於 domain language
+
+## 明確排除的事件
+
+| 不再作為 workspace 事件的名稱 | 原因 |
+|---|---|
+| `workspace.archived` | 此 bounded context 的生命週期語言是 `stopped`，不是 `archived` |
+| `workspace.member_joined` | 工作區成員清單目前是 read projection；成員真相來源屬於 organization / access language |
+| `workspace.member_removed` | 同上 |
+
+## 目前落地策略
+
+- 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
+- event publishing 依賴 `modules/shared/api` 的 `PublishDomainEventUseCase` 與 event store / event bus adapters
+- 在事件完全接線前，文件仍以此處為 canonical published language
+
+## 明確不是目前策略的內容
+
+- 目前 workspace repository 不是 event-sourced repository；aggregate 不是從 event store replay reconstitute
+- 目前沒有專屬的 event pipeline / filter chain 作為主要處理模型
+- 目前沒有 `workspace` 專屬的 long-running process executive 或 tracker aggregate
+````
+
+## File: modules/workspace/domain-services.md
+````markdown
+# workspace — Domain Services
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+目前 workspace 沒有獨立的 `domain/services/*` 檔案。這是刻意的 tactical 選擇，不是遺漏。
+
+在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
+
+從六邊形架構看，Domain Service 位於 domain model 內核，而不是 `interfaces/` 或 `infrastructure/` adapter。它可以被 application layer 協作呼叫，但不應反向依賴外部技術。
+
+從 strategic design 看，Domain Service 服務的是 `workspace` 這個 bounded context 的語言，不是跨整個 Xuanwu domain 的共用雜項工具。
+
+它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
+
+## 與 Ports / Adapters / Drivers / Read Models 的區別
+
+- Port 宣告協作接縫；它不是業務規則本身
+- Adapter 轉譯外部系統或 driver；它不是 domain service
+- Driver 觸發工作開始；它不是 domain model 元件
+- Projection / Read Model 服務讀取；它不是領域規則容器
+
+## 目前狀態
+
+- 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
+- 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
+- 還沒有出現足以穩定抽成 domain service 的跨 aggregate、純領域規則
+
+## 何時應新增 Domain Service
+
+只有在出現以下情況時，才應把規則抽成 domain service：
+
+- 規則跨越多個 aggregate 或多個 supporting domain objects
+- 規則不是單純的 repository 查詢，也不是 UI composition
+- 規則不依賴 React、Firebase SDK、HTTP client 或 router
+- 規則本身是穩定的領域語言，而不是暫時性的流程拼裝
+
+## 可能的候選服務（尚未落地）
+
+| 候選服務 | 何時需要 |
+|---|---|
+| `WorkspaceLifecyclePolicy` | 若生命週期轉移規則持續增加，超出 aggregate 本身可讀性時 |
+| `WorkspaceAccessResolutionService` | 若 direct grant、team grant、personnel 解析邏輯需要在多個 use case 重複使用時 |
+| `WorkspaceCapabilityMountPolicy` | 若 capability mounting 有穩定、可重用的領域規則時 |
+
+## 若未來引入長流程
+
+- 若只是協調多個事件處理步驟，優先建模為 application-level process orchestration
+- 若流程狀態本身成為業務真相，才考慮引入 tracker aggregate，而不是先把它塞成 Domain Service
+
+## 明確不是 Domain Service 的內容
+
+- React hooks
+- Server Actions
+- query wrappers
+- UI draft factories
+- 只服務單一 page 的 tab composition helper
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceProductSpineCard.tsx
 ````typescript
 "use client";
@@ -78075,53 +77907,113 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
 }
 ````
 
-## File: modules/knowledge/interfaces/_actions/knowledge.actions.ts
-````typescript
-/**
- * Module: knowledge
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all knowledge Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- *          Each sub-file carries its own "use server" directive; this barrel
- *          must NOT repeat it — Turbopack cannot resolve re-exports from a
- *          "use server" barrel that itself re-exports other "use server" files.
- */
+## File: modules/workspace/README.md
+````markdown
+# workspace — 協作容器上下文
 
-export {
-  createKnowledgePage,
-  renameKnowledgePage,
-  moveKnowledgePage,
-  archiveKnowledgePage,
-  reorderKnowledgePageBlocks,
-  publishKnowledgeVersion,
-} from "./knowledge-page-lifecycle.actions";
+> **Domain Type:** Generic Subdomain  
+> **模組路徑:** `modules/workspace/`  
+> **定位:** 協作範圍、生命週期與工作區公開邊界
 
-export {
-  approveKnowledgePage,
-  verifyKnowledgePage,
-  requestKnowledgePageReview,
-  assignKnowledgePageOwner,
-} from "./knowledge-page-review.actions";
+## Strategic Role
 
-export {
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-} from "./knowledge-page-appearance.actions";
+`workspace` 是 Xuanwu 的協作容器 bounded context。它提供工作區作為協作範圍的 identity、生命週期與可見性語言，讓知識、來源、工作流、稽核、動態與排程等上下文可以用同一個 `workspaceId` 對齊範圍。
 
-export {
-  addKnowledgeBlock,
-  updateKnowledgeBlock,
-  deleteKnowledgeBlock,
-} from "./knowledge-block.actions";
+從戰略分類看，workspace 所對應的問題空間屬於 generic subdomain，不是產品差異化核心；真正差異化的知識內容、檢索與協作語意由其他 bounded context 擁有。
 
-export {
-  createKnowledgeCollection,
-  renameKnowledgeCollection,
-  addPageToCollection,
-  removePageFromCollection,
-  addCollectionColumn,
-  archiveKnowledgeCollection,
-} from "./knowledge-collection.actions";
+從邊界落地看，`modules/workspace/` 是承載這組 generic-subdomain 語言的 bounded context，而不是整個 Xuanwu domain 的總模型。
+
+## Domain / Subdomain / Bounded Context
+
+| 層級 | workspace 在此層級的角色 |
+|---|---|
+| Domain | Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 協作容器與範圍治理問題空間，戰略上屬於 generic subdomain |
+| Bounded Context | `modules/workspace/`，承載 `workspaceId`、生命週期、可見性與工作區公開邊界 |
+
+這裡描述的是以 workspace 為中心的 selected view。它用來分析此問題空間牽涉到哪些 subdomains 與 bounded contexts，不等於整個 Xuanwu domain 的完整戰略地圖。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Workspace 容器生命週期 | 建立工作區、更新設定、管理 `preparatory | active | stopped` 狀態 |
+| 協作範圍語言 | 提供 `workspaceId`、`WorkspaceVisibility` 與工作區範圍識別語言 |
+| 工作區公開邊界 | 透過 `api/` 暴露穩定查詢、命令入口與 UI composition surface |
+| Read-side Projections | 組合工作區成員檢視與工作區導覽節點等查詢模型 |
+
+## 不屬於此 Context 的責任
+
+- `organization` 擁有組織成員、團隊與組織治理真相來源
+- `knowledge` / `knowledge-base` / `source` / `notebook` 擁有內容與知識工作流語意
+- `shared` 擁有跨 bounded context 的事件基底與 event publishing 基礎設施
+- UI tab 組裝屬於 interface composition，不等於 context map
+
+## Tactical Model Summary
+
+| 類型 | 目前契約 |
+|---|---|
+| Aggregate Root | `Workspace` |
+| Supporting Domain Objects | `WorkspaceLocation`、`Capability`、`WorkspaceGrant`、`WorkspacePersonnel` |
+| Read Projections | `WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode` |
+| Drivers | Browser UI、Server Actions、其他 bounded context 經由 `api/` 的呼叫者 |
+| Driven Ports | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
+| Driving Adapters | `interfaces/_actions/`、`interfaces/queries/`、UI composition |
+| Driven Adapters | Firebase repositories 與事件整合 adapters |
+| Write-side Port | `WorkspaceRepository` |
+| Read-side Ports | `WorkspaceQueryRepository`、`WikiWorkspaceRepository` |
+| Domain Services | 目前沒有獨立 service；規則仍以 aggregate / application orchestration 為主 |
+| Domain Events | `WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged` 為目標契約 |
+
+## Hexagonal View
+
+| 六邊形位置 | workspace 對位 |
+|---|---|
+| Domain Model Core | `domain/` 下的 aggregate、entity、value object、domain event language |
+| Application Ring | `application/` use cases 與 orchestration |
+| Driving Adapters | `interfaces/`、Server Actions、queries、UI composition |
+| Driven Ports | `domain/repositories/` 等內核對外介面 |
+| Driven Adapters | `infrastructure/` 的 Firebase 等外部整合 |
+
+`context-map.md` 描述的是 bounded context 在整體 domain 裡的外部關係；六邊形描述的是這個 bounded context 內部的結構。兩者不可混用。
+
+若 workspace 透過事件與其他 bounded contexts 協作，它仍然是一個位於整體 event-driven topology 中的 hexagon：commands / queries 由 driving side 進入，domain events 由內核語言產生，再由外層 adapter 發布。
+
+## DDD 概念導讀
+
+| 概念 | 在 workspace 中的程式型態 | 主要查看文件 |
+|---|---|---|
+| Entity（實體） | 類別 / 物件 | `aggregates.md` |
+| Value Object（值對象） | 類別 / 物件 | `aggregates.md`、`ubiquitous-language.md` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件 | `aggregates.md` |
+| Repository（倉儲） | 介面或類別（負責資料存取） | `repositories.md` |
+| Ports（端口） | 介面，宣告 collaboration seam | `repositories.md`、`application-services.md` |
+| Adapters（適配器） | 類別 / 函式 / 模組，連接 drivers 或外部系統 | `bounded-context.md`、`repositories.md`、`application-services.md` |
+| 外部系統 / Driver（驅動器） | 從外部啟動此 bounded context 的角色或系統 | `bounded-context.md`、`context-map.md` |
+| Projection / Read Model | 查詢導向的讀取模型 | `aggregates.md`、`application-services.md`、`ubiquitous-language.md` |
+| Domain Service（領域服務） | 類別 / 函式 | `domain-services.md` |
+| Factory（工廠） | 類別 / 函式 | `application-services.md`、`domain-events.md` |
+| Domain Event（領域事件） | 事件類別、訊息物件 | `domain-events.md`、`context-map.md` |
+
+## 實作備註
+
+- 目前程式中仍有一些 supporting records 與 read projections 混置於 `domain/entities/`；本文件定義的是收斂方向
+- `WorkspaceMemberView` 與 `WikiContentTree` 型別不得再被描述成 aggregate 或 value object
+- `index.ts` 的目標是薄入口；跨模組 consumer 應優先依賴 `@/modules/workspace/api`
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
+| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
+| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
+| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
+| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 ````
 
 ## File: modules/source/interfaces/components/FileProcessingDialog.tsx
@@ -78395,6 +78287,616 @@ export function FileProcessingDialog({
     </FileProcessingDialogSurface>
   );
 }
+````
+
+## File: modules/workspace/aggregates.md
+````markdown
+# Aggregates — workspace
+
+本文件中的 Aggregate / Aggregate Root、Entity、Value Object 都以類別 / 物件來討論；它們是 workspace bounded context 的 write-side domain model，而不是 UI projection。
+
+從六邊形架構的角度看，這份文件描述的是 bounded context 核心的 domain model，不是外層 adapter，也不是整個 Xuanwu domain 的 context map。
+
+這裡列出的 aggregate、entity、value object 也是此 bounded context 通用語言的一部分；它們與 domain events 一起構成 `workspace` collaboration language，而不只是型別分類。
+
+Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain model 外圍。這份文件只在需要區分 read model / projection 時提及外層結構。
+
+## Write-side Aggregate Root
+
+### `Workspace`
+
+`Workspace` 是此 bounded context 的 aggregate root。它代表一個協作範圍，並保護工作區生命週期、可見性與工作區範圍識別語言的一致性。
+
+### 核心屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 工作區主鍵；建立後不可變更 |
+| `name` | `WorkspaceName` | 工作區名稱值對象 |
+| `accountId` | `string` | 擁有工作區的 account / organization |
+| `accountType` | `"user" \| "organization"` | 擁有者類型 |
+| `lifecycleState` | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| `visibility` | `WorkspaceVisibility` | `visible | hidden` |
+| `createdAt` | `Timestamp` | 建立時間 |
+
+### 不變條件
+
+- `id`、`accountId`、`accountType` 在建立後不可變更
+- `lifecycleState` 的 canonical 語言是 `preparatory | active | stopped`
+- `visibility` 的 canonical 語言是 `visible | hidden`
+- 下游 context 只能在有效的 `workspaceId` 範圍內掛載資料與行為
+
+## Supporting Domain Objects Inside `Workspace`
+
+### Entities
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLocation` | 以 `locationId` 識別的工作區位置節點 |
+| `Capability` | 目前以 `id` 識別的工作區能力記錄；若治理規則成長，可再評估外拆 |
+| `WorkspacePersonnelCustomRole` | 以 `roleId` 識別的人員自訂角色記錄 |
+
+### Value Objects
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceLifecycleState` | 工作區生命週期值 |
+| `WorkspaceVisibility` | 工作區可見性值 |
+| `WorkspaceName` | 工作區名稱值，負責 trim 與基本字串約束 |
+| `Address` | 地址值型資料 |
+| `WorkspaceGrant` | 工作區授權記錄；以內容而非獨立 aggregate identity 判斷語意 |
+| `WorkspacePersonnel` | 管理/監督/安全等角色參照集合 |
+| `CapabilitySpec` | 能力定義的值型描述 |
+
+## Read-side Projections / Read Models（不是 Aggregate）
+
+| 類型 | 說明 |
+|------|------|
+| `WorkspaceMemberView` | 工作區成員查詢投影，組合 workspace 與 organization 的資料 |
+| `WorkspaceMemberAccessChannel` | 讀模型中的接入通道描述 |
+| `WikiAccountContentNode` | 帳戶導覽節點 |
+| `WikiWorkspaceContentNode` | 工作區導覽節點 |
+| `WikiContentItemNode` | 導覽項 read projection |
+
+`WorkspaceMemberView` 與 `Wiki*Node` 型別目前放在 `domain/entities/` 下，但語意上是 query-side projection，不是 write-side aggregate、entity 或 value object。
+
+這些 projection / read model 是為特定讀取需求與驅動器提供的查詢形狀：
+
+- 它們可由 query-side use case、repository adapter 或 ACL translation 組裝
+- 它們優先服務查詢與呈現，不優先服務 invariant 保護
+- 它們不是 ports，也不是 adapters；而是 adapters / query flows 產出的讀取模型
+
+## Strategic Reminder
+
+- `Workspace` aggregate root 屬於 `workspace` 這個 bounded context 的內部 tactical model
+- 它不等於整個 Xuanwu domain，也不等於 generic subdomain 的全部關係圖
+- Subdomain / Bounded Context 的外部關係應在 `README.md` 與 `context-map.md` 理解，不應把整體戰略關係塞回 aggregate 定義
+- 一個 subdomain 內可以有多個 bounded contexts；本文件只處理 `modules/workspace/` 這個 bounded context 的核心模型
+
+## Factory Boundary
+
+- Factory（工廠）在本 context 中是類別 / 函式，用來建立 aggregate、value object 或對 reconstitution 做集中驗證
+- `Workspace` 與 P1 value objects 應優先透過 factory / parser 建立，而不是由 interface adapter 任意拼接 raw object
+- Factory 不是 Repository，也不是 Domain Service；它的責任是安全建立模型，不是持久化或協調流程
+
+## What This File Does Not Own
+
+- Driver / 外部驅動器：例如 Browser UI、Server Actions、其他 bounded context 呼叫者
+- Adapter：例如 Firebase repository classes、Server Action wrappers、query wrappers
+- Port 定義本身：見 [repositories.md](./repositories.md)
+
+## Tactical Debt Notes
+
+- `Workspace` aggregate 目前仍承載 capabilities、grants、locations、personnel 等 supporting records；若之後規則持續成長，應再評估切分 ownership
+- P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
+- `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
+````
+
+## File: modules/workspace/application-services.md
+````markdown
+# workspace — Application Services
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
+
+從六邊形架構看，application layer 位在 domain model 外層、adapter 內層：它負責接住 inbound requests、呼叫 domain model 與 ports，並協調 outbound integration，但不應吞掉 aggregate 本身的規則。
+
+從依賴反轉看，application layer 應向下依賴 `domain/` 抽象與 ports，由 `infrastructure/` 提供實作；UI 與 server entrypoints 則依賴 application layer，而不是直接跨進 repository implementation。
+
+## Application Layer 職責
+
+- 協調 command-side use cases
+- 協調 query-side use cases / projection builders
+- 呼叫 repository ports 與必要的 domain service
+- 在持久化成功後觸發 domain event publishing
+- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
+
+## Ports / Adapters / Drivers / Read Models
+
+- Driver / 外部驅動器：Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，以及未來可能的事件 subscriber / job trigger
+- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition；把 driver 的要求轉成 application 可處理的命令 / 查詢
+- Driven Ports：repository 介面與其他內核對外抽象
+- Driven Adapters：Firebase repositories、event bus / event store integration 等外部技術實作
+- Read Models：application layer 在 query-side 協調產出的 `WorkspaceMemberView`、`Wiki*Node` 等讀取模型
+
+## 本文件涉及的 DDD 概念
+
+- Repository（倉儲）→ 介面或類別；application layer 依賴的是 repository port，而不是 infrastructure adapter 類別
+- Domain Service（領域服務）→ 類別 / 函式；只有當規則不屬於 aggregate / value object 時才由 application layer 協作呼叫
+- Factory（工廠）→ 類別 / 函式；用來建立 aggregate、value object、domain event 等有效模型
+- Domain Event（領域事件）→ 事件類別、訊息物件；application layer 可在持久化成功後發布，但事件語言本身屬於 domain
+
+## 在整體 Domain 裡的位置
+
+- 這些 application services 只服務 `workspace` 這個 bounded context
+- 它們不代表整個 generic subdomain 的所有流程，更不應直接編排其他 bounded context 的內部實作
+- 若流程跨越多個 bounded context，應明確透過 `api/`、published language 或更高層的 composition orchestration 協作
+
+## Event-Driven 與長流程定位
+
+- 若 workspace 未來出現多步驟、跨事件的長流程協調，預設先視為 application-level process orchestration，而不是直接塞進 aggregate
+- 只有當流程追蹤本身成為領域概念時，才考慮引入 tracker aggregate 或對應 domain model
+- 目前 workspace application layer 會協調事件發布，但尚未引入專屬的 long-running process executive / saga state object
+
+## Command-side Use Cases
+
+| Use Case | 目的 | 備註 |
+|---|---|---|
+| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
+| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 透過 `WorkspaceRepository` + `WorkspaceCapabilityRepository` 協作 |
+| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
+| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
+| `MountCapabilitiesUseCase` | 掛載工作區能力 | 僅依賴 `WorkspaceCapabilityRepository` |
+| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 僅依賴 `WorkspaceAccessRepository` |
+| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 僅依賴 `WorkspaceAccessRepository` |
+| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | 僅依賴 `WorkspaceLocationRepository` |
+
+## Query-side Use Cases / Projection Builders / Read Model Builders
+
+| Use Case / Function | 目的 |
+|---|---|
+| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
+| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+
+這些輸出是 read model / projection，不是 aggregate。
+
+## Factories 與 Composition Points
+
+- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
+- Aggregate / Value Object factories 是類別 / 函式，用來建立有效 domain object，不應散落在 React component 中
+- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
+- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
+
+## 非目標
+
+- 不保存 React component state
+- 不直接 new 外部 module 的 UI component
+- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+
+## 實作對位
+
+### 目前 use-case 檔案
+
+- `application/use-cases/workspace-lifecycle.use-cases.ts`
+- `application/use-cases/workspace-capabilities.use-cases.ts`
+- `application/use-cases/workspace-access.use-cases.ts`
+- `application/use-cases/workspace-member.use-cases.ts`
+- `application/use-cases/wiki-content-tree.use-case.ts`
+- `application/use-cases/workspace.use-cases.ts`（barrel only）
+
+### 收斂方向
+
+- `interfaces/_actions/` 保持 thin orchestration
+- `interfaces/queries/` 保持 thin query wrappers
+- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+````
+
+## File: modules/workspace/index.ts
+````typescript
+/**
+ * workspace module root entry.
+ *
+ * Keep this file as a thin aggregate export only.
+ * Cross-module consumers should prefer `@/modules/workspace/api` directly.
+ * It represents the outer module boundary of one bounded context within the
+ * Xuanwu domain's generic-subdomain landscape, not the inner hexagonal layers.
+ * It is also not an event endpoint, process manager, or repository facade.
+ * It is not where Ports, Adapters, Drivers, or Read Models are implemented.
+ * This file is not where Aggregates, Entities, Value Objects, Repositories,
+ * Factories, Domain Services, or Domain Events are implemented.
+ * It only re-exports the workspace public surface from `api/`.
+ */
+
+export * from "./api";
+````
+
+## File: modules/workspace/repositories.md
+````markdown
+# workspace — Repositories
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+本文件定義 workspace 的 repository ports 與對應 infrastructure adapters。workspace 目前同時存在 write-side 與 read-side repository，目的是把 aggregate 持久化與 projection 查詢分開。
+
+在 workspace 中，Repository（倉儲）可以是介面或類別：`domain/repositories/` 裡的 port 是介面；`infrastructure/` 裡負責資料存取的 adapter 是類別。
+
+從六邊形架構看，repository ports 是 domain/application 內核朝外宣告的 driven ports；Firebase 類別是被動端 adapter，不應反向把外部技術語言帶回 domain model。
+
+從 event sourcing 視角補充：若未來採 event sourcing，Repository 會改為從 event store 讀取並重建 aggregate；但目前 workspace repository 是 current-state persistence，不是 event-sourced reconstitution。
+
+## Ports and Adapters Distinction
+
+- Port：`domain/repositories/` 中的介面，定義內核需要什麼能力
+- Adapter：`infrastructure/` 中的類別，實作這些能力並接上 Firestore / 其他外部系統
+- Driver 不直接呼叫 adapter；通常由 `interfaces/` / `application/` 協作後再使用對應 port
+
+## Write-side Repository Ports
+
+### `WorkspaceRepository`
+
+`WorkspaceRepository` 現在只服務 `Workspace` aggregate 的核心持久化與設定更新。
+
+#### 核心方法
+
+- `findById(id)`
+- `findByIdForAccount(accountId, workspaceId)`
+- `findAllByAccountId(accountId)`
+- `save(workspace)`
+- `updateSettings(command)`
+- `delete(id)`
+
+### Supporting Record Ports
+
+#### `WorkspaceCapabilityRepository`
+
+- `mountCapabilities()` / `unmountCapability()`
+
+#### `WorkspaceAccessRepository`
+
+- `grantTeamAccess()` / `revokeTeamAccess()`
+- `grantIndividualAccess()` / `revokeIndividualAccess()`
+
+#### `WorkspaceLocationRepository`
+
+- `createLocation()` / `updateLocation()` / `deleteLocation()`
+
+這些 supporting operations 目前仍由 workspace 擁有，但不再混在核心 aggregate repository port 中；若之後 ownership 外拆，可直接替換對應 supporting port。
+
+## Read-side Repository Ports
+
+### `WorkspaceQueryRepository`
+
+負責工作區查詢投影，而非 aggregate 持久化。
+
+#### 方法
+
+- `subscribeToWorkspacesForAccount(accountId, onUpdate)`
+- `getWorkspaceMembers(workspaceId)`
+
+這個 port 主要輸出 projection / read model，而不是 aggregate。
+
+### `WikiWorkspaceRepository`
+
+負責組合工作區導覽 tree 所需的最小工作區參照。
+
+#### 方法
+
+- `listByAccountId(accountId)`
+
+這個 port 服務的是 read-side composition，因此它的輸出也應視為 read model input，而不是 aggregate source of truth。
+
+## Infrastructure Adapters
+
+| Adapter | 作用 |
+|---|---|
+| `FirebaseWorkspaceRepository` | `WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository` 的 Firestore 實作 |
+| `FirebaseWorkspaceQueryRepository` | `WorkspaceQueryRepository` 的 Firebase / organization read-side 組裝實作 |
+| `FirebaseWikiWorkspaceRepository` | `WikiWorkspaceRepository` 的 Firestore 參照查詢實作 |
+
+## 設計規則
+
+- repository 介面定義在 `domain/repositories/`
+- infrastructure adapters 實作在 `infrastructure/`
+- `application/` 只依賴 repository ports，不依賴 adapter 類別
+- 跨模組 consumer 不直接 import repository implementation；一律透過 `api/` 或對應 interface adapter 使用
+
+## Tactical Debt Notes
+
+- supporting records 仍然物理上儲存在同一份 workspace document，但 application layer 已改為依賴專用 supporting ports
+- `WorkspaceQueryRepository` 同時承擔 read-side translation，尤其是把 `organization` 資料翻譯成 `WorkspaceMemberView`
+- 事件目前用於發布與整合，不用來作為 repository 的唯一狀態來源
+````
+
+## File: modules/workspace/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — workspace
+
+> **範圍：** 僅限 `modules/workspace/` bounded context 內
+
+本文件除了領域名詞，也會用少量 DDD 元術語幫助閱讀 companion docs；這些術語是文件讀法，不是要取代 workspace 自己的通用語言。
+
+## 戰略層級術語
+
+| 術語 | 在 workspace 文件中的意思 |
+|------|------------------------|
+| Domain | 指 Xuanwu 這個整體知識平台業務域 |
+| Subdomain | 指 workspace 所對應的協作容器問題空間；戰略分類屬於 generic subdomain |
+| Bounded Context | 指 `modules/workspace/` 這個語言、模型與 adapter 的邊界 |
+
+子域與限界上下文不是同一件事：subdomain 是業務問題空間；bounded context 是該語言與模型的實作/協作邊界。
+
+同一個 subdomain 可以由一個或多個 bounded contexts 落地；workspace 文件只描述 `modules/workspace/` 這個 bounded context 的語言，不替整個 subdomain 代言所有詞彙。
+
+## 核心術語
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區 | `Workspace` | 協作容器的 aggregate root，代表一個工作區範圍 |
+| 工作區 ID | `workspaceId` | `Workspace` 的業務識別子，也是跨 context 的範圍鍵 |
+| 帳戶 ID | `accountId` | 擁有工作區的 account 或 organization 識別子 |
+| 工作區生命週期 | `WorkspaceLifecycleState` | `preparatory | active | stopped` |
+| 工作區可見性 | `WorkspaceVisibility` | `visible | hidden`，控制工作區是否可被發現 |
+
+## Supporting Domain Objects
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區授權 | `WorkspaceGrant` | 工作區上的直接授權記錄，描述 user/team 與 role 關係 |
+| 工作區能力 | `Capability` | 目前掛載在工作區上的功能能力記錄 |
+| 工作區位置 | `WorkspaceLocation` | 工作區底下帶 identity 的位置節點 |
+| 工作區人員資訊 | `WorkspacePersonnel` | 工作區上的管理/監督/安全等角色參照集合 |
+| 工作區地址 | `Address` | 工作區地址值型資料 |
+
+## Read-side Projection Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區成員檢視 | `WorkspaceMemberView` | 由 workspace + organization 資料組裝出的成員查詢投影 |
+| 工作區成員接入通道 | `WorkspaceMemberAccessChannel` | 成員透過 owner/direct/team/personnel 進入工作區的路徑描述 |
+| 工作區帳戶節點 | `WikiAccountContentNode` | 用於導覽查詢的帳戶層節點 |
+| 工作區導覽節點 | `WikiWorkspaceContentNode` | 用於導覽查詢的工作區節點 |
+| 工作區導覽項 | `WikiContentItemNode` | 導覽/捷徑用的 read projection，不是 domain aggregate |
+
+Projection / Read Model 是查詢導向的讀取模型。它可以為特定 driver 或查詢場景最佳化，但不應回頭成為 write-side truth。
+
+## Domain Event Terms
+
+| 術語 | 英文 | 定義 |
+|------|------|------|
+| 工作區已建立事件 | `WorkspaceCreatedEvent` | 工作區建立後對外發布的 domain event 訊息 |
+| 工作區生命週期已轉移事件 | `WorkspaceLifecycleTransitionedEvent` | 工作區生命週期改變後發布的 domain event |
+| 工作區可見性已變更事件 | `WorkspaceVisibilityChangedEvent` | 工作區可見性變更後發布的 domain event |
+
+## 行為語言（Behavioral Language）
+
+| 行為 | 英文 | 在 workspace 中的語意 |
+|------|------|------------------------|
+| 建立工作區 | `create workspace` | 建立一個新的工作區協作容器，初始化 `workspaceId`、生命週期與可見性 |
+| 啟用工作區 | `activate workspace` | 將工作區從 `preparatory` 推進到 `active`，表示它已進入可運作狀態 |
+| 停止工作區 | `stop workspace` | 將工作區從 `active` 推進到 `stopped`，表示該範圍不再繼續運作 |
+| 變更工作區可見性 | `change workspace visibility` | 在 `visible` 與 `hidden` 之間替換可見性，不改變工作區 identity |
+| 掛載工作區能力 | `mount capabilities` | 將能力記錄掛到工作區範圍之下 |
+| 授權工作區存取 | `grant workspace access` | 將 user / team / personnel 路徑的存取權授予工作區 |
+| 建立工作區位置 | `create workspace location` | 在工作區範圍下建立帶 identity 的位置節點 |
+| 發布工作區事件 | `publish workspace event` | 在 aggregate 狀態改變成功後，對外發布對應的 domain event |
+
+這些行為語言描述的是「workspace 做什麼」，不是 UI 按鈕文案，也不是 framework callback 名稱。
+
+## 不變條件（Invariants）
+
+- `workspaceId` 一旦建立，就持續代表同一個工作區範圍
+- `accountId` 與 `accountType` 在 workspace 建立後不應被重新指定
+- `WorkspaceLifecycleState` 的 canonical 值只有 `preparatory | active | stopped`
+- `WorkspaceVisibility` 的 canonical 值只有 `visible | hidden`
+- `WorkspaceVisibility` 是曝光語意，不是生命週期語意；它不能取代 `WorkspaceLifecycleState`
+- `WorkspaceName` 應維持為有效名稱值，而不是未經正規化的任意字串
+- `WorkspaceMemberView` 與 `Wiki*Node` 是 projection / read model，不是 write-side truth
+- 下游 bounded context 只能在有效的 `workspaceId` 範圍內對齊自己的資料與行為
+
+更完整的 aggregate-level invariants 請看 [aggregates.md](./aggregates.md)。本節只記錄通用語言層級必須一致理解的規則。
+
+## 狀態轉移語意（Transition Semantics）
+
+### 生命週期語意
+
+- `preparatory -> active`：工作區從準備中進入可運作狀態
+- `active -> stopped`：工作區從運作中進入停止狀態
+- `stopped`：目前語意上視為終止狀態，不等同 `archived`
+
+### 可見性語意
+
+- `visible -> hidden`：工作區仍存在，但不再以可發現狀態暴露
+- `hidden -> visible`：工作區重新回到可發現狀態
+- 可見性變化不等於生命週期變化；它不建立、刪除或重命名工作區
+
+### 事件語意
+
+- 建立工作區後可發布 `WorkspaceCreatedEvent`
+- 生命週期發生有效轉移後可發布 `WorkspaceLifecycleTransitionedEvent`
+- 可見性發生變更後可發布 `WorkspaceVisibilityChangedEvent`
+
+## 命名守則
+
+- aggregate 與 supporting objects 使用 `Workspace*` 前綴，保持 bounded context 可讀性
+- `WorkspaceLifecycleState` 是 canonical 名稱，不使用 `WorkspaceStatus`
+- `WorkspaceMemberView` 是 projection 名稱，不縮寫成 `WorkspaceMember`
+- 若描述 query tree，使用 `WikiAccountContentNode` / `WikiWorkspaceContentNode` / `WikiContentItemNode`
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `Workspace` | `Project`, `Space`, `Room` |
+| `WorkspaceLifecycleState` | `WorkspaceStatus`, `ArchivedState` |
+| `WorkspaceVisibility` | `VisibilityMode`, `DiscoveryState` |
+| `WorkspaceMemberView` | `WorkspaceMember`, `Member`, `Participant` |
+| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`, `PageTree`, `Hierarchy`（當你描述 aggregate 或 entity 時） |
+
+## 語意說明
+
+- `archived` 不是此 bounded context 的生命週期語言；停止中的工作區使用 `stopped`
+- `WorkspaceMemberView` 與 `Wiki*Node` 是查詢模型，不等同 write-side domain objects
+- `workspaceId` 是下游 context 對齊 workspace scope 的主要 published language
+- 同一組 workspace 語言應在此 bounded context 的 domain、application、interfaces、infrastructure 中保持一致；只有在邊界上才翻譯外部語言
+
+## 文件元術語對照
+
+| 概念 | 在這組文件中的意思 |
+|------|------------------|
+| Entity（實體） | 類別 / 物件，具備 identity，語意上可跨時間被辨識 |
+| Value Object（值對象） | 類別 / 物件，以值相等判斷語意，例如 `WorkspaceVisibility`、`Address` |
+| Aggregate / Aggregate Root（聚合 / 聚合根） | 類別 / 物件，負責保護 write-side 一致性；workspace 的 aggregate root 是 `Workspace` |
+| Repository（倉儲） | 介面或類別，負責 aggregate / projection 的資料存取 |
+| Ports（端口） | 介面，定義內核與外部協作的接縫 |
+| Adapters（適配器） | 類別 / 函式 / 模組，將 driver 或 external system 轉譯成內核可處理的契約 |
+| 外部系統 / Driver（驅動器） | 從 bounded context 外部發起互動的角色 / 系統，例如 UI、Server Actions、其他 context 呼叫者 |
+| Projection / Read Model | 查詢導向的讀取模型，例如 `WorkspaceMemberView`、`Wiki*Node` |
+| Domain Service（領域服務） | 類別 / 函式，承載不自然屬於 aggregate / value object 的純領域規則 |
+| Factory（工廠） | 類別 / 函式，負責建立 aggregate、value object、domain event 等有效模型 |
+| Domain Event（領域事件） | 事件類別、訊息物件，作為對外發布的 domain language |
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+> **強制開發規範**  
+> 本 BC 領域開發必須使用 Serena 指令：
+> ```
+> serena
+> #use skill xuanwu-app-skill
+> #use skill serena-mcp
+> #use skill context7
+> #use skill alistair-cockburn
+> #use skill iddd-implementing-ddd
+
+> ```
+
+## 模組定位
+
+`workspace` 是協作容器 bounded context，也是 Xuanwu 中的 generic subdomain。
+
+它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
+
+`workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
+
+## 戰略層級（Domain / Subdomain / Bounded Context）
+
+- `Xuanwu` 是整體 business domain
+- `workspace` 所對應的問題空間在戰略分類上屬於 generic subdomain
+- `modules/workspace/` 是承載這組語言、模型、應用流程與 adapter 的 bounded context
+- `context-map.md` 描述 bounded context 與其他 bounded context 的關係；`aggregates.md`、`repositories.md`、`domain-events.md` 描述的是此 bounded context 內部的 tactical model
+- Subdomain 是問題空間；Bounded Context 是語言、模型與整合邊界。兩者不可混同，也不保證一對一
+- 這組文件是以 `workspace` 為中心的 selected view，不試圖重畫整個 Xuanwu domain
+
+## Tactical 對位
+
+- Aggregate Root：`Workspace`
+- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
+- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository` 與事件發布整合點
+- Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
+- Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
+- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+
+## DDD 概念對位（文件讀法）
+
+- Entity（實體）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLocation`、`Capability`
+- Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
+- Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
+- Ports（端口）→ 介面；宣告 bounded context 核心與外部協作的接縫
+- Adapters（適配器）→ 類別 / 函式 / 模組；把 driver 或外部系統轉成 port 可接受的契約
+- 外部系統 / 驅動器（Driver）→ 從 bounded context 外部發起工作的角色 / 系統，例如 UI、Server Action、其他 context 呼叫者
+- 投影 / Read Model → 查詢用途的物件；服務讀取與呈現，不承擔 write-side invariant
+- Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
+- Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
+- Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceLifecycleState` | WorkspaceStatus、ArchivedState |
+| `WorkspaceVisibility` | VisibilityMode、DiscoveryState |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 workspace BC 內） |
+| `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
+| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
+
+## 邊界規則
+
+### ✅ 允許
+
+```typescript
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+
+```typescript
+import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
+import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-cases/workspace.use-cases";
+```
+
+## 分層守衛
+
+- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
+- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
+- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
+- `infrastructure/` 禁止 import `api/`
+- `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
+
+## 六邊形對位
+
+- Domain Model 在 bounded context 的核心：`domain/`
+- Application layer 包在 domain model 外層：`application/`
+- Driving Adapters 是進入此 bounded context 的入口：`interfaces/`、Server Actions、query wrappers、UI composition
+- Driven Adapters 是對外技術整合：`infrastructure/`
+- Repository ports 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
+- `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
+- 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
+- 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
+- Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
+- `WorkspaceMemberView` 與 `Wiki*Node` 屬於 read model / projection，位於 query-side，不應回頭冒充 aggregate
+
+## Tactical 建模守則
+
+- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
+- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
+- `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
+- 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [README.md](./README.md) | 模組定位與 tactical model 總覽 |
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
+| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
+| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
+| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
+| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 ````
 
 ## File: modules/workspace/interfaces/components/WorkspaceOverviewTab.tsx
