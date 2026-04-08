@@ -48,6 +48,7 @@
 
 - `slug` 在同一 accountId 下必須唯一
 - 頁面樹與日常建立流程預設以 workspaceId 為邊界；account 層級只能做顯式 summary，不可作為隱含預設
+- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；若需 account-level summary，應以獨立 summary flow 實作，而不是沿用一般建立流程
 - archived 頁面不可新增 ContentBlock
 - archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
 - **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。

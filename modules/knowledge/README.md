@@ -23,6 +23,7 @@
 - `knowledge` 的日常頁面建立、整理與樹狀導覽以 workspace-first 為預設。
 - account / organization 層級只能作為顯式 summary mode，用於跨工作區總覽，不應默默取代工作區視角。
 - 若畫面或查詢沒有明確指定 summary mode，則必須帶入 activeWorkspaceId 來限制知識頁面範圍。
+- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；account summary mode 不提供一般頁面建立入口。
 
 ## 與其他 Bounded Context 協作
 

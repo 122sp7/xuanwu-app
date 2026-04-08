@@ -61,7 +61,7 @@ export interface KnowledgePageTreeNode extends KnowledgePage {
 
 export interface CreateKnowledgePageInput {
   readonly accountId: string;
-  readonly workspaceId?: string;
+  readonly workspaceId: string;
   readonly title: string;
   readonly parentPageId?: string | null;
   readonly createdByUserId: string;

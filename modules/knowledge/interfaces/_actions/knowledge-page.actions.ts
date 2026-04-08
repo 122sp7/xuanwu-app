@@ -43,6 +43,9 @@ function makePageRepo() {
 
 export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
   try {
+    if (!input.workspaceId?.trim()) {
+      return commandFailureFrom("CONTENT_PAGE_INVALID_SCOPE", "workspaceId 為必填，請先選定工作區再建立頁面。");
+    }
     return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input);
   } catch (err) {
     return commandFailureFrom("CONTENT_PAGE_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");

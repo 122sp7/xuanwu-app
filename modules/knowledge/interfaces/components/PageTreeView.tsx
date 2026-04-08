@@ -41,6 +41,7 @@ function TreeNode({
   const [expanded, setExpanded] = useState(depth < 1);
   const [addChildOpen, setAddChildOpen] = useState(false);
   const hasChildren = node.children && node.children.length > 0;
+  const canCreate = allowCreate && Boolean(workspaceId);
 
   return (
     <li>
@@ -69,7 +70,7 @@ function TreeNode({
           {node.title}
         </button>
 
-        {allowCreate ? (
+        {canCreate ? (
           <button
             type="button"
             className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible"
@@ -90,7 +91,7 @@ function TreeNode({
               accountId={accountId}
               workspaceId={workspaceId}
               currentUserId={currentUserId}
-              allowCreate={allowCreate}
+              allowCreate={canCreate}
               onPageClick={onPageClick}
               onCreated={onCreated}
               depth={depth + 1}
@@ -99,7 +100,7 @@ function TreeNode({
         </ul>
       )}
 
-      {allowCreate ? (
+      {canCreate && workspaceId ? (
         <PageDialog
           open={addChildOpen}
           onOpenChange={setAddChildOpen}
@@ -125,12 +126,13 @@ export function PageTreeView({
   onCreated,
 }: PageTreeViewProps) {
   const [addRootOpen, setAddRootOpen] = useState(false);
+  const canCreate = allowCreate && Boolean(workspaceId);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">頁面</p>
-        {allowCreate ? (
+        {canCreate ? (
           <Button
             variant="outline"
             size="sm"
@@ -157,7 +159,7 @@ export function PageTreeView({
                 accountId={accountId}
                 workspaceId={workspaceId}
                 currentUserId={currentUserId}
-                allowCreate={allowCreate}
+                allowCreate={canCreate}
                 onPageClick={onPageClick}
                 onCreated={onCreated}
                 depth={0}
@@ -167,7 +169,7 @@ export function PageTreeView({
         </div>
       )}
 
-      {allowCreate ? (
+      {canCreate && workspaceId ? (
         <PageDialog
           open={addRootOpen}
           onOpenChange={setAddRootOpen}

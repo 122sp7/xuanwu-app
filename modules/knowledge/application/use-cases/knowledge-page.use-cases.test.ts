@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { KnowledgePage } from "../../domain/entities/knowledge-page.entity";
 import type { KnowledgePageRepository } from "../../domain/repositories/knowledge.repositories";
 import {
+  CreateKnowledgePageUseCase,
   GetKnowledgePageTreeByWorkspaceUseCase,
   ListKnowledgePagesByWorkspaceUseCase,
 } from "./knowledge-page.use-cases";
@@ -54,6 +55,21 @@ function createRepoMock(): KnowledgePageRepository {
 }
 
 describe("knowledge-page.use-cases", () => {
+  it("rejects page creation without a workspace scope", async () => {
+    const repo = createRepoMock();
+
+    const result = await new CreateKnowledgePageUseCase(repo).execute({
+      accountId: "account-1",
+      title: "Workspace required",
+      parentPageId: null,
+      createdByUserId: "user-1",
+    } as never);
+
+    expect(result.success).toBe(false);
+    expect(result.error.code).toBe("CONTENT_PAGE_INVALID_INPUT");
+    expect(repo.create).not.toHaveBeenCalled();
+  });
+
   it("lists pages by workspace through the workspace repository contract", async () => {
     const repo = createRepoMock();
     const pages = [createPage({ id: "page-1", title: "Workspace page" })];
