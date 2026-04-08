@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui-shadcn/ui/select";
-import type { WorkspaceSettingsDraft } from "../../application/workspace-settings";
+import type { WorkspaceSettingsDraft } from "../workspace-settings";
 import { WorkspaceSettingsInformationFields } from "./WorkspaceSettingsInformationFields";
 
 interface WorkspaceSettingsDialogProps {

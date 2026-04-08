@@ -4,7 +4,7 @@ import { type FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import { updateWorkspaceSettings } from "../_actions/workspace.actions";
-import type { WorkspaceSettingsDraft } from "../../application/workspace-settings";
+import type { WorkspaceSettingsDraft } from "../workspace-settings";
 import { getWorkspaceByIdForAccount } from "../queries/workspace.queries";
 import { trimOrUndefined } from "../components/workspace-detail-helpers";
 

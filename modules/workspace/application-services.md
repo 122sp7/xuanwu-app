@@ -4,25 +4,61 @@
 > **模組路徑:** `modules/workspace/`
 > **Domain Type:** Generic Subdomain
 
-本文件記錄 `workspace` 的 application layer 服務與 use cases。內容與 `modules/workspace/application/` 實作保持一致。
+本文件定義 workspace application layer 的目標契約。Application layer 負責協調 aggregate、repository ports、query projections 與 domain event publishing，不承載 React UI state，也不作為跨模組偷渡 internal implementation 的入口。
 
 ## Application Layer 職責
 
-管理工作區容器、成員與內容樹，並組合多個 workspace-* 子域。
+- 協調 command-side use cases
+- 協調 query-side use cases / projection builders
+- 呼叫 repository ports 與必要的 domain service
+- 在持久化成功後觸發 domain event publishing
+- 保持 input/output 契約穩定，讓 `interfaces/` 可以薄適配
 
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
+## Command-side Use Cases
 
-## 實際檔案
+| Use Case | 目的 | 備註 |
+|---|---|---|
+| `CreateWorkspaceUseCase` | 建立工作區 | 最小建立流程 |
+| `CreateWorkspaceWithCapabilitiesUseCase` | 建立工作區並掛載能力 | 過渡性 orchestration；之後可再評估是否抽離 capability ownership |
+| `UpdateWorkspaceSettingsUseCase` | 更新名稱、可見性、生命週期與 supporting records | 目前是主要設定更新入口 |
+| `DeleteWorkspaceUseCase` | 刪除工作區 | 應搭配生命週期與下游資料政策檢視 |
+| `MountCapabilitiesUseCase` | 掛載工作區能力 | 暫時留在 workspace application layer |
+| `GrantTeamAccessUseCase` | 為 workspace 授權 team access | 過渡性 use case |
+| `GrantIndividualAccessUseCase` | 為 workspace 新增 direct grant | 過渡性 use case |
+| `CreateWorkspaceLocationUseCase` | 建立工作區位置節點 | supporting entity 管理 |
 
-- `application/use-cases/wiki-content-tree.use-case.ts`
+## Query-side Use Cases / Projection Builders
+
+| Use Case / Function | 目的 |
+|---|---|
+| `FetchWorkspaceMembersUseCase` | 組合 `WorkspaceMemberView[]` |
+| `buildWikiContentTree` | 組合工作區導覽樹 projection |
+
+## Factories 與 Composition Points
+
+- Domain event factories 應放在 domain events 檔案，不放在 UI 或 page component
+- UI draft factories 應留在 `interfaces/` 或其他 UI-oriented layer，不應假裝成 application service
+- Server Actions 與 query wrappers 是 interface adapter，不是 application service 本體
+
+## 非目標
+
+- 不保存 React component state
+- 不直接 new 外部 module 的 UI component
+- 不把 `WorkspaceDetailScreen` 的 tab composition 寫進 application layer
+
+## 實作對位
+
+### 目前 use-case 檔案
+
+- `application/use-cases/workspace-lifecycle.use-cases.ts`
+- `application/use-cases/workspace-capabilities.use-cases.ts`
+- `application/use-cases/workspace-access.use-cases.ts`
 - `application/use-cases/workspace-member.use-cases.ts`
-- `application/use-cases/workspace.use-cases.ts`
+- `application/use-cases/wiki-content-tree.use-case.ts`
+- `application/use-cases/workspace.use-cases.ts`（barrel only）
 
-## 設計對齊
+### 收斂方向
 
-- 模組 README：`../../../modules/workspace/README.md`
-- 模組 AGENT：`../../../modules/workspace/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/workspace/application-services.md`
+- `interfaces/_actions/` 保持 thin orchestration
+- `interfaces/queries/` 保持 thin query wrappers
+- 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步

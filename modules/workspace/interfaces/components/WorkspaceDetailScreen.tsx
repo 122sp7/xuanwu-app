@@ -18,7 +18,7 @@ import { useApp } from "@/app/providers/app-provider";
 import {
   createSettingsDraft,
   type WorkspaceSettingsDraft,
-} from "../../application/workspace-settings";
+} from "../workspace-settings";
 import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
 import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
 import {

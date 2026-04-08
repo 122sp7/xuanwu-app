@@ -6,7 +6,7 @@ import { Input } from "@ui-shadcn/ui/input";
 import {
   createWorkspaceCustomRoleDraft,
   type WorkspaceSettingsDraft,
-} from "../../application/workspace-settings";
+} from "../workspace-settings";
 import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
 
 interface WorkspaceSettingsInformationFieldsProps {
