@@ -5,26 +5,7 @@ import Link from "next/link";
 
 import { useAuth } from "@/app/providers/auth-provider";
 import { getFirebaseFunctions, functionsApi } from "@integration-firebase/functions";
-import { useIsMobile } from "@ui-shadcn";
-import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Label } from "@ui-shadcn/ui/label";
-import { ScrollArea } from "@ui-shadcn/ui/scroll-area";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@ui-shadcn/ui/sheet";
 import {
   createIdleSummary,
   readCallableData,
@@ -35,6 +16,7 @@ import {
 } from "./file-processing-dialog.utils";
 import { createKnowledgeDraftFromSourceDocument } from "../_actions/file-processing.actions";
 import { FileProcessingDialogBody } from "./file-processing-dialog.body";
+import { FileProcessingDialogSurface } from "./file-processing-dialog.surface";
 
 interface FileProcessingDialogProps {
   readonly open: boolean;
@@ -62,7 +44,6 @@ export function FileProcessingDialog({
   sizeBytes,
 }: FileProcessingDialogProps) {
   const { state: { user } } = useAuth();
-  const isMobile = useIsMobile();
   const [step, setStep] = useState<DialogStep>("decide");
   const [shouldRunRag, setShouldRunRag] = useState(true);
   const [shouldCreatePage, setShouldCreatePage] = useState(false);
@@ -264,78 +245,25 @@ export function FileProcessingDialog({
     </div>
   );
 
-  const sharedContent = (
-    <>
-      <ScrollArea className="min-h-0 flex-1 overscroll-contain">
-        <div className="space-y-4 px-4 pb-5 pt-4 sm:px-6 sm:pb-6 sm:pt-5">
-          <FileProcessingDialogBody
-            step={step}
-            filename={filename}
-            mimeType={mimeType}
-            gcsUri={gcsUri}
-            sizeBytes={sizeBytes}
-            shouldRunRag={shouldRunRag}
-            shouldCreatePage={shouldCreatePage}
-            onShouldRunRagChange={setShouldRunRag}
-            onShouldCreatePageChange={setShouldCreatePage}
-            summary={summary}
-          />
-        </div>
-      </ScrollArea>
-      {step !== "executing" ? (
-        <div className="border-t border-border/60 bg-muted/30 px-4 py-4 sm:px-6">
-          {footerActions}
-        </div>
-      ) : null}
-    </>
-  );
-
-  if (isMobile) {
-    return (
-      <Sheet open={open} onOpenChange={handleOpenChange}>
-        <SheetContent
-          side="bottom"
-          showCloseButton={canDismiss}
-          className="h-auto max-h-[92vh] gap-0 rounded-t-[28px] p-0 overscroll-contain"
-        >
-          <SheetHeader className="gap-3 border-b border-border/60 px-4 pb-4 pt-5 text-left">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">File Processing</Badge>
-              <Badge variant="secondary">Prototype</Badge>
-            </div>
-            <div className="space-y-1.5 pr-10">
-              <SheetTitle className="text-left text-lg">上傳完成後續處理</SheetTitle>
-              <SheetDescription className="text-left leading-6 text-pretty">
-                先決定是否要解析，再決定是否建立 RAG 索引或 Knowledge Page，避免檔案被自動處理造成爭議。
-              </SheetDescription>
-            </div>
-          </SheetHeader>
-          {sharedContent}
-        </SheetContent>
-      </Sheet>
-    );
-  }
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        className="[display:flex] max-h-[90vh] flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
-        showCloseButton={canDismiss}
-      >
-        <DialogHeader className="gap-3 border-b border-border/60 px-4 pb-4 pt-5 sm:px-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">File Processing</Badge>
-            <Badge variant="secondary">Prototype</Badge>
-          </div>
-          <div className="space-y-1.5 pr-10">
-            <DialogTitle className="text-lg">上傳完成後續處理</DialogTitle>
-            <DialogDescription className="leading-6 text-pretty">
-              先決定是否要解析，再決定是否建立 RAG 索引或 Knowledge Page，避免檔案被自動處理造成爭議。
-            </DialogDescription>
-          </div>
-        </DialogHeader>
-        {sharedContent}
-      </DialogContent>
-    </Dialog>
+    <FileProcessingDialogSurface
+      open={open}
+      canDismiss={canDismiss}
+      onOpenChange={handleOpenChange}
+      footer={step !== "executing" ? footerActions : null}
+    >
+      <FileProcessingDialogBody
+        step={step}
+        filename={filename}
+        mimeType={mimeType}
+        gcsUri={gcsUri}
+        sizeBytes={sizeBytes}
+        shouldRunRag={shouldRunRag}
+        shouldCreatePage={shouldCreatePage}
+        onShouldRunRagChange={setShouldRunRag}
+        onShouldCreatePageChange={setShouldCreatePage}
+        summary={summary}
+      />
+    </FileProcessingDialogSurface>
   );
 }
