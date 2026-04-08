@@ -76,3 +76,16 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 npm run lint
 npm run build
 ```
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [README.md](./README.md) | 模組定位與 tactical model 總覽 |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言與禁止術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read projection 對位 |
+| [repositories.md](./repositories.md) | write/read repository ports 與 infrastructure adapters |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約與發佈規則 |
+| [application-services.md](./application-services.md) | application layer use cases、query orchestration 與 factory 落點 |
+| [domain-services.md](./domain-services.md) | domain service 何時需要、目前是否存在 |
+| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
