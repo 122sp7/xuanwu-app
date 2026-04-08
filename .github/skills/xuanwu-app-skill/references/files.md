@@ -7509,259 +7509,6 @@ export interface AppContextValue {
 export const AppContext = createContext<AppContextValue | null>(null);
 ````
 
-## File: app/providers/app-provider.tsx
-````typescript
-"use client";
-
-/**
- * app-provider.tsx
- * Hosts the app-level active-account lifecycle and exposes useApp().
- *
- * Responsibilities:
- *  1. Watch AuthProvider state for sign-in / sign-out events
- *  2. Subscribe to the user's visible accounts (orgs) via account module queries
- *  3. Maintain activeAccount selection (default: personal user account from auth)
- *  4. Expose state + dispatch via AppContext
- */
-
-import {
-  useReducer,
-  useEffect,
-  useContext,
-  type ReactNode,
-} from "react";
-
-import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
-import {
-  subscribeToWorkspacesForAccount,
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-
-import { AppContext, type AppState, type AppAction } from "./app-context";
-import type { AuthUser } from "./auth-context";
-import { useAuth } from "./auth-provider";
-
-// ─── Initial State ────────────────────────────────────────────────────────────
-
-const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
-const LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX = "xuanwu_last_active_workspace:";
-
-function getWorkspaceStorageKey(accountId: string) {
-  return `${LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX}${accountId}`;
-}
-
-const initialState: AppState = {
-  accounts: {},
-  accountsHydrated: false,
-  bootstrapPhase: "idle",
-  activeAccount: null,
-  activeWorkspaceId: null,
-  workspaces: {},
-  workspacesHydrated: false,
-};
-
-function toWorkspaceMap(workspaces: WorkspaceEntity[]) {
-  return Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace]));
-}
-
-// ─── Reducer ──────────────────────────────────────────────────────────────────
-
-function resolveActiveAccount(
-  state: AppState,
-  accounts: Record<string, AccountEntity>,
-  user: AuthUser,
-  preferredActiveAccountId?: string | null,
-) {
-  const validIds = new Set([user.id, ...Object.keys(accounts)]);
-  const currentActiveId = state.activeAccount?.id;
-  let currentActive = null;
-
-  if (currentActiveId && validIds.has(currentActiveId)) {
-    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
-  }
-
-  let preferredActive = null;
-  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
-    preferredActive =
-      preferredActiveAccountId === user.id
-        ? user
-        : accounts[preferredActiveAccountId] ?? null;
-  }
-
-  // During the initial seeded phase we only know about the personal account.
-  // Once the real organization snapshot arrives, prefer the last persisted
-  // account so re-login restores the user's previous working context instead of
-  // leaving them in the optimistic personal fallback.
-  if (
-    preferredActive &&
-    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
-  ) {
-    return preferredActive;
-  }
-
-  return currentActive ?? user;
-}
-
-function appReducer(state: AppState, action: AppAction): AppState {
-  switch (action.type) {
-    case "SEED_ACTIVE_ACCOUNT":
-      return {
-        ...state,
-        accounts: {},
-        accountsHydrated: false,
-        bootstrapPhase: "seeded",
-        activeAccount: action.payload.user,
-        activeWorkspaceId: null,
-      };
-    case "SET_ACCOUNTS": {
-      const { accounts, user, preferredActiveAccountId } = action.payload;
-      return {
-        ...state,
-        accounts,
-        accountsHydrated: true,
-        bootstrapPhase: "hydrated",
-        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
-      };
-    }
-    case "SET_WORKSPACES":
-      return {
-        ...state,
-        workspaces: action.payload.workspaces,
-        workspacesHydrated: action.payload.hydrated,
-      };
-    case "SET_ACTIVE_ACCOUNT":
-      if (state.activeAccount?.id === action.payload?.id) return state;
-      return {
-        ...state,
-        activeAccount: action.payload,
-        activeWorkspaceId: null,
-        workspaces: {},
-        workspacesHydrated: false,
-      };
-    case "SET_ACTIVE_WORKSPACE":
-      if (state.activeWorkspaceId === action.payload) return state;
-      return { ...state, activeWorkspaceId: action.payload };
-    case "RESET_STATE":
-      return initialState;
-    default:
-      return state;
-  }
-}
-
-// ─── Provider ─────────────────────────────────────────────────────────────────
-
-export function AppProvider({ children }: { children: ReactNode }) {
-  const { state: authState } = useAuth();
-  const { user, status } = authState;
-  const [state, dispatch] = useReducer(appReducer, initialState);
-
-  useEffect(() => {
-    if (status === "initializing") return;
-
-    if (!user) {
-      dispatch({ type: "RESET_STATE" });
-      return;
-    }
-
-    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
-    const preferredActiveAccountId =
-      typeof window === "undefined"
-        ? null
-        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
-
-    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
-      dispatch({
-        type: "SET_ACCOUNTS",
-        payload: { accounts, user, preferredActiveAccountId },
-      });
-    });
-
-    return () => unsubscribe();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, user?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-
-    if (!user || !activeAccountId) {
-      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
-      return;
-    }
-
-    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
-  }, [state.activeAccount?.id, user]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) {
-      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
-      return;
-    }
-
-    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
-  }, [state.activeAccount?.id]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) return;
-
-    const storageKey = getWorkspaceStorageKey(activeAccountId);
-    if (!state.activeWorkspaceId) {
-      window.localStorage.removeItem(storageKey);
-      return;
-    }
-
-    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
-  }, [state.activeAccount?.id, state.activeWorkspaceId]);
-
-  useEffect(() => {
-    const activeAccountId = state.activeAccount?.id;
-    if (!activeAccountId) {
-      dispatch({
-        type: "SET_WORKSPACES",
-        payload: { workspaces: {}, hydrated: true },
-      });
-      return;
-    }
-
-    dispatch({
-      type: "SET_WORKSPACES",
-      payload: { workspaces: {}, hydrated: false },
-    });
-
-    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
-      dispatch({
-        type: "SET_WORKSPACES",
-        payload: {
-          workspaces: toWorkspaceMap(workspaces),
-          hydrated: true,
-        },
-      });
-    });
-
-    return () => unsubscribe();
-  }, [state.activeAccount?.id]);
-
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
-
-export function useApp() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
-  return ctx;
-}
-````
-
 ## File: app/providers/auth-context.ts
 ````typescript
 "use client";
@@ -11968,6 +11715,389 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 - Full API tables
 - Exhaustive option matrices
 - Deep conceptual essays
+````
+
+## File: eslint.config.mjs
+````javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+ 
+const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const typescriptFileGlobs = ["**/*.{ts,tsx}"];
+const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
+const boundaryRuleSeverity = "warn";
+const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
+
+const moduleApiEntrypointMessage =
+  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+
+const moduleApiEntrypointPattern = {
+  regex: "^@/modules/(?!system$)[^/]+$",
+  message: moduleApiEntrypointMessage,
+};
+
+const moduleNonApiSubpathPattern = {
+  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
+  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
+};
+
+const explicitIndexPathPattern = {
+  group: ["**/index", "**/index.ts", "**/index.tsx"],
+  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
+};
+
+const moduleInternalLayerPattern = {
+  group: [
+    "@/modules/*/application/**",
+    "@/modules/*/domain/**",
+    "@/modules/*/infrastructure/**",
+    "@/modules/*/interfaces/**",
+  ],
+  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
+};
+
+const moduleElements = [
+  {
+    type: "module-root",
+    pattern: "modules/*/index.ts",
+    capture: ["module"],
+  },
+  {
+    type: "module-api",
+    pattern: "modules/*/api/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-domain",
+    pattern: "modules/*/domain/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-application",
+    pattern: "modules/*/application/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-infrastructure",
+    pattern: "modules/*/infrastructure/**/*",
+    capture: ["module"],
+  },
+  {
+    type: "module-interfaces",
+    pattern: "modules/*/interfaces/**/*",
+    capture: ["module"],
+  },
+];
+
+const sameModuleCapture = { module: "{{from.captured.module}}" };
+const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
+
+const crossModuleApiRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [{ to: { type: "module-api" } }],
+  message: "Cross-module imports must go through `modules/<target>/api`.",
+}));
+
+const sameModuleRootRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: [sameModuleTarget("module-root")],
+  message: "Module root barrel is allowed only for the same module.",
+}));
+
+const apiLayerRule = {
+  from: { type: "module-api" },
+  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
+  message: "API layer may depend only on same-module layers.",
+};
+
+const sameModuleLayerAllowMap = {
+  "module-domain": ["module-domain"],
+  "module-application": ["module-application", "module-domain"],
+  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
+  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
+};
+
+const sameModuleLayerMessageMap = {
+  "module-domain": "Domain may only depend on domain of the same module.",
+  "module-application": "Application may depend only on application/domain in the same module.",
+  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
+  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
+};
+
+const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
+  from: { type },
+  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
+  message: sameModuleLayerMessageMap[type],
+}));
+
+const moduleDependencyRules = [
+  ...crossModuleApiRules,
+  ...sameModuleRootRules,
+  apiLayerRule,
+  ...sameModuleLayerRules,
+];
+
+const packageAliasMigrationPatterns = [
+  {
+    group: ["@/shared/*"],
+    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
+  },
+  {
+    group: ["@/infrastructure/*"],
+    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
+  },
+  {
+    group: ["@/libs/*"],
+    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
+  },
+  {
+    group: ["@/ui/shadcn/*"],
+    message: "Use @ui-shadcn/* instead.",
+  },
+  {
+    group: ["@/ui/vis", "@/ui/vis/*"],
+    message: "Use @ui-vis instead.",
+  },
+  {
+    group: ["@/interfaces/*"],
+    message: "Use @api-contracts instead.",
+  },
+];
+
+const createRestrictedImportsRule = (patterns) => [
+  boundaryRuleSeverity,
+  {
+    patterns,
+  },
+];
+
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  {
+    files: sourceFileGlobs,
+    plugins: {
+      jsdoc,
+    },
+    settings: {
+      jsdoc: {
+        mode: "typescript",
+      },
+    },
+    rules: {
+      "jsdoc/check-alignment": "warn",
+      "jsdoc/check-syntax": "warn",
+      "jsdoc/check-tag-names": "warn",
+      "jsdoc/no-blank-blocks": "warn",
+    },
+  },
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/naming-convention": [
+        "warn",
+        {
+          selector: "typeLike",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "typeParameter",
+          format: ["PascalCase"],
+        },
+        {
+          selector: "variable",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "function",
+          format: ["camelCase", "PascalCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "variable",
+          format: ["camelCase", "PascalCase", "UPPER_CASE"],
+          leadingUnderscore: "allow",
+          trailingUnderscore: "allow",
+        },
+        {
+          selector: "parameter",
+          modifiers: ["destructured"],
+          format: null,
+        },
+        {
+          selector: "parameter",
+          format: ["camelCase"],
+          leadingUnderscore: "allow",
+        },
+        {
+          selector: "enumMember",
+          format: ["PascalCase", "UPPER_CASE"],
+        },
+      ],
+    },
+  },
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  // ─── Consistent type-only imports ──────────────────────────────────────
+  // Enforces `import type` for type-only imports, improving tree-shaking and
+  // making module-boundary intent explicit (matches project MDDD conventions).
+  {
+    files: typescriptFileGlobs,
+    plugins: {
+      "@typescript-eslint": tseslint,
+    },
+    rules: {
+      "@typescript-eslint/consistent-type-imports": [
+        "warn",
+        { prefer: "type-imports", fixStyle: "inline-type-imports" },
+      ],
+    },
+  },
+  // ─── React best-practices ───────────────────────────────────────────────
+  // eslint-config-next already pulls in react / react-hooks rules via its
+  // own config; these overrides make project-specific settings explicit and
+  // add missing checks not covered by the base config.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
+      "react/prop-types": "off",            // TypeScript types replace PropTypes
+      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
+      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
+    },
+  },
+  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
+  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
+  // activated here.  Enabling recommended rules as warn catches common a11y
+  // mistakes without breaking the zero-error baseline.
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
+          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
+          // Downgrade all errors to warnings to preserve the zero-error baseline.
+          if (Array.isArray(config)) {
+            const [severity, ...rest] = config;
+            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
+            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
+          }
+          const normalised = config === "error" || config === 2 ? "warn" : config;
+          return [rule, normalised];
+        }),
+      ),
+    },
+  },
+  {
+    files: moduleFileGlobs,
+    plugins: {
+      boundaries,
+    },
+    settings: {
+      "boundaries/include": moduleFileGlobs,
+      "boundaries/elements": moduleElements,
+    },
+    rules: {
+      "boundaries/dependencies": [
+        boundaryRuleSeverity,
+        {
+          default: "disallow",
+          rules: moduleDependencyRules,
+        },
+      ],
+    },
+  },
+  // ─── MDDD layer-purity: file-size guardrails ────────────────────────────
+  // Vernon (IDDD): each layer has a single concern.  God files are the
+  // strongest signal that business logic has leaked into the wrong layer.
+  //
+  // Thresholds (warn, not error, to preserve zero-error baseline):
+  //   interfaces/ ≤ 300 lines  — UI components must not own business logic.
+  //   application/ ≤ 300 lines — one use-case file = one use-case.
+  //   infrastructure/ ≤ 400 lines — repositories are legitimately longer.
+  //
+  // When a file exceeds the limit: extract a sub-component / split use-cases
+  // / break the repository into focused query/command repositories.
+  {
+    files: ["modules/*/interfaces/**/*.{ts,tsx}"],
+    rules: {
+      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["modules/*/application/**/*.{ts,tsx}"],
+    rules: {
+      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  {
+    files: ["modules/*/infrastructure/**/*.{ts,tsx}"],
+    rules: {
+      "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
+    },
+  },
+  // ─── Package boundary enforcement ───────────────────────────────────────
+  // Forbid legacy import paths that were migrated to packages/*.
+  {
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
+    },
+  },
+  // ─── Strict module entrypoint enforcement ───────────────────────────────
+  {
+    files: [
+      "app/**/*.{ts,tsx,js,jsx}",
+      "providers/**/*.{ts,tsx,js,jsx}",
+      "debug/**/*.{ts,tsx,js,jsx}",
+    ],
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+      ]),
+    },
+  },
+  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
+  {
+    files: moduleFileGlobs,
+    rules: {
+      "no-restricted-imports": createRestrictedImportsRule([
+        explicitIndexPathPattern,
+        moduleApiEntrypointPattern,
+        moduleNonApiSubpathPattern,
+        moduleInternalLayerPattern,
+      ]),
+    },
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    ".agents/**",
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+  ]),
+]);
+
+export default eslintConfig;
 ````
 
 ## File: firebase.apphosting.json
@@ -16350,6 +16480,96 @@ Version: CreateVersion, RestoreVersion, ListVersions, LabelVersion
 → 詳細設計: [`modules/knowledge-collaboration/application-services.md`](../../modules/knowledge-collaboration/application-services.md)
 ````
 
+## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: application/dto
+ */
+
+import { z } from "@lib-zod";
+
+const ContentScopeSchema = z.object({
+  accountId: z.string().min(1),
+  workspaceId: z.string().min(1),
+});
+
+// ── Comment ───────────────────────────────────────────────────────────────────
+
+export const CreateCommentSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  authorId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+  parentCommentId: z.string().min(1).nullable().optional(),
+  blockId: z.string().min(1).nullable().optional(),
+  mentionedUserIds: z.array(z.string().min(1)).optional(),
+  selectionRange: z
+    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
+    .nullable()
+    .optional(),
+});
+export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
+
+export const UpdateCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  body: z.string().min(1).max(10000),
+});
+export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
+
+export const ResolveCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+  resolvedByUserId: z.string().min(1),
+});
+export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
+
+export const DeleteCommentSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
+
+// ── Version ───────────────────────────────────────────────────────────────────
+
+export const CreateVersionSchema = ContentScopeSchema.extend({
+  contentId: z.string().min(1),
+  contentType: z.enum(["page", "article"]),
+  snapshotBlocks: z.array(z.unknown()),
+  label: z.string().max(200).nullable().optional(),
+  description: z.string().max(2000).nullable().optional(),
+  createdByUserId: z.string().min(1),
+});
+export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
+
+export const DeleteVersionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
+
+// ── Permission ────────────────────────────────────────────────────────────────
+
+export const GrantPermissionSchema = ContentScopeSchema.extend({
+  subjectId: z.string().min(1),
+  subjectType: z.enum(["page", "article", "database"]),
+  principalId: z.string().min(1),
+  principalType: z.enum(["user", "team", "public", "link"]),
+  level: z.enum(["view", "comment", "edit", "full"]),
+  grantedByUserId: z.string().min(1),
+  expiresAtISO: z.string().nullable().optional(),
+  linkToken: z.string().min(1).nullable().optional(),
+});
+export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
+
+export const RevokePermissionSchema = z.object({
+  id: z.string().min(1),
+  accountId: z.string().min(1),
+});
+export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
+````
+
 ## File: modules/knowledge-collaboration/application/use-cases/comment.use-cases.ts
 ````typescript
 /**
@@ -16893,6 +17113,195 @@ export class FirebaseVersionRepository implements IVersionRepository {
 }
 ````
 
+## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useState, useTransition } from "react";
+import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { Badge } from "@ui-shadcn/ui/badge";
+
+import { subscribeComments } from "../queries/knowledge-collaboration.queries";
+import {
+  createComment,
+  resolveComment,
+  deleteComment,
+} from "../_actions/knowledge-collaboration.actions";
+import type { Comment } from "../../domain/entities/comment.entity";
+
+interface CommentPanelProps {
+  accountId: string;
+  workspaceId: string;
+  contentId: string;
+  contentType: "page" | "article";
+  currentUserId: string;
+}
+
+export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [body, setBody] = useState("");
+  const [isPending, startTransition] = useTransition();
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const unsubscribe = subscribeComments(accountId, contentId, (data) => {
+      setComments(data);
+      setLoading(false);
+    });
+    return unsubscribe;
+  }, [accountId, contentId]);
+
+  function handlePost() {
+    const trimmed = body.trim();
+    if (!trimmed) return;
+    startTransition(async () => {
+      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
+      setBody("");
+      textareaRef.current?.focus();
+    });
+  }
+
+  function handleResolve(commentId: string) {
+    startTransition(async () => {
+      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
+    });
+  }
+
+  function handleDelete(commentId: string) {
+    startTransition(async () => {
+      await deleteComment({ id: commentId, accountId });
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    });
+  }
+
+  const active = comments.filter((c) => !c.resolvedAt);
+  const resolved = comments.filter((c) => c.resolvedAt);
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center gap-2">
+        <MessageSquare className="h-4 w-4 text-muted-foreground" />
+        <span className="text-sm font-medium">留言</span>
+        {active.length > 0 && (
+          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
+        )}
+      </div>
+
+      {/* Comment input */}
+      <div className="flex flex-col gap-2">
+        <Textarea
+          ref={textareaRef}
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="新增留言..."
+          rows={2}
+          className="resize-none text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
+          }}
+        />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
+            <Send className="mr-1.5 h-3.5 w-3.5" />
+            送出
+          </Button>
+        </div>
+      </div>
+
+      {/* Comment list */}
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
+        </div>
+      ) : active.length === 0 && resolved.length === 0 ? (
+        <p className="text-xs text-muted-foreground">尚無留言。</p>
+      ) : (
+        <div className="space-y-2">
+          {active.map((c) => (
+            <CommentItem
+              key={c.id}
+              comment={c}
+              isOwner={c.authorId === currentUserId}
+              onResolve={() => handleResolve(c.id)}
+              onDelete={() => handleDelete(c.id)}
+              isPending={isPending}
+            />
+          ))}
+          {resolved.length > 0 && (
+            <details className="text-xs text-muted-foreground cursor-pointer">
+              <summary className="select-none">已解決 ({resolved.length})</summary>
+              <div className="mt-2 space-y-2">
+                {resolved.map((c) => (
+                  <CommentItem
+                    key={c.id}
+                    comment={c}
+                    isOwner={c.authorId === currentUserId}
+                    onDelete={() => handleDelete(c.id)}
+                    isPending={isPending}
+                  />
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface CommentItemProps {
+  comment: Comment;
+  isOwner: boolean;
+  onResolve?: () => void;
+  onDelete?: () => void;
+  isPending: boolean;
+}
+
+function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
+  const resolved = !!comment.resolvedAt;
+  return (
+    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
+      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
+      <div className="mt-1.5 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground">
+          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+        </span>
+        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
+        <div className="ml-auto flex gap-1">
+          {!resolved && onResolve && (
+            <button
+              type="button"
+              onClick={onResolve}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+              title="標記為已解決"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {isOwner && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={isPending}
+              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+              title="刪除"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
 ## File: modules/knowledge-collaboration/interfaces/components/VersionHistoryPanel.tsx
 ````typescript
 "use client";
@@ -17387,6 +17796,62 @@ export function resolveComputedFields(input: {
 }
 ````
 
+## File: modules/knowledge-database/application/use-cases/automation.use-cases.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: application/use-cases
+ * Purpose: Automation CRUD use-cases.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import type { DatabaseAutomation } from "../../domain/entities/database-automation.entity";
+import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
+import type {
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../../domain/entities/database-automation.entity";
+
+export class CreateAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(input: CreateAutomationInput): Promise<CommandResult> {
+    if (!input.name.trim()) {
+      return commandFailureFrom("AUTOMATION_INVALID_INPUT", "Automation name is required.");
+    }
+    const automation = await this.repo.create(input);
+    return commandSuccess(automation.id, Date.now());
+  }
+}
+
+export class UpdateAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(input: UpdateAutomationInput): Promise<CommandResult> {
+    const result = await this.repo.update(input);
+    if (!result) return commandFailureFrom("AUTOMATION_NOT_FOUND", "Automation not found.");
+    return commandSuccess(result.id, Date.now());
+  }
+}
+
+export class DeleteAutomationUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
+    await this.repo.delete(id, accountId, databaseId);
+    return commandSuccess(id, Date.now());
+  }
+}
+
+export class ListAutomationsUseCase {
+  constructor(private readonly repo: IAutomationRepository) {}
+
+  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
+    return this.repo.listByDatabase(accountId, databaseId);
+  }
+}
+````
+
 ## File: modules/knowledge-database/application/use-cases/database.use-cases.ts
 ````typescript
 /**
@@ -17628,6 +18093,87 @@ export class ListViewsUseCase {
 → [`modules/knowledge-database/domain-services.md`](../../modules/knowledge-database/domain-services.md)
 ````
 
+## File: modules/knowledge-database/domain/entities/database-automation.entity.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/entities
+ * Purpose: DatabaseAutomation — rules that trigger actions when database records change.
+ *
+ * Notion-equivalent: "Automations" tab on a database.
+ * Trigger + Action pairs. Execution is handled by a background worker (QStash).
+ */
+
+export type AutomationTrigger =
+  | "record_created"
+  | "record_updated"
+  | "record_deleted"
+  | "property_changed";
+
+export type AutomationActionType =
+  | "send_notification"
+  | "update_property"
+  | "create_record"
+  | "webhook";
+
+export interface AutomationCondition {
+  /** Field name to evaluate */
+  fieldId: string;
+  operator: "equals" | "not_equals" | "is_empty" | "is_not_empty" | "contains";
+  value?: string;
+}
+
+export interface AutomationAction {
+  type: AutomationActionType;
+  /** Payload depends on type:
+   *  send_notification → { recipientId, message }
+   *  update_property   → { fieldId, value }
+   *  create_record     → { databaseId }
+   *  webhook           → { url, method }
+   */
+  config: Record<string, string>;
+}
+
+export interface DatabaseAutomation {
+  id: string;
+  databaseId: string;
+  accountId: string;
+  name: string;
+  enabled: boolean;
+  trigger: AutomationTrigger;
+  /** Field that must change — only relevant for "property_changed" trigger */
+  triggerFieldId?: string;
+  conditions: AutomationCondition[];
+  actions: AutomationAction[];
+  createdByUserId: string;
+  createdAtISO: string;
+  updatedAtISO: string;
+}
+
+export interface CreateAutomationInput {
+  databaseId: string;
+  accountId: string;
+  name: string;
+  trigger: AutomationTrigger;
+  triggerFieldId?: string;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+  createdByUserId: string;
+}
+
+export interface UpdateAutomationInput {
+  id: string;
+  accountId: string;
+  databaseId: string;
+  name?: string;
+  enabled?: boolean;
+  trigger?: AutomationTrigger;
+  triggerFieldId?: string;
+  conditions?: AutomationCondition[];
+  actions?: AutomationAction[];
+}
+````
+
 ## File: modules/knowledge-database/domain/entities/database-form.entity.ts
 ````typescript
 /**
@@ -17768,6 +18314,28 @@ export interface View {
 }
 ````
 
+## File: modules/knowledge-database/domain/repositories/IAutomationRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: domain/repositories
+ * Purpose: Repository interface for DatabaseAutomation aggregate.
+ */
+
+import type {
+  DatabaseAutomation,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../entities/database-automation.entity";
+
+export interface IAutomationRepository {
+  create(input: CreateAutomationInput): Promise<DatabaseAutomation>;
+  update(input: UpdateAutomationInput): Promise<DatabaseAutomation | null>;
+  delete(id: string, accountId: string, databaseId: string): Promise<void>;
+  listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomation[]>;
+}
+````
+
 ## File: modules/knowledge-database/domain/repositories/IDatabaseRecordRepository.ts
 ````typescript
 /**
@@ -17887,6 +18455,148 @@ export interface IViewRepository {
  * knowledge-database module — public barrel export
  */
 export * from "./api";
+````
+
+## File: modules/knowledge-database/infrastructure/firebase/FirebaseAutomationRepository.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: infrastructure/firebase
+ * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
+ */
+
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+
+import type {
+  DatabaseAutomation,
+  AutomationCondition,
+  AutomationAction,
+  CreateAutomationInput,
+  UpdateAutomationInput,
+} from "../../domain/entities/database-automation.entity";
+import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
+
+function automationsCol(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  databaseId: string,
+) {
+  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations");
+}
+
+function automationDocRef(
+  db: ReturnType<typeof getFirestore>,
+  accountId: string,
+  databaseId: string,
+  automationId: string,
+) {
+  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations", automationId);
+}
+
+function toCondition(c: Record<string, unknown>): AutomationCondition {
+  return {
+    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
+    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
+    value: typeof c.value === "string" ? c.value : undefined,
+  };
+}
+
+function toAction(a: Record<string, unknown>): AutomationAction {
+  return {
+    type: (a.type as AutomationAction["type"]) ?? "send_notification",
+    config:
+      typeof a.config === "object" && a.config !== null
+        ? (a.config as Record<string, string>)
+        : {},
+  };
+}
+
+function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomation {
+  return {
+    id,
+    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
+    accountId: typeof data.accountId === "string" ? data.accountId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    enabled: data.enabled !== false,
+    trigger: (data.trigger as DatabaseAutomation["trigger"]) ?? "record_created",
+    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
+    conditions: Array.isArray(data.conditions)
+      ? (data.conditions as Record<string, unknown>[]).map(toCondition)
+      : [],
+    actions: Array.isArray(data.actions)
+      ? (data.actions as Record<string, unknown>[]).map(toAction)
+      : [],
+    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
+    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
+    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
+  };
+}
+
+export class FirebaseAutomationRepository implements IAutomationRepository {
+  private readonly db = getFirestore(firebaseClientApp);
+
+  async create(input: CreateAutomationInput): Promise<DatabaseAutomation> {
+    const id = generateId();
+    const now = new Date().toISOString();
+    const docRef = automationDocRef(this.db, input.accountId, input.databaseId, id);
+    const payload = {
+      databaseId: input.databaseId,
+      accountId: input.accountId,
+      name: input.name,
+      enabled: true,
+      trigger: input.trigger,
+      triggerFieldId: input.triggerFieldId ?? null,
+      conditions: input.conditions ?? [],
+      actions: input.actions ?? [],
+      createdByUserId: input.createdByUserId,
+      createdAtISO: now,
+      updatedAtISO: now,
+      serverCreatedAt: serverTimestamp(),
+    };
+    await setDoc(docRef, payload);
+    return toAutomation(id, payload);
+  }
+
+  async update(input: UpdateAutomationInput): Promise<DatabaseAutomation | null> {
+    const { id, accountId, databaseId, ...fields } = input;
+    const docRef = automationDocRef(this.db, accountId, databaseId, id);
+    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
+    await updateDoc(docRef, updates);
+    const snap = await getDoc(docRef);
+    if (!snap.exists()) return null;
+    return toAutomation(id, snap.data() as Record<string, unknown>);
+  }
+
+  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
+    const docRef = automationDocRef(this.db, accountId, databaseId, id);
+    await deleteDoc(docRef);
+  }
+
+  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
+    const q = query(
+      automationsCol(this.db, accountId, databaseId),
+      where("databaseId", "==", databaseId),
+      orderBy("createdAtISO", "asc"),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
+  }
+}
 ````
 
 ## File: modules/knowledge-database/infrastructure/firebase/FirebaseDatabaseRepository.ts
@@ -18270,6 +18980,334 @@ export class FirebaseViewRepository implements IViewRepository {
     const snaps = await getDocs(q);
     return snaps.docs.map(d => toView(d.id, d.data() as Record<string, unknown>));
   }
+}
+````
+
+## File: modules/knowledge-database/interfaces/_actions/knowledge-database-automation.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/_actions
+ * Purpose: Server Actions for DatabaseAutomation CRUD.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
+import {
+  CreateAutomationUseCase,
+  UpdateAutomationUseCase,
+  DeleteAutomationUseCase,
+} from "../../application/use-cases/automation.use-cases";
+import type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/entities/database-automation.entity";
+
+function makeAutomationRepo() { return new FirebaseAutomationRepository(); }
+
+export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
+  try {
+    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAutomation(
+  id: string,
+  accountId: string,
+  databaseId: string,
+): Promise<CommandResult> {
+  try {
+    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
+  } catch (err) {
+    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/knowledge-database/interfaces/components/DatabaseAutomationView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/components
+ * Purpose: DatabaseAutomationView — manage automation rules for a Database.
+ *
+ * Notion-equivalent: Database > "Automations" panel.
+ * Renders a list of existing automations and a creator for new ones.
+ * Actual execution is handled server-side; this component is management UI only.
+ */
+
+import { Plus, Zap, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+
+import type {
+  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
+} from "../../domain/entities/database-automation.entity";
+import {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../_actions/knowledge-database-automation.actions";
+import { getAutomations } from "../queries/knowledge-database-automation.queries";
+
+// ── Trigger labels ─────────────────────────────────────────────────────────────
+const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
+  record_created: "建立記錄時",
+  record_updated: "更新記錄時",
+  record_deleted: "刪除記錄時",
+  property_changed: "屬性變更時",
+};
+
+const ACTION_LABELS: Record<AutomationActionType, string> = {
+  send_notification: "發送通知",
+  update_property: "更新屬性",
+  create_record: "建立記錄",
+  webhook: "呼叫 Webhook",
+};
+
+interface DatabaseAutomationViewProps {
+  databaseId: string;
+  accountId: string;
+  currentUserId: string;
+}
+
+interface DraftAutomation {
+  name: string;
+  trigger: AutomationTrigger;
+  actionType: AutomationActionType;
+  actionValue: string;
+}
+
+const DEFAULT_DRAFT: DraftAutomation = {
+  name: "",
+  trigger: "record_created",
+  actionType: "send_notification",
+  actionValue: "",
+};
+
+export function DatabaseAutomationView({
+  databaseId,
+  accountId,
+  currentUserId,
+}: DatabaseAutomationViewProps) {
+  const [automations, setAutomations] = useState<DatabaseAutomation[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [draft, setDraft] = useState<DraftAutomation>(DEFAULT_DRAFT);
+
+  const refresh = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const data = await getAutomations(accountId, databaseId);
+      setAutomations(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accountId, databaseId]);
+
+  useEffect(() => {
+    void refresh();
+  }, [refresh]);
+
+  async function handleSave() {
+    if (!draft.name.trim()) return;
+    await createAutomation({
+      databaseId,
+      accountId,
+      name: draft.name.trim(),
+      trigger: draft.trigger,
+      conditions: [],
+      actions: [{ type: draft.actionType, config: { value: draft.actionValue } }],
+      createdByUserId: currentUserId,
+    });
+    setDraft(DEFAULT_DRAFT);
+    setCreating(false);
+    await refresh();
+  }
+
+  async function handleToggle(automation: DatabaseAutomation) {
+    setAutomations((prev) =>
+      prev.map((a) => a.id === automation.id ? { ...a, enabled: !a.enabled } : a),
+    );
+    await updateAutomation({
+      id: automation.id,
+      accountId,
+      databaseId,
+      enabled: !automation.enabled,
+    });
+    await refresh();
+  }
+
+  async function handleDelete(id: string) {
+    setAutomations((prev) => prev.filter((a) => a.id !== id));
+    await deleteAutomation(id, accountId, databaseId);
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Zap className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium">自動化規則</span>
+          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+            {automations.length}
+          </span>
+        </div>
+        {!creating && (
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreating(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            新增規則
+          </Button>
+        )}
+      </div>
+
+      {/* Create form */}
+      {creating && (
+        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
+          <p className="text-sm font-medium">新規則</p>
+
+          <div className="space-y-1">
+            <Label className="text-xs">規則名稱</Label>
+            <Input
+              value={draft.name}
+              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
+              placeholder="例如：建立後發送通知"
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">觸發條件</Label>
+              <Select
+                value={draft.trigger}
+                onValueChange={(v) => setDraft((d) => ({ ...d, trigger: v as AutomationTrigger }))}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(TRIGGER_LABELS) as AutomationTrigger[]).map((t) => (
+                    <SelectItem key={t} value={t}>{TRIGGER_LABELS[t]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-xs">執行動作</Label>
+              <Select
+                value={draft.actionType}
+                onValueChange={(v) => setDraft((d) => ({ ...d, actionType: v as AutomationActionType }))}
+              >
+                <SelectTrigger className="h-8 text-sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(ACTION_LABELS) as AutomationActionType[]).map((a) => (
+                    <SelectItem key={a} value={a}>{ACTION_LABELS[a]}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <Label className="text-xs">動作參數（選填）</Label>
+            <Input
+              value={draft.actionValue}
+              onChange={(e) => setDraft((d) => ({ ...d, actionValue: e.target.value }))}
+              placeholder={draft.actionType === "webhook" ? "https://..." : "訊息內容或欄位值"}
+              className="h-8 text-sm"
+            />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" size="sm" onClick={() => { setCreating(false); setDraft(DEFAULT_DRAFT); }}>
+              取消
+            </Button>
+            <Button size="sm" disabled={!draft.name.trim()} onClick={() => void handleSave()}>
+              儲存
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* List */}
+      {isLoading ? (
+        <div className="space-y-2">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
+          ))}
+        </div>
+      ) : automations.length === 0 && !creating ? (
+        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
+          <Zap className="mx-auto mb-2 h-8 w-8 opacity-30" />
+          <p>尚無自動化規則</p>
+          <p className="text-xs mt-1">點擊「新增規則」來建立第一條規則</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {automations.map((a) => (
+            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
+              <button
+                type="button"
+                onClick={() => void handleToggle(a)}
+                title={a.enabled ? "停用" : "啟用"}
+                className="shrink-0 text-muted-foreground hover:text-foreground"
+              >
+                {a.enabled
+                  ? <ToggleRight className="h-5 w-5 text-primary" />
+                  : <ToggleLeft className="h-5 w-5" />
+                }
+              </button>
+              <div className="min-w-0 flex-1">
+                <p className={`text-sm font-medium truncate ${!a.enabled ? "line-through text-muted-foreground" : ""}`}>
+                  {a.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {TRIGGER_LABELS[a.trigger]} → {ACTION_LABELS[a.actions[0]?.type ?? "send_notification"]}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                className="shrink-0 text-muted-foreground hover:text-destructive"
+                onClick={() => void handleDelete(a.id)}
+                title="刪除"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 ````
 
@@ -19777,6 +20815,26 @@ export function DatabaseTableView({
       </Button>
     </div>
   );
+}
+````
+
+## File: modules/knowledge-database/interfaces/queries/knowledge-database-automation.queries.ts
+````typescript
+/**
+ * Module: knowledge-database
+ * Layer: interfaces/queries
+ * Purpose: Automation read-side queries.
+ */
+
+import type { DatabaseAutomation } from "../../domain/entities/database-automation.entity";
+import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
+import { ListAutomationsUseCase } from "../../application/use-cases/automation.use-cases";
+
+export async function getAutomations(
+  accountId: string,
+  databaseId: string,
+): Promise<DatabaseAutomation[]> {
+  return new ListAutomationsUseCase(new FirebaseAutomationRepository()).execute(accountId, databaseId);
 }
 ````
 
@@ -22576,6 +23634,136 @@ export class InMemoryKnowledgeBlockRepository implements KnowledgeBlockRepositor
 }
 ````
 
+## File: modules/knowledge/interfaces/components/extensions/callout-block.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * CalloutBlock — a highlighted info/warning callout block.
+ * Renders as: <div data-type="callout"><p>...</p></div>
+ */
+export const CalloutBlock = Node.create({
+  name: "callout",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  addAttributes() {
+    return {
+      emoji: { default: "💡" },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='callout']" }];
+  },
+
+  renderHTML({ HTMLAttributes, node }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, { "data-type": "callout", class: "callout-block" }),
+      ["span", { class: "callout-emoji", contenteditable: "false" }, node.attrs.emoji as string],
+      ["div", { class: "callout-content" }, 0],
+    ];
+  },
+});
+````
+
+## File: modules/knowledge/interfaces/components/extensions/synced-block.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * SyncedBlock — a reference block whose content mirrors a source block by ID.
+ * In the editor it renders as a styled read-only placeholder.
+ * Full real-time sync would be implemented via a Firestore listener in a
+ * dedicated React component; here the node marks the block as synced so the
+ * editor can render a visual indicator.
+ */
+export const SyncedBlock = Node.create({
+  name: "syncedBlock",
+  group: "block",
+  content: "block*",
+  defining: true,
+
+  addAttributes() {
+    return {
+      sourceBlockId: { default: null },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: "div[data-type='synced-block']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "synced-block",
+        class: "synced-block",
+      }),
+      0,
+    ];
+  },
+});
+````
+
+## File: modules/knowledge/interfaces/components/extensions/table-of-contents-node.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * TableOfContentsBlock — a read-only auto-generated TOC node.
+ * Renders as: <div data-type="toc" contenteditable="false">...</div>
+ * Actual heading links are injected via the editor's DOM at render time.
+ */
+export const TableOfContentsNode = Node.create({
+  name: "tableOfContents",
+  group: "block",
+  atom: true,
+
+  parseHTML() {
+    return [{ tag: "div[data-type='toc']" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "toc",
+        contenteditable: "false",
+        class: "toc-block",
+      }),
+    ];
+  },
+});
+````
+
+## File: modules/knowledge/interfaces/components/extensions/toggle-block.extension.ts
+````typescript
+import { Node, mergeAttributes } from "@tiptap/core";
+
+/**
+ * ToggleBlock — a collapsible details/summary block.
+ * Renders as: <details><summary>...</summary></details>
+ */
+export const ToggleBlock = Node.create({
+  name: "toggle",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: "details" }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
+  },
+});
+````
+
 ## File: modules/knowledge/interfaces/components/PageEditorView.tsx
 ````typescript
 "use client";
@@ -23996,6 +25184,195 @@ export async function markAllNotificationsRead(recipientId: string): Promise<Com
   } catch (err) {
     return commandFailureFrom("NOTIFICATION_MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
+}
+````
+
+## File: modules/notification/interfaces/components/NotificationBell.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notification
+ * Layer: interfaces/components
+ * Purpose: Reusable notification bell with dropdown for shell header.
+ *
+ * Consumes use-cases via the module facade (no direct infrastructure imports).
+ * Server-action mutations are wired through the local _actions module.
+ */
+
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "../_actions/notification.actions";
+import { getNotificationsForRecipient } from "../queries/notification.queries";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+interface NotificationBellProps {
+  readonly recipientId: string;
+}
+
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href="/settings/notifications"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 ````
 
@@ -51754,136 +53131,6 @@ export function CreateOrganizationDialog({
 }
 ````
 
-## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import { createWorkspace } from "@/modules/workspace/api";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateWorkspaceDialogRailProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  activeAccount: ActiveAccount | null;
-  isOrganizationAccount: boolean;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateWorkspaceDialogRail({
-  open,
-  onOpenChange,
-  activeAccount,
-  isOrganizationAccount,
-  onNavigate,
-}: CreateWorkspaceDialogRailProps) {
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setWorkspaceName("");
-    setError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setError("請輸入工作區名稱。");
-      return;
-    }
-    if (!activeAccount) {
-      setError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-    setIsCreating(true);
-    setError(null);
-    const result = await createWorkspace({
-      name,
-      accountId: activeAccount.id,
-      accountType: isOrganizationAccount ? "organization" : "user",
-    });
-    if (!result.success) {
-      setError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    reset();
-    onOpenChange(false);
-    onNavigate("/workspace");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-workspace-description">
-        <DialogHeader>
-          <DialogTitle>建立新工作區</DialogTitle>
-          <DialogDescription id="rail-create-workspace-description">
-            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-              工作區名稱
-            </label>
-            <Input
-              id="rail-workspace-name"
-              value={workspaceName}
-              onChange={(e) => {
-                setWorkspaceName(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="例如：Project Alpha"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !activeAccount}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
 ## File: app/(shell)/_components/customize-navigation-dialog.tsx
 ````typescript
 "use client";
@@ -54316,387 +55563,249 @@ export default function OrganizationWorkspacesPage() {
 }
 ````
 
-## File: eslint.config.mjs
-````javascript
-import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import boundaries from "eslint-plugin-boundaries";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
-import jsxA11y from "eslint-plugin-jsx-a11y";
- 
-const sourceFileGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const typescriptFileGlobs = ["**/*.{ts,tsx}"];
-const moduleFileGlobs = ["modules/**/*.{ts,tsx}"];
-const boundaryRuleSeverity = "warn";
-const moduleLayerTypes = ["module-domain", "module-application", "module-infrastructure", "module-interfaces"];
+## File: app/providers/app-provider.tsx
+````typescript
+"use client";
 
-const moduleApiEntrypointMessage =
-  "Module imports must use `@/modules/<module>/api` only (except approved system facade).";
+/**
+ * app-provider.tsx
+ * Hosts the app-level active-account lifecycle and exposes useApp().
+ *
+ * Responsibilities:
+ *  1. Watch AuthProvider state for sign-in / sign-out events
+ *  2. Subscribe to the user's visible accounts (orgs) via account module queries
+ *  3. Maintain activeAccount selection (default: personal user account from auth)
+ *  4. Expose state + dispatch via AppContext
+ */
 
-const moduleApiEntrypointPattern = {
-  regex: "^@/modules/(?!system$)[^/]+$",
-  message: moduleApiEntrypointMessage,
+import {
+  useReducer,
+  useEffect,
+  useContext,
+  type ReactNode,
+} from "react";
+
+import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
+import {
+  getWorkspaceStorageKey,
+  subscribeToWorkspacesForAccount,
+  toWorkspaceMap,
+} from "@/modules/workspace/api";
+
+import { AppContext, type AppState, type AppAction } from "./app-context";
+import type { AuthUser } from "./auth-context";
+import { useAuth } from "./auth-provider";
+
+// ─── Initial State ────────────────────────────────────────────────────────────
+
+const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
+
+const initialState: AppState = {
+  accounts: {},
+  accountsHydrated: false,
+  bootstrapPhase: "idle",
+  activeAccount: null,
+  activeWorkspaceId: null,
+  workspaces: {},
+  workspacesHydrated: false,
 };
 
-const moduleNonApiSubpathPattern = {
-  regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)).+",
-  message: "Cross-module dependencies must use `@/modules/<module>/api` only; internal module paths are forbidden.",
-};
+// ─── Reducer ──────────────────────────────────────────────────────────────────
 
-const explicitIndexPathPattern = {
-  group: ["**/index", "**/index.ts", "**/index.tsx"],
-  message: "Import the target file or public module boundary directly instead of using an explicit index path.",
-};
+function resolveActiveAccount(
+  state: AppState,
+  accounts: Record<string, AccountEntity>,
+  user: AuthUser,
+  preferredActiveAccountId?: string | null,
+) {
+  const validIds = new Set([user.id, ...Object.keys(accounts)]);
+  const currentActiveId = state.activeAccount?.id;
+  let currentActive = null;
 
-const moduleInternalLayerPattern = {
-  group: [
-    "@/modules/*/application/**",
-    "@/modules/*/domain/**",
-    "@/modules/*/infrastructure/**",
-    "@/modules/*/interfaces/**",
-  ],
-  message: "Cross-module dependencies must go through `@/modules/<module>/api`, not an internal layer path.",
-};
+  if (currentActiveId && validIds.has(currentActiveId)) {
+    currentActive = currentActiveId === user.id ? user : accounts[currentActiveId] ?? null;
+  }
 
-const moduleElements = [
-  {
-    type: "module-root",
-    pattern: "modules/*/index.ts",
-    capture: ["module"],
-  },
-  {
-    type: "module-api",
-    pattern: "modules/*/api/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-domain",
-    pattern: "modules/*/domain/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-application",
-    pattern: "modules/*/application/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-infrastructure",
-    pattern: "modules/*/infrastructure/**/*",
-    capture: ["module"],
-  },
-  {
-    type: "module-interfaces",
-    pattern: "modules/*/interfaces/**/*",
-    capture: ["module"],
-  },
-];
+  let preferredActive = null;
+  if (preferredActiveAccountId && validIds.has(preferredActiveAccountId)) {
+    preferredActive =
+      preferredActiveAccountId === user.id
+        ? user
+        : accounts[preferredActiveAccountId] ?? null;
+  }
 
-const sameModuleCapture = { module: "{{from.captured.module}}" };
-const sameModuleTarget = (type) => ({ to: { type, captured: sameModuleCapture } });
+  // During the initial seeded phase we only know about the personal account.
+  // Once the real organization snapshot arrives, prefer the last persisted
+  // account so re-login restores the user's previous working context instead of
+  // leaving them in the optimistic personal fallback.
+  if (
+    preferredActive &&
+    (!currentActive || state.bootstrapPhase === "seeded" || currentActive.id === user.id)
+  ) {
+    return preferredActive;
+  }
 
-const crossModuleApiRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [{ to: { type: "module-api" } }],
-  message: "Cross-module imports must go through `modules/<target>/api`.",
-}));
+  return currentActive ?? user;
+}
 
-const sameModuleRootRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: [sameModuleTarget("module-root")],
-  message: "Module root barrel is allowed only for the same module.",
-}));
+function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    case "SEED_ACTIVE_ACCOUNT":
+      return {
+        ...state,
+        accounts: {},
+        accountsHydrated: false,
+        bootstrapPhase: "seeded",
+        activeAccount: action.payload.user,
+        activeWorkspaceId: null,
+      };
+    case "SET_ACCOUNTS": {
+      const { accounts, user, preferredActiveAccountId } = action.payload;
+      return {
+        ...state,
+        accounts,
+        accountsHydrated: true,
+        bootstrapPhase: "hydrated",
+        activeAccount: resolveActiveAccount(state, accounts, user, preferredActiveAccountId),
+      };
+    }
+    case "SET_WORKSPACES":
+      return {
+        ...state,
+        workspaces: action.payload.workspaces,
+        workspacesHydrated: action.payload.hydrated,
+      };
+    case "SET_ACTIVE_ACCOUNT":
+      if (state.activeAccount?.id === action.payload?.id) return state;
+      return {
+        ...state,
+        activeAccount: action.payload,
+        activeWorkspaceId: null,
+        workspaces: {},
+        workspacesHydrated: false,
+      };
+    case "SET_ACTIVE_WORKSPACE":
+      if (state.activeWorkspaceId === action.payload) return state;
+      return { ...state, activeWorkspaceId: action.payload };
+    case "RESET_STATE":
+      return initialState;
+    default:
+      return state;
+  }
+}
 
-const apiLayerRule = {
-  from: { type: "module-api" },
-  allow: ["module-api", ...moduleLayerTypes].map(sameModuleTarget),
-  message: "API layer may depend only on same-module layers.",
-};
+// ─── Provider ─────────────────────────────────────────────────────────────────
 
-const sameModuleLayerAllowMap = {
-  "module-domain": ["module-domain"],
-  "module-application": ["module-application", "module-domain"],
-  "module-infrastructure": ["module-infrastructure", "module-application", "module-domain"],
-  "module-interfaces": ["module-interfaces", "module-application", "module-infrastructure", "module-domain"],
-};
+export function AppProvider({ children }: { children: ReactNode }) {
+  const { state: authState } = useAuth();
+  const { user, status } = authState;
+  const [state, dispatch] = useReducer(appReducer, initialState);
 
-const sameModuleLayerMessageMap = {
-  "module-domain": "Domain may only depend on domain of the same module.",
-  "module-application": "Application may depend only on application/domain in the same module.",
-  "module-infrastructure": "Infrastructure may depend only on infrastructure/application/domain in the same module.",
-  "module-interfaces": "Interfaces may depend only on interfaces/application/infrastructure/domain in the same module.",
-};
+  useEffect(() => {
+    if (status === "initializing") return;
 
-const sameModuleLayerRules = moduleLayerTypes.map((type) => ({
-  from: { type },
-  allow: sameModuleLayerAllowMap[type].map(sameModuleTarget),
-  message: sameModuleLayerMessageMap[type],
-}));
+    if (!user) {
+      dispatch({ type: "RESET_STATE" });
+      return;
+    }
 
-const moduleDependencyRules = [
-  ...crossModuleApiRules,
-  ...sameModuleRootRules,
-  apiLayerRule,
-  ...sameModuleLayerRules,
-];
+    dispatch({ type: "SEED_ACTIVE_ACCOUNT", payload: { user } });
+    const preferredActiveAccountId =
+      typeof window === "undefined"
+        ? null
+        : window.localStorage.getItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
 
-const packageAliasMigrationPatterns = [
-  {
-    group: ["@/shared/*"],
-    message: "Use @shared-types, @shared-utils, @shared-validators, @shared-constants, or @shared-hooks instead.",
-  },
-  {
-    group: ["@/infrastructure/*"],
-    message: "Use @integration-firebase, @integration-upstash, or @integration-http instead.",
-  },
-  {
-    group: ["@/libs/*"],
-    message: "Use the corresponding @lib-* or @integration-* package alias instead.",
-  },
-  {
-    group: ["@/ui/shadcn/*"],
-    message: "Use @ui-shadcn/* instead.",
-  },
-  {
-    group: ["@/ui/vis", "@/ui/vis/*"],
-    message: "Use @ui-vis instead.",
-  },
-  {
-    group: ["@/interfaces/*"],
-    message: "Use @api-contracts instead.",
-  },
-];
+    const unsubscribe = subscribeToAccountsForUser(user.id, (accounts) => {
+      dispatch({
+        type: "SET_ACCOUNTS",
+        payload: { accounts, user, preferredActiveAccountId },
+      });
+    });
 
-const createRestrictedImportsRule = (patterns) => [
-  boundaryRuleSeverity,
-  {
-    patterns,
-  },
-];
+    return () => unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, user?.id]);
 
-const eslintConfig = defineConfig([
-  ...nextVitals,
-  ...nextTs,
-  {
-    files: sourceFileGlobs,
-    plugins: {
-      jsdoc,
-    },
-    settings: {
-      jsdoc: {
-        mode: "typescript",
-      },
-    },
-    rules: {
-      "jsdoc/check-alignment": "warn",
-      "jsdoc/check-syntax": "warn",
-      "jsdoc/check-tag-names": "warn",
-      "jsdoc/no-blank-blocks": "warn",
-    },
-  },
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/naming-convention": [
-        "warn",
-        {
-          selector: "typeLike",
-          format: ["PascalCase"],
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+
+    if (!user || !activeAccountId) {
+      window.localStorage.removeItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(LAST_ACTIVE_ACCOUNT_STORAGE_KEY, activeAccountId);
+  }, [state.activeAccount?.id, user]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: null });
+      return;
+    }
+
+    const storedWorkspaceId = window.localStorage.getItem(getWorkspaceStorageKey(activeAccountId));
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: storedWorkspaceId || null });
+  }, [state.activeAccount?.id]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) return;
+
+    const storageKey = getWorkspaceStorageKey(activeAccountId);
+    if (!state.activeWorkspaceId) {
+      window.localStorage.removeItem(storageKey);
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, state.activeWorkspaceId);
+  }, [state.activeAccount?.id, state.activeWorkspaceId]);
+
+  useEffect(() => {
+    const activeAccountId = state.activeAccount?.id;
+    if (!activeAccountId) {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: { workspaces: {}, hydrated: true },
+      });
+      return;
+    }
+
+    dispatch({
+      type: "SET_WORKSPACES",
+      payload: { workspaces: {}, hydrated: false },
+    });
+
+    const unsubscribe = subscribeToWorkspacesForAccount(activeAccountId, (workspaces) => {
+      dispatch({
+        type: "SET_WORKSPACES",
+        payload: {
+          workspaces: toWorkspaceMap(workspaces),
+          hydrated: true,
         },
-        {
-          selector: "typeParameter",
-          format: ["PascalCase"],
-        },
-        {
-          selector: "variable",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "function",
-          format: ["camelCase", "PascalCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "variable",
-          format: ["camelCase", "PascalCase", "UPPER_CASE"],
-          leadingUnderscore: "allow",
-          trailingUnderscore: "allow",
-        },
-        {
-          selector: "parameter",
-          modifiers: ["destructured"],
-          format: null,
-        },
-        {
-          selector: "parameter",
-          format: ["camelCase"],
-          leadingUnderscore: "allow",
-        },
-        {
-          selector: "enumMember",
-          format: ["PascalCase", "UPPER_CASE"],
-        },
-      ],
-    },
-  },
-  {
-    rules: {
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
-      ],
-    },
-  },
-  // ─── Consistent type-only imports ──────────────────────────────────────
-  // Enforces `import type` for type-only imports, improving tree-shaking and
-  // making module-boundary intent explicit (matches project MDDD conventions).
-  {
-    files: typescriptFileGlobs,
-    plugins: {
-      "@typescript-eslint": tseslint,
-    },
-    rules: {
-      "@typescript-eslint/consistent-type-imports": [
-        "warn",
-        { prefer: "type-imports", fixStyle: "inline-type-imports" },
-      ],
-    },
-  },
-  // ─── React best-practices ───────────────────────────────────────────────
-  // eslint-config-next already pulls in react / react-hooks rules via its
-  // own config; these overrides make project-specific settings explicit and
-  // add missing checks not covered by the base config.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      "react/react-in-jsx-scope": "off",   // Not needed with Next.js 13+ JSX transform
-      "react/prop-types": "off",            // TypeScript types replace PropTypes
-      "react/self-closing-comp": "warn",    // Prefer <Foo /> over <Foo></Foo>
-      "react/jsx-no-useless-fragment": ["warn", { allowExpressions: true }],
-      "react-hooks/rules-of-hooks": "error",
-      "react-hooks/exhaustive-deps": "warn",
-    },
-  },
-  // ─── Accessibility (jsx-a11y) ───────────────────────────────────────────
-  // eslint-plugin-jsx-a11y is installed by Next.js but never explicitly
-  // activated here.  Enabling recommended rules as warn catches common a11y
-  // mistakes without breaking the zero-error baseline.
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, config]) => {
-          // Rule config can be a string ("error"), a number (2), or an array (["error", opts]).
-          // Downgrade all errors to warnings to preserve the zero-error baseline.
-          if (Array.isArray(config)) {
-            const [severity, ...rest] = config;
-            const normalised = severity === "error" || severity === 2 ? "warn" : severity;
-            return [rule, rest.length > 0 ? [normalised, ...rest] : normalised];
-          }
-          const normalised = config === "error" || config === 2 ? "warn" : config;
-          return [rule, normalised];
-        }),
-      ),
-    },
-  },
-  {
-    files: moduleFileGlobs,
-    plugins: {
-      boundaries,
-    },
-    settings: {
-      "boundaries/include": moduleFileGlobs,
-      "boundaries/elements": moduleElements,
-    },
-    rules: {
-      "boundaries/dependencies": [
-        boundaryRuleSeverity,
-        {
-          default: "disallow",
-          rules: moduleDependencyRules,
-        },
-      ],
-    },
-  },
-  // ─── MDDD layer-purity: file-size guardrails ────────────────────────────
-  // Vernon (IDDD): each layer has a single concern.  God files are the
-  // strongest signal that business logic has leaked into the wrong layer.
-  //
-  // Thresholds (warn, not error, to preserve zero-error baseline):
-  //   interfaces/ ≤ 300 lines  — UI components must not own business logic.
-  //   application/ ≤ 300 lines — one use-case file = one use-case.
-  //   infrastructure/ ≤ 400 lines — repositories are legitimately longer.
-  //
-  // When a file exceeds the limit: extract a sub-component / split use-cases
-  // / break the repository into focused query/command repositories.
-  {
-    files: ["modules/*/interfaces/**/*.{ts,tsx}"],
-    rules: {
-      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  {
-    files: ["modules/*/application/**/*.{ts,tsx}"],
-    rules: {
-      "max-lines": ["warn", { max: 300, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  {
-    files: ["modules/*/infrastructure/**/*.{ts,tsx}"],
-    rules: {
-      "max-lines": ["warn", { max: 400, skipBlankLines: true, skipComments: true }],
-    },
-  },
-  // ─── Package boundary enforcement ───────────────────────────────────────
-  // Forbid legacy import paths that were migrated to packages/*.
-  {
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule(packageAliasMigrationPatterns),
-    },
-  },
-  // ─── Strict module entrypoint enforcement ───────────────────────────────
-  {
-    files: [
-      "app/**/*.{ts,tsx,js,jsx}",
-      "providers/**/*.{ts,tsx,js,jsx}",
-      "debug/**/*.{ts,tsx,js,jsx}",
-    ],
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-      ]),
-    },
-  },
-  // ─── Module import boundary enforcement (kept after global restricted imports so it is not overridden) ───
-  {
-    files: moduleFileGlobs,
-    rules: {
-      "no-restricted-imports": createRestrictedImportsRule([
-        explicitIndexPathPattern,
-        moduleApiEntrypointPattern,
-        moduleNonApiSubpathPattern,
-        moduleInternalLayerPattern,
-      ]),
-    },
-  },
-  // Override default ignores of eslint-config-next.
-  globalIgnores([
-    ".agents/**",
-    // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
-  ]),
-]);
+      });
+    });
 
-export default eslintConfig;
+    return () => unsubscribe();
+  }, [state.activeAccount?.id]);
+
+  return (
+    <AppContext.Provider value={{ state, dispatch }}>
+      {children}
+    </AppContext.Provider>
+  );
+}
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
+
+export function useApp() {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+}
 ````
 
 ## File: features/README.md
@@ -55577,96 +56686,6 @@ export { CommentPanel } from "../interfaces/components/CommentPanel";
 export { VersionHistoryPanel } from "../interfaces/components/VersionHistoryPanel";
 ````
 
-## File: modules/knowledge-collaboration/application/dto/knowledge-collaboration.dto.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: application/dto
- */
-
-import { z } from "@lib-zod";
-
-const ContentScopeSchema = z.object({
-  accountId: z.string().min(1),
-  workspaceId: z.string().min(1),
-});
-
-// ── Comment ───────────────────────────────────────────────────────────────────
-
-export const CreateCommentSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  authorId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-  parentCommentId: z.string().min(1).nullable().optional(),
-  blockId: z.string().min(1).nullable().optional(),
-  mentionedUserIds: z.array(z.string().min(1)).optional(),
-  selectionRange: z
-    .object({ from: z.number().int().min(0), to: z.number().int().min(0) })
-    .nullable()
-    .optional(),
-});
-export type CreateCommentDto = z.infer<typeof CreateCommentSchema>;
-
-export const UpdateCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  body: z.string().min(1).max(10000),
-});
-export type UpdateCommentDto = z.infer<typeof UpdateCommentSchema>;
-
-export const ResolveCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-  resolvedByUserId: z.string().min(1),
-});
-export type ResolveCommentDto = z.infer<typeof ResolveCommentSchema>;
-
-export const DeleteCommentSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteCommentDto = z.infer<typeof DeleteCommentSchema>;
-
-// ── Version ───────────────────────────────────────────────────────────────────
-
-export const CreateVersionSchema = ContentScopeSchema.extend({
-  contentId: z.string().min(1),
-  contentType: z.enum(["page", "article"]),
-  snapshotBlocks: z.array(z.unknown()),
-  label: z.string().max(200).nullable().optional(),
-  description: z.string().max(2000).nullable().optional(),
-  createdByUserId: z.string().min(1),
-});
-export type CreateVersionDto = z.infer<typeof CreateVersionSchema>;
-
-export const DeleteVersionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type DeleteVersionDto = z.infer<typeof DeleteVersionSchema>;
-
-// ── Permission ────────────────────────────────────────────────────────────────
-
-export const GrantPermissionSchema = ContentScopeSchema.extend({
-  subjectId: z.string().min(1),
-  subjectType: z.enum(["page", "article", "database"]),
-  principalId: z.string().min(1),
-  principalType: z.enum(["user", "team", "public", "link"]),
-  level: z.enum(["view", "comment", "edit", "full"]),
-  grantedByUserId: z.string().min(1),
-  expiresAtISO: z.string().nullable().optional(),
-  linkToken: z.string().min(1).nullable().optional(),
-});
-export type GrantPermissionDto = z.infer<typeof GrantPermissionSchema>;
-
-export const RevokePermissionSchema = z.object({
-  id: z.string().min(1),
-  accountId: z.string().min(1),
-});
-export type RevokePermissionDto = z.infer<typeof RevokePermissionSchema>;
-````
-
 ## File: modules/knowledge-collaboration/domain/repositories/ICommentRepository.ts
 ````typescript
 /**
@@ -55941,6 +56960,23 @@ export async function deleteComment(input: DeleteCommentDto): Promise<CommandRes
 }
 ````
 
+## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
+````typescript
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ * Purpose: Barrel re-export for all knowledge-collaboration server actions.
+ *          Split by aggregate for IDDD single-responsibility:
+ *  - comment.actions.ts    (Comment aggregate)
+ *  - version.actions.ts    (Version aggregate)
+ *  - permission.actions.ts (Permission aggregate)
+ */
+
+export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
+export { createVersion, deleteVersion } from "./version.actions";
+export { grantPermission, revokePermission } from "./permission.actions";
+````
+
 ## File: modules/knowledge-collaboration/interfaces/_actions/permission.actions.ts
 ````typescript
 "use server";
@@ -56025,494 +57061,147 @@ export async function deleteVersion(input: DeleteVersionDto): Promise<CommandRes
 }
 ````
 
-## File: modules/knowledge-collaboration/interfaces/components/CommentPanel.tsx
+## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
 ````typescript
-"use client";
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/queries
+ */
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { MessageSquare, Send, CheckCheck, Trash2 } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { Badge } from "@ui-shadcn/ui/badge";
-
-import { subscribeComments } from "../queries/knowledge-collaboration.queries";
-import {
-  createComment,
-  resolveComment,
-  deleteComment,
-} from "../_actions/knowledge-collaboration.actions";
 import type { Comment } from "../../domain/entities/comment.entity";
+import type { Version } from "../../domain/entities/version.entity";
+import type { Permission } from "../../domain/entities/permission.entity";
+import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
+import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
+import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
+import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
 
-interface CommentPanelProps {
-  accountId: string;
-  workspaceId: string;
-  contentId: string;
-  contentType: "page" | "article";
-  currentUserId: string;
+export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
+  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
 }
 
-export function CommentPanel({ accountId, workspaceId, contentId, contentType, currentUserId }: CommentPanelProps) {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [body, setBody] = useState("");
-  const [isPending, startTransition] = useTransition();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const unsubscribe = subscribeComments(accountId, contentId, (data) => {
-      setComments(data);
-      setLoading(false);
-    });
-    return unsubscribe;
-  }, [accountId, contentId]);
-
-  function handlePost() {
-    const trimmed = body.trim();
-    if (!trimmed) return;
-    startTransition(async () => {
-      await createComment({ accountId, workspaceId, contentId, contentType, authorId: currentUserId, body: trimmed });
-      setBody("");
-      textareaRef.current?.focus();
-    });
-  }
-
-  function handleResolve(commentId: string) {
-    startTransition(async () => {
-      await resolveComment({ id: commentId, accountId, resolvedByUserId: currentUserId });
-    });
-  }
-
-  function handleDelete(commentId: string) {
-    startTransition(async () => {
-      await deleteComment({ id: commentId, accountId });
-      setComments((prev) => prev.filter((c) => c.id !== commentId));
-    });
-  }
-
-  const active = comments.filter((c) => !c.resolvedAt);
-  const resolved = comments.filter((c) => c.resolvedAt);
-
-  return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-2">
-        <MessageSquare className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm font-medium">留言</span>
-        {active.length > 0 && (
-          <Badge variant="secondary" className="h-4 px-1.5 text-[10px]">{active.length}</Badge>
-        )}
-      </div>
-
-      {/* Comment input */}
-      <div className="flex flex-col gap-2">
-        <Textarea
-          ref={textareaRef}
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="新增留言..."
-          rows={2}
-          className="resize-none text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handlePost();
-          }}
-        />
-        <div className="flex justify-end">
-          <Button size="sm" onClick={handlePost} disabled={!body.trim() || isPending}>
-            <Send className="mr-1.5 h-3.5 w-3.5" />
-            送出
-          </Button>
-        </div>
-      </div>
-
-      {/* Comment list */}
-      {loading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => <Skeleton key={i} className="h-16 w-full rounded-md" />)}
-        </div>
-      ) : active.length === 0 && resolved.length === 0 ? (
-        <p className="text-xs text-muted-foreground">尚無留言。</p>
-      ) : (
-        <div className="space-y-2">
-          {active.map((c) => (
-            <CommentItem
-              key={c.id}
-              comment={c}
-              isOwner={c.authorId === currentUserId}
-              onResolve={() => handleResolve(c.id)}
-              onDelete={() => handleDelete(c.id)}
-              isPending={isPending}
-            />
-          ))}
-          {resolved.length > 0 && (
-            <details className="text-xs text-muted-foreground cursor-pointer">
-              <summary className="select-none">已解決 ({resolved.length})</summary>
-              <div className="mt-2 space-y-2">
-                {resolved.map((c) => (
-                  <CommentItem
-                    key={c.id}
-                    comment={c}
-                    isOwner={c.authorId === currentUserId}
-                    onDelete={() => handleDelete(c.id)}
-                    isPending={isPending}
-                  />
-                ))}
-              </div>
-            </details>
-          )}
-        </div>
-      )}
-    </div>
-  );
+export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
+  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
 }
 
-interface CommentItemProps {
-  comment: Comment;
-  isOwner: boolean;
-  onResolve?: () => void;
-  onDelete?: () => void;
-  isPending: boolean;
+export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
+  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
 }
 
-function CommentItem({ comment, isOwner, onResolve, onDelete, isPending }: CommentItemProps) {
-  const resolved = !!comment.resolvedAt;
-  return (
-    <div className={`rounded-md border px-3 py-2 text-sm ${resolved ? "border-border/30 bg-muted/10 opacity-60" : "border-border/60 bg-background"}`}>
-      <p className={`leading-relaxed ${resolved ? "line-through text-muted-foreground" : ""}`}>{comment.body}</p>
-      <div className="mt-1.5 flex items-center gap-2">
-        <span className="text-[10px] text-muted-foreground">
-          {new Date(comment.createdAtISO).toLocaleString("zh-TW", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
-        </span>
-        {resolved && <Badge variant="outline" className="h-3.5 px-1 text-[9px]">已解決</Badge>}
-        <div className="ml-auto flex gap-1">
-          {!resolved && onResolve && (
-            <button
-              type="button"
-              onClick={onResolve}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-foreground"
-              title="標記為已解決"
-            >
-              <CheckCheck className="h-3.5 w-3.5" />
-            </button>
-          )}
-          {isOwner && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={isPending}
-              className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-              title="刪除"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+/**
+ * Subscribe to real-time comment updates for a content document.
+ * Returns an unsubscribe function — call it in a useEffect cleanup.
+ */
+export function subscribeComments(
+  accountId: string,
+  contentId: string,
+  onUpdate: (comments: Comment[]) => void,
+): () => void {
+  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
 }
 ````
 
-## File: modules/knowledge-database/application/use-cases/automation.use-cases.ts
+## File: modules/knowledge-database/api/index.ts
 ````typescript
 /**
- * Module: knowledge-database
- * Layer: application/use-cases
- * Purpose: Automation CRUD use-cases.
+ * knowledge-database public API boundary
  */
 
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import type { DatabaseAutomation } from "../../domain/entities/database-automation.entity";
-import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
-import type {
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../../domain/entities/database-automation.entity";
+export type { Database, Field, FieldType } from "../domain/entities/database.entity";
+export type { DatabaseRecord } from "../domain/entities/record.entity";
+export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
+export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
+export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
+export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
 
-export class CreateAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+export type DatabaseId = string;
+export type RecordId = string;
+export type ViewId = string;
+export type FieldId = string;
 
-  async execute(input: CreateAutomationInput): Promise<CommandResult> {
-    if (!input.name.trim()) {
-      return commandFailureFrom("AUTOMATION_INVALID_INPUT", "Automation name is required.");
-    }
-    const automation = await this.repo.create(input);
-    return commandSuccess(automation.id, Date.now());
-  }
-}
+// Server Actions
+export {
+  createDatabase,
+  updateDatabase,
+  addDatabaseField,
+  archiveDatabase,
+} from "../interfaces/_actions/database.actions";
 
-export class UpdateAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+export {
+  createRecord,
+  updateRecord,
+  deleteRecord,
+} from "../interfaces/_actions/record.actions";
 
-  async execute(input: UpdateAutomationInput): Promise<CommandResult> {
-    const result = await this.repo.update(input);
-    if (!result) return commandFailureFrom("AUTOMATION_NOT_FOUND", "Automation not found.");
-    return commandSuccess(result.id, Date.now());
-  }
-}
+export {
+  createView,
+  updateView,
+  deleteView,
+} from "../interfaces/_actions/view.actions";
 
-export class DeleteAutomationUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+// Queries
+export {
+  getDatabases,
+  getDatabase,
+  getRecords,
+  getViews,
+} from "../interfaces/queries/knowledge-database.queries";
 
-  async execute(id: string, accountId: string, databaseId: string): Promise<CommandResult> {
-    await this.repo.delete(id, accountId, databaseId);
-    return commandSuccess(id, Date.now());
-  }
-}
+// UI Components
+export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
+export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
+export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
+export { DatabaseListView } from "../interfaces/components/DatabaseListView";
+export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
+export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
+export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
 
-export class ListAutomationsUseCase {
-  constructor(private readonly repo: IAutomationRepository) {}
+// Form entity types
+export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
 
-  async execute(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
-    return this.repo.listByDatabase(accountId, databaseId);
-  }
-}
-````
-
-## File: modules/knowledge-database/domain/entities/database-automation.entity.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: domain/entities
- * Purpose: DatabaseAutomation — rules that trigger actions when database records change.
- *
- * Notion-equivalent: "Automations" tab on a database.
- * Trigger + Action pairs. Execution is handled by a background worker (QStash).
- */
-
-export type AutomationTrigger =
-  | "record_created"
-  | "record_updated"
-  | "record_deleted"
-  | "property_changed";
-
-export type AutomationActionType =
-  | "send_notification"
-  | "update_property"
-  | "create_record"
-  | "webhook";
-
-export interface AutomationCondition {
-  /** Field name to evaluate */
-  fieldId: string;
-  operator: "equals" | "not_equals" | "is_empty" | "is_not_empty" | "contains";
-  value?: string;
-}
-
-export interface AutomationAction {
-  type: AutomationActionType;
-  /** Payload depends on type:
-   *  send_notification → { recipientId, message }
-   *  update_property   → { fieldId, value }
-   *  create_record     → { databaseId }
-   *  webhook           → { url, method }
-   */
-  config: Record<string, string>;
-}
-
-export interface DatabaseAutomation {
-  id: string;
-  databaseId: string;
-  accountId: string;
-  name: string;
-  enabled: boolean;
-  trigger: AutomationTrigger;
-  /** Field that must change — only relevant for "property_changed" trigger */
-  triggerFieldId?: string;
-  conditions: AutomationCondition[];
-  actions: AutomationAction[];
-  createdByUserId: string;
-  createdAtISO: string;
-  updatedAtISO: string;
-}
-
-export interface CreateAutomationInput {
-  databaseId: string;
-  accountId: string;
-  name: string;
-  trigger: AutomationTrigger;
-  triggerFieldId?: string;
-  conditions?: AutomationCondition[];
-  actions?: AutomationAction[];
-  createdByUserId: string;
-}
-
-export interface UpdateAutomationInput {
-  id: string;
-  accountId: string;
-  databaseId: string;
-  name?: string;
-  enabled?: boolean;
-  trigger?: AutomationTrigger;
-  triggerFieldId?: string;
-  conditions?: AutomationCondition[];
-  actions?: AutomationAction[];
-}
-````
-
-## File: modules/knowledge-database/domain/repositories/IAutomationRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: domain/repositories
- * Purpose: Repository interface for DatabaseAutomation aggregate.
- */
-
-import type {
+// Automation entity types
+export type {
   DatabaseAutomation,
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../entities/database-automation.entity";
-
-export interface IAutomationRepository {
-  create(input: CreateAutomationInput): Promise<DatabaseAutomation>;
-  update(input: UpdateAutomationInput): Promise<DatabaseAutomation | null>;
-  delete(id: string, accountId: string, databaseId: string): Promise<void>;
-  listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomation[]>;
-}
-````
-
-## File: modules/knowledge-database/infrastructure/firebase/FirebaseAutomationRepository.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: infrastructure/firebase
- * Firestore: accounts/{accountId}/knowledgeDatabases/{databaseId}/automations/{automationId}
- */
-
-import {
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  getFirestore,
-  orderBy,
-  query,
-  serverTimestamp,
-  setDoc,
-  updateDoc,
-  where,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-
-import type {
-  DatabaseAutomation,
+  AutomationTrigger,
+  AutomationActionType,
   AutomationCondition,
   AutomationAction,
   CreateAutomationInput,
   UpdateAutomationInput,
-} from "../../domain/entities/database-automation.entity";
-import type { IAutomationRepository } from "../../domain/repositories/IAutomationRepository";
+} from "../domain/entities/database-automation.entity";
 
-function automationsCol(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  databaseId: string,
-) {
-  return collection(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations");
-}
+// UI Components (automation)
+export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
 
-function automationDocRef(
-  db: ReturnType<typeof getFirestore>,
-  accountId: string,
-  databaseId: string,
-  automationId: string,
-) {
-  return doc(db, "accounts", accountId, "knowledgeDatabases", databaseId, "automations", automationId);
-}
+// Automation server actions
+export {
+  createAutomation,
+  updateAutomation,
+  deleteAutomation,
+} from "../interfaces/_actions/knowledge-database-automation.actions";
 
-function toCondition(c: Record<string, unknown>): AutomationCondition {
-  return {
-    fieldId: typeof c.fieldId === "string" ? c.fieldId : "",
-    operator: (c.operator as AutomationCondition["operator"]) ?? "equals",
-    value: typeof c.value === "string" ? c.value : undefined,
-  };
-}
+// Automation queries
+export { getAutomations } from "../interfaces/queries/knowledge-database-automation.queries";
 
-function toAction(a: Record<string, unknown>): AutomationAction {
-  return {
-    type: (a.type as AutomationAction["type"]) ?? "send_notification",
-    config:
-      typeof a.config === "object" && a.config !== null
-        ? (a.config as Record<string, string>)
-        : {},
-  };
-}
-
-function toAutomation(id: string, data: Record<string, unknown>): DatabaseAutomation {
-  return {
-    id,
-    databaseId: typeof data.databaseId === "string" ? data.databaseId : "",
-    accountId: typeof data.accountId === "string" ? data.accountId : "",
-    name: typeof data.name === "string" ? data.name : "",
-    enabled: data.enabled !== false,
-    trigger: (data.trigger as DatabaseAutomation["trigger"]) ?? "record_created",
-    triggerFieldId: typeof data.triggerFieldId === "string" ? data.triggerFieldId : undefined,
-    conditions: Array.isArray(data.conditions)
-      ? (data.conditions as Record<string, unknown>[]).map(toCondition)
-      : [],
-    actions: Array.isArray(data.actions)
-      ? (data.actions as Record<string, unknown>[]).map(toAction)
-      : [],
-    createdByUserId: typeof data.createdByUserId === "string" ? data.createdByUserId : "",
-    createdAtISO: typeof data.createdAtISO === "string" ? data.createdAtISO : new Date().toISOString(),
-    updatedAtISO: typeof data.updatedAtISO === "string" ? data.updatedAtISO : new Date().toISOString(),
-  };
-}
-
-export class FirebaseAutomationRepository implements IAutomationRepository {
-  private readonly db = getFirestore(firebaseClientApp);
-
-  async create(input: CreateAutomationInput): Promise<DatabaseAutomation> {
-    const id = generateId();
-    const now = new Date().toISOString();
-    const docRef = automationDocRef(this.db, input.accountId, input.databaseId, id);
-    const payload = {
-      databaseId: input.databaseId,
-      accountId: input.accountId,
-      name: input.name,
-      enabled: true,
-      trigger: input.trigger,
-      triggerFieldId: input.triggerFieldId ?? null,
-      conditions: input.conditions ?? [],
-      actions: input.actions ?? [],
-      createdByUserId: input.createdByUserId,
-      createdAtISO: now,
-      updatedAtISO: now,
-      serverCreatedAt: serverTimestamp(),
-    };
-    await setDoc(docRef, payload);
-    return toAutomation(id, payload);
-  }
-
-  async update(input: UpdateAutomationInput): Promise<DatabaseAutomation | null> {
-    const { id, accountId, databaseId, ...fields } = input;
-    const docRef = automationDocRef(this.db, accountId, databaseId, id);
-    const updates: Record<string, unknown> = { ...fields, updatedAtISO: new Date().toISOString() };
-    await updateDoc(docRef, updates);
-    const snap = await getDoc(docRef);
-    if (!snap.exists()) return null;
-    return toAutomation(id, snap.data() as Record<string, unknown>);
-  }
-
-  async delete(id: string, accountId: string, databaseId: string): Promise<void> {
-    const docRef = automationDocRef(this.db, accountId, databaseId, id);
-    await deleteDoc(docRef);
-  }
-
-  async listByDatabase(accountId: string, databaseId: string): Promise<DatabaseAutomation[]> {
-    const q = query(
-      automationsCol(this.db, accountId, databaseId),
-      where("databaseId", "==", databaseId),
-      orderBy("createdAtISO", "asc"),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toAutomation(d.id, d.data() as Record<string, unknown>));
-  }
-}
+// ── FieldComputationService ────────────────────────────────────────────────────
+export type {
+  RelationFieldConfig,
+  RelationValue,
+  FormulaFieldConfig,
+  FormulaResult,
+  RollupFieldConfig,
+  RollupAggregation,
+  RollupResult,
+  ComputedFieldValue,
+} from "../application/services/field-computation.service";
+export {
+  resolveRelationValue,
+  evaluateFormula,
+  computeRollup,
+  resolveComputedFields,
+} from "../application/services/field-computation.service";
 ````
 
 ## File: modules/knowledge-database/interfaces/_actions/database.actions.ts
@@ -56579,56 +57268,6 @@ export async function archiveDatabase(accountId: string, databaseId: string): Pr
     return await new ArchiveDatabaseUseCase(makeDatabaseRepo()).execute({ accountId, id: databaseId });
   } catch (e) {
     return commandFailureFrom("DATABASE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown error");
-  }
-}
-````
-
-## File: modules/knowledge-database/interfaces/_actions/knowledge-database-automation.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge-database
- * Layer: interfaces/_actions
- * Purpose: Server Actions for DatabaseAutomation CRUD.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
-import {
-  CreateAutomationUseCase,
-  UpdateAutomationUseCase,
-  DeleteAutomationUseCase,
-} from "../../application/use-cases/automation.use-cases";
-import type { CreateAutomationInput, UpdateAutomationInput } from "../../domain/entities/database-automation.entity";
-
-function makeAutomationRepo() { return new FirebaseAutomationRepository(); }
-
-export async function createAutomation(input: CreateAutomationInput): Promise<CommandResult> {
-  try {
-    return await new CreateAutomationUseCase(makeAutomationRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateAutomation(input: UpdateAutomationInput): Promise<CommandResult> {
-  try {
-    return await new UpdateAutomationUseCase(makeAutomationRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteAutomation(
-  id: string,
-  accountId: string,
-  databaseId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteAutomationUseCase(makeAutomationRepo()).execute(id, accountId, databaseId);
-  } catch (err) {
-    return commandFailureFrom("AUTOMATION_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
   }
 }
 ````
@@ -56749,304 +57388,6 @@ export async function deleteView(accountId: string, viewId: string): Promise<Com
   } catch (e) {
     return commandFailureFrom("VIEW_DELETE_FAILED", (e as Error)?.message ?? "Unknown error");
   }
-}
-````
-
-## File: modules/knowledge-database/interfaces/components/DatabaseAutomationView.tsx
-````typescript
-"use client";
-
-/**
- * Module: knowledge-database
- * Layer: interfaces/components
- * Purpose: DatabaseAutomationView — manage automation rules for a Database.
- *
- * Notion-equivalent: Database > "Automations" panel.
- * Renders a list of existing automations and a creator for new ones.
- * Actual execution is handled server-side; this component is management UI only.
- */
-
-import { Plus, Zap, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-
-import type {
-  DatabaseAutomation,
-  AutomationTrigger,
-  AutomationActionType,
-} from "../../domain/entities/database-automation.entity";
-import {
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../_actions/knowledge-database-automation.actions";
-import { getAutomations } from "../queries/knowledge-database-automation.queries";
-
-// ── Trigger labels ─────────────────────────────────────────────────────────────
-const TRIGGER_LABELS: Record<AutomationTrigger, string> = {
-  record_created: "建立記錄時",
-  record_updated: "更新記錄時",
-  record_deleted: "刪除記錄時",
-  property_changed: "屬性變更時",
-};
-
-const ACTION_LABELS: Record<AutomationActionType, string> = {
-  send_notification: "發送通知",
-  update_property: "更新屬性",
-  create_record: "建立記錄",
-  webhook: "呼叫 Webhook",
-};
-
-interface DatabaseAutomationViewProps {
-  databaseId: string;
-  accountId: string;
-  currentUserId: string;
-}
-
-interface DraftAutomation {
-  name: string;
-  trigger: AutomationTrigger;
-  actionType: AutomationActionType;
-  actionValue: string;
-}
-
-const DEFAULT_DRAFT: DraftAutomation = {
-  name: "",
-  trigger: "record_created",
-  actionType: "send_notification",
-  actionValue: "",
-};
-
-export function DatabaseAutomationView({
-  databaseId,
-  accountId,
-  currentUserId,
-}: DatabaseAutomationViewProps) {
-  const [automations, setAutomations] = useState<DatabaseAutomation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
-  const [draft, setDraft] = useState<DraftAutomation>(DEFAULT_DRAFT);
-
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await getAutomations(accountId, databaseId);
-      setAutomations(data);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accountId, databaseId]);
-
-  useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  async function handleSave() {
-    if (!draft.name.trim()) return;
-    await createAutomation({
-      databaseId,
-      accountId,
-      name: draft.name.trim(),
-      trigger: draft.trigger,
-      conditions: [],
-      actions: [{ type: draft.actionType, config: { value: draft.actionValue } }],
-      createdByUserId: currentUserId,
-    });
-    setDraft(DEFAULT_DRAFT);
-    setCreating(false);
-    await refresh();
-  }
-
-  async function handleToggle(automation: DatabaseAutomation) {
-    setAutomations((prev) =>
-      prev.map((a) => a.id === automation.id ? { ...a, enabled: !a.enabled } : a),
-    );
-    await updateAutomation({
-      id: automation.id,
-      accountId,
-      databaseId,
-      enabled: !automation.enabled,
-    });
-    await refresh();
-  }
-
-  async function handleDelete(id: string) {
-    setAutomations((prev) => prev.filter((a) => a.id !== id));
-    await deleteAutomation(id, accountId, databaseId);
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">自動化規則</span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {automations.length}
-          </span>
-        </div>
-        {!creating && (
-          <Button variant="outline" size="sm" className="gap-1" onClick={() => setCreating(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            新增規則
-          </Button>
-        )}
-      </div>
-
-      {/* Create form */}
-      {creating && (
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-medium">新規則</p>
-
-          <div className="space-y-1">
-            <Label className="text-xs">規則名稱</Label>
-            <Input
-              value={draft.name}
-              onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-              placeholder="例如：建立後發送通知"
-              className="h-8 text-sm"
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">觸發條件</Label>
-              <Select
-                value={draft.trigger}
-                onValueChange={(v) => setDraft((d) => ({ ...d, trigger: v as AutomationTrigger }))}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(TRIGGER_LABELS) as AutomationTrigger[]).map((t) => (
-                    <SelectItem key={t} value={t}>{TRIGGER_LABELS[t]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs">執行動作</Label>
-              <Select
-                value={draft.actionType}
-                onValueChange={(v) => setDraft((d) => ({ ...d, actionType: v as AutomationActionType }))}
-              >
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(Object.keys(ACTION_LABELS) as AutomationActionType[]).map((a) => (
-                    <SelectItem key={a} value={a}>{ACTION_LABELS[a]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-1">
-            <Label className="text-xs">動作參數（選填）</Label>
-            <Input
-              value={draft.actionValue}
-              onChange={(e) => setDraft((d) => ({ ...d, actionValue: e.target.value }))}
-              placeholder={draft.actionType === "webhook" ? "https://..." : "訊息內容或欄位值"}
-              className="h-8 text-sm"
-            />
-          </div>
-
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => { setCreating(false); setDraft(DEFAULT_DRAFT); }}>
-              取消
-            </Button>
-            <Button size="sm" disabled={!draft.name.trim()} onClick={() => void handleSave()}>
-              儲存
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      {isLoading ? (
-        <div className="space-y-2">
-          {[1, 2].map((i) => (
-            <div key={i} className="h-14 rounded-lg border bg-muted/20 animate-pulse" />
-          ))}
-        </div>
-      ) : automations.length === 0 && !creating ? (
-        <div className="rounded-lg border border-dashed py-10 text-center text-sm text-muted-foreground">
-          <Zap className="mx-auto mb-2 h-8 w-8 opacity-30" />
-          <p>尚無自動化規則</p>
-          <p className="text-xs mt-1">點擊「新增規則」來建立第一條規則</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border">
-          {automations.map((a) => (
-            <li key={a.id} className="flex items-center gap-3 px-4 py-3">
-              <button
-                type="button"
-                onClick={() => void handleToggle(a)}
-                title={a.enabled ? "停用" : "啟用"}
-                className="shrink-0 text-muted-foreground hover:text-foreground"
-              >
-                {a.enabled
-                  ? <ToggleRight className="h-5 w-5 text-primary" />
-                  : <ToggleLeft className="h-5 w-5" />
-                }
-              </button>
-              <div className="min-w-0 flex-1">
-                <p className={`text-sm font-medium truncate ${!a.enabled ? "line-through text-muted-foreground" : ""}`}>
-                  {a.name}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {TRIGGER_LABELS[a.trigger]} → {ACTION_LABELS[a.actions[0]?.type ?? "send_notification"]}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0 text-muted-foreground hover:text-destructive"
-                onClick={() => void handleDelete(a.id)}
-                title="刪除"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
-}
-````
-
-## File: modules/knowledge-database/interfaces/queries/knowledge-database-automation.queries.ts
-````typescript
-/**
- * Module: knowledge-database
- * Layer: interfaces/queries
- * Purpose: Automation read-side queries.
- */
-
-import type { DatabaseAutomation } from "../../domain/entities/database-automation.entity";
-import { FirebaseAutomationRepository } from "../../infrastructure/firebase/FirebaseAutomationRepository";
-import { ListAutomationsUseCase } from "../../application/use-cases/automation.use-cases";
-
-export async function getAutomations(
-  accountId: string,
-  databaseId: string,
-): Promise<DatabaseAutomation[]> {
-  return new ListAutomationsUseCase(new FirebaseAutomationRepository()).execute(accountId, databaseId);
 }
 ````
 
@@ -58989,136 +59330,6 @@ function ToolbarButton({ onClick, children, active, disabled, title }: ToolbarBu
 }
 ````
 
-## File: modules/knowledge/interfaces/components/extensions/callout-block.extension.ts
-````typescript
-import { Node, mergeAttributes } from "@tiptap/core";
-
-/**
- * CalloutBlock — a highlighted info/warning callout block.
- * Renders as: <div data-type="callout"><p>...</p></div>
- */
-export const CalloutBlock = Node.create({
-  name: "callout",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  addAttributes() {
-    return {
-      emoji: { default: "💡" },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "div[data-type='callout']" }];
-  },
-
-  renderHTML({ HTMLAttributes, node }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "callout", class: "callout-block" }),
-      ["span", { class: "callout-emoji", contenteditable: "false" }, node.attrs.emoji as string],
-      ["div", { class: "callout-content" }, 0],
-    ];
-  },
-});
-````
-
-## File: modules/knowledge/interfaces/components/extensions/synced-block.extension.ts
-````typescript
-import { Node, mergeAttributes } from "@tiptap/core";
-
-/**
- * SyncedBlock — a reference block whose content mirrors a source block by ID.
- * In the editor it renders as a styled read-only placeholder.
- * Full real-time sync would be implemented via a Firestore listener in a
- * dedicated React component; here the node marks the block as synced so the
- * editor can render a visual indicator.
- */
-export const SyncedBlock = Node.create({
-  name: "syncedBlock",
-  group: "block",
-  content: "block*",
-  defining: true,
-
-  addAttributes() {
-    return {
-      sourceBlockId: { default: null },
-    };
-  },
-
-  parseHTML() {
-    return [{ tag: "div[data-type='synced-block']" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "synced-block",
-        class: "synced-block",
-      }),
-      0,
-    ];
-  },
-});
-````
-
-## File: modules/knowledge/interfaces/components/extensions/table-of-contents-node.extension.ts
-````typescript
-import { Node, mergeAttributes } from "@tiptap/core";
-
-/**
- * TableOfContentsBlock — a read-only auto-generated TOC node.
- * Renders as: <div data-type="toc" contenteditable="false">...</div>
- * Actual heading links are injected via the editor's DOM at render time.
- */
-export const TableOfContentsNode = Node.create({
-  name: "tableOfContents",
-  group: "block",
-  atom: true,
-
-  parseHTML() {
-    return [{ tag: "div[data-type='toc']" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "toc",
-        contenteditable: "false",
-        class: "toc-block",
-      }),
-    ];
-  },
-});
-````
-
-## File: modules/knowledge/interfaces/components/extensions/toggle-block.extension.ts
-````typescript
-import { Node, mergeAttributes } from "@tiptap/core";
-
-/**
- * ToggleBlock — a collapsible details/summary block.
- * Renders as: <details><summary>...</summary></details>
- */
-export const ToggleBlock = Node.create({
-  name: "toggle",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  parseHTML() {
-    return [{ tag: "details" }];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ["details", mergeAttributes(HTMLAttributes, { class: "toggle-block" }), 0];
-  },
-});
-````
-
 ## File: modules/knowledge/interfaces/components/PageDialog.tsx
 ````typescript
 "use client";
@@ -59485,195 +59696,6 @@ export async function saveThread(accountId: string, thread: Thread): Promise<voi
 
 export async function loadThread(accountId: string, threadId: string): Promise<Thread | null> {
   return makeThreadRepo().getById(accountId, threadId);
-}
-````
-
-## File: modules/notification/interfaces/components/NotificationBell.tsx
-````typescript
-"use client";
-
-/**
- * Module: notification
- * Layer: interfaces/components
- * Purpose: Reusable notification bell with dropdown for shell header.
- *
- * Consumes use-cases via the module facade (no direct infrastructure imports).
- * Server-action mutations are wired through the local _actions module.
- */
-
-import Link from "next/link";
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../domain/entities/Notification";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-interface NotificationBellProps {
-  readonly recipientId: string;
-}
-
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <div className="py-1 text-center">
-          <Link
-            href="/settings/notifications"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            查看全部通知
-          </Link>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
 }
 ````
 
@@ -63247,39 +63269,6 @@ export {
 } from "../interfaces/_actions/workspace.actions";
 ````
 
-## File: modules/workspace/api/ui.ts
-````typescript
-/**
- * workspace API UI surface.
- *
- * Public interface-layer composition exports.
- */
-
-export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
-export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
-
-export {
-  WORKSPACE_TAB_GROUPS,
-  WORKSPACE_TAB_META,
-  WORKSPACE_TAB_VALUES,
-  getWorkspaceTabLabel,
-  getWorkspaceTabMeta,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabStatus,
-  getWorkspaceTabsByGroup,
-  isWorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export type {
-  WorkspaceTabDevStatus,
-  WorkspaceTabGroup,
-  WorkspaceTabValue,
-} from "../interfaces/workspace-tabs";
-
-export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
-````
-
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
 ````typescript
 /**
@@ -63484,103 +63473,6 @@ export interface WorkspaceLocation {
 
 export interface WorkspaceLocationCatalog {
   locations?: WorkspaceLocation[];
-}
-````
-
-## File: modules/workspace/domain/events/workspace.events.ts
-````typescript
-import { v7 as generateId } from "@lib-uuid";
-import type { DomainEvent } from "@/modules/shared/api";
-
-import type {
-  WorkspaceLifecycleState,
-  WorkspaceVisibility,
-} from "../entities/Workspace";
-
-export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
-export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
-export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
-
-interface WorkspaceEventBase extends DomainEvent {
-  readonly workspaceId: string;
-  readonly accountId: string;
-}
-
-export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
-  readonly accountType: "user" | "organization";
-  readonly name: string;
-}
-
-export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
-  readonly fromState: WorkspaceLifecycleState;
-  readonly toState: WorkspaceLifecycleState;
-}
-
-export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
-  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
-  readonly fromVisibility: WorkspaceVisibility;
-  readonly toVisibility: WorkspaceVisibility;
-}
-
-export type WorkspaceDomainEvent =
-  | WorkspaceCreatedEvent
-  | WorkspaceLifecycleTransitionedEvent
-  | WorkspaceVisibilityChangedEvent;
-
-export function createWorkspaceCreatedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  accountType: "user" | "organization";
-  name: string;
-}): WorkspaceCreatedEvent {
-  return {
-    eventId: generateId(),
-    type: WORKSPACE_CREATED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    accountType: input.accountType,
-    name: input.name,
-  };
-}
-
-export function createWorkspaceLifecycleTransitionedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromState: WorkspaceLifecycleState;
-  toState: WorkspaceLifecycleState;
-}): WorkspaceLifecycleTransitionedEvent {
-  return {
-    eventId: generateId(),
-    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromState: input.fromState,
-    toState: input.toState,
-  };
-}
-
-export function createWorkspaceVisibilityChangedEvent(input: {
-  workspaceId: string;
-  accountId: string;
-  fromVisibility: WorkspaceVisibility;
-  toVisibility: WorkspaceVisibility;
-}): WorkspaceVisibilityChangedEvent {
-  return {
-    eventId: generateId(),
-    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
-    aggregateId: input.workspaceId,
-    occurredAt: new Date().toISOString(),
-    workspaceId: input.workspaceId,
-    accountId: input.accountId,
-    fromVisibility: input.fromVisibility,
-    toVisibility: input.toVisibility,
-  };
 }
 ````
 
@@ -64268,6 +64160,138 @@ export function CreateWorkspaceDialog({
 }
 ````
 
+## File: modules/workspace/interfaces/components/CreateWorkspaceDialogRail.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import { createWorkspace } from "../../api/facade";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string | null;
+  accountType: "user" | "organization" | null;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateWorkspaceDialogRail({
+  open,
+  onOpenChange,
+  accountId,
+  accountType,
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setWorkspaceName("");
+    setError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setError("請輸入工作區名稱。");
+      return;
+    }
+    if (!accountId || !accountType) {
+      setError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+    const result = await createWorkspace({
+      name,
+      accountId,
+      accountType,
+    });
+
+    if (!result.success) {
+      setError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+
+    reset();
+    onOpenChange(false);
+    onNavigate("/workspace");
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立新工作區</DialogTitle>
+          <DialogDescription id="rail-create-workspace-description">
+            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+              工作區名稱
+            </label>
+            <Input
+              id="rail-workspace-name"
+              value={workspaceName}
+              onChange={(e) => {
+                setWorkspaceName(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="例如：Project Alpha"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/components/WorkspaceDailyTab.tsx
 ````typescript
 "use client";
@@ -64285,6 +64309,54 @@ export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
       accountId={workspace.accountId}
       workspaceId={workspace.id}
       workspaceName={workspace.name}
+    />
+  );
+}
+````
+
+## File: modules/workspace/interfaces/components/WorkspaceDetailRouteScreen.tsx
+````typescript
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+import { WorkspaceDetailScreen } from "./WorkspaceDetailScreen";
+
+interface WorkspaceDetailRouteScreenProps {
+  workspaceId: string;
+  accountId: string | null | undefined;
+  accountsHydrated: boolean;
+  initialTab?: string;
+  initialOverviewPanel?: string;
+}
+
+export function WorkspaceDetailRouteScreen({
+  workspaceId,
+  accountId,
+  accountsHydrated,
+  initialTab,
+  initialOverviewPanel,
+}: WorkspaceDetailRouteScreenProps) {
+  const router = useRouter();
+
+  useEffect(() => {
+    if (initialTab === "Wiki" && workspaceId) {
+      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
+    }
+  }, [initialTab, router, workspaceId]);
+
+  if (initialTab === "Wiki" && workspaceId) {
+    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
+  }
+
+  return (
+    <WorkspaceDetailScreen
+      workspaceId={workspaceId}
+      accountId={accountId}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
     />
   );
 }
@@ -64693,6 +64765,99 @@ export function WorkspaceOverviewSettingsTab({
 }
 ````
 
+## File: modules/workspace/interfaces/hooks/useRecentWorkspaces.ts
+````typescript
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity } from "../../api/contracts";
+
+interface RecentWorkspaceLink {
+  id: string;
+  name: string;
+  href: string;
+}
+
+const MAX_VISIBLE_RECENT_WORKSPACES = 10;
+const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
+
+function getStorageKey(accountId: string) {
+  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+}
+
+function readRecentWorkspaceIds(accountId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(getStorageKey(accountId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
+}
+
+function trackWorkspaceFromPath(pathname: string, accountId: string) {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return;
+  const workspaceId = decodeURIComponent(match[1]);
+  const recentIds = readRecentWorkspaceIds(accountId);
+  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
+  persistRecentWorkspaceIds(accountId, deduped);
+}
+
+function getWorkspaceIdFromPath(pathname: string): string | null {
+  const match = pathname.match(/^\/workspace\/([^/]+)/);
+  if (!match) return null;
+  return decodeURIComponent(match[1]);
+}
+
+export function useRecentWorkspaces(
+  accountId: string | undefined,
+  pathname: string,
+  workspaces: WorkspaceEntity[],
+) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    if (!accountId) return;
+    trackWorkspaceFromPath(pathname, accountId);
+  }, [accountId, pathname]);
+
+  const workspacesById = useMemo(
+    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+    [workspaces],
+  );
+
+  const recentWorkspaceIds = useMemo(() => {
+    if (!accountId) return [] as string[];
+    const stored = readRecentWorkspaceIds(accountId);
+    const currentId = getWorkspaceIdFromPath(pathname);
+    if (!currentId) return stored;
+    return [currentId, ...stored.filter((id) => id !== currentId)];
+  }, [accountId, pathname]);
+
+  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
+    return recentWorkspaceIds
+      .map<RecentWorkspaceLink | null>((workspaceId) => {
+        const ws = workspacesById[workspaceId];
+        if (!ws) return null;
+        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
+      })
+      .filter((item): item is RecentWorkspaceLink => item !== null);
+  }, [recentWorkspaceIds, workspacesById]);
+
+  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+}
+
+export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
+````
+
 ## File: modules/workspace/interfaces/hooks/useWorkspaceDetail.ts
 ````typescript
 "use client";
@@ -64981,6 +65146,108 @@ export async function getWorkspaceByIdForAccount(
   if (!normalizedAccountId || !normalizedWorkspaceId) return null;
   const workspaceRepo = new FirebaseWorkspaceRepository();
   return workspaceRepo.findByIdForAccount(normalizedAccountId, normalizedWorkspaceId);
+}
+````
+
+## File: modules/workspace/interfaces/workspace-quick-access.tsx
+````typescript
+import { BookOpen, Brain, Database, FileText, FolderOpen, Home, Users } from "lucide-react";
+import type { ReactNode } from "react";
+
+export interface WorkspaceQuickAccessMatcherOptions {
+  panel: string | null;
+  tab: string | null;
+}
+
+export interface WorkspaceQuickAccessItem {
+  href: string;
+  label: string;
+  icon: ReactNode;
+  isActive?: (pathname: string, options?: WorkspaceQuickAccessMatcherOptions) => boolean;
+}
+
+const WORKSPACE_QUICK_ACCESS_TEMPLATES: readonly WorkspaceQuickAccessItem[] = [
+  {
+    href: "/workspace/{workspaceId}?tab=Overview",
+    label: "首頁",
+    icon: <Home className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") &&
+      (options?.tab == null || options.tab === "Overview") &&
+      options?.panel !== "settings",
+  },
+  {
+    href: "/knowledge/pages?workspaceId={workspaceId}",
+    label: "知識頁面",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
+  },
+  {
+    href: "/knowledge-base/articles?workspaceId={workspaceId}",
+    label: "文章",
+    icon: <BookOpen className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Files",
+    label: "Files",
+    icon: <FolderOpen className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Files",
+  },
+  {
+    href: "/workspace/{workspaceId}?tab=Members",
+    label: "Members",
+    icon: <Users className="size-3.5" />,
+    isActive: (pathname: string, options) =>
+      pathname.startsWith("/workspace/") && options?.tab === "Members",
+  },
+  {
+    href: "/notebook/rag-query?workspaceId={workspaceId}",
+    label: "RAG 查詢",
+    icon: <Brain className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
+  },
+  {
+    href: "/source/documents?workspaceId={workspaceId}",
+    label: "文件",
+    icon: <FileText className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/source/documents" || pathname.startsWith("/source/documents/"),
+  },
+  {
+    href: "/source/libraries?workspaceId={workspaceId}",
+    label: "資料庫",
+    icon: <Database className="size-3.5" />,
+    isActive: (pathname: string) =>
+      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
+  },
+];
+
+export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQuickAccessItem[] {
+  const encodedWorkspaceId = encodeURIComponent(workspaceId);
+  return WORKSPACE_QUICK_ACCESS_TEMPLATES.map((item) => ({
+    ...item,
+    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
+  }));
+}
+````
+
+## File: modules/workspace/interfaces/workspace-session.ts
+````typescript
+import type { WorkspaceEntity } from "../domain/entities/Workspace";
+
+const LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX = "xuanwu_last_active_workspace:";
+
+export function getWorkspaceStorageKey(accountId: string): string {
+  return `${LAST_ACTIVE_WORKSPACE_STORAGE_PREFIX}${accountId}`;
+}
+
+export function toWorkspaceMap(workspaces: WorkspaceEntity[]): Record<string, WorkspaceEntity> {
+  return Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace]));
 }
 ````
 
@@ -65588,97 +65855,368 @@ For the RBAC/role model used in this project, see [`PERMISSIONS.md`](PERMISSIONS
 See [`.github/agents/README.md`](.github/agents/README.md), [`.github/instructions/`](.github/instructions/), and [`.github/prompts/`](.github/prompts/) for the active rule and workflow set.
 ````
 
-## File: app/(shell)/_components/use-recent-workspaces.ts
+## File: app/(shell)/_components/app-rail.tsx
 ````typescript
-import { useEffect, useMemo, useState } from "react";
+"use client";
 
-import type { WorkspaceEntity } from "@/modules/workspace/api";
+/**
+ * Module: app-rail.tsx
+ * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
+ * Responsibilities: app logo, account context switcher, top-level section icon nav with
+ *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
+ * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
+ *   `h-full` ensures it fills the parent `h-screen` container.
+ */
 
-interface RecentWorkspaceLink {
-  id: string;
-  name: string;
+import Link from "next/link";
+import {
+  Building2,
+  CalendarDays,
+  ClipboardList,
+  FlaskConical,
+  NotebookText,
+  Plus,
+  SlidersHorizontal,
+  UserRound,
+  Users,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import { type WorkspaceEntity } from "@/modules/workspace/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@ui-shadcn/ui/tooltip";
+import { CreateOrganizationDialog } from "./create-organization-dialog";
+import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
+
+interface AppRailProps {
+  readonly pathname: string;
+  readonly user: AuthUser | null;
+  readonly activeAccount: ActiveAccount | null;
+  readonly organizationAccounts: AccountEntity[];
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly isOrganizationAccount: boolean;
+  readonly onSelectPersonal: () => void;
+  readonly onSelectOrganization: (account: AccountEntity) => void;
+  readonly activeWorkspaceId: string | null;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
+  readonly onOrganizationCreated?: (account: AccountEntity) => void;
+  readonly onSignOut: () => void;
+}
+
+interface RailItem {
   href: string;
+  label: string;
+  icon: React.ReactNode;
+  /** When false the item is hidden; defaults to true */
+  show?: boolean;
+  isActive?: (pathname: string) => boolean;
 }
 
-const MAX_VISIBLE_RECENT_WORKSPACES = 10;
-const RECENT_WORKSPACES_STORAGE_PREFIX = "xuanwu:recent-workspaces:";
-
-function getStorageKey(accountId: string) {
-  return `${RECENT_WORKSPACES_STORAGE_PREFIX}${accountId}`;
+function isExactOrChildPath(targetPath: string, pathname: string) {
+  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
 }
 
-function readRecentWorkspaceIds(accountId: string): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(accountId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((item): item is string => typeof item === "string" && item.length > 0);
-  } catch {
-    return [];
+function getInitial(name: string | undefined | null): string {
+  return name?.trim().charAt(0).toUpperCase() || "U";
+}
+
+export function AppRail({
+  pathname,
+  user,
+  activeAccount,
+  organizationAccounts,
+  workspaces,
+  workspacesHydrated,
+  isOrganizationAccount,
+  onSelectPersonal,
+  onSelectOrganization,
+  activeWorkspaceId,
+  onSelectWorkspace,
+  onOrganizationCreated,
+  onSignOut: _onSignOut,
+}: AppRailProps) {
+  const router = useRouter();
+  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
   }
-}
 
-function persistRecentWorkspaceIds(accountId: string, workspaceIds: string[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getStorageKey(accountId), JSON.stringify(workspaceIds));
-}
+  const railItems: RailItem[] = [
+    // ── Organization / hub layer ─────────────────────────────────────
+    {
+      href: "/workspace",
+      label: "工作區中心",
+      icon: <Building2 className="size-[18px]" />,
+    },
+    // ── People (org-only) ─────────────────────────────────────────
+    {
+      href: "/organization/members",
+      label: "成員",
+      icon: <UserRound className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
+    },
+    {
+      href: "/organization/teams",
+      label: "團隊",
+      icon: <Users className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
+    },
+    // ── Operations (org-only) ─────────────────────────────────────
+    {
+      href: "/organization/daily",
+      label: "每日",
+      icon: <NotebookText className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
+    },
+    {
+      href: "/organization/schedule",
+      label: "排程",
+      icon: <CalendarDays className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
+    },
+    // ── Admin (org-only) ──────────────────────────────────────────
+    {
+      href: "/organization/audit",
+      label: "稽核",
+      icon: <ClipboardList className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
+    },
+    {
+      href: "/organization/permissions",
+      label: "權限",
+      icon: <SlidersHorizontal className="size-[18px]" />,
+      show: isOrganizationAccount,
+      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
+    },
+    // ── Developer ────────────────────────────────────────────────
+    {
+      href: "/dev-tools",
+      label: "開發工具",
+      icon: <FlaskConical className="size-[18px]" />,
+    },
+  ];
 
-function trackWorkspaceFromPath(pathname: string, accountId: string) {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return;
-  const workspaceId = decodeURIComponent(match[1]);
-  const recentIds = readRecentWorkspaceIds(accountId);
-  const deduped = [workspaceId, ...recentIds.filter((id) => id !== workspaceId)].slice(0, 50);
-  persistRecentWorkspaceIds(accountId, deduped);
-}
+  const visibleRailItems = railItems.filter((item) => item.show !== false);
 
-function getWorkspaceIdFromPath(pathname: string): string | null {
-  const match = pathname.match(/^\/workspace\/([^/]+)/);
-  if (!match) return null;
-  return decodeURIComponent(match[1]);
-}
-
-export function useRecentWorkspaces(
-  accountId: string | undefined,
-  pathname: string,
-  workspaces: WorkspaceEntity[],
-) {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    if (!accountId) return;
-    trackWorkspaceFromPath(pathname, accountId);
-  }, [accountId, pathname]);
-
-  const workspacesById = useMemo(
-    () => Object.fromEntries(workspaces.map((workspace) => [workspace.id, workspace])),
+  const sortedWorkspaces = useMemo(
+    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
     [workspaces],
   );
 
-  const recentWorkspaceIds = useMemo(() => {
-    if (!accountId) return [] as string[];
-    const stored = readRecentWorkspaceIds(accountId);
-    const currentId = getWorkspaceIdFromPath(pathname);
-    if (!currentId) return stored;
-    return [currentId, ...stored.filter((id) => id !== currentId)];
-  }, [accountId, pathname]);
+  const accountName = activeAccount?.name ?? user?.name ?? "—";
 
-  const recentWorkspaceLinks = useMemo<RecentWorkspaceLink[]>(() => {
-    return recentWorkspaceIds
-      .map<RecentWorkspaceLink | null>((workspaceId) => {
-        const ws = workspacesById[workspaceId];
-        if (!ws) return null;
-        return { id: ws.id, name: ws.name, href: `/workspace/${ws.id}` };
-      })
-      .filter((item): item is RecentWorkspaceLink => item !== null);
-  }, [recentWorkspaceIds, workspacesById]);
+  return (
+    <TooltipProvider delayDuration={400}>
+      <aside
+        aria-label="App navigation rail"
+        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
+      >
+        {/* ── Workspace / account logo tile ─────────────────────────── */}
+        <DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="切換帳號情境"
+                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {getInitial(accountName)}
+                </button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="max-w-[180px]">
+              <p className="text-xs font-medium">{accountName}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
 
-  return { isExpanded, setIsExpanded, recentWorkspaceLinks };
+          <DropdownMenuContent side="right" align="start" className="w-52">
+            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
+            {user && (
+              <DropdownMenuItem
+                onClick={onSelectPersonal}
+                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{user.name} (Personal)</span>
+              </DropdownMenuItem>
+            )}
+            {organizationAccounts.map((account) => (
+              <DropdownMenuItem
+                key={account.id}
+                onClick={() => {
+                  onSelectOrganization(account);
+                }}
+                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
+              >
+                <span className="truncate">{account.name}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setIsCreateOrgOpen(true);
+              }}
+              className="gap-2 text-primary"
+            >
+              <Plus className="size-3.5 shrink-0" />
+              <span>建立組織</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <div className="my-2 h-px w-7 bg-border/50" />
+
+        {/* ── Section nav icons ─────────────────────────────────────── */}
+        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
+          {visibleRailItems.map((item) => {
+            const active = item.isActive?.(pathname) ?? isActive(item.href);
+
+            if (item.href === "/workspace") {
+              return (
+                <DropdownMenu key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          aria-current={active ? "page" : undefined}
+                          aria-label="工作區中心：切換工作區"
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                            active
+                              ? "bg-primary/10 text-primary"
+                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                          }`}
+                        >
+                          {item.icon}
+                        </button>
+                      </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      <p className="text-xs">工作區中心：切換工作區</p>
+                    </TooltipContent>
+                  </Tooltip>
+
+                  <DropdownMenuContent side="right" align="start" className="w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        router.push("/workspace");
+                      }}
+                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
+                    >
+                      工作區中心
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {!workspacesHydrated ? (
+                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
+                    ) : sortedWorkspaces.length === 0 ? (
+                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
+                    ) : (
+                      sortedWorkspaces.map((workspace) => (
+                        <DropdownMenuItem
+                          key={workspace.id}
+                          onClick={() => {
+                            onSelectWorkspace(workspace.id);
+                            router.push(`/workspace/${workspace.id}`);
+                          }}
+                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
+                        >
+                          <span className="truncate">{workspace.name}</span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setIsCreateWorkspaceOpen(true);
+                      }}
+                      className="gap-2 text-primary"
+                    >
+                      <Plus className="size-3.5 shrink-0" />
+                      <span>建立工作區</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            return (
+              <Tooltip key={item.href}>
+                <TooltipTrigger asChild>
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    aria-label={item.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    {item.icon}
+                  </Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p className="text-xs">{item.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </nav>
+
+        {/* ── Spacer ────────────────────────────────────────────────── */}
+        <div className="flex-1" />
+
+        <div className="h-1" />
+      </aside>
+
+      {/* ── Create organization dialog ─────────────────────────────── */}
+      <CreateOrganizationDialog
+        open={isCreateOrgOpen}
+        onOpenChange={setIsCreateOrgOpen}
+        user={user}
+        onOrganizationCreated={onOrganizationCreated}
+        onNavigate={(href) => { router.push(href); }}
+      />
+
+      {/* ── Create workspace dialog ────────────────────────────────── */}
+      <CreateWorkspaceDialogRail
+        open={isCreateWorkspaceOpen}
+        onOpenChange={setIsCreateWorkspaceOpen}
+        activeAccount={activeAccount}
+        isOrganizationAccount={isOrganizationAccount}
+        onNavigate={(href) => { router.push(href); }}
+      />
+    </TooltipProvider>
+  );
 }
-
-export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
 ````
 
 ## File: app/(shell)/dev-tools/dev-tools-helpers.ts
@@ -66203,49 +66741,6 @@ export default function KnowledgePagesPage() {
         />
       )}
     </div>
-  );
-}
-````
-
-## File: app/(shell)/workspace/[workspaceId]/page.tsx
-````typescript
-"use client";
-
-import { useEffect } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceDetailScreen } from "@/modules/workspace/api";
-
-export default function WorkspaceDetailPage() {
-  const params = useParams<{ workspaceId: string }>();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const initialTab = searchParams.get("tab") ?? undefined;
-  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
-  const {
-    state: { activeAccount, accountsHydrated },
-  } = useApp();
-
-  useEffect(() => {
-    if (initialTab === "Wiki" && workspaceId) {
-      router.replace(`/knowledge/pages?workspaceId=${encodeURIComponent(workspaceId)}`);
-    }
-  }, [initialTab, router, workspaceId]);
-
-  if (initialTab === "Wiki" && workspaceId) {
-    return <div className="px-4 py-6 text-sm text-muted-foreground">正在導向工作區知識頁面…</div>;
-  }
-
-  return (
-    <WorkspaceDetailScreen
-      workspaceId={workspaceId}
-      accountId={activeAccount?.id}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
   );
 }
 ````
@@ -66810,166 +67305,6 @@ For larger or cross-module changes, prefer the formal Copilot delivery workflow:
   ],
   "fieldOverrides": []
 }
-````
-
-## File: modules/knowledge-collaboration/interfaces/_actions/knowledge-collaboration.actions.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- * Purpose: Barrel re-export for all knowledge-collaboration server actions.
- *          Split by aggregate for IDDD single-responsibility:
- *  - comment.actions.ts    (Comment aggregate)
- *  - version.actions.ts    (Version aggregate)
- *  - permission.actions.ts (Permission aggregate)
- */
-
-export { createComment, updateComment, resolveComment, deleteComment } from "./comment.actions";
-export { createVersion, deleteVersion } from "./version.actions";
-export { grantPermission, revokePermission } from "./permission.actions";
-````
-
-## File: modules/knowledge-collaboration/interfaces/queries/knowledge-collaboration.queries.ts
-````typescript
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/queries
- */
-
-import type { Comment } from "../../domain/entities/comment.entity";
-import type { Version } from "../../domain/entities/version.entity";
-import type { Permission } from "../../domain/entities/permission.entity";
-import { ListCommentsUseCase } from "../../application/use-cases/comment.use-cases";
-import { ListVersionsUseCase } from "../../application/use-cases/version.use-cases";
-import { ListPermissionsBySubjectUseCase } from "../../application/use-cases/permission.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
-import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-
-export async function getComments(accountId: string, contentId: string): Promise<Comment[]> {
-  return new ListCommentsUseCase(new FirebaseCommentRepository()).execute(accountId, contentId);
-}
-
-export async function getVersions(accountId: string, contentId: string): Promise<Version[]> {
-  return new ListVersionsUseCase(new FirebaseVersionRepository()).execute(accountId, contentId);
-}
-
-export async function getPermissions(accountId: string, subjectId: string): Promise<Permission[]> {
-  return new ListPermissionsBySubjectUseCase(new FirebasePermissionRepository()).execute(accountId, subjectId);
-}
-
-/**
- * Subscribe to real-time comment updates for a content document.
- * Returns an unsubscribe function — call it in a useEffect cleanup.
- */
-export function subscribeComments(
-  accountId: string,
-  contentId: string,
-  onUpdate: (comments: Comment[]) => void,
-): () => void {
-  return new FirebaseCommentRepository().subscribe(accountId, contentId, onUpdate);
-}
-````
-
-## File: modules/knowledge-database/api/index.ts
-````typescript
-/**
- * knowledge-database public API boundary
- */
-
-export type { Database, Field, FieldType } from "../domain/entities/database.entity";
-export type { DatabaseRecord } from "../domain/entities/record.entity";
-export type { View, ViewType, FilterRule, SortRule } from "../domain/entities/view.entity";
-export type { CreateDatabaseInput, UpdateDatabaseInput, AddFieldInput } from "../domain/repositories/IDatabaseRepository";
-export type { CreateRecordInput, UpdateRecordInput } from "../domain/repositories/IDatabaseRecordRepository";
-export type { CreateViewInput, UpdateViewInput } from "../domain/repositories/IViewRepository";
-
-export type DatabaseId = string;
-export type RecordId = string;
-export type ViewId = string;
-export type FieldId = string;
-
-// Server Actions
-export {
-  createDatabase,
-  updateDatabase,
-  addDatabaseField,
-  archiveDatabase,
-} from "../interfaces/_actions/database.actions";
-
-export {
-  createRecord,
-  updateRecord,
-  deleteRecord,
-} from "../interfaces/_actions/record.actions";
-
-export {
-  createView,
-  updateView,
-  deleteView,
-} from "../interfaces/_actions/view.actions";
-
-// Queries
-export {
-  getDatabases,
-  getDatabase,
-  getRecords,
-  getViews,
-} from "../interfaces/queries/knowledge-database.queries";
-
-// UI Components
-export { DatabaseDialog } from "../interfaces/components/DatabaseDialog";
-export { DatabaseTableView } from "../interfaces/components/DatabaseTableView";
-export { DatabaseBoardView } from "../interfaces/components/DatabaseBoardView";
-export { DatabaseListView } from "../interfaces/components/DatabaseListView";
-export { DatabaseCalendarView } from "../interfaces/components/DatabaseCalendarView";
-export { DatabaseGalleryView } from "../interfaces/components/DatabaseGalleryView";
-export { DatabaseFormView } from "../interfaces/components/DatabaseFormView";
-
-// Form entity types
-export type { DatabaseForm, CreateDatabaseFormInput, UpdateDatabaseFormInput } from "../domain/entities/database-form.entity";
-
-// Automation entity types
-export type {
-  DatabaseAutomation,
-  AutomationTrigger,
-  AutomationActionType,
-  AutomationCondition,
-  AutomationAction,
-  CreateAutomationInput,
-  UpdateAutomationInput,
-} from "../domain/entities/database-automation.entity";
-
-// UI Components (automation)
-export { DatabaseAutomationView } from "../interfaces/components/DatabaseAutomationView";
-
-// Automation server actions
-export {
-  createAutomation,
-  updateAutomation,
-  deleteAutomation,
-} from "../interfaces/_actions/knowledge-database-automation.actions";
-
-// Automation queries
-export { getAutomations } from "../interfaces/queries/knowledge-database-automation.queries";
-
-// ── FieldComputationService ────────────────────────────────────────────────────
-export type {
-  RelationFieldConfig,
-  RelationValue,
-  FormulaFieldConfig,
-  FormulaResult,
-  RollupFieldConfig,
-  RollupAggregation,
-  RollupResult,
-  ComputedFieldValue,
-} from "../application/services/field-computation.service";
-export {
-  resolveRelationValue,
-  evaluateFormula,
-  computeRollup,
-  resolveComputedFields,
-} from "../application/services/field-computation.service";
 ````
 
 ## File: modules/knowledge/aggregates.md
@@ -68731,6 +69066,1045 @@ export {
 } from "./workspace-feed-interaction.use-cases";
 ````
 
+## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+
+import { wfAssignTask } from "../_actions/workspace-flow.actions";
+
+export interface AssignTaskDialogProps {
+  open: boolean;
+  taskId: string;
+  onClose: () => void;
+  onDone: () => void;
+}
+
+export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
+  const [assigneeId, setAssigneeId] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setAssigneeId("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const a = assigneeId.trim();
+    if (!a) { setError("請輸入指派人 ID。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfAssignTask(taskId, a);
+      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
+      onDone();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>指派任務</DialogTitle>
+          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="assignee-id">指派人 ID *</Label>
+            <Input
+              id="assignee-id"
+              placeholder="用戶 ID"
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import { wfCreateTask } from "../_actions/workspace-flow.actions";
+
+export interface CreateTaskDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onCreated: () => void;
+  workspaceId: string;
+}
+
+export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
+  const [dueDateISO, setDueDateISO] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setAssigneeId("");
+    setDueDateISO("");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入任務標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfCreateTask({
+        workspaceId,
+        title: t,
+        description: description.trim() || undefined,
+        assigneeId: assigneeId.trim() || undefined,
+        dueDateISO: dueDateISO || undefined,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>建立任務</DialogTitle>
+          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="task-title">標題 *</Label>
+            <Input
+              id="task-title"
+              placeholder="任務名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="task-description">描述（選填）</Label>
+            <Textarea
+              id="task-description"
+              placeholder="任務詳情或驗收條件…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
+              <Input
+                id="task-assignee"
+                placeholder="用戶 ID"
+                value={assigneeId}
+                onChange={(e) => setAssigneeId(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="task-due">截止日期（選填）</Label>
+              <Input
+                id="task-due"
+                type="date"
+                value={dueDateISO}
+                onChange={(e) => setDueDateISO(e.target.value)}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
+import {
+  wfApproveInvoice,
+  wfCloseInvoice,
+  wfPayInvoice,
+  wfRejectInvoice,
+  wfReviewInvoice,
+  wfSubmitInvoice,
+} from "../_actions/workspace-flow.actions";
+
+const INVOICE_STATUS_VARIANT: Record<
+  InvoiceStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  submitted: "secondary",
+  finance_review: "secondary",
+  approved: "default",
+  paid: "default",
+  closed: "outline",
+};
+
+const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
+  draft: "草稿",
+  submitted: "已提交",
+  finance_review: "財務審核",
+  approved: "已核准",
+  paid: "已付款",
+  closed: "已結清",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+function formatCurrency(amount: number): string {
+  try {
+    return new Intl.NumberFormat("zh-TW", {
+      style: "currency",
+      currency: "TWD",
+      maximumFractionDigits: 0,
+    }).format(amount);
+  } catch {
+    return `TWD ${amount}`;
+  }
+}
+
+export interface InvoiceRowProps {
+  invoice: Invoice;
+  onTransitioned: () => void;
+}
+
+export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (invoice.status) {
+      case "draft":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
+      case "submitted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
+      case "finance_review":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
+          </div>
+        );
+      case "approved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
+      case "paid":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">
+            #{invoice.id.slice(-8).toUpperCase()}
+          </p>
+          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
+          {invoice.paidAtISO && (
+            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
+            {INVOICE_STATUS_LABEL[invoice.status]}
+          </Badge>
+          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
+          {renderActions()}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import {
+  wfCloseIssue,
+  wfFailIssueRetest,
+  wfFixIssue,
+  wfPassIssueRetest,
+  wfStartIssue,
+  wfSubmitIssueRetest,
+} from "../_actions/workspace-flow.actions";
+
+export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
+  task: "任務",
+  qa: "QA",
+  acceptance: "驗收",
+};
+
+const ISSUE_STATUS_VARIANT: Record<
+  Issue["status"],
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  open: "destructive",
+  investigating: "destructive",
+  fixing: "secondary",
+  retest: "secondary",
+  resolved: "default",
+  closed: "outline",
+};
+
+const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
+  open: "開啟",
+  investigating: "調查中",
+  fixing: "修復中",
+  retest: "重測中",
+  resolved: "已解決",
+  closed: "已關閉",
+};
+
+export interface IssueRowProps {
+  issue: Issue;
+  onTransitioned: () => void;
+}
+
+export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderActions() {
+    switch (issue.status) {
+      case "open":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
+      case "investigating":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
+      case "fixing":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
+      case "retest":
+        return (
+          <div className="flex gap-1.5">
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
+            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
+          </div>
+        );
+      case "resolved":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
+      <div className="flex items-start justify-between gap-2">
+        <div className="space-y-0.5 min-w-0">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
+              {ISSUE_STATUS_LABEL[issue.status]}
+            </Badge>
+            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
+            <span className="font-medium text-foreground truncate">{issue.title}</span>
+          </div>
+          {issue.description && (
+            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="shrink-0">{renderActions()}</div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
+````typescript
+"use client";
+
+import { useState } from "react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Textarea } from "@ui-shadcn/ui/textarea";
+
+import type { IssueStage } from "../../domain/value-objects/IssueStage";
+import { wfOpenIssue } from "../_actions/workspace-flow.actions";
+import { ISSUE_STAGE_LABEL } from "./IssueRow";
+
+export interface OpenIssueDialogProps {
+  open: boolean;
+  taskId: string;
+  currentUserId: string;
+  onClose: () => void;
+  onCreated: () => void;
+}
+
+export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [stage, setStage] = useState<IssueStage>("task");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setTitle("");
+    setDescription("");
+    setStage("task");
+    setError(null);
+    onClose();
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) { setError("請輸入議題標題。"); return; }
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await wfOpenIssue({
+        taskId,
+        stage,
+        title: t,
+        description: description.trim() || undefined,
+        createdBy: currentUserId,
+      });
+      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
+      onCreated();
+      handleClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>開啟議題</DialogTitle>
+          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-title">標題 *</Label>
+            <Input
+              id="issue-title"
+              placeholder="問題簡述"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              disabled={submitting}
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="issue-description">描述（選填）</Label>
+            <Textarea
+              id="issue-description"
+              placeholder="問題詳情、重現步驟…"
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={submitting}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label>發生階段</Label>
+            <div className="flex gap-2">
+              {(["task", "qa", "acceptance"] as const).map((s) => (
+                <Button
+                  key={s}
+                  type="button"
+                  size="sm"
+                  variant={stage === s ? "default" : "outline"}
+                  onClick={() => setStage(s)}
+                  disabled={submitting}
+                >
+                  {ISSUE_STAGE_LABEL[s]}
+                </Button>
+              ))}
+            </div>
+          </div>
+          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
+````typescript
+"use client";
+
+import { useCallback, useState } from "react";
+
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+
+import type { CommandResult } from "@shared-types";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+
+import type { Issue } from "../../domain/entities/Issue";
+import type { Task } from "../../domain/entities/Task";
+import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
+import {
+  wfApproveTaskAcceptance,
+  wfArchiveTask,
+  wfPassTaskQa,
+  wfSubmitTaskToQa,
+} from "../_actions/workspace-flow.actions";
+import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
+import { AssignTaskDialog } from "./AssignTaskDialog";
+import { IssueRow } from "./IssueRow";
+import { OpenIssueDialog } from "./OpenIssueDialog";
+
+const TASK_STATUS_VARIANT: Record<
+  TaskStatus,
+  "default" | "secondary" | "outline" | "destructive"
+> = {
+  draft: "outline",
+  in_progress: "secondary",
+  qa: "secondary",
+  acceptance: "default",
+  accepted: "default",
+  archived: "outline",
+};
+
+const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
+  draft: "草稿",
+  in_progress: "進行中",
+  qa: "QA 審查",
+  acceptance: "驗收中",
+  accepted: "已驗收",
+  archived: "已歸檔",
+};
+
+function formatShortDate(iso: string | undefined): string {
+  if (!iso) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date(iso));
+  } catch {
+    return iso;
+  }
+}
+
+export interface TaskRowProps {
+  task: Task;
+  currentUserId: string;
+  onTransitioned: () => void;
+}
+
+export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [issuesExpanded, setIssuesExpanded] = useState(false);
+  const [issues, setIssues] = useState<Issue[]>([]);
+  const [issuesLoaded, setIssuesLoaded] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadIssues = useCallback(async () => {
+    try {
+      const data = await getWorkspaceFlowIssues(task.id);
+      setIssues(data);
+      setIssuesLoaded(true);
+    } catch {
+      // non-fatal
+    }
+  }, [task.id]);
+
+  async function toggleIssues() {
+    if (!issuesExpanded && !issuesLoaded) {
+      await loadIssues();
+    }
+    setIssuesExpanded((v) => !v);
+  }
+
+  async function runAction(action: () => Promise<CommandResult>) {
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await action();
+      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
+      else { onTransitioned(); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "操作失敗");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderTaskAction() {
+    switch (task.status) {
+      case "draft":
+        return (
+          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
+            指派任務
+          </Button>
+        );
+      case "in_progress":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
+      case "qa":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
+      case "acceptance":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
+      case "accepted":
+        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
+      default:
+        return null;
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
+      {/* ── Task header ─────────────────────── */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-1 min-w-0">
+          <p className="text-sm font-semibold text-foreground">{task.title}</p>
+          {task.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
+          )}
+          {task.assigneeId && (
+            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
+          )}
+          {error && <p className="text-xs text-destructive">{error}</p>}
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1.5">
+          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
+          {task.dueDateISO && (
+            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
+          )}
+        </div>
+      </div>
+
+      {/* ── Action row ──────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        {renderTaskAction()}
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground"
+          onClick={() => setIssueDialogOpen(true)}
+        >
+          <Plus className="mr-1 h-3.5 w-3.5" />
+          開議題
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground ml-auto"
+          onClick={toggleIssues}
+        >
+          {issuesExpanded ? (
+            <ChevronDown className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="mr-1 h-3.5 w-3.5" />
+          )}
+          議題{issuesLoaded ? ` (${issues.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Issues sub-list ─────────────────── */}
+      {issuesExpanded && (
+        <div className="space-y-2 pl-1">
+          {issues.length === 0 ? (
+            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
+          ) : (
+            issues.map((issue) => (
+              <IssueRow
+                key={issue.id}
+                issue={issue}
+                onTransitioned={loadIssues}
+              />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ── Dialogs ─────────────────────────── */}
+      <AssignTaskDialog
+        open={assignDialogOpen}
+        taskId={task.id}
+        onClose={() => setAssignDialogOpen(false)}
+        onDone={onTransitioned}
+      />
+      <OpenIssueDialog
+        open={issueDialogOpen}
+        taskId={task.id}
+        currentUserId={currentUserId}
+        onClose={() => setIssueDialogOpen(false)}
+        onCreated={async () => {
+          await loadIssues();
+          if (!issuesExpanded) setIssuesExpanded(true);
+        }}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
+````typescript
+"use client";
+
+/**
+ * @module workspace-flow/interfaces/components
+ * @file WorkspaceFlowTab.tsx
+ * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
+ *
+ * MVP interactive surface:
+ * - Create Task dialog
+ * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
+ * - Per-task expandable Issue sub-list with transition buttons
+ * - Open Issue dialog
+ * - Create Invoice button + Invoice lifecycle transitions
+ *
+ * @author workspace-flow
+ * @since 2026-03-27
+ */
+
+import { useCallback, useEffect, useState } from "react";
+
+import { Plus } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+
+import type { Invoice } from "../../domain/entities/Invoice";
+import type { Task } from "../../domain/entities/Task";
+import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
+import {
+  getWorkspaceFlowInvoices,
+  getWorkspaceFlowTasks,
+} from "../queries/workspace-flow.queries";
+import { CreateTaskDialog } from "./CreateTaskDialog";
+import { InvoiceRow } from "./InvoiceRow";
+import { TaskRow } from "./TaskRow";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type FlowSection = "tasks" | "invoices";
+
+interface WorkspaceFlowTabProps {
+  readonly workspaceId: string;
+  readonly currentUserId?: string;
+}
+
+// ── Main Component ─────────────────────────────────────────────────────────────
+
+export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
+  const [section, setSection] = useState<FlowSection>("tasks");
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [creatingInvoice, setCreatingInvoice] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setLoadState("loading");
+    try {
+      const [nextTasks, nextInvoices] = await Promise.all([
+        getWorkspaceFlowTasks(workspaceId),
+        getWorkspaceFlowInvoices(workspaceId),
+      ]);
+      setTasks(nextTasks);
+      setInvoices(nextInvoices);
+      setLoadState("loaded");
+    } catch (err) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
+      }
+      setLoadState("error");
+    }
+  }, [workspaceId]);
+
+  useEffect(() => {
+    void loadData();
+  }, [loadData]);
+
+  async function handleCreateInvoice() {
+    setCreatingInvoice(true);
+    setActionError(null);
+    try {
+      const result = await wfCreateInvoice(workspaceId);
+      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
+      else { await loadData(); }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "建立發票失敗");
+    } finally {
+      setCreatingInvoice(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ── Section switcher ─────────────────────────────────────────── */}
+      <div className="flex gap-2">
+        <Button
+          variant={section === "tasks" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("tasks")}
+        >
+          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
+        </Button>
+        <Button
+          variant={section === "invoices" ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSection("invoices")}
+        >
+          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
+        </Button>
+      </div>
+
+      {/* ── Loading state ─────────────────────────────────────────────── */}
+      {loadState === "loading" && (
+        <Card className="border border-border/50">
+          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
+        </Card>
+      )}
+
+      {/* ── Error state ───────────────────────────────────────────────── */}
+      {loadState === "error" && (
+        <Card className="border border-destructive/30">
+          <CardContent className="px-6 py-5 text-sm text-destructive">
+            無法載入資料，請重新整理頁面後再試。
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Tasks section ─────────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "tasks" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>任務</CardTitle>
+                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
+              </div>
+              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                建立任務
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tasks.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
+            ) : (
+              tasks.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  currentUserId={currentUserId}
+                  onTransitioned={loadData}
+                />
+              ))
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Invoices section ──────────────────────────────────────────── */}
+      {loadState === "loaded" && section === "invoices" && (
+        <Card className="border border-border/50">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <CardTitle>發票</CardTitle>
+                <CardDescription>工作區帳務請款紀錄。</CardDescription>
+              </div>
+              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                {creatingInvoice ? "建立中…" : "建立發票"}
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {actionError && (
+              <p role="alert" className="text-sm text-destructive">{actionError}</p>
+            )}
+            {invoices.length === 0 ? (
+              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
+            ) : (
+              <>
+                <Separator />
+                {invoices.map((invoice) => (
+                  <InvoiceRow
+                    key={invoice.id}
+                    invoice={invoice}
+                    onTransitioned={loadData}
+                  />
+                ))}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        workspaceId={workspaceId}
+        onClose={() => setCreateTaskOpen(false)}
+        onCreated={loadData}
+      />
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/application/use-cases/workspace.use-cases.ts
 ````typescript
 /**
@@ -68783,6 +70157,103 @@ export interface WorkspaceOperationalProfile extends WorkspaceLocationCatalog {
 }
 
 export type { Address, AddressInput } from "../value-objects/Address";
+````
+
+## File: modules/workspace/domain/events/workspace.events.ts
+````typescript
+import { v7 } from "@lib-uuid";
+import type { DomainEvent } from "@/modules/shared/api";
+
+import type {
+  WorkspaceLifecycleState,
+  WorkspaceVisibility,
+} from "../entities/Workspace";
+
+export const WORKSPACE_CREATED_EVENT_TYPE = "workspace.created" as const;
+export const WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE = "workspace.lifecycle_transitioned" as const;
+export const WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE = "workspace.visibility_changed" as const;
+
+interface WorkspaceEventBase extends DomainEvent {
+  readonly workspaceId: string;
+  readonly accountId: string;
+}
+
+export interface WorkspaceCreatedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_CREATED_EVENT_TYPE;
+  readonly accountType: "user" | "organization";
+  readonly name: string;
+}
+
+export interface WorkspaceLifecycleTransitionedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE;
+  readonly fromState: WorkspaceLifecycleState;
+  readonly toState: WorkspaceLifecycleState;
+}
+
+export interface WorkspaceVisibilityChangedEvent extends WorkspaceEventBase {
+  readonly type: typeof WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE;
+  readonly fromVisibility: WorkspaceVisibility;
+  readonly toVisibility: WorkspaceVisibility;
+}
+
+export type WorkspaceDomainEvent =
+  | WorkspaceCreatedEvent
+  | WorkspaceLifecycleTransitionedEvent
+  | WorkspaceVisibilityChangedEvent;
+
+export function createWorkspaceCreatedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  accountType: "user" | "organization";
+  name: string;
+}): WorkspaceCreatedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_CREATED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    accountType: input.accountType,
+    name: input.name,
+  };
+}
+
+export function createWorkspaceLifecycleTransitionedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromState: WorkspaceLifecycleState;
+  toState: WorkspaceLifecycleState;
+}): WorkspaceLifecycleTransitionedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_LIFECYCLE_TRANSITIONED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromState: input.fromState,
+    toState: input.toState,
+  };
+}
+
+export function createWorkspaceVisibilityChangedEvent(input: {
+  workspaceId: string;
+  accountId: string;
+  fromVisibility: WorkspaceVisibility;
+  toVisibility: WorkspaceVisibility;
+}): WorkspaceVisibilityChangedEvent {
+  return {
+    eventId: v7(),
+    type: WORKSPACE_VISIBILITY_CHANGED_EVENT_TYPE,
+    aggregateId: input.workspaceId,
+    occurredAt: new Date().toISOString(),
+    workspaceId: input.workspaceId,
+    accountId: input.accountId,
+    fromVisibility: input.fromVisibility,
+    toVisibility: input.toVisibility,
+  };
+}
 ````
 
 ## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository.ts
@@ -69518,25 +70989,156 @@ export function WorkspaceSettingsInformationFields({
 }
 ````
 
-## File: modules/workspace/interfaces/queries/wiki-content-tree.queries.ts
+## File: modules/workspace/interfaces/components/WorkspaceSidebarSection.tsx
 ````typescript
-import type {
-  WikiAccountContentNode,
-  WikiAccountSeed,
-} from "../../api/contracts";
-import type { WikiWorkspaceRepository } from "../../ports";
-import { buildWikiContentTree as buildWikiContentTreeProjection } from "../../application/use-cases/wiki-content-tree.use-case";
-import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+"use client";
 
-function makeWikiWorkspaceRepository(): WikiWorkspaceRepository {
-  return new FirebaseWikiWorkspaceRepository();
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+
+import {
+  getWorkspaceTabLabel,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabsByGroup,
+  getWorkspaceTabStatus,
+  isWorkspaceTabValue,
+  type WorkspaceTabGroup,
+  type WorkspaceTabValue,
+} from "../workspace-tabs";
+
+export interface WorkspaceSidebarLocaleBundle {
+  workspace?: {
+    tabLabels?: Record<string, string>;
+  };
 }
 
-export function buildWikiContentTree(
-  seeds: WikiAccountSeed[],
-  workspaceRepository: WikiWorkspaceRepository = makeWikiWorkspaceRepository(),
-): Promise<WikiAccountContentNode[]> {
-  return buildWikiContentTreeProjection(seeds, workspaceRepository);
+export interface WorkspaceNavigationPreferences {
+  pinnedWorkspace: string[];
+  workspaceOrder: string[];
+}
+
+interface TabLinkItem {
+  value: WorkspaceTabValue;
+  label: string;
+}
+
+function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
+  return getWorkspaceTabsByGroup(group).map((value) => ({
+    value,
+    label: getWorkspaceTabLabel(value),
+  }));
+}
+
+const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
+const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
+const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
+const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
+const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
+
+function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
+  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
+}
+
+function tTab(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string {
+  return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
+}
+
+function tTabWithDevStatus(
+  tab: WorkspaceTabValue,
+  fallback: string,
+  localeBundle: WorkspaceSidebarLocaleBundle | null,
+): string {
+  const label = tTab(tab, fallback, localeBundle);
+  const status = getWorkspaceTabStatus(tab);
+  return `${status} ${label}`;
+}
+
+function getPrefId(tabValue: string): string {
+  return getWorkspaceTabPrefId(tabValue as WorkspaceTabValue) ?? tabValue;
+}
+
+function isItemEnabled(prefId: string, navPrefs: WorkspaceNavigationPreferences): boolean {
+  return navPrefs.pinnedWorkspace.includes(prefId);
+}
+
+function getItemOrder(prefId: string, navPrefs: WorkspaceNavigationPreferences): number {
+  const index = navPrefs.workspaceOrder.indexOf(prefId);
+  return index === -1 ? 999 : index;
+}
+
+function sortByPreferenceOrder<T extends { value: string }>(
+  items: readonly T[],
+  navPrefs: WorkspaceNavigationPreferences,
+): T[] {
+  return [...items].sort(
+    (left, right) =>
+      getItemOrder(getPrefId(left.value), navPrefs) -
+      getItemOrder(getPrefId(right.value), navPrefs),
+  );
+}
+
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: WorkspaceNavigationPreferences;
+  localeBundle: WorkspaceSidebarLocaleBundle | null;
+  getItemClassName: (isActive: boolean) => string;
+}
+
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+  getItemClassName,
+}: WorkspaceSidebarSectionProps) {
+  const searchParams = useSearchParams();
+  const rawTab = searchParams.get("tab") ?? "Overview";
+  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
+
+  const groups: Array<{ key: string; items: readonly TabLinkItem[] }> = [
+    { key: "primary", items: WORKSPACE_PRIMARY_LINK_ITEMS },
+    { key: "modules", items: WORKSPACE_MODULE_LINK_ITEMS },
+    { key: "spaces", items: WORKSPACE_SPACE_ITEMS },
+    { key: "databases", items: WORKSPACE_DATABASE_ITEMS },
+    { key: "library", items: WORKSPACE_LIBRARY_LINK_ITEMS },
+  ];
+
+  const visibleGroups = groups
+    .map((g) => ({
+      key: g.key,
+      visible: sortByPreferenceOrder(g.items, navPrefs).filter((item) =>
+        isItemEnabled(getPrefId(item.value), navPrefs),
+      ),
+    }))
+    .filter((g) => g.visible.length > 0);
+
+  return (
+    <nav className="space-y-0.5" aria-label="Workspace navigation">
+      {visibleGroups.map((group, groupIndex) => (
+        <div key={group.key}>
+          {groupIndex > 0 && <div className="my-1.5 border-t border-border/40" />}
+          <div className="space-y-0.5">
+            {group.visible.map((item) => {
+              const isActive = activeWorkspaceTab === item.value;
+              return (
+                <Link
+                  key={item.value}
+                  href={buildWorkspaceTabHref(workspacePathId, item.value)}
+                  aria-current={isActive ? "page" : undefined}
+                  className={getItemClassName(isActive)}
+                >
+                  {tTabWithDevStatus(item.value, item.label, localeBundle)}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </nav>
+  );
 }
 ````
 
@@ -71362,527 +72964,47 @@ export default defineConfig({
 });
 ````
 
-## File: app/(shell)/_components/app-rail.tsx
+## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
 ````typescript
 "use client";
 
-/**
- * Module: app-rail.tsx
- * Purpose: render the narrow leftmost icon rail (app rail) of the authenticated shell.
- * Responsibilities: app logo, account context switcher, top-level section icon nav with
- *   tooltips, and quick sign-out via user avatar dropdown at the bottom.
- * Constraints: UI-only; follows the two-column sidebar pattern from Plane's AppRailRoot.
- *   `h-full` ensures it fills the parent `h-screen` container.
- */
-
-import Link from "next/link";
-import {
-  Building2,
-  CalendarDays,
-  ClipboardList,
-  FlaskConical,
-  NotebookText,
-  Plus,
-  SlidersHorizontal,
-  UserRound,
-  Users,
-} from "lucide-react";
-import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-
-import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import { type WorkspaceEntity } from "@/modules/workspace/api";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@ui-shadcn/ui/tooltip";
-import { CreateOrganizationDialog } from "./create-organization-dialog";
-import { CreateWorkspaceDialogRail } from "./create-workspace-dialog-rail";
+import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
 
-interface AppRailProps {
-  readonly pathname: string;
-  readonly user: AuthUser | null;
-  readonly activeAccount: ActiveAccount | null;
-  readonly organizationAccounts: AccountEntity[];
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly isOrganizationAccount: boolean;
-  readonly onSelectPersonal: () => void;
-  readonly onSelectOrganization: (account: AccountEntity) => void;
-  readonly activeWorkspaceId: string | null;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-  readonly onOrganizationCreated?: (account: AccountEntity) => void;
-  readonly onSignOut: () => void;
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  activeAccount: ActiveAccount | null;
+  isOrganizationAccount: boolean;
+  onNavigate: (href: string) => void;
 }
 
-interface RailItem {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  /** When false the item is hidden; defaults to true */
-  show?: boolean;
-  isActive?: (pathname: string) => boolean;
-}
-
-function isExactOrChildPath(targetPath: string, pathname: string) {
-  return pathname === targetPath || pathname.startsWith(`${targetPath}/`);
-}
-
-function getInitial(name: string | undefined | null): string {
-  return name?.trim().charAt(0).toUpperCase() || "U";
-}
-
-export function AppRail({
-  pathname,
-  user,
+export function CreateWorkspaceDialogRail({
+  open,
+  onOpenChange,
   activeAccount,
-  organizationAccounts,
-  workspaces,
-  workspacesHydrated,
   isOrganizationAccount,
-  onSelectPersonal,
-  onSelectOrganization,
-  activeWorkspaceId,
-  onSelectWorkspace,
-  onOrganizationCreated,
-  onSignOut: _onSignOut,
-}: AppRailProps) {
-  const router = useRouter();
-  const [isCreateOrgOpen, setIsCreateOrgOpen] = useState(false);
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-
-  function isActive(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const railItems: RailItem[] = [
-    // ── Organization / hub layer ─────────────────────────────────────
-    {
-      href: "/workspace",
-      label: "工作區中心",
-      icon: <Building2 className="size-[18px]" />,
-    },
-    // ── People (org-only) ─────────────────────────────────────────
-    {
-      href: "/organization/members",
-      label: "成員",
-      icon: <UserRound className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/members", currentPathname),
-    },
-    {
-      href: "/organization/teams",
-      label: "團隊",
-      icon: <Users className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/teams", currentPathname),
-    },
-    // ── Operations (org-only) ─────────────────────────────────────
-    {
-      href: "/organization/daily",
-      label: "每日",
-      icon: <NotebookText className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/daily", currentPathname),
-    },
-    {
-      href: "/organization/schedule",
-      label: "排程",
-      icon: <CalendarDays className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/schedule", currentPathname),
-    },
-    // ── Admin (org-only) ──────────────────────────────────────────
-    {
-      href: "/organization/audit",
-      label: "稽核",
-      icon: <ClipboardList className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/audit", currentPathname),
-    },
-    {
-      href: "/organization/permissions",
-      label: "權限",
-      icon: <SlidersHorizontal className="size-[18px]" />,
-      show: isOrganizationAccount,
-      isActive: (currentPathname) => isExactOrChildPath("/organization/permissions", currentPathname),
-    },
-    // ── Developer ────────────────────────────────────────────────
-    {
-      href: "/dev-tools",
-      label: "開發工具",
-      icon: <FlaskConical className="size-[18px]" />,
-    },
-  ];
-
-  const visibleRailItems = railItems.filter((item) => item.show !== false);
-
-  const sortedWorkspaces = useMemo(
-    () => [...workspaces].sort((a, b) => a.name.localeCompare(b.name, "zh-Hant")),
-    [workspaces],
-  );
-
-  const accountName = activeAccount?.name ?? user?.name ?? "—";
-
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
   return (
-    <TooltipProvider delayDuration={400}>
-      <aside
-        aria-label="App navigation rail"
-        className="hidden h-full w-12 shrink-0 flex-col items-center border-r border-border/50 bg-card/40 py-2 md:flex"
-      >
-        {/* ── Workspace / account logo tile ─────────────────────────── */}
-        <DropdownMenu>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <DropdownMenuTrigger asChild>
-                <button
-                  type="button"
-                  aria-label="切換帳號情境"
-                  className="mb-1 flex h-9 w-9 items-center justify-center rounded-lg text-xs font-semibold tracking-tight text-muted-foreground transition hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {getInitial(accountName)}
-                </button>
-              </DropdownMenuTrigger>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="max-w-[180px]">
-              <p className="text-xs font-medium">{accountName}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {isOrganizationAccount ? "組織帳號" : "個人帳號"}
-              </p>
-            </TooltipContent>
-          </Tooltip>
-
-          <DropdownMenuContent side="right" align="start" className="w-52">
-            <DropdownMenuLabel className="text-xs text-muted-foreground">切換帳號</DropdownMenuLabel>
-            {user && (
-              <DropdownMenuItem
-                onClick={onSelectPersonal}
-                className={activeAccount?.id === user.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{user.name} (Personal)</span>
-              </DropdownMenuItem>
-            )}
-            {organizationAccounts.map((account) => (
-              <DropdownMenuItem
-                key={account.id}
-                onClick={() => {
-                  onSelectOrganization(account);
-                }}
-                className={activeAccount?.id === account.id ? "bg-primary/10 text-primary" : ""}
-              >
-                <span className="truncate">{account.name}</span>
-              </DropdownMenuItem>
-            ))}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setIsCreateOrgOpen(true);
-              }}
-              className="gap-2 text-primary"
-            >
-              <Plus className="size-3.5 shrink-0" />
-              <span>建立組織</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="my-2 h-px w-7 bg-border/50" />
-
-        {/* ── Section nav icons ─────────────────────────────────────── */}
-        <nav className="flex flex-col items-center gap-0.5" aria-label="主要導覽">
-          {visibleRailItems.map((item) => {
-            const active = item.isActive?.(pathname) ?? isActive(item.href);
-
-            if (item.href === "/workspace") {
-              return (
-                <DropdownMenu key={item.href}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          type="button"
-                          aria-current={active ? "page" : undefined}
-                          aria-label="工作區中心：切換工作區"
-                          className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                            active
-                              ? "bg-primary/10 text-primary"
-                              : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                          }`}
-                        >
-                          {item.icon}
-                        </button>
-                      </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">
-                      <p className="text-xs">工作區中心：切換工作區</p>
-                    </TooltipContent>
-                  </Tooltip>
-
-                  <DropdownMenuContent side="right" align="start" className="w-56">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">工作區</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        router.push("/workspace");
-                      }}
-                      className={pathname === "/workspace" ? "bg-primary/10 text-primary" : ""}
-                    >
-                      工作區中心
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {!workspacesHydrated ? (
-                      <DropdownMenuItem disabled>工作區載入中...</DropdownMenuItem>
-                    ) : sortedWorkspaces.length === 0 ? (
-                      <DropdownMenuItem disabled>目前帳號沒有工作區</DropdownMenuItem>
-                    ) : (
-                      sortedWorkspaces.map((workspace) => (
-                        <DropdownMenuItem
-                          key={workspace.id}
-                          onClick={() => {
-                            onSelectWorkspace(workspace.id);
-                            router.push(`/workspace/${workspace.id}`);
-                          }}
-                          className={activeWorkspaceId === workspace.id ? "bg-primary/10 text-primary" : ""}
-                        >
-                          <span className="truncate">{workspace.name}</span>
-                        </DropdownMenuItem>
-                      ))
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        setIsCreateWorkspaceOpen(true);
-                      }}
-                      className="gap-2 text-primary"
-                    >
-                      <Plus className="size-3.5 shrink-0" />
-                      <span>建立工作區</span>
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-            }
-
-            return (
-              <Tooltip key={item.href}>
-                <TooltipTrigger asChild>
-                  <Link
-                    href={item.href}
-                    aria-current={active ? "page" : undefined}
-                    aria-label={item.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition ${
-                      active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    {item.icon}
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">
-                  <p className="text-xs">{item.label}</p>
-                </TooltipContent>
-              </Tooltip>
-            );
-          })}
-        </nav>
-
-        {/* ── Spacer ────────────────────────────────────────────────── */}
-        <div className="flex-1" />
-
-        <div className="h-1" />
-      </aside>
-
-      {/* ── Create organization dialog ─────────────────────────────── */}
-      <CreateOrganizationDialog
-        open={isCreateOrgOpen}
-        onOpenChange={setIsCreateOrgOpen}
-        user={user}
-        onOrganizationCreated={onOrganizationCreated}
-        onNavigate={(href) => { router.push(href); }}
-      />
-
-      {/* ── Create workspace dialog ────────────────────────────────── */}
-      <CreateWorkspaceDialogRail
-        open={isCreateWorkspaceOpen}
-        onOpenChange={setIsCreateWorkspaceOpen}
-        activeAccount={activeAccount}
-        isOrganizationAccount={isOrganizationAccount}
-        onNavigate={(href) => { router.push(href); }}
-      />
-    </TooltipProvider>
+    <WorkspaceCreateWorkspaceDialogRail
+      open={open}
+      onOpenChange={onOpenChange}
+      accountId={activeAccount?.id ?? null}
+      accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+      onNavigate={onNavigate}
+    />
   );
 }
 ````
 
-## File: app/(shell)/_components/workspace-sidebar-section.tsx
+## File: app/(shell)/_components/use-recent-workspaces.ts
 ````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-import Link from "next/link";
-
-import {
-  getWorkspaceTabStatus,
-  getWorkspaceTabPrefId,
-  getWorkspaceTabsByGroup,
-  getWorkspaceTabLabel,
-  isWorkspaceTabValue,
-  type WorkspaceTabGroup,
-  type WorkspaceTabValue,
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
 } from "@/modules/workspace/api";
-
-import type { SidebarLocaleBundle } from "./use-sidebar-locale";
-import type { NavPreferences } from "./customize-navigation-dialog";
-import { sidebarItemClass } from "./sidebar-nav-data";
-
-// ── Tab link item shape ────────────────────────────────────────────────────────
-
-interface TabLinkItem {
-  value: WorkspaceTabValue;
-  label: string;
-}
-
-// ── Workspace tab item constants ──────────────────────────────────────────────
-
-function createWorkspaceLinkItems(group: WorkspaceTabGroup): TabLinkItem[] {
-  return getWorkspaceTabsByGroup(group).map((value) => ({
-    value,
-    label: getWorkspaceTabLabel(value),
-  }));
-}
-
-const WORKSPACE_PRIMARY_LINK_ITEMS = createWorkspaceLinkItems("primary");
-const WORKSPACE_SPACE_ITEMS = createWorkspaceLinkItems("spaces");
-const WORKSPACE_DATABASE_ITEMS = createWorkspaceLinkItems("databases");
-const WORKSPACE_LIBRARY_LINK_ITEMS = createWorkspaceLinkItems("library");
-const WORKSPACE_MODULE_LINK_ITEMS = createWorkspaceLinkItems("modules");
-
-// ── URL helper ────────────────────────────────────────────────────────────────
-
-function buildWorkspaceTabHref(workspaceId: string, tab: WorkspaceTabValue): string {
-  return `/workspace/${workspaceId}?tab=${encodeURIComponent(tab)}`;
-}
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-}
-
-// ── Helpers (workspace-scoped, no side effects) ───────────────────────────────
-
-function tTab(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: SidebarLocaleBundle | null,
-): string {
-  return localeBundle?.workspace?.tabLabels?.[tab] ?? fallback;
-}
-
-function tTabWithDevStatus(
-  tab: WorkspaceTabValue,
-  fallback: string,
-  localeBundle: SidebarLocaleBundle | null,
-): string {
-  const label = tTab(tab, fallback, localeBundle);
-  const status = getWorkspaceTabStatus(tab);
-  return `${status} ${label}`;
-}
-
-function getPrefId(tabValue: string): string {
-  return getWorkspaceTabPrefId(tabValue as WorkspaceTabValue) ?? tabValue;
-}
-
-function isItemEnabled(prefId: string, navPrefs: NavPreferences): boolean {
-  return navPrefs.pinnedWorkspace.includes(prefId);
-}
-
-function getItemOrder(prefId: string, navPrefs: NavPreferences): number {
-  const index = navPrefs.workspaceOrder.indexOf(prefId);
-  return index === -1 ? 999 : index;
-}
-
-function sortByPreferenceOrder<T extends { value: string }>(
-  items: readonly T[],
-  navPrefs: NavPreferences,
-): T[] {
-  return [...items].sort(
-    (left, right) =>
-      getItemOrder(getPrefId(left.value), navPrefs) -
-      getItemOrder(getPrefId(right.value), navPrefs),
-  );
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSidebarSection({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-}: WorkspaceSidebarSectionProps) {
-  const searchParams = useSearchParams();
-  const rawTab = searchParams.get("tab") ?? "Overview";
-  const activeWorkspaceTab: WorkspaceTabValue = isWorkspaceTabValue(rawTab) ? rawTab : "Overview";
-
-  // Collect all visible item groups in order, separated by dividers
-  const groups: Array<{ key: string; items: readonly TabLinkItem[] }> = [
-    { key: "primary", items: WORKSPACE_PRIMARY_LINK_ITEMS },
-    { key: "modules", items: WORKSPACE_MODULE_LINK_ITEMS },
-    { key: "spaces", items: WORKSPACE_SPACE_ITEMS },
-    { key: "databases", items: WORKSPACE_DATABASE_ITEMS },
-    { key: "library", items: WORKSPACE_LIBRARY_LINK_ITEMS },
-  ];
-
-  const visibleGroups = groups
-    .map((g) => ({
-      key: g.key,
-      visible: sortByPreferenceOrder(g.items, navPrefs).filter((item) =>
-        isItemEnabled(getPrefId(item.value), navPrefs),
-      ),
-    }))
-    .filter((g) => g.visible.length > 0);
-
-  return (
-    <nav className="space-y-0.5" aria-label="Workspace navigation">
-      {visibleGroups.map((group, groupIndex) => (
-        <div key={group.key}>
-          {groupIndex > 0 && (
-            <div className="my-1.5 border-t border-border/40" />
-          )}
-          <div className="space-y-0.5">
-            {group.visible.map((item) => {
-              const isActive = activeWorkspaceTab === item.value;
-              return (
-                <Link
-                  key={item.value}
-                  href={buildWorkspaceTabHref(workspacePathId, item.value)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={sidebarItemClass(isActive)}
-                >
-                  {tTabWithDevStatus(item.value, item.label, localeBundle)}
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </nav>
-  );
-}
 ````
 
 ## File: app/(shell)/ai-chat/page.tsx
@@ -72734,6 +73856,37 @@ export default function DevToolsPage() {
         </section>
       )}
     </div>
+  );
+}
+````
+
+## File: app/(shell)/workspace/[workspaceId]/page.tsx
+````typescript
+"use client";
+
+import { useParams, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+
+export default function WorkspaceDetailPage() {
+  const params = useParams<{ workspaceId: string }>();
+  const searchParams = useSearchParams();
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
+  const initialTab = searchParams.get("tab") ?? undefined;
+  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
+  const {
+    state: { activeAccount, accountsHydrated },
+  } = useApp();
+
+  return (
+    <WorkspaceDetailRouteScreen
+      workspaceId={workspaceId}
+      accountId={activeAccount?.id}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
+    />
   );
 }
 ````
@@ -74071,1045 +75224,6 @@ export function FileProcessingResultRow({
 }
 ````
 
-## File: modules/workspace-flow/interfaces/components/AssignTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-
-import { wfAssignTask } from "../_actions/workspace-flow.actions";
-
-export interface AssignTaskDialogProps {
-  open: boolean;
-  taskId: string;
-  onClose: () => void;
-  onDone: () => void;
-}
-
-export function AssignTaskDialog({ open, taskId, onClose, onDone }: AssignTaskDialogProps) {
-  const [assigneeId, setAssigneeId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setAssigneeId("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const a = assigneeId.trim();
-    if (!a) { setError("請輸入指派人 ID。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfAssignTask(taskId, a);
-      if (!result.success) { setError(result.error.message ?? "指派失敗"); return; }
-      onDone();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "指派失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle>指派任務</DialogTitle>
-          <DialogDescription>填入負責人 ID，任務將進入進行中。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="assignee-id">指派人 ID *</Label>
-            <Input
-              id="assignee-id"
-              placeholder="用戶 ID"
-              value={assigneeId}
-              onChange={(e) => setAssigneeId(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "指派中…" : "指派"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/CreateTaskDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import { wfCreateTask } from "../_actions/workspace-flow.actions";
-
-export interface CreateTaskDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onCreated: () => void;
-  workspaceId: string;
-}
-
-export function CreateTaskDialog({ open, onClose, onCreated, workspaceId }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
-  const [dueDateISO, setDueDateISO] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setAssigneeId("");
-    setDueDateISO("");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入任務標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfCreateTask({
-        workspaceId,
-        title: t,
-        description: description.trim() || undefined,
-        assigneeId: assigneeId.trim() || undefined,
-        dueDateISO: dueDateISO || undefined,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>建立任務</DialogTitle>
-          <DialogDescription>新增一個工作任務到此工作區。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="task-title">標題 *</Label>
-            <Input
-              id="task-title"
-              placeholder="任務名稱"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="task-description">描述（選填）</Label>
-            <Textarea
-              id="task-description"
-              placeholder="任務詳情或驗收條件…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">指派人 ID（選填）</Label>
-              <Input
-                id="task-assignee"
-                placeholder="用戶 ID"
-                value={assigneeId}
-                onChange={(e) => setAssigneeId(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="task-due">截止日期（選填）</Label>
-              <Input
-                id="task-due"
-                type="date"
-                value={dueDateISO}
-                onChange={(e) => setDueDateISO(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "建立任務"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/InvoiceRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { InvoiceStatus } from "../../domain/value-objects/InvoiceStatus";
-import {
-  wfApproveInvoice,
-  wfCloseInvoice,
-  wfPayInvoice,
-  wfRejectInvoice,
-  wfReviewInvoice,
-  wfSubmitInvoice,
-} from "../_actions/workspace-flow.actions";
-
-const INVOICE_STATUS_VARIANT: Record<
-  InvoiceStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  submitted: "secondary",
-  finance_review: "secondary",
-  approved: "default",
-  paid: "default",
-  closed: "outline",
-};
-
-const INVOICE_STATUS_LABEL: Record<InvoiceStatus, string> = {
-  draft: "草稿",
-  submitted: "已提交",
-  finance_review: "財務審核",
-  approved: "已核准",
-  paid: "已付款",
-  closed: "已結清",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-function formatCurrency(amount: number): string {
-  try {
-    return new Intl.NumberFormat("zh-TW", {
-      style: "currency",
-      currency: "TWD",
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    return `TWD ${amount}`;
-  }
-}
-
-export interface InvoiceRowProps {
-  invoice: Invoice;
-  onTransitioned: () => void;
-}
-
-export function InvoiceRow({ invoice, onTransitioned }: InvoiceRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (invoice.status) {
-      case "draft":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitInvoice(invoice.id))}>提交</Button>;
-      case "submitted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfReviewInvoice(invoice.id))}>送審</Button>;
-      case "finance_review":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveInvoice(invoice.id))}>核准</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfRejectInvoice(invoice.id))}>退回</Button>
-          </div>
-        );
-      case "approved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPayInvoice(invoice.id))}>付款</Button>;
-      case "paid":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseInvoice(invoice.id))}>結清</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">
-            #{invoice.id.slice(-8).toUpperCase()}
-          </p>
-          <p className="text-xs text-muted-foreground">建立：{formatShortDate(invoice.createdAtISO)}</p>
-          {invoice.paidAtISO && (
-            <p className="text-xs text-muted-foreground">付款：{formatShortDate(invoice.paidAtISO)}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={INVOICE_STATUS_VARIANT[invoice.status]}>
-            {INVOICE_STATUS_LABEL[invoice.status]}
-          </Badge>
-          <p className="text-sm font-semibold text-foreground">{formatCurrency(invoice.totalAmount)}</p>
-          {renderActions()}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/IssueRow.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import {
-  wfCloseIssue,
-  wfFailIssueRetest,
-  wfFixIssue,
-  wfPassIssueRetest,
-  wfStartIssue,
-  wfSubmitIssueRetest,
-} from "../_actions/workspace-flow.actions";
-
-export const ISSUE_STAGE_LABEL: Record<IssueStage, string> = {
-  task: "任務",
-  qa: "QA",
-  acceptance: "驗收",
-};
-
-const ISSUE_STATUS_VARIANT: Record<
-  Issue["status"],
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  open: "destructive",
-  investigating: "destructive",
-  fixing: "secondary",
-  retest: "secondary",
-  resolved: "default",
-  closed: "outline",
-};
-
-const ISSUE_STATUS_LABEL: Record<Issue["status"], string> = {
-  open: "開啟",
-  investigating: "調查中",
-  fixing: "修復中",
-  retest: "重測中",
-  resolved: "已解決",
-  closed: "已關閉",
-};
-
-export interface IssueRowProps {
-  issue: Issue;
-  onTransitioned: () => void;
-}
-
-export function IssueRow({ issue, onTransitioned }: IssueRowProps) {
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderActions() {
-    switch (issue.status) {
-      case "open":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfStartIssue(issue.id))}>開始調查</Button>;
-      case "investigating":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFixIssue(issue.id))}>開始修復</Button>;
-      case "fixing":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitIssueRetest(issue.id))}>送重測</Button>;
-      case "retest":
-        return (
-          <div className="flex gap-1.5">
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassIssueRetest(issue.id))}>通過</Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfFailIssueRetest(issue.id))}>失敗</Button>
-          </div>
-        );
-      case "resolved":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfCloseIssue(issue.id))}>關閉</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-lg border border-border/30 px-3 py-2.5 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="space-y-0.5 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge variant={ISSUE_STATUS_VARIANT[issue.status]} className="text-xs">
-              {ISSUE_STATUS_LABEL[issue.status]}
-            </Badge>
-            <Badge variant="outline" className="text-xs">{ISSUE_STAGE_LABEL[issue.stage]}</Badge>
-            <span className="font-medium text-foreground truncate">{issue.title}</span>
-          </div>
-          {issue.description && (
-            <p className="text-xs text-muted-foreground line-clamp-1">{issue.description}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="shrink-0">{renderActions()}</div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/OpenIssueDialog.tsx
-````typescript
-"use client";
-
-import { useState } from "react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Textarea } from "@ui-shadcn/ui/textarea";
-
-import type { IssueStage } from "../../domain/value-objects/IssueStage";
-import { wfOpenIssue } from "../_actions/workspace-flow.actions";
-import { ISSUE_STAGE_LABEL } from "./IssueRow";
-
-export interface OpenIssueDialogProps {
-  open: boolean;
-  taskId: string;
-  currentUserId: string;
-  onClose: () => void;
-  onCreated: () => void;
-}
-
-export function OpenIssueDialog({ open, taskId, currentUserId, onClose, onCreated }: OpenIssueDialogProps) {
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [stage, setStage] = useState<IssueStage>("task");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClose() {
-    setTitle("");
-    setDescription("");
-    setStage("task");
-    setError(null);
-    onClose();
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) { setError("請輸入議題標題。"); return; }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const result = await wfOpenIssue({
-        taskId,
-        stage,
-        title: t,
-        description: description.trim() || undefined,
-        createdBy: currentUserId,
-      });
-      if (!result.success) { setError(result.error.message ?? "建立失敗"); return; }
-      onCreated();
-      handleClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "建立失敗，請再試一次。");
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose(); }}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>開啟議題</DialogTitle>
-          <DialogDescription>記錄此任務發現的問題或異常。</DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-title">標題 *</Label>
-            <Input
-              id="issue-title"
-              placeholder="問題簡述"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={submitting}
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="issue-description">描述（選填）</Label>
-            <Textarea
-              id="issue-description"
-              placeholder="問題詳情、重現步驟…"
-              rows={3}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>發生階段</Label>
-            <div className="flex gap-2">
-              {(["task", "qa", "acceptance"] as const).map((s) => (
-                <Button
-                  key={s}
-                  type="button"
-                  size="sm"
-                  variant={stage === s ? "default" : "outline"}
-                  onClick={() => setStage(s)}
-                  disabled={submitting}
-                >
-                  {ISSUE_STAGE_LABEL[s]}
-                </Button>
-              ))}
-            </div>
-          </div>
-          {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={submitting}>取消</Button>
-            <Button type="submit" disabled={submitting}>{submitting ? "建立中…" : "開啟議題"}</Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/TaskRow.tsx
-````typescript
-"use client";
-
-import { useCallback, useState } from "react";
-
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
-
-import type { CommandResult } from "@shared-types";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-
-import type { Issue } from "../../domain/entities/Issue";
-import type { Task } from "../../domain/entities/Task";
-import type { TaskStatus } from "../../domain/value-objects/TaskStatus";
-import {
-  wfApproveTaskAcceptance,
-  wfArchiveTask,
-  wfPassTaskQa,
-  wfSubmitTaskToQa,
-} from "../_actions/workspace-flow.actions";
-import { getWorkspaceFlowIssues } from "../queries/workspace-flow.queries";
-import { AssignTaskDialog } from "./AssignTaskDialog";
-import { IssueRow } from "./IssueRow";
-import { OpenIssueDialog } from "./OpenIssueDialog";
-
-const TASK_STATUS_VARIANT: Record<
-  TaskStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
-  draft: "outline",
-  in_progress: "secondary",
-  qa: "secondary",
-  acceptance: "default",
-  accepted: "default",
-  archived: "outline",
-};
-
-const TASK_STATUS_LABEL: Record<TaskStatus, string> = {
-  draft: "草稿",
-  in_progress: "進行中",
-  qa: "QA 審查",
-  acceptance: "驗收中",
-  accepted: "已驗收",
-  archived: "已歸檔",
-};
-
-function formatShortDate(iso: string | undefined): string {
-  if (!iso) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date(iso));
-  } catch {
-    return iso;
-  }
-}
-
-export interface TaskRowProps {
-  task: Task;
-  currentUserId: string;
-  onTransitioned: () => void;
-}
-
-export function TaskRow({ task, currentUserId, onTransitioned }: TaskRowProps) {
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
-  const [issuesExpanded, setIssuesExpanded] = useState(false);
-  const [issues, setIssues] = useState<Issue[]>([]);
-  const [issuesLoaded, setIssuesLoaded] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadIssues = useCallback(async () => {
-    try {
-      const data = await getWorkspaceFlowIssues(task.id);
-      setIssues(data);
-      setIssuesLoaded(true);
-    } catch {
-      // non-fatal
-    }
-  }, [task.id]);
-
-  async function toggleIssues() {
-    if (!issuesExpanded && !issuesLoaded) {
-      await loadIssues();
-    }
-    setIssuesExpanded((v) => !v);
-  }
-
-  async function runAction(action: () => Promise<CommandResult>) {
-    setBusy(true);
-    setError(null);
-    try {
-      const result = await action();
-      if (!result.success) { setError(result.error.message ?? "操作失敗"); }
-      else { onTransitioned(); }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "操作失敗");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  function renderTaskAction() {
-    switch (task.status) {
-      case "draft":
-        return (
-          <Button size="sm" variant="outline" disabled={busy} onClick={() => setAssignDialogOpen(true)}>
-            指派任務
-          </Button>
-        );
-      case "in_progress":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfSubmitTaskToQa(task.id))}>送 QA</Button>;
-      case "qa":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfPassTaskQa(task.id))}>QA 通過</Button>;
-      case "acceptance":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfApproveTaskAcceptance(task.id))}>驗收通過</Button>;
-      case "accepted":
-        return <Button size="sm" variant="outline" disabled={busy} onClick={() => runAction(() => wfArchiveTask(task.id))}>歸檔</Button>;
-      default:
-        return null;
-    }
-  }
-
-  return (
-    <div className="rounded-xl border border-border/40 px-4 py-4 space-y-3">
-      {/* ── Task header ─────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground">{task.title}</p>
-          {task.description && (
-            <p className="text-xs text-muted-foreground line-clamp-2">{task.description}</p>
-          )}
-          {task.assigneeId && (
-            <p className="text-xs text-muted-foreground">指派：{task.assigneeId}</p>
-          )}
-          {error && <p className="text-xs text-destructive">{error}</p>}
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <Badge variant={TASK_STATUS_VARIANT[task.status]}>{TASK_STATUS_LABEL[task.status]}</Badge>
-          {task.dueDateISO && (
-            <p className="text-xs text-muted-foreground">截止：{formatShortDate(task.dueDateISO)}</p>
-          )}
-        </div>
-      </div>
-
-      {/* ── Action row ──────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        {renderTaskAction()}
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground"
-          onClick={() => setIssueDialogOpen(true)}
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          開議題
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          className="text-muted-foreground ml-auto"
-          onClick={toggleIssues}
-        >
-          {issuesExpanded ? (
-            <ChevronDown className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <ChevronRight className="mr-1 h-3.5 w-3.5" />
-          )}
-          議題{issuesLoaded ? ` (${issues.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Issues sub-list ─────────────────── */}
-      {issuesExpanded && (
-        <div className="space-y-2 pl-1">
-          {issues.length === 0 ? (
-            <p className="text-xs text-muted-foreground">此任務目前無議題。</p>
-          ) : (
-            issues.map((issue) => (
-              <IssueRow
-                key={issue.id}
-                issue={issue}
-                onTransitioned={loadIssues}
-              />
-            ))
-          )}
-        </div>
-      )}
-
-      {/* ── Dialogs ─────────────────────────── */}
-      <AssignTaskDialog
-        open={assignDialogOpen}
-        taskId={task.id}
-        onClose={() => setAssignDialogOpen(false)}
-        onDone={onTransitioned}
-      />
-      <OpenIssueDialog
-        open={issueDialogOpen}
-        taskId={task.id}
-        currentUserId={currentUserId}
-        onClose={() => setIssueDialogOpen(false)}
-        onCreated={async () => {
-          await loadIssues();
-          if (!issuesExpanded) setIssuesExpanded(true);
-        }}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace-flow/interfaces/components/WorkspaceFlowTab.tsx
-````typescript
-"use client";
-
-/**
- * @module workspace-flow/interfaces/components
- * @file WorkspaceFlowTab.tsx
- * @description Workspace-level tab displaying Tasks, Issues, and Invoices managed by workspace-flow.
- *
- * MVP interactive surface:
- * - Create Task dialog
- * - Task lifecycle transition buttons (assign → QA → acceptance → archive)
- * - Per-task expandable Issue sub-list with transition buttons
- * - Open Issue dialog
- * - Create Invoice button + Invoice lifecycle transitions
- *
- * @author workspace-flow
- * @since 2026-03-27
- */
-
-import { useCallback, useEffect, useState } from "react";
-
-import { Plus } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-
-import type { Invoice } from "../../domain/entities/Invoice";
-import type { Task } from "../../domain/entities/Task";
-import { wfCreateInvoice } from "../_actions/workspace-flow.actions";
-import {
-  getWorkspaceFlowInvoices,
-  getWorkspaceFlowTasks,
-} from "../queries/workspace-flow.queries";
-import { CreateTaskDialog } from "./CreateTaskDialog";
-import { InvoiceRow } from "./InvoiceRow";
-import { TaskRow } from "./TaskRow";
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
-type FlowSection = "tasks" | "invoices";
-
-interface WorkspaceFlowTabProps {
-  readonly workspaceId: string;
-  readonly currentUserId?: string;
-}
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
-export function WorkspaceFlowTab({ workspaceId, currentUserId = "anonymous" }: WorkspaceFlowTabProps) {
-  const [section, setSection] = useState<FlowSection>("tasks");
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  const [creatingInvoice, setCreatingInvoice] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
-
-  const loadData = useCallback(async () => {
-    setLoadState("loading");
-    try {
-      const [nextTasks, nextInvoices] = await Promise.all([
-        getWorkspaceFlowTasks(workspaceId),
-        getWorkspaceFlowInvoices(workspaceId),
-      ]);
-      setTasks(nextTasks);
-      setInvoices(nextInvoices);
-      setLoadState("loaded");
-    } catch (err) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFlowTab] Failed to load flow data:", err);
-      }
-      setLoadState("error");
-    }
-  }, [workspaceId]);
-
-  useEffect(() => {
-    void loadData();
-  }, [loadData]);
-
-  async function handleCreateInvoice() {
-    setCreatingInvoice(true);
-    setActionError(null);
-    try {
-      const result = await wfCreateInvoice(workspaceId);
-      if (!result.success) { setActionError(result.error.message ?? "建立發票失敗"); }
-      else { await loadData(); }
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : "建立發票失敗");
-    } finally {
-      setCreatingInvoice(false);
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      {/* ── Section switcher ─────────────────────────────────────────── */}
-      <div className="flex gap-2">
-        <Button
-          variant={section === "tasks" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("tasks")}
-        >
-          任務{loadState === "loaded" ? ` (${tasks.length})` : ""}
-        </Button>
-        <Button
-          variant={section === "invoices" ? "default" : "outline"}
-          size="sm"
-          onClick={() => setSection("invoices")}
-        >
-          發票{loadState === "loaded" ? ` (${invoices.length})` : ""}
-        </Button>
-      </div>
-
-      {/* ── Loading state ─────────────────────────────────────────────── */}
-      {loadState === "loading" && (
-        <Card className="border border-border/50">
-          <CardContent className="px-6 py-5 text-sm text-muted-foreground">載入中…</CardContent>
-        </Card>
-      )}
-
-      {/* ── Error state ───────────────────────────────────────────────── */}
-      {loadState === "error" && (
-        <Card className="border border-destructive/30">
-          <CardContent className="px-6 py-5 text-sm text-destructive">
-            無法載入資料，請重新整理頁面後再試。
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Tasks section ─────────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "tasks" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>任務</CardTitle>
-                <CardDescription>工作區所有任務與其進度狀態。</CardDescription>
-              </div>
-              <Button size="sm" onClick={() => setCreateTaskOpen(true)}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                建立任務
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {tasks.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無任務，點擊右上角「建立任務」開始。</p>
-            ) : (
-              tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  currentUserId={currentUserId}
-                  onTransitioned={loadData}
-                />
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Invoices section ──────────────────────────────────────────── */}
-      {loadState === "loaded" && section === "invoices" && (
-        <Card className="border border-border/50">
-          <CardHeader className="pb-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <CardTitle>發票</CardTitle>
-                <CardDescription>工作區帳務請款紀錄。</CardDescription>
-              </div>
-              <Button size="sm" disabled={creatingInvoice} onClick={handleCreateInvoice}>
-                <Plus className="mr-1.5 h-4 w-4" />
-                {creatingInvoice ? "建立中…" : "建立發票"}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {actionError && (
-              <p role="alert" className="text-sm text-destructive">{actionError}</p>
-            )}
-            {invoices.length === 0 ? (
-              <p className="text-sm text-muted-foreground">目前尚無發票紀錄，點擊右上角「建立發票」開始。</p>
-            ) : (
-              <>
-                <Separator />
-                {invoices.map((invoice) => (
-                  <InvoiceRow
-                    key={invoice.id}
-                    invoice={invoice}
-                    onTransitioned={loadData}
-                  />
-                ))}
-              </>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Create Task Dialog ─────────────────────────────────────────── */}
-      <CreateTaskDialog
-        open={createTaskOpen}
-        workspaceId={workspaceId}
-        onClose={() => setCreateTaskOpen(false)}
-        onCreated={loadData}
-      />
-    </div>
-  );
-}
-````
-
 ## File: modules/workspace/api/index.ts
 ````typescript
 /**
@@ -75585,6 +75699,28 @@ export function useWorkspaceSettingsSave({
     clearSaveError: () => setSaveError(null),
     handleSave,
   };
+}
+````
+
+## File: modules/workspace/interfaces/queries/wiki-content-tree.queries.ts
+````typescript
+import type {
+  WikiAccountContentNode,
+  WikiAccountSeed,
+} from "../../api/contracts";
+import type { WikiWorkspaceRepository } from "../../ports";
+import * as wikiContentTreeUseCase from "../../application/use-cases/wiki-content-tree.use-case";
+import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
+
+function makeWikiWorkspaceRepository(): WikiWorkspaceRepository {
+  return new FirebaseWikiWorkspaceRepository();
+}
+
+export function buildWikiContentTree(
+  seeds: WikiAccountSeed[],
+  workspaceRepository: WikiWorkspaceRepository = makeWikiWorkspaceRepository(),
+): Promise<WikiAccountContentNode[]> {
+  return wikiContentTreeUseCase.buildWikiContentTree(seeds, workspaceRepository);
 }
 ````
 
@@ -76177,238 +76313,6 @@ export function writeNavPreferences(prefs: NavPreferences): void {
 }
 ````
 
-## File: app/(shell)/_components/sidebar-nav-data.tsx
-````typescript
-import {
-  BookOpen,
-  Bot,
-  Brain,
-  Building2,
-  Database,
-  FolderOpen,
-  FileText,
-  Home,
-  UserRound,
-  Users,
-} from "lucide-react";
-import Link from "next/link";
-
-import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/account/api";
-import {
-  type WorkspaceEntity,
-} from "@/modules/workspace/api";
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-export interface DashboardSidebarProps {
-  readonly pathname: string;
-  readonly activeAccount: ActiveAccount | null;
-  readonly workspaces: WorkspaceEntity[];
-  readonly workspacesHydrated: boolean;
-  readonly activeWorkspaceId: string | null;
-  readonly collapsed: boolean;
-  readonly onToggleCollapsed: () => void;
-  readonly onSelectWorkspace: (workspaceId: string | null) => void;
-}
-
-export type NavSection =
-  | "workspace"
-  | "knowledge"
-  | "knowledge-base"
-  | "knowledge-database"
-  | "source"
-  | "notebook"
-  | "ai-chat"
-  | "account"
-  | "organization"
-  | "other";
-
-// ── Static nav constants ──────────────────────────────────────────────────────
-
-export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
-
-export const ACCOUNT_NAV_ITEMS = [
-  { id: "schedule", label: "排程", href: "/organization/schedule" },
-  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
-  { id: "daily", label: "每日", href: "/organization/daily" },
-  { id: "audit", label: "稽核", href: "/organization/audit" },
-] as const;
-
-export const ACCOUNT_SECTION_MATCHERS = [
-  "/organization/daily",
-  "/organization/schedule",
-  "/organization/audit",
-] as const;
-
-const WORKSPACE_QUICK_ACCESS_ITEMS: readonly {
-  href: string;
-  label: string;
-  icon: React.ReactNode;
-  isActive?: (pathname: string, options?: { panel: string | null; tab: string | null }) => boolean;
-}[] = [
-  {
-    href: "/workspace/{workspaceId}?tab=Overview",
-    label: "首頁",
-    icon: <Home className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") &&
-      (options?.tab == null || options.tab === "Overview") &&
-      options?.panel !== "settings",
-  },
-  {
-    href: "/knowledge/pages?workspaceId={workspaceId}",
-    label: "知識頁面",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge/pages" || pathname.startsWith("/knowledge/pages/"),
-  },
-  {
-    href: "/knowledge-base/articles?workspaceId={workspaceId}",
-    label: "文章",
-    icon: <BookOpen className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/knowledge-base/articles" || pathname.startsWith("/knowledge-base/articles/"),
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Files",
-    label: "Files",
-    icon: <FolderOpen className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Files",
-  },
-  {
-    href: "/workspace/{workspaceId}?tab=Members",
-    label: "Members",
-    icon: <Users className="size-3.5" />,
-    isActive: (pathname: string, options) =>
-      pathname.startsWith("/workspace/") && options?.tab === "Members",
-  },
-  {
-    href: "/notebook/rag-query?workspaceId={workspaceId}",
-    label: "RAG 查詢",
-    icon: <Brain className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/notebook/rag-query" || pathname.startsWith("/notebook/rag-query/"),
-  },
-  {
-    href: "/source/documents?workspaceId={workspaceId}",
-    label: "文件",
-    icon: <FileText className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/documents" || pathname.startsWith("/source/documents/"),
-  },
-  {
-    href: "/source/libraries?workspaceId={workspaceId}",
-    label: "資料庫",
-    icon: <Database className="size-3.5" />,
-    isActive: (pathname: string) =>
-      pathname === "/source/libraries" || pathname.startsWith("/source/libraries/"),
-  },
-];
-
-export function buildWorkspaceQuickAccessItems(workspaceId: string) {
-  const encodedWorkspaceId = encodeURIComponent(workspaceId);
-
-  return WORKSPACE_QUICK_ACCESS_ITEMS.map((item) => ({
-    ...item,
-    href: item.href.replaceAll("{workspaceId}", encodedWorkspaceId),
-  }));
-}
-
-export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
-  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
-  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
-  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
-  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
-  source: { label: "Source", icon: <FileText className="size-3" /> },
-  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
-  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
-  account: { label: "Account", icon: <UserRound className="size-3" /> },
-  organization: { label: "組織", icon: <Users className="size-3" /> },
-  other: { label: "導覽", icon: null },
-};
-
-// ── CSS class helpers ─────────────────────────────────────────────────────────
-
-export function sidebarItemClass(active: boolean) {
-  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
-    active
-      ? "border-primary/30 bg-primary/10 text-primary"
-      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
-  }`;
-}
-
-export const sidebarSectionTitleClass =
-  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
-
-export const sidebarGroupButtonClass =
-  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
-
-// ── Pure section helpers ──────────────────────────────────────────────────────
-
-export function resolveNavSection(pathname: string): NavSection {
-  if (pathname.startsWith("/workspace")) return "workspace";
-  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
-  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
-  if (pathname.startsWith("/knowledge")) return "knowledge";
-  if (pathname.startsWith("/source")) return "source";
-  if (pathname.startsWith("/notebook")) return "notebook";
-  if (pathname.startsWith("/ai-chat")) return "ai-chat";
-  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
-    return "account";
-  if (pathname.startsWith("/organization")) return "organization";
-  return "other";
-}
-
-export function isActiveOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-// ── Simple section nav component ──────────────────────────────────────────────
-
-export function SimpleNavLinks({
-  items,
-  title,
-  isActiveRoute,
-}: {
-  items: readonly { href: string; label: string }[];
-  title: string;
-  isActiveRoute: (href: string) => boolean;
-}) {
-  return (
-    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
-      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-        {title}
-      </p>
-      {items.map((item) => {
-        const active = isActiveRoute(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
-              active
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        );
-      })}
-    </nav>
-  );
-}
-````
-
 ## File: modules/knowledge/application/use-cases/knowledge-page.use-cases.test.ts
 ````typescript
 import { describe, expect, it, vi } from "vitest";
@@ -76509,6 +76413,237 @@ describe("knowledge-page.use-cases", () => {
     expect(result[1]?.children.map((node) => node.id)).toEqual(["child"]);
   });
 });
+````
+
+## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
+````typescript
+"use client";
+
+/**
+ * Module: knowledge
+ * Layer: interfaces/components
+ * Purpose: RichTextEditor — Tiptap-powered full-page rich text editor with
+ *          Firebase persistence via PageEditorView's existing server actions.
+ */
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import { StarterKit } from "@tiptap/starter-kit";
+import { Placeholder } from "@tiptap/extension-placeholder";
+import { Underline } from "@tiptap/extension-underline";
+import { Link } from "@tiptap/extension-link";
+import { Typography } from "@tiptap/extension-typography";
+import { Color } from "@tiptap/extension-color";
+import { Loader2 } from "lucide-react";
+
+import { getKnowledgeBlocks } from "../queries/knowledge.queries";
+import { addKnowledgeBlock, updateKnowledgeBlock } from "../_actions/knowledge.actions";
+import type { BlockContent } from "../../domain/value-objects/block-content";
+import { richTextToPlainText } from "../../domain/value-objects/block-content";
+import { CalloutBlock } from "./extensions/callout-block.extension";
+import { ToggleBlock } from "./extensions/toggle-block.extension";
+import { TableOfContentsNode } from "./extensions/table-of-contents-node.extension";
+import { SyncedBlock } from "./extensions/synced-block.extension";
+import { EditorToolbar } from "./editor-toolbar";
+
+const DEBOUNCE_MS = 800;
+const TIPTAP_PROPERTY_KEY = "tiptapJson";
+
+interface TiptapJsonNode {
+  readonly type?: string;
+  readonly text?: string;
+  readonly attrs?: { readonly level?: number };
+  readonly content?: ReadonlyArray<TiptapJsonNode>;
+}
+
+interface RichTextEditorProps {
+  accountId: string;
+  pageId: string;
+  onDocumentChange?: (json: object) => void;
+}
+
+export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichTextEditorProps) {
+  const [loading, setLoading] = useState(true);
+  const blockIdRef = useRef<string | null | undefined>(undefined);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestJsonRef = useRef<object | null>(null);
+  const isSavingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false }),
+      Placeholder.configure({ placeholder: "開始輸入，或按 / 選擇區塊類型…", emptyEditorClass: "is-editor-empty" }),
+      Underline,
+      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { class: "text-primary underline" } }),
+      Typography,
+      Color,
+      CalloutBlock,
+      ToggleBlock,
+      TableOfContentsNode,
+      SyncedBlock,
+    ],
+    editable: true,
+    immediatelyRender: false,
+    onUpdate({ editor }) {
+      const json = editor.getJSON();
+      latestJsonRef.current = json;
+      onDocumentChange?.(json);
+      scheduleSave();
+    },
+  });
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!accountId || !pageId || !editor) { setLoading(false); return; }
+    setLoading(true);
+
+    void (async () => {
+      try {
+        const blocks = await getKnowledgeBlocks(accountId, pageId);
+        const tiptapBlock = blocks.find((b) => b.content.properties?.[TIPTAP_PROPERTY_KEY] != null);
+
+        if (tiptapBlock) {
+          blockIdRef.current = tiptapBlock.id;
+          const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
+          const fallbackHtml = buildHtmlFromTiptapJson(json as TiptapJsonNode);
+          if (mountedRef.current) {
+            editor.commands.setContent(json, { emitUpdate: false });
+            if (!editor.getText().trim() && fallbackHtml) {
+              editor.commands.setContent(fallbackHtml, { emitUpdate: false });
+            }
+          }
+        } else if (blocks.length > 0) {
+          const legacyHtml = blocks.map((b) => {
+            switch (b.content.type) {
+              case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
+              case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
+              case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
+              case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
+              case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
+              case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
+              case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
+              case "divider": return "<hr />";
+              default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
+            }
+          }).join("");
+          if (mountedRef.current) editor.commands.setContent(legacyHtml, { emitUpdate: false });
+        } else {
+          const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(editor.getJSON()), index: 0 });
+          if (result.success) blockIdRef.current = result.aggregateId;
+        }
+      } catch {
+        // Silently ignore; editor is still usable, just unsaved.
+      } finally {
+        if (mountedRef.current) setLoading(false);
+      }
+    })();
+
+    return () => { mountedRef.current = false; };
+  }, [accountId, editor, pageId]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      editor?.destroy();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const scheduleSave = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => { void persistNow(); }, DEBOUNCE_MS);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const persistNow = useCallback(async () => {
+    const json = latestJsonRef.current;
+    if (!json || isSavingRef.current) return;
+    isSavingRef.current = true;
+    try {
+      if (blockIdRef.current == null) {
+        const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(json), index: 0 });
+        if (result.success) blockIdRef.current = result.aggregateId;
+      } else {
+        await updateKnowledgeBlock({ accountId, blockId: blockIdRef.current, content: buildBlockContent(json) });
+      }
+    } finally {
+      isSavingRef.current = false;
+    }
+  }, [accountId, pageId]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">載入內容中…</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-[400px] flex-col rounded-xl border border-border/60 bg-card">
+      {editor && <EditorToolbar editor={editor} />}
+      <EditorContent
+        editor={editor}
+        className="tiptap-editor flex-1 cursor-text px-6 py-4 text-sm text-foreground"
+      />
+    </div>
+  );
+}
+
+function buildBlockContent(tiptapJson: object): BlockContent {
+  return { type: "text", richText: [], properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson } };
+}
+
+function extractTextFromTiptapNode(node: TiptapJsonNode | undefined): string {
+  if (!node) return "";
+  if (node.type === "text") {
+    return node.text ?? "";
+  }
+
+  return (node.content ?? []).map((child) => extractTextFromTiptapNode(child)).join("");
+}
+
+function buildHtmlFromTiptapJson(node: TiptapJsonNode | undefined): string {
+  if (!node) return "";
+
+  if (node.type === "doc") {
+    return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
+  }
+
+  if (node.type === "heading") {
+    const level = node.attrs?.level;
+    const normalizedLevel = level && level >= 1 && level <= 3 ? level : 2;
+    return `<h${normalizedLevel}>${escapeHtml(extractTextFromTiptapNode(node))}</h${normalizedLevel}>`;
+  }
+
+  if (node.type === "paragraph") {
+    const text = extractTextFromTiptapNode(node);
+    return text ? `<p>${escapeHtml(text)}</p>` : "<p></p>";
+  }
+
+  if (node.type === "bulletList") {
+    return `<ul>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ul>`;
+  }
+
+  if (node.type === "orderedList") {
+    return `<ol>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ol>`;
+  }
+
+  if (node.type === "listItem") {
+    return `<li>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</li>`;
+  }
+
+  if (node.type === "text") {
+    return escapeHtml(node.text ?? "");
+  }
+
+  return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
+}
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
 ````
 
 ## File: modules/organization/interfaces/_actions/organization.actions.ts
@@ -78014,234 +78149,196 @@ export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCa
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
 ````
 
-## File: modules/knowledge/interfaces/components/RichTextEditor.tsx
+## File: app/(shell)/_components/sidebar-nav-data.tsx
 ````typescript
-"use client";
+import {
+  BookOpen,
+  Bot,
+  Brain,
+  Building2,
+  Database,
+  FileText,
+  UserRound,
+  Users,
+} from "lucide-react";
+import Link from "next/link";
 
-/**
- * Module: knowledge
- * Layer: interfaces/components
- * Purpose: RichTextEditor — Tiptap-powered full-page rich text editor with
- *          Firebase persistence via PageEditorView's existing server actions.
- */
+import type { ActiveAccount } from "@/app/providers/app-context";
+import type { AccountEntity } from "@/modules/account/api";
+import {
+  type WorkspaceEntity,
+} from "@/modules/workspace/api";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
-import { StarterKit } from "@tiptap/starter-kit";
-import { Placeholder } from "@tiptap/extension-placeholder";
-import { Underline } from "@tiptap/extension-underline";
-import { Link } from "@tiptap/extension-link";
-import { Typography } from "@tiptap/extension-typography";
-import { Color } from "@tiptap/extension-color";
-import { Loader2 } from "lucide-react";
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-import { getKnowledgeBlocks } from "../queries/knowledge.queries";
-import { addKnowledgeBlock, updateKnowledgeBlock } from "../_actions/knowledge.actions";
-import type { BlockContent } from "../../domain/value-objects/block-content";
-import { richTextToPlainText } from "../../domain/value-objects/block-content";
-import { CalloutBlock } from "./extensions/callout-block.extension";
-import { ToggleBlock } from "./extensions/toggle-block.extension";
-import { TableOfContentsNode } from "./extensions/table-of-contents-node.extension";
-import { SyncedBlock } from "./extensions/synced-block.extension";
-import { EditorToolbar } from "./editor-toolbar";
-
-const DEBOUNCE_MS = 800;
-const TIPTAP_PROPERTY_KEY = "tiptapJson";
-
-interface TiptapJsonNode {
-  readonly type?: string;
-  readonly text?: string;
-  readonly attrs?: { readonly level?: number };
-  readonly content?: ReadonlyArray<TiptapJsonNode>;
+export interface DashboardSidebarProps {
+  readonly pathname: string;
+  readonly activeAccount: ActiveAccount | null;
+  readonly workspaces: WorkspaceEntity[];
+  readonly workspacesHydrated: boolean;
+  readonly activeWorkspaceId: string | null;
+  readonly collapsed: boolean;
+  readonly onToggleCollapsed: () => void;
+  readonly onSelectWorkspace: (workspaceId: string | null) => void;
 }
 
-interface RichTextEditorProps {
-  accountId: string;
-  pageId: string;
-  onDocumentChange?: (json: object) => void;
+export type NavSection =
+  | "workspace"
+  | "knowledge"
+  | "knowledge-base"
+  | "knowledge-database"
+  | "source"
+  | "notebook"
+  | "ai-chat"
+  | "account"
+  | "organization"
+  | "other";
+
+// ── Static nav constants ──────────────────────────────────────────────────────
+
+export const ORGANIZATION_MANAGEMENT_ITEMS: readonly { id: string; label: string; href: string }[] = [];
+
+export const ACCOUNT_NAV_ITEMS = [
+  { id: "schedule", label: "排程", href: "/organization/schedule" },
+  { id: "dispatcher", label: "調度台", href: "/organization/schedule/dispatcher" },
+  { id: "daily", label: "每日", href: "/organization/daily" },
+  { id: "audit", label: "稽核", href: "/organization/audit" },
+] as const;
+
+export const ACCOUNT_SECTION_MATCHERS = [
+  "/organization/daily",
+  "/organization/schedule",
+  "/organization/audit",
+] as const;
+
+export const SECTION_TITLES: Record<NavSection, { label: string; icon: React.ReactNode }> = {
+  workspace: { label: "工作區", icon: <Building2 className="size-3" /> },
+  knowledge: { label: "Knowledge", icon: <BookOpen className="size-3" /> },
+  "knowledge-base": { label: "Knowledge Base", icon: <BookOpen className="size-3" /> },
+  "knowledge-database": { label: "Knowledge Database", icon: <Database className="size-3" /> },
+  source: { label: "Source", icon: <FileText className="size-3" /> },
+  notebook: { label: "Notebook", icon: <Brain className="size-3" /> },
+  "ai-chat": { label: "AI Chat", icon: <Bot className="size-3" /> },
+  account: { label: "Account", icon: <UserRound className="size-3" /> },
+  organization: { label: "組織", icon: <Users className="size-3" /> },
+  other: { label: "導覽", icon: null },
+};
+
+// ── CSS class helpers ─────────────────────────────────────────────────────────
+
+export function sidebarItemClass(active: boolean) {
+  return `group flex items-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium transition ${
+    active
+      ? "border-primary/30 bg-primary/10 text-primary"
+      : "border-transparent text-muted-foreground hover:border-border/60 hover:bg-muted/70 hover:text-foreground"
+  }`;
 }
 
-export function RichTextEditor({ accountId, pageId, onDocumentChange }: RichTextEditorProps) {
-  const [loading, setLoading] = useState(true);
-  const blockIdRef = useRef<string | null | undefined>(undefined);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const latestJsonRef = useRef<object | null>(null);
-  const isSavingRef = useRef(false);
-  const mountedRef = useRef(true);
+export const sidebarSectionTitleClass =
+  "mb-1.5 px-2 text-[11px] font-semibold tracking-tight text-muted-foreground/85";
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: { levels: [1, 2, 3] }, codeBlock: false }),
-      Placeholder.configure({ placeholder: "開始輸入，或按 / 選擇區塊類型…", emptyEditorClass: "is-editor-empty" }),
-      Underline,
-      Link.configure({ openOnClick: false, autolink: true, HTMLAttributes: { class: "text-primary underline" } }),
-      Typography,
-      Color,
-      CalloutBlock,
-      ToggleBlock,
-      TableOfContentsNode,
-      SyncedBlock,
-    ],
-    editable: true,
-    immediatelyRender: false,
-    onUpdate({ editor }) {
-      const json = editor.getJSON();
-      latestJsonRef.current = json;
-      onDocumentChange?.(json);
-      scheduleSave();
-    },
-  });
+export const sidebarGroupButtonClass =
+  "flex w-full items-center justify-between rounded-md border border-transparent px-2 py-1.5 text-xs font-medium text-muted-foreground transition hover:border-border/60 hover:bg-muted/70 hover:text-foreground";
 
-  useEffect(() => {
-    mountedRef.current = true;
-    if (!accountId || !pageId || !editor) { setLoading(false); return; }
-    setLoading(true);
+// ── Pure section helpers ──────────────────────────────────────────────────────
 
-    void (async () => {
-      try {
-        const blocks = await getKnowledgeBlocks(accountId, pageId);
-        const tiptapBlock = blocks.find((b) => b.content.properties?.[TIPTAP_PROPERTY_KEY] != null);
+export function resolveNavSection(pathname: string): NavSection {
+  if (pathname.startsWith("/workspace")) return "workspace";
+  if (pathname.startsWith("/knowledge-base")) return "knowledge-base";
+  if (pathname.startsWith("/knowledge-database")) return "knowledge-database";
+  if (pathname.startsWith("/knowledge")) return "knowledge";
+  if (pathname.startsWith("/source")) return "source";
+  if (pathname.startsWith("/notebook")) return "notebook";
+  if (pathname.startsWith("/ai-chat")) return "ai-chat";
+  if (ACCOUNT_SECTION_MATCHERS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)))
+    return "account";
+  if (pathname.startsWith("/organization")) return "organization";
+  return "other";
+}
 
-        if (tiptapBlock) {
-          blockIdRef.current = tiptapBlock.id;
-          const json = tiptapBlock.content.properties![TIPTAP_PROPERTY_KEY] as object;
-          const fallbackHtml = buildHtmlFromTiptapJson(json as TiptapJsonNode);
-          if (mountedRef.current) {
-            editor.commands.setContent(json, { emitUpdate: false });
-            if (!editor.getText().trim() && fallbackHtml) {
-              editor.commands.setContent(fallbackHtml, { emitUpdate: false });
-            }
-          }
-        } else if (blocks.length > 0) {
-          const legacyHtml = blocks.map((b) => {
-            switch (b.content.type) {
-              case "heading-1": return `<h1>${escapeHtml(richTextToPlainText(b.content.richText))}</h1>`;
-              case "heading-2": return `<h2>${escapeHtml(richTextToPlainText(b.content.richText))}</h2>`;
-              case "heading-3": return `<h3>${escapeHtml(richTextToPlainText(b.content.richText))}</h3>`;
-              case "quote": return `<blockquote><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></blockquote>`;
-              case "bullet-list": return `<ul><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ul>`;
-              case "numbered-list": return `<ol><li><p>${escapeHtml(richTextToPlainText(b.content.richText))}</p></li></ol>`;
-              case "code": return `<pre><code>${escapeHtml(richTextToPlainText(b.content.richText))}</code></pre>`;
-              case "divider": return "<hr />";
-              default: return `<p>${escapeHtml(richTextToPlainText(b.content.richText))}</p>`;
-            }
-          }).join("");
-          if (mountedRef.current) editor.commands.setContent(legacyHtml, { emitUpdate: false });
-        } else {
-          const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(editor.getJSON()), index: 0 });
-          if (result.success) blockIdRef.current = result.aggregateId;
-        }
-      } catch {
-        // Silently ignore; editor is still usable, just unsaved.
-      } finally {
-        if (mountedRef.current) setLoading(false);
-      }
-    })();
-
-    return () => { mountedRef.current = false; };
-  }, [accountId, editor, pageId]);
-
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      editor?.destroy();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const scheduleSave = useCallback(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => { void persistNow(); }, DEBOUNCE_MS);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const persistNow = useCallback(async () => {
-    const json = latestJsonRef.current;
-    if (!json || isSavingRef.current) return;
-    isSavingRef.current = true;
-    try {
-      if (blockIdRef.current == null) {
-        const result = await addKnowledgeBlock({ accountId, pageId, content: buildBlockContent(json), index: 0 });
-        if (result.success) blockIdRef.current = result.aggregateId;
-      } else {
-        await updateKnowledgeBlock({ accountId, blockId: blockIdRef.current, content: buildBlockContent(json) });
-      }
-    } finally {
-      isSavingRef.current = false;
-    }
-  }, [accountId, pageId]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="size-4 animate-spin text-muted-foreground" />
-        <span className="ml-2 text-sm text-muted-foreground">載入內容中…</span>
-      </div>
-    );
-  }
-
+export function isActiveOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
   return (
-    <div className="flex min-h-[400px] flex-col rounded-xl border border-border/60 bg-card">
-      {editor && <EditorToolbar editor={editor} />}
-      <EditorContent
-        editor={editor}
-        className="tiptap-editor flex-1 cursor-text px-6 py-4 text-sm text-foreground"
-      />
-    </div>
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
   );
 }
 
-function buildBlockContent(tiptapJson: object): BlockContent {
-  return { type: "text", richText: [], properties: { [TIPTAP_PROPERTY_KEY]: tiptapJson } };
+// ── Simple section nav component ──────────────────────────────────────────────
+
+export function SimpleNavLinks({
+  items,
+  title,
+  isActiveRoute,
+}: {
+  items: readonly { href: string; label: string }[];
+  title: string;
+  isActiveRoute: (href: string) => boolean;
+}) {
+  return (
+    <nav className="space-y-0.5" aria-label={`${title} navigation`}>
+      <p className="mb-1.5 px-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+        {title}
+      </p>
+      {items.map((item) => {
+        const active = isActiveRoute(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={`flex items-center rounded-md px-2 py-1.5 text-xs font-medium transition ${
+              active
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            }`}
+          >
+            {item.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+````
+
+## File: app/(shell)/_components/workspace-sidebar-section.tsx
+````typescript
+"use client";
+
+import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
+
+import type { SidebarLocaleBundle } from "./use-sidebar-locale";
+import type { NavPreferences } from "./customize-navigation-dialog";
+import { sidebarItemClass } from "./sidebar-nav-data";
+
+// ── Tab link item shape ────────────────────────────────────────────────────────
+
+// ── Props ─────────────────────────────────────────────────────────────────────
+
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
 }
 
-function extractTextFromTiptapNode(node: TiptapJsonNode | undefined): string {
-  if (!node) return "";
-  if (node.type === "text") {
-    return node.text ?? "";
-  }
+// ── Component ─────────────────────────────────────────────────────────────────
 
-  return (node.content ?? []).map((child) => extractTextFromTiptapNode(child)).join("");
-}
-
-function buildHtmlFromTiptapJson(node: TiptapJsonNode | undefined): string {
-  if (!node) return "";
-
-  if (node.type === "doc") {
-    return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
-  }
-
-  if (node.type === "heading") {
-    const level = node.attrs?.level;
-    const normalizedLevel = level && level >= 1 && level <= 3 ? level : 2;
-    return `<h${normalizedLevel}>${escapeHtml(extractTextFromTiptapNode(node))}</h${normalizedLevel}>`;
-  }
-
-  if (node.type === "paragraph") {
-    const text = extractTextFromTiptapNode(node);
-    return text ? `<p>${escapeHtml(text)}</p>` : "<p></p>";
-  }
-
-  if (node.type === "bulletList") {
-    return `<ul>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ul>`;
-  }
-
-  if (node.type === "orderedList") {
-    return `<ol>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</ol>`;
-  }
-
-  if (node.type === "listItem") {
-    return `<li>${(node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("")}</li>`;
-  }
-
-  if (node.type === "text") {
-    return escapeHtml(node.text ?? "");
-  }
-
-  return (node.content ?? []).map((child) => buildHtmlFromTiptapJson(child)).join("");
-}
-
-function escapeHtml(str: string): string {
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+}: WorkspaceSidebarSectionProps) {
+  return (
+    <ModuleWorkspaceSidebarSection
+      workspacePathId={workspacePathId}
+      navPrefs={navPrefs}
+      localeBundle={localeBundle}
+      getItemClassName={sidebarItemClass}
+    />
+  );
 }
 ````
 
@@ -78620,6 +78717,56 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 - P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
 - `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
+````
+
+## File: modules/workspace/api/ui.ts
+````typescript
+/**
+ * workspace API UI surface.
+ *
+ * Public interface-layer composition exports.
+ */
+
+export { WorkspaceDetailScreen } from "../interfaces/components/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../interfaces/components/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../interfaces/components/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "../interfaces/components/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "../interfaces/components/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "../interfaces/components/CreateWorkspaceDialogRail";
+
+export {
+  WORKSPACE_TAB_GROUPS,
+  WORKSPACE_TAB_META,
+  WORKSPACE_TAB_VALUES,
+  getWorkspaceTabLabel,
+  getWorkspaceTabMeta,
+  getWorkspaceTabPrefId,
+  getWorkspaceTabStatus,
+  getWorkspaceTabsByGroup,
+  isWorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export { getWorkspaceStorageKey, toWorkspaceMap } from "../interfaces/workspace-session";
+
+export type {
+  WorkspaceQuickAccessItem,
+  WorkspaceQuickAccessMatcherOptions,
+} from "../interfaces/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "../interfaces/workspace-quick-access";
+
+export type {
+  WorkspaceTabDevStatus,
+  WorkspaceTabGroup,
+  WorkspaceTabValue,
+} from "../interfaces/workspace-tabs";
+
+export { useWorkspaceHub } from "../interfaces/hooks/useWorkspaceHub";
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "../interfaces/hooks/useRecentWorkspaces";
 ````
 
 ## File: modules/workspace/application-services.md
@@ -79723,6 +79870,7 @@ import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
 import { createKnowledgePage } from "@/modules/knowledge/api";
+import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
   CustomizeNavigationDialog,
@@ -79741,7 +79889,6 @@ import {
   type DashboardSidebarProps,
   ORGANIZATION_MANAGEMENT_ITEMS,
   ACCOUNT_NAV_ITEMS,
-  buildWorkspaceQuickAccessItems,
   SECTION_TITLES,
   sidebarItemClass,
   sidebarSectionTitleClass,
@@ -80258,168 +80405,6 @@ export function DashboardSidebar({
 }
 ````
 
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace BC
-
-> **強制開發規範**  
-> 本 BC 領域開發必須使用 Serena 指令：
-> ```
-> serena
-> #use skill serena-mcp
-> #use skill alistair-cockburn
-> #use skill iddd-implementing-ddd
-> #use skill xuanwu-app-skill
-> #use skill context7
-
-> ```
-
-## 模組定位
-
-`workspace` 是協作容器 bounded context，也是 Xuanwu 中的 generic subdomain。
-
-它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
-
-`workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
-
-## 戰略層級（Domain / Subdomain / Bounded Context）
-
-- `Xuanwu` 是整體 business domain
-- `workspace` 所對應的問題空間在戰略分類上屬於 generic subdomain
-- `modules/workspace/` 是承載這組語言、模型、應用流程與 adapter 的 bounded context
-- `context-map.md` 描述 bounded context 與其他 bounded context 的關係；`aggregates.md`、`repositories.md`、`domain-events.md` 描述的是此 bounded context 內部的 tactical model
-- Subdomain 是問題空間；Bounded Context 是語言、模型與整合邊界。兩者不可混同，也不保證一對一
-- 這組文件是以 `workspace` 為中心的 selected view，不試圖重畫整個 Xuanwu domain
-
-## Tactical 對位
-
-- Aggregate Root：`Workspace`
-- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`
-- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
-- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository`、`SharedWorkspaceDomainEventPublisher`
-- Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
-- Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
-- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Domain Event Port：`WorkspaceDomainEventPublisher`
-- Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
-
-## 六邊形交互順序（Runtime）
-
-1. Driver 進入：UI / Server Actions / 其他 bounded context 呼叫 `api/`
-2. Driving Adapter 轉換：`interfaces/*` 轉 command/query
-3. Application Use Case 協調流程
-4. Domain Model 套用 invariant（`Workspace` aggregate + value objects）
-5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
-6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
-
-目前實際入口對位：
-
-- `api/contracts.ts`：公開契約（types / events / value object helpers）
-- `api/facade.ts`：公開行為入口（commands / queries）
-- `api/ui.ts`：公開 UI composition surface（components / hooks / tab metadata）
-- `ports/index.ts`：公開 port 抽象（repositories + event publisher port）
-
-## 六邊形依賴方向（Compile-time）
-
-- `interfaces -> application -> domain`
-- `infrastructure -> domain`（實作 ports）
-- `domain` 不可依賴 `interfaces`、`application`、`infrastructure`
-- `modules/workspace/ports` 只放 port 抽象匯出，不放 adapter 實作
-
-## DDD 概念對位（文件讀法）
-
-- Entity（實體）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLocation`、`Capability`
-- Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
-- Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
-- Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
-- Ports（端口）→ 介面；宣告 bounded context 核心與外部協作的接縫
-- Adapters（適配器）→ 類別 / 函式 / 模組；把 driver 或外部系統轉成 port 可接受的契約
-- 外部系統 / 驅動器（Driver）→ 從 bounded context 外部發起工作的角色 / 系統，例如 UI、Server Action、其他 context 呼叫者
-- 投影 / Read Model → 查詢用途的物件；服務讀取與呈現，不承擔 write-side invariant
-- Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
-- Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
-- Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Workspace` | Project、Space、Room |
-| `WorkspaceLifecycleState` | WorkspaceStatus、ArchivedState |
-| `WorkspaceVisibility` | VisibilityMode、DiscoveryState |
-| `workspaceId` | projectId、spaceId |
-| `accountId` | ownerId（在 workspace BC 內） |
-| `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
-| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
-
-## 邊界規則
-
-### ✅ 允許
-
-```typescript
-import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-```
-
-### ❌ 禁止
-
-```typescript
-import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
-import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-cases/workspace.use-cases";
-```
-
-## 分層守衛
-
-- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
-- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
-- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
-- `infrastructure/` 禁止 import `api/`
-- `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
-
-## 六邊形對位
-
-- Domain Model 在 bounded context 的核心：`domain/`
-- Application layer 包在 domain model 外層：`application/`
-- Driving Adapters 是進入此 bounded context 的入口：`interfaces/`、Server Actions、query wrappers、UI composition
-- Driven Adapters 是對外技術整合：`infrastructure/`
-- Repository ports 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
-- `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
-- 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
-- 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
-- Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
-- `WorkspaceMemberView` 與 `Wiki*Node` 屬於 read model / projection，位於 query-side，不應回頭冒充 aggregate
-
-## Tactical 建模守則
-
-- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
-- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
-- `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
-- 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [README.md](./README.md) | 模組定位與 tactical model 總覽 |
-| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
-| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
-| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
-| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
-| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
-| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
-| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
-| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
-| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
-| [ports/README.md](./ports/README.md) | workspace ports 清單、交互順序與依賴方向 |
-````
-
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -80665,4 +80650,167 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace BC
+
+> **強制開發規範**  
+> 本 BC 領域開發必須使用 Serena 指令：
+> ```
+> serena
+> #use skill serena-mcp
+> #use skill alistair-cockburn
+> #use skill iddd-implementing-ddd
+> #use skill xuanwu-app-skill
+> #use skill context7
+
+> ```
+
+## 模組定位
+
+`workspace` 是協作容器 bounded context，也是 Xuanwu 中的 generic subdomain。
+
+它負責定義「工作區作為協作範圍」的核心語言與公開邊界，讓其他 bounded context 以 `workspaceId` 對齊範圍、生命週期與可見性。
+
+`workspace` 不負責知識內容本身、組織成員真相來源、事件儲存基礎設施，也不把 UI tab 組裝視為 context map。
+
+## 戰略層級（Domain / Subdomain / Bounded Context）
+
+- `Xuanwu` 是整體 business domain
+- `workspace` 所對應的問題空間在戰略分類上屬於 generic subdomain
+- `modules/workspace/` 是承載這組語言、模型、應用流程與 adapter 的 bounded context
+- `context-map.md` 描述 bounded context 與其他 bounded context 的關係；`aggregates.md`、`repositories.md`、`domain-events.md` 描述的是此 bounded context 內部的 tactical model
+- Subdomain 是問題空間；Bounded Context 是語言、模型與整合邊界。兩者不可混同，也不保證一對一
+- 這組文件是以 `workspace` 為中心的 selected view，不試圖重畫整個 Xuanwu domain
+
+## Tactical 對位
+
+- Aggregate Root：`Workspace`
+- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`
+- Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
+- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository`、`SharedWorkspaceDomainEventPublisher`
+- Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
+- Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
+- Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Domain Event Port：`WorkspaceDomainEventPublisher`
+- Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+
+## 六邊形交互順序（Runtime）
+
+1. Driver 進入：UI / Server Actions / 其他 bounded context 呼叫 `api/`
+2. Driving Adapter 轉換：`interfaces/*` 轉 command/query
+3. Application Use Case 協調流程
+4. Domain Model 套用 invariant（`Workspace` aggregate + value objects）
+5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
+6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
+
+目前實際入口對位：
+
+- `api/contracts.ts`：公開契約（types / events / value object helpers）
+- `api/facade.ts`：公開行為入口（commands / queries）
+- `api/ui.ts`：公開 UI composition surface（components / hooks / tab metadata）
+- `ports/index.ts`：公開 port 抽象（repositories + event publisher port）
+
+## 六邊形依賴方向（Compile-time）
+
+- `interfaces -> application -> domain`
+- `infrastructure -> domain`（實作 ports）
+- `domain` 不可依賴 `interfaces`、`application`、`infrastructure`
+- `modules/workspace/ports` 只放 port 抽象匯出，不放 adapter 實作
+
+## DDD 概念對位（文件讀法）
+
+- Entity（實體）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLocation`、`Capability`
+- Value Object（值對象）→ 類別 / 物件；在 workspace 中例如 `WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
+- Aggregate / Aggregate Root（聚合 / 聚合根）→ 類別 / 物件；此 BC 的 write-side aggregate root 是 `Workspace`
+- Repository（倉儲）→ 介面或類別；`domain/repositories/` 定義 port，`infrastructure/` 類別負責資料存取
+- Ports（端口）→ 介面；宣告 bounded context 核心與外部協作的接縫
+- Adapters（適配器）→ 類別 / 函式 / 模組；把 driver 或外部系統轉成 port 可接受的契約
+- 外部系統 / 驅動器（Driver）→ 從 bounded context 外部發起工作的角色 / 系統，例如 UI、Server Action、其他 context 呼叫者
+- 投影 / Read Model → 查詢用途的物件；服務讀取與呈現，不承擔 write-side invariant
+- Domain Service（領域服務）→ 類別 / 函式；僅在規則不自然屬於 aggregate 或 value object 時才新增
+- Factory（工廠）→ 類別 / 函式；負責建立 aggregate、value object 或 domain event 訊息
+- Domain Event（領域事件）→ 事件類別、訊息物件；例如 `WorkspaceCreatedEvent`
+
+## 通用語言（Ubiquitous Language）
+
+| 正確術語 | 禁止使用 |
+|----------|----------|
+| `Workspace` | Project、Space、Room |
+| `WorkspaceLifecycleState` | WorkspaceStatus、ArchivedState |
+| `WorkspaceVisibility` | VisibilityMode、DiscoveryState |
+| `workspaceId` | projectId、spaceId |
+| `accountId` | ownerId（在 workspace BC 內） |
+| `WorkspaceMemberView` | `WorkspaceMember`（當你描述 read model 時） |
+| `WikiAccountContentNode` / `WikiWorkspaceContentNode` | `WikiContentTree`（當你描述 aggregate 時） |
+
+## 邊界規則
+
+### ✅ 允許
+
+```typescript
+import { getWorkspaceById, WorkspaceDetailScreen } from "@/modules/workspace/api";
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+```
+
+### ❌ 禁止
+
+```typescript
+import { FirebaseWorkspaceRepository } from "@/modules/workspace/infrastructure/firebase/FirebaseWorkspaceRepository";
+import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-cases/workspace.use-cases";
+```
+
+## 分層守衛
+
+- `index.ts` 只能是薄入口；跨模組 consumer 應優先使用 `@/modules/workspace/api`
+- `api/` 只能公開穩定 surface，不得直接變成 infrastructure 捷徑
+- `interfaces/` 可使用本模組的 application/query adapters，但跨模組一律只能走對方 `api/`
+- `infrastructure/` 禁止 import `api/`
+- `FirebaseWikiWorkspaceRepository` 與 `FirebaseWorkspaceRepository` 之間維持本地相對路徑依賴，不透過模組公開入口繞回
+- `modules/workspace` 內禁止 `import { X as Y } from ...` 的 alias import；若出現命名衝突，應調整符號命名或改為 namespace import 以維持通用語言一致性
+
+## 六邊形對位
+
+- Domain Model 在 bounded context 的核心：`domain/`
+- Application layer 包在 domain model 外層：`application/`
+- Driving Adapters 是進入此 bounded context 的入口：`interfaces/`、Server Actions、query wrappers、UI composition
+- Driven Adapters 是對外技術整合：`infrastructure/`
+- Repository ports 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
+- `api/` 是此 bounded context 對外暴露的穩定入口；它是公開邊界，不是把內部 layers 攤平
+- 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
+- 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
+- Browser UI、Server Actions、其他 bounded context 對 `api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model
+- `WorkspaceMemberView` 與 `Wiki*Node` 屬於 read model / projection，位於 query-side，不應回頭冒充 aggregate
+
+## Tactical 建模守則
+
+- `WorkspaceMemberView` 是 read projection，不是 aggregate、entity 或 value object
+- `WikiContentTree.ts` 目前承載的是導覽/查詢模型，不是 write-side aggregate
+- `WorkspaceLifecycleState` 的 canonical 值是 `preparatory | active | stopped`，不是 `active | archived`
+- 若要新增跨 aggregate 規則，先判斷是否真的需要 domain service；不要用 application service 假裝 aggregate
+
+## 驗證命令
+
+```bash
+npm run lint
+npm run build
+```
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [README.md](./README.md) | 模組定位與 tactical model 總覽 |
+| [subdomain.md](./subdomain.md) | workspace 為何屬於 generic subdomain，以及哪些內容不是 subdomain 本體 |
+| [bounded-context.md](./bounded-context.md) | workspace 作為 bounded context 的邊界、drivers、ports、adapters 與 read model |
+| [ubiquitous-language.md](./ubiquitous-language.md) | workspace BC 的通用語言、read model 與 hexagonal 元術語 |
+| [aggregates.md](./aggregates.md) | aggregate、entity、value object 與 read model / projection 對位 |
+| [repositories.md](./repositories.md) | driven ports、repository adapters 與 query/read model 持久化邊界 |
+| [domain-events.md](./domain-events.md) | workspace 領域事件契約、事件驅動整合與 projection 關係 |
+| [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
+| [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
+| [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
+| [ports/README.md](./ports/README.md) | workspace ports 清單、交互順序與依賴方向 |
 ````
