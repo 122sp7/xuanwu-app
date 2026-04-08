@@ -44,10 +44,11 @@ export class KnowledgeApi {
     accountId: string,
     title: string,
     createdByUserId = "system",
-    options?: { workspaceId?: string; parentPageId?: string | null },
+    options: { workspaceId: string; parentPageId?: string | null },
   ): Promise<KnowledgePage> {
     const page = await this.pageRepo.create({
       accountId,
+      workspaceId: options.workspaceId,
       title,
       createdByUserId,
       parentPageId: options?.parentPageId ?? null,
@@ -58,7 +59,7 @@ export class KnowledgeApi {
       page.title,
       accountId,
       createdByUserId,
-      { workspaceId: options?.workspaceId, parentPageId: options?.parentPageId },
+      { workspaceId: options.workspaceId, parentPageId: options.parentPageId },
     );
     await this.eventBus.publish(event);
 

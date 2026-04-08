@@ -15,6 +15,7 @@ import { KnowledgeApi as ContentKnowledgeApi } from "../modules/knowledge/api/kn
 
 async function main() {
   const ACCOUNT_ID = "demo-account";
+  const WORKSPACE_ID = "demo-workspace";
   const USER_ID = "demo-user";
 
   console.log("[1] Initialising event bus...");
@@ -26,7 +27,9 @@ async function main() {
   console.log("    ✓ KnowledgeApi ready\n");
 
   console.log('[3] Creating page "Hello World"...');
-  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID);
+  const page = await contentApi.createPage(ACCOUNT_ID, "Hello World", USER_ID, {
+    workspaceId: WORKSPACE_ID,
+  });
   console.log(`    ✓ page created  id=${page.id}\n`);
 
   console.log("[4] Adding an empty block to the page...");
