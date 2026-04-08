@@ -32,13 +32,30 @@
 ## Tactical 對位
 
 - Aggregate Root：`Workspace`
-- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
+- Driven Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`、`WorkspaceDomainEventPublisher`
 - Driving Adapters：`interfaces/_actions/`、`interfaces/queries/`、UI composition 與其他進入點
-- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository` 與事件發布整合點
+- Driven Adapters：`FirebaseWorkspaceRepository`、`FirebaseWorkspaceQueryRepository`、`FirebaseWikiWorkspaceRepository`、`SharedWorkspaceDomainEventPublisher`
 - Projection / Read Model：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`、`WikiContentItemNode`
 - Read Projections：`WorkspaceMemberView`、`WikiAccountContentNode`、`WikiWorkspaceContentNode`
 - Repository Ports：`WorkspaceRepository`、`WorkspaceCapabilityRepository`、`WorkspaceAccessRepository`、`WorkspaceLocationRepository`、`WorkspaceQueryRepository`、`WikiWorkspaceRepository`
-- Planned Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+- Domain Event Port：`WorkspaceDomainEventPublisher`
+- Domain Events：`WorkspaceCreated`、`WorkspaceLifecycleTransitioned`、`WorkspaceVisibilityChanged`
+
+## 六邊形交互順序（Runtime）
+
+1. Driver 進入：UI / Server Actions / 其他 bounded context 呼叫 `api/`
+2. Driving Adapter 轉換：`interfaces/*` 轉 command/query
+3. Application Use Case 協調流程
+4. Domain Model 套用 invariant（`Workspace` aggregate + value objects）
+5. 透過 Driven Ports 呼叫外部能力（repositories / event publisher）
+6. Infrastructure Adapters 實作 ports（Firebase / shared event publishing）
+
+## 六邊形依賴方向（Compile-time）
+
+- `interfaces -> application -> domain`
+- `infrastructure -> domain`（實作 ports）
+- `domain` 不可依賴 `interfaces`、`application`、`infrastructure`
+- `modules/workspace/ports` 只放 port 抽象匯出，不放 adapter 實作
 
 ## DDD 概念對位（文件讀法）
 
@@ -131,3 +148,4 @@ npm run build
 | [application-services.md](./application-services.md) | application layer use cases、drivers、ports、adapters 與 read model orchestration |
 | [domain-services.md](./domain-services.md) | domain service 與 ports/adapters/drivers/read models 的區別 |
 | [context-map.md](./context-map.md) | workspace 與其他 bounded context 的 integration patterns |
+| [ports/README.md](./ports/README.md) | workspace ports 清單、交互順序與依賴方向 |
