@@ -16,26 +16,26 @@ import {
   CreateWorkspaceLocationUseCase,
 } from "../../application/use-cases/workspace.use-cases";
 import { FirebaseWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWorkspaceRepository";
-import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
+import type {
+  WorkspaceAccessRepository,
+  WorkspaceCapabilityRepository,
+  WorkspaceLocationRepository,
+  WorkspaceDomainEventPublisher,
+  WorkspaceEventPublishMetadata,
+} from "../../ports";
 import type {
   CreateWorkspaceCommand,
   UpdateWorkspaceSettingsCommand,
   Capability,
   WorkspaceGrant,
   WorkspaceLocation,
-} from "../../domain/entities/Workspace";
+  WorkspaceDomainEvent,
+} from "../../api/contracts";
 import {
   createWorkspaceCreatedEvent,
   createWorkspaceLifecycleTransitionedEvent,
   createWorkspaceVisibilityChangedEvent,
-  type WorkspaceDomainEvent,
-} from "../../domain/events/workspace.events";
-import type {
-  WorkspaceDomainEventPublisher,
-  WorkspaceEventPublishMetadata,
-} from "../../domain/ports/WorkspaceDomainEventPublisher";
+} from "../../api/contracts";
 import { SharedWorkspaceDomainEventPublisher } from "../../infrastructure/events/SharedWorkspaceDomainEventPublisher";
 
 const workspaceRepo = new FirebaseWorkspaceRepository();

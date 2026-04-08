@@ -1,4 +1,4 @@
-import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceMemberView } from "../../api/contracts";
 import { FetchWorkspaceMembersUseCase } from "../../application/use-cases/workspace-member.use-cases";
 import { FirebaseWorkspaceQueryRepository } from "../../infrastructure/firebase/FirebaseWorkspaceQueryRepository";
 

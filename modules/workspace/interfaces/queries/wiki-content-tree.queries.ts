@@ -1,8 +1,8 @@
 import type {
   WikiAccountContentNode,
   WikiAccountSeed,
-} from "../../domain/entities/WikiContentTree";
-import type { WikiWorkspaceRepository } from "../../domain/repositories/WikiWorkspaceRepository";
+} from "../../api/contracts";
+import type { WikiWorkspaceRepository } from "../../ports";
 import { buildWikiContentTree as buildWikiContentTreeProjection } from "../../application/use-cases/wiki-content-tree.use-case";
 import { FirebaseWikiWorkspaceRepository } from "../../infrastructure/firebase/FirebaseWikiWorkspaceRepository";
 
