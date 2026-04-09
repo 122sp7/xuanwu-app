@@ -23,7 +23,7 @@ applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 - `application/`: use cases and DTO orchestration.
 - `infrastructure/`: adapters and external implementations.
 - `interfaces/`: UI, transport, and action wiring.
-- Module root public entry (`index.ts`, typically re-exporting `interfaces/api`): only public cross-module boundary.
+- Module `api/` public entry is the only cross-module boundary.
 
 ## Dependency Guardrails
 

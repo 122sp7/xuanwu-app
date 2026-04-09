@@ -679,4 +679,4 @@ In the Xuanwu codebase, these IDDD patterns map to:
 | Module public API | `modules/<context>/api/` |
 | Application composition | `app/` |
 
-> Always cross-reference `docs/ddd/bounded-contexts.md` and `modules/<context>/ubiquitous-language.md` before naming new domain concepts.
+> Always cross-reference `modules/bounded-contexts.md` and `modules/<context>/ubiquitous-language.md` before naming new domain concepts.

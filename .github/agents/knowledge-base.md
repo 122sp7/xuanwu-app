@@ -25,8 +25,8 @@ Each module under `modules/` follows a four-layer Clean Architecture:
 ```
 modules/<module-name>/
 ├── api/
-│   └── index.ts                # Public cross-module API boundary (the ONLY import point for other modules)
-├── index.ts                    # Optional local barrel for same-module composition
+│   └── index.ts                # Public cross-module API boundary
+├── index.ts                    # Aggregate export only (not a cross-module boundary)
 ├── README.md                   # Module documentation (optional)
 ├── domain/
 │   ├── entities/               # Aggregate roots, value objects, entity types
