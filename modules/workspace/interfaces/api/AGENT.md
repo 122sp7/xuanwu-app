@@ -11,11 +11,10 @@
 ```txt
 interfaces/api/
 	contracts/   -> public contracts split by concern
-	facades/     -> thin outward entrypoints grouped by concern
+	facades/     -> explicit outward entrypoints grouped by concern
 	queries/     -> read adapters backed by WorkspaceQueryPort
 	actions/     -> write adapters backed by WorkspaceCommandPort
 	runtime/     -> adapter composition and session context
-	ui.ts        -> public web-composition re-export
 	index.ts     -> aggregate export for interfaces/api
 ```
 
@@ -24,7 +23,7 @@ interfaces/api/
 | 類型 | 範例 |
 |------|------|
 | Adapter contracts | `contracts/workspace.contract.ts` |
-| Thin outward facades | `facades/workspace.facade.ts` |
+| Explicit outward facades | `facades/workspace.facade.ts` |
 | Read adapters | `queries/workspace.query.ts` |
 | Write adapters | `actions/workspace.command.ts` |
 | Runtime composition | `runtime/workspace-runtime.ts` |

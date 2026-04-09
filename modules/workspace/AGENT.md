@@ -27,6 +27,8 @@
 
 ```txt
 modules/workspace/
+├── api/                        ← Canonical public boundary（contracts / facade / ui）
+│
 ├── domain/                     ← 核心業務邏輯
 │   ├── aggregates/             ← 聚合根
 │   ├── entities/               ← Entity / Value Object
@@ -176,7 +178,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
+- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 是 curated public surface；可以聚合公開符號，但不可回頭依賴 `app/` 或偷帶入 domain/application 決策
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service
