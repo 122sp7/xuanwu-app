@@ -38,19 +38,19 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1739 files | 80,605 lines
+1715 files | 79,911 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 908 | 37,576 |
-| Markdown | 314 | 12,208 |
-| No Extension | 255 | 339 |
-| TypeScript (TSX) | 185 | 25,276 |
+| TypeScript | 906 | 37,473 |
+| Markdown | 287 | 11,399 |
+| No Extension | 256 | 340 |
+| TypeScript (TSX) | 189 | 25,493 |
 | Python | 61 | 3,823 |
 | JSON | 7 | 821 |
 | Text | 3 | 116 |
-| RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 167 |
+| RULES | 2 | 18 |
 | CSS | 1 | 197 |
 | Other | 1 | 64 |
 
@@ -59,9 +59,9 @@ This skill contains the following reference files:
 - `app/(shell)/_components/dashboard-sidebar.tsx` (554 lines)
 - `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `firestore.indexes.json` (437 lines)
-- `modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (389 lines)
 - `app/(shell)/_components/app-rail.tsx` (360 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `app/(shell)/ai-chat/page.tsx` (337 lines)
 - `modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts` (332 lines)
 - `app/(shell)/layout.tsx` (321 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)

@@ -5602,29 +5602,6 @@ export default function KnowledgeDatabasePage() {
 }
 ````
 
-## File: app/(shell)/knowledge/block-editor/page.tsx
-````typescript
-"use client";
-
-import { BlockEditorView } from "@/modules/knowledge/api";
-
-export default function KnowledgeBlockEditorPage() {
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
-        <p className="text-sm text-muted-foreground">
-          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
-        </p>
-      </header>
-
-      <BlockEditorView />
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/knowledge/pages/[pageId]/knowledge-page-header-widgets.tsx
 ````typescript
 "use client";
@@ -5837,363 +5814,6 @@ export function CoverEditor({ value, onChange, isPending }: CoverEditorProps) {
         )}
       </PopoverContent>
     </Popover>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState, useTransition } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  getKnowledgePage,
-  renameKnowledgePage,
-  archiveKnowledgePage,
-  updateKnowledgePageIcon,
-  updateKnowledgePageCover,
-  PageEditorView,
-} from "@/modules/knowledge/api";
-import type { KnowledgePage } from "@/modules/knowledge/api";
-import { CommentPanel } from "@/modules/knowledge-collaboration/api";
-import { Button } from "@ui-shadcn/ui/button";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-import { TitleEditor, IconPicker, CoverEditor } from "./knowledge-page-header-widgets";
-
-// ── Page ──────────────────────────────────────────────────────────────────────
-
-export default function KnowledgePageDetailPage() {
-  const params = useParams();
-  const router = useRouter();
-  const pageId = params.pageId as string;
-
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-
-  const [page, setPage] = useState<KnowledgePage | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [commentOpen, setCommentOpen] = useState(false);
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!accountId || !pageId) { setLoading(false); return; }
-    setLoading(true);
-    try {
-      const p = await getKnowledgePage(accountId, pageId);
-      setPage(p);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, pageId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  function handleRename(title: string) {
-    startTransition(async () => {
-      const result = await renameKnowledgePage({ accountId, pageId, title });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, title } : prev);
-      }
-    });
-  }
-
-  function handleIconChange(iconUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleCoverChange(coverUrl: string) {
-    startTransition(async () => {
-      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
-      if (result.success) {
-        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
-      }
-    });
-  }
-
-  function handleArchive() {
-    startTransition(async () => {
-      await archiveKnowledgePage({ accountId, pageId });
-      router.push("/knowledge/pages");
-    });
-  }
-
-  // ── Loading skeleton ────────────────────────────────────────────────────────
-
-  if (loading) {
-    return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-6 w-72" />
-        <Skeleton className="h-64 w-full rounded-xl" />
-      </div>
-    );
-  }
-
-  // ── Not found ───────────────────────────────────────────────────────────────
-
-  if (!page) {
-    return (
-      <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
-          <ArrowLeft className="mr-1.5 h-4 w-4" />
-          頁面列表
-        </Button>
-        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
-      </div>
-    );
-  }
-
-  // ── Page view ───────────────────────────────────────────────────────────────
-
-  const updatedAt = page.updatedAtISO
-    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : null;
-
-  return (
-    <div className="space-y-0">
-      {/* Cover image */}
-      {page.coverUrl && (
-        <div
-          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
-          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
-        />
-      )}
-
-      <div className="space-y-4 px-0 pt-4">
-        {/* Top bar */}
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" />
-            頁面列表
-          </Button>
-          <div className="ml-auto flex items-center gap-2">
-            <Button
-              size="sm"
-              variant={commentOpen ? "default" : "outline"}
-              onClick={() => setCommentOpen((v) => !v)}
-            >
-              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
-              留言
-            </Button>
-            {page.status === "active" && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleArchive}
-                disabled={isPending}
-              >
-                <Archive className="mr-1.5 h-3.5 w-3.5" />
-                封存
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Page header */}
-        <header className="space-y-2 border-b border-border/60 pb-4">
-          {/* Icon row */}
-          <div className="flex items-end gap-3">
-            <IconPicker
-              value={page.iconUrl}
-              onChange={handleIconChange}
-              isPending={isPending}
-            />
-            <CoverEditor
-              value={page.coverUrl}
-              onChange={handleCoverChange}
-              isPending={isPending}
-            />
-          </div>
-          <TitleEditor
-            initialTitle={page.title}
-            onSave={handleRename}
-            isPending={isPending}
-          />
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {page.status === "archived" && (
-              <Badge variant="secondary">已封存</Badge>
-            )}
-            {page.approvalState === "approved" && (
-              <Badge variant="default">已審核</Badge>
-            )}
-            {page.verificationState === "verified" && (
-              <Badge variant="outline">已驗證</Badge>
-            )}
-            {page.verificationState === "needs_review" && (
-              <Badge variant="destructive">待審查</Badge>
-            )}
-            {updatedAt && <span>更新於 {updatedAt}</span>}
-          </div>
-        </header>
-
-        {/* Main content + optional comment side panel */}
-        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
-          {/* Block editor — connected to Firebase */}
-          <div className="min-w-0 flex-1">
-            {accountId ? (
-              <PageEditorView accountId={accountId} pageId={pageId} />
-            ) : (
-              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
-            )}
-          </div>
-
-          {/* Comment panel — slides in from right */}
-          {commentOpen && accountId && (
-            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
-              <div className="mb-3 flex items-center gap-2">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">留言</span>
-                <button
-                  type="button"
-                  onClick={() => setCommentOpen(false)}
-                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
-                  aria-label="關閉留言面板"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <CommentPanel
-                accountId={accountId}
-                workspaceId={appState.activeWorkspaceId ?? ""}
-                contentId={pageId}
-                contentType="page"
-                currentUserId={authState.user?.id ?? ""}
-              />
-            </aside>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/pages/page.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace, PageTreeView } from "@/modules/knowledge/api";
-import type { KnowledgePageTreeNode } from "@/modules/knowledge/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-export default function KnowledgePagesPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-
-  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
-  const scopeParam = searchParams.get("scope")?.trim() ?? "";
-  const isAccountSummary = scopeParam === "account";
-  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || appState.activeWorkspaceId || "";
-  const currentUserId = authState.user?.id ?? "";
-
-  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!accountId) { setLoading(false); return; }
-    if (!isAccountSummary && !workspaceId) {
-      setNodes([]);
-      setLoading(false);
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const tree = isAccountSummary
-        ? await getKnowledgePageTree(accountId)
-        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
-      setNodes(tree);
-    } finally {
-      setLoading(false);
-    }
-  }, [accountId, isAccountSummary, workspaceId]);
-
-  useEffect(() => { load(); }, [load]);
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
-            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
-          </Badge>
-          <p className="text-sm text-muted-foreground">
-            {isAccountSummary
-              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
-              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
-          </p>
-        </div>
-      </header>
-
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => router.push("/knowledge")}
-          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          返回 Knowledge Hub
-        </button>
-      </div>
-
-      {!accountId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未取得帳號情境，請先登入。
-        </p>
-      ) : !isAccountSummary && !workspaceId ? (
-        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
-          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
-        </p>
-      ) : loading ? (
-        <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-8 w-full" />
-          ))}
-        </div>
-      ) : (
-        <PageTreeView
-          nodes={nodes}
-          accountId={accountId}
-          workspaceId={workspaceId || undefined}
-          currentUserId={currentUserId}
-          allowCreate={!isAccountSummary && Boolean(workspaceId)}
-          emptyStateDescription={
-            isAccountSummary
-              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
-              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
-          }
-          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
-          onCreated={() => load()}
-        />
-      )}
-    </div>
   );
 }
 ````
@@ -6963,6 +6583,170 @@ env:
 }
 ````
 
+## File: eslint.config.mjs
+````javascript
+import { defineConfig, globalIgnores } from "eslint/config";
+import tseslint from "@typescript-eslint/eslint-plugin";
+import boundaries from "eslint-plugin-boundaries";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import jsdoc from "eslint-plugin-jsdoc";
+import jsxA11y from "eslint-plugin-jsx-a11y";
+
+// ─── Globs ───────────────────────────────────────────────────────────────────
+const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
+const tsGlobs  = ["**/*.{ts,tsx}"];
+const modGlobs = ["modules/**/*.{ts,tsx}"];
+
+// ─── Module boundary helpers ─────────────────────────────────────────────────
+const WARN = "warn";
+
+const moduleElements = ["domain","application","infrastructure","interfaces"].flatMap((layer) => [
+  { type: `module-${layer}`, pattern: `modules/*/${layer}/**/*`, capture: ["module"] },
+]);
+moduleElements.unshift(
+  { type: "module-root",           pattern: "modules/*/index.ts",               capture: ["module"] },
+  { type: "module-api",            pattern: "modules/*/api/**/*",                capture: ["module"] },
+  { type: "module-interfaces-api", pattern: "modules/*/interfaces/api/**/*",    capture: ["module"] },
+  { type: "module-interfaces-web", pattern: "modules/*/interfaces/web/**/*",    capture: ["module"] },
+);
+
+const layers = ["module-domain","module-application","module-infrastructure","module-interfaces"];
+const sameModule = (type) => ({ to: { type, captured: { module: "{{from.captured.module}}" } } });
+
+const layerAllows = {
+  "module-domain":         ["module-domain"],
+  "module-application":    ["module-application","module-domain"],
+  "module-infrastructure": ["module-infrastructure","module-application","module-domain"],
+  "module-interfaces":     ["module-interfaces","module-application","module-infrastructure","module-domain"],
+};
+
+const moduleDependencyRules = [
+  // cross-module → must go through api, interfaces/api, or interfaces/web
+  ...layers.map((type) => ({ from: { type }, allow: [{ to: { type: "module-api" } }, { to: { type: "module-interfaces-api" } }, { to: { type: "module-interfaces-web" } }] })),
+  // same-module root barrel allowed
+  ...layers.map((type) => ({ from: { type }, allow: [sameModule("module-root")] })),
+  // api layer owns same-module layers
+  { from: { type: "module-api" }, allow: ["module-api",...layers].map(sameModule) },
+  // interfaces/api and interfaces/web as same-module public adapter layers
+  { from: { type: "module-interfaces-api" }, allow: ["module-interfaces-api","module-interfaces-web","module-api",...layers].map(sameModule) },
+  { from: { type: "module-interfaces-web" }, allow: ["module-interfaces-web","module-interfaces-api","module-api",...layers].map(sameModule) },
+  // same-module layer purity
+  ...layers.map((type) => ({ from: { type }, allow: layerAllows[type].map(sameModule) })),
+];
+
+// ─── Restricted import patterns ───────────────────────────────────────────────
+const apiEntrypoint   = { regex: "^@/modules/(?!system$)[^/]+$",                          message: "Use @/modules/<module>/api only." };
+const nonApiSubpath   = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|interfaces/(?:api|web)(?:/|$)).+", message: "Cross-module deps must use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web." };
+const explicitIndex   = { group: ["**/index","**/index.ts","**/index.tsx"],                message: "Import the target file directly, not an index path." };
+const internalLayer   = { group: ["domain","application","infrastructure"].flatMap((l) => [`@/modules/*/${l}/**`]), message: "Use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web — not internal layer paths." };
+
+const legacyAliases = [
+  { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
+  { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
+  { group: ["@/libs/*"],          message: "Use the corresponding @lib-* or @integration-* alias." },
+  { group: ["@/ui/shadcn/*"],     message: "Use @ui-shadcn/* instead." },
+  { group: ["@/ui/vis","@/ui/vis/*"], message: "Use @ui-vis instead." },
+  { group: ["@/interfaces/*"],    message: "Use @api-contracts instead." },
+];
+
+const restrictedImports = (patterns) => ["no-restricted-imports", [WARN, { patterns }]];
+
+// ─── Config ───────────────────────────────────────────────────────────────────
+export default defineConfig([
+  ...nextVitals,
+  ...nextTs,
+
+  // JSDoc
+  {
+    files: srcGlobs,
+    plugins: { jsdoc },
+    settings: { jsdoc: { mode: "typescript" } },
+    rules: {
+      "jsdoc/check-alignment": WARN,
+      "jsdoc/check-syntax":    WARN,
+      "jsdoc/check-tag-names": WARN,
+      "jsdoc/no-blank-blocks": WARN,
+    },
+  },
+
+  // TypeScript naming + type imports + unused vars
+  {
+    files: tsGlobs,
+    plugins: { "@typescript-eslint": tseslint },
+    rules: {
+      "@typescript-eslint/naming-convention": [WARN,
+        { selector: "typeLike",     format: ["PascalCase"] },
+        { selector: "typeParameter",format: ["PascalCase"] },
+        { selector: "variable",     modifiers: ["destructured"], format: null },
+        { selector: "function",     format: ["camelCase","PascalCase"], leadingUnderscore: "allow" },
+        { selector: "variable",     format: ["camelCase","PascalCase","UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
+        { selector: "parameter",    modifiers: ["destructured"], format: null },
+        { selector: "parameter",    format: ["camelCase"], leadingUnderscore: "allow" },
+        { selector: "enumMember",   format: ["PascalCase","UPPER_CASE"] },
+      ],
+      "@typescript-eslint/consistent-type-imports": [WARN, { prefer: "type-imports", fixStyle: "inline-type-imports" }],
+      "@typescript-eslint/no-unused-vars":          [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
+    },
+  },
+
+  // React + a11y
+  {
+    files: ["**/*.{jsx,tsx}"],
+    rules: {
+      "react/react-in-jsx-scope":       "off",
+      "react/prop-types":               "off",
+      "react/self-closing-comp":        WARN,
+      "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
+      "react-hooks/rules-of-hooks":     "error",
+      "react-hooks/exhaustive-deps":    WARN,
+      ...Object.fromEntries(
+        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, cfg]) => {
+          if (Array.isArray(cfg)) {
+            const [sev, ...rest] = cfg;
+            const w = sev === "error" || sev === 2 ? WARN : sev;
+            return [rule, rest.length ? [w, ...rest] : w];
+          }
+          return [rule, cfg === "error" || cfg === 2 ? WARN : cfg];
+        }),
+      ),
+    },
+  },
+
+  // Module boundaries (eslint-plugin-boundaries)
+  {
+    files: modGlobs,
+    plugins: { boundaries },
+    settings: { "boundaries/include": modGlobs, "boundaries/elements": moduleElements },
+    rules: {
+      "boundaries/dependencies": [WARN, { default: "disallow", rules: moduleDependencyRules }],
+    },
+  },
+
+  // File-size guardrails per MDDD layer
+  { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
+  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
+
+  // Legacy alias migration
+  { rules: { [restrictedImports(legacyAliases)[0]]: restrictedImports(legacyAliases)[1] } },
+
+  // app / providers / debug → only module api entrypoints
+  {
+    files: ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"],
+    rules: { [restrictedImports([apiEntrypoint, nonApiSubpath])[0]]: restrictedImports([apiEntrypoint, nonApiSubpath])[1] },
+  },
+
+  // modules → strict entrypoint + internal layer enforcement
+  {
+    files: modGlobs,
+    rules: { [restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[1] },
+  },
+
+  globalIgnores([".agents/**","modules/platform/**",".next/**","out/**","build/**","next-env.d.ts"]),
+]);
+````
+
 ## File: features/README.md
 ````markdown
 ---
@@ -7542,1461 +7326,6 @@ service cloud.firestore {
     }
   }
 }
-````
-
-## File: modules/account/AGENT.md
-````markdown
-# AGENT.md — account BC
-
-## 模組定位
-
-`account` 是 Xuanwu 平台的**帳戶管理**有界上下文，負責用戶 profile 與存取控制政策。在伺服器端消費 `identity/api`。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Account` | User、Profile、Member（在此 BC 內） |
-| `AccountPolicy` | Permission、AccessRule、Role（作為存取控制） |
-| `customClaims` | Claims、FirebaseClaims |
-| `accountId` | userId、uid（在此 BC 之外的引用應使用 accountId） |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { accountApi } from "@/modules/account/api";
-import type { AccountDTO, AccountPolicyDTO } from "@/modules/account/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Account } from "@/modules/account/domain/entities/Account";
-// account use-cases 在 server 端 — 不要在 use-cases 中 import React/client hooks
-```
-
-## 關鍵依賴規則
-
-- `modules/account/application/use-cases/account.use-cases.ts` 與 `modules/account/application/use-cases/account-policy.use-cases.ts` 在 server 端執行，可 import `identity/api`
-- 不要在 application 層 import 任何含 `"use client"` 的模組
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/account/aggregates.md
-````markdown
-# Aggregates — account
-
-## 聚合根：Account
-
-### 職責
-代表使用者在 Xuanwu 平台的業務身份記錄。管理 profile 資訊與帳戶狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 帳戶主鍵（對應 Firebase uid） |
-| `displayName` | `string` | 顯示名稱 |
-| `email` | `string` | Email |
-| `avatarUrl` | `string \| null` | 頭像 URL |
-| `createdAt` | `Timestamp` | 建立時間 |
-
-### 不變數
-
-- 每個 Account 對應唯一一個 Firebase uid
-- Account 建立後 id 不可變更
-
----
-
-## 聚合根：AccountPolicy
-
-### 職責
-代表附加到帳戶的存取控制政策，定義哪些資源可存取、哪些動作被允許，並映射到 Firebase custom claims。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | Policy 主鍵 |
-| `accountId` | `string` | 關聯的 Account ID |
-| `rules` | `PolicyRule[]` | 存取控制規則列表 |
-| `effect` | `"allow" \| "deny"` | 規則效果 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `AccountRepository` | `save()`, `findById()`, `delete()` |
-| `AccountQueryRepository` | `findById()`, `findByEmail()` |
-| `AccountPolicyRepository` | `save()`, `findByAccountId()` |
-````
-
-## File: modules/account/api/index.ts
-````typescript
-/**
- * account 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 account 模組內部實作。
- */
-
-// ─── 核心實體型別 ──────────────────────────────────────────────────────────────
-
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-} from "../domain/entities/Account";
-
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-} from "../domain/entities/AccountPolicy";
-
-// ─── 查詢函數 (供 UI 層訂閱/讀取使用) ────────────────────────────────────────
-
-export {
-  getUserProfile,
-  subscribeToUserProfile,
-  subscribeToAccountsForUser,
-  getAccountRole,
-  subscribeToAccountRoles,
-  getAccountPolicies,
-  getActiveAccountPolicies,
-} from "../interfaces/queries/account.queries";
-
-// ─── Use Cases (供 composition root / app layer 使用) ────────────────────────
-
-export { CreateUserAccountUseCase } from "../application/use-cases/account.use-cases";
-
-// ─── Infrastructure (供 composition root 使用) ───────────────────────────────
-
-export { FirebaseAccountRepository } from "../infrastructure/firebase/FirebaseAccountRepository";
-
-// ─── Client-side use-case factory (client-only — do NOT import in Server Components) ──
-
-import { FirebaseAccountRepository as _AccountRepo } from "../infrastructure/firebase/FirebaseAccountRepository";
-import { CreateUserAccountUseCase as _CreateAccount } from "../application/use-cases/account.use-cases";
-
-/**
- * Creates a wired set of client-side account use cases for use in "use client" components.
- * Keeps infrastructure wiring in the module boundary rather than in UI files.
- */
-export function createClientAccountUseCases() {
-  const repo = new _AccountRepo();
-  return {
-    createUserAccountUseCase: new _CreateAccount(repo),
-  };
-}
-````
-
-## File: modules/account/application-services.md
-````markdown
-# account — Application Services
-
-> **Canonical bounded context:** `account`
-> **模組路徑:** `modules/account/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `account` 的 application layer 服務與 use cases。內容與 `modules/account/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理帳戶資料、偏好設定與帳戶政策，並在 server 端透過 identity/api 取得已驗證身份。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/account-policy.use-cases.ts`
-- `application/use-cases/account.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/account/README.md`
-- 模組 AGENT：`../../../modules/account/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/account/application-services.md`
-````
-
-## File: modules/account/context-map.md
-````markdown
-# Context Map — account
-
-## 上游（依賴）
-
-### identity → account（Customer/Supplier）
-
-- `account` 依賴 `identity/api` 取得 uid 與 TokenRefreshSignal
-- `modules/account/application/use-cases/account.use-cases.ts` 在 server 端 import `identity/api`
-
-```
-identity/api ──► account/application (server-side use-cases)
-```
-
----
-
-## 下游（被依賴）
-
-### account → organization（Customer/Supplier）
-
-- `organization` 的 `MemberReference` 使用 `accountId` 參照 Account
-- Organization 成員列表以 `accountId` 為主鍵
-
-### account → workspace（Customer/Supplier）
-
-- `Workspace.accountId` 關聯帳戶或組織
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → account | identity | account | Customer/Supplier |
-| account → organization | account | organization | Customer/Supplier |
-| account → workspace | account | workspace | Customer/Supplier |
-````
-
-## File: modules/account/domain-events.md
-````markdown
-# Domain Events — account
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `account.created` | 新帳戶建立時 | `accountId`, `email`, `occurredAt` |
-| `account.policy_updated` | AccountPolicy 更新時，觸發 custom claims 刷新 | `accountId`, `policyId`, `occurredAt` |
-
-## 訂閱事件
-
-| 來源 BC | 事件 | 行動 |
-|---------|------|------|
-| `identity` | `TokenRefreshSignal` | 觸發 custom claims 重新計算與 Firebase token 更新 |
-
-## 事件格式
-
-```typescript
-interface AccountCreatedEvent {
-  readonly type: "account.created";
-  readonly accountId: string;
-  readonly email: string;
-  readonly occurredAt: string;  // ISO 8601
-}
-
-interface AccountPolicyUpdatedEvent {
-  readonly type: "account.policy_updated";
-  readonly accountId: string;
-  readonly policyId: string;
-  readonly occurredAt: string;
-}
-```
-````
-
-## File: modules/account/domain-services.md
-````markdown
-# account — Domain Services
-
-> **Canonical bounded context:** `account`
-> **模組路徑:** `modules/account/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `account` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/account/domain-services.md`
-- `../../../modules/account/aggregates.md`
-````
-
-## File: modules/account/domain/entities/Account.ts
-````typescript
-/**
- * Account Domain Entities — pure TypeScript, zero framework dependencies.
- */
-
-import type { Timestamp } from "@shared-types";
-
-export type AccountType = "user" | "organization";
-export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
-export type Presence = "active" | "away" | "offline";
-
-export interface ThemeConfig {
-  primary: string;
-  background: string;
-  accent: string;
-}
-
-export interface Wallet {
-  balance: number;
-}
-
-export interface ExpertiseBadge {
-  id: string;
-  name: string;
-  icon?: string;
-}
-
-export interface MemberReference {
-  id: string;
-  name: string;
-  email: string;
-  role: OrganizationRole;
-  presence: Presence;
-  isExternal?: boolean;
-  expiryDate?: Timestamp;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-  memberIds: string[];
-}
-
-export interface AccountEntity {
-  id: string;
-  name: string;
-  accountType: AccountType;
-  email?: string;
-  photoURL?: string;
-  bio?: string;
-  achievements?: string[];
-  expertiseBadges?: ExpertiseBadge[];
-  wallet?: Wallet;
-  description?: string;
-  ownerId?: string;
-  role?: OrganizationRole;
-  theme?: ThemeConfig;
-  members?: MemberReference[];
-  memberIds?: string[];
-  teams?: Team[];
-  createdAt?: Timestamp;
-}
-
-// ─── Value Objects ────────────────────────────────────────────────────────────
-
-export interface UpdateProfileInput {
-  name?: string;
-  bio?: string;
-  photoURL?: string;
-  theme?: ThemeConfig;
-}
-
-export interface WalletTransaction {
-  id: string;
-  accountId: string;
-  amount: number;
-  description: string;
-  createdAt: Timestamp;
-}
-
-export type AccountRoleRecord = {
-  accountId: string;
-  role: OrganizationRole;
-  grantedBy: string;
-  grantedAt: Timestamp;
-};
-````
-
-## File: modules/account/domain/entities/AccountPolicy.ts
-````typescript
-/**
- * AccountPolicy — Domain Entity.
- * Represents an access-control policy attached to an account.
- * Per [S6] account-level policies trigger CUSTOM_CLAIMS refresh.
- * Zero external dependencies.
- */
-
-export type PolicyEffect = "allow" | "deny";
-
-export interface PolicyRule {
-  resource: string;
-  actions: string[];
-  effect: PolicyEffect;
-  conditions?: Record<string, string>;
-}
-
-export interface AccountPolicy {
-  readonly id: string;
-  readonly accountId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly rules: PolicyRule[];
-  readonly isActive: boolean;
-  readonly createdAt: string; // ISO-8601
-  readonly updatedAt: string; // ISO-8601
-  /** Trace ID from CBG_ENTRY for auditability [R8]. */
-  readonly traceId?: string;
-}
-
-// ─── Value Objects (Commands) ─────────────────────────────────────────────────
-
-export interface CreatePolicyInput {
-  readonly accountId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly rules: PolicyRule[];
-  readonly traceId?: string;
-}
-
-export interface UpdatePolicyInput {
-  readonly name?: string;
-  readonly description?: string;
-  readonly rules?: PolicyRule[];
-  readonly isActive?: boolean;
-}
-````
-
-## File: modules/account/domain/repositories/AccountPolicyRepository.ts
-````typescript
-/**
- * AccountPolicyRepository — Port for account policy persistence.
- * Domain defines the interface; Infrastructure implements it.
- */
-
-import type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../entities/AccountPolicy";
-
-export interface AccountPolicyRepository {
-  findById(id: string): Promise<AccountPolicy | null>;
-  findAllByAccountId(accountId: string): Promise<AccountPolicy[]>;
-  findActiveByAccountId(accountId: string): Promise<AccountPolicy[]>;
-  create(input: CreatePolicyInput): Promise<AccountPolicy>;
-  update(id: string, data: UpdatePolicyInput): Promise<void>;
-  delete(id: string): Promise<void>;
-}
-````
-
-## File: modules/account/domain/repositories/AccountQueryRepository.ts
-````typescript
-/**
- * AccountQueryRepository — Port for account read operations.
- * Separated from the write-side AccountRepository for CQRS clarity.
- */
-
-import type { AccountEntity } from "../entities/Account";
-import type { WalletTransaction } from "../entities/Account";
-import type { AccountRoleRecord } from "../entities/Account";
-
-export interface WalletBalanceSnapshot {
-  balance: number;
-}
-
-export type Unsubscribe = () => void;
-
-export interface AccountQueryRepository {
-  /** Fetch the user profile/account document. */
-  getUserProfile(userId: string): Promise<AccountEntity | null>;
-
-  /** Real-time subscription to user profile. */
-  subscribeToUserProfile(userId: string, onUpdate: (profile: AccountEntity | null) => void): Unsubscribe;
-
-  /** Fetch wallet balance. */
-  getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot>;
-
-  /** Real-time subscription to wallet balance. */
-  subscribeToWalletBalance(accountId: string, onUpdate: (snapshot: WalletBalanceSnapshot) => void): Unsubscribe;
-
-  /** Real-time subscription to wallet transaction history. */
-  subscribeToWalletTransactions(
-    accountId: string,
-    maxCount: number,
-    onUpdate: (txs: WalletTransaction[]) => void,
-  ): Unsubscribe;
-
-  /** Fetch the current role record for an account. */
-  getAccountRole(accountId: string): Promise<AccountRoleRecord | null>;
-
-  /** Real-time subscription to account roles. */
-  subscribeToAccountRoles(accountId: string, onUpdate: (record: AccountRoleRecord | null) => void): Unsubscribe;
-
-  /**
-   * Real-time subscription to ALL accounts visible to a user:
-   * — organization accounts where ownerId === userId
-   * — organization accounts where memberIds contains userId
-   * Returns a merged Record<accountId, AccountEntity> suitable for populating
-   * the app-level account switcher.
-   */
-  subscribeToAccountsForUser(
-    userId: string,
-    onUpdate: (accounts: Record<string, AccountEntity>) => void,
-  ): Unsubscribe;
-}
-````
-
-## File: modules/account/domain/repositories/AccountRepository.ts
-````typescript
-/**
- * AccountRepository — Port for account persistence.
- * Domain defines the interface; Infrastructure implements it.
- */
-
-import type { AccountEntity, UpdateProfileInput, WalletTransaction, AccountRoleRecord, OrganizationRole } from "../entities/Account";
-
-export interface AccountRepository {
-  findById(id: string): Promise<AccountEntity | null>;
-  save(account: AccountEntity): Promise<void>;
-  updateProfile(userId: string, data: UpdateProfileInput): Promise<void>;
-
-  // Wallet
-  getWalletBalance(accountId: string): Promise<number>;
-  creditWallet(accountId: string, amount: number, description: string): Promise<WalletTransaction>;
-  debitWallet(accountId: string, amount: number, description: string): Promise<WalletTransaction>;
-
-  // Role
-  assignRole(accountId: string, role: OrganizationRole, grantedBy: string): Promise<AccountRoleRecord>;
-  revokeRole(accountId: string): Promise<void>;
-  getRole(accountId: string): Promise<AccountRoleRecord | null>;
-}
-````
-
-## File: modules/account/index.ts
-````typescript
-/**
- * account module public API
- */
-export type {
-  AccountEntity,
-  AccountType,
-  OrganizationRole,
-  Presence,
-  ThemeConfig,
-  Wallet,
-  ExpertiseBadge,
-  MemberReference,
-  Team,
-  UpdateProfileInput,
-  WalletTransaction,
-  AccountRoleRecord,
-} from "./domain/entities/Account";
-export type {
-  AccountPolicy,
-  PolicyRule,
-  PolicyEffect,
-  CreatePolicyInput,
-  UpdatePolicyInput,
-} from "./domain/entities/AccountPolicy";
-export type { AccountRepository } from "./domain/repositories/AccountRepository";
-export type { AccountPolicyRepository } from "./domain/repositories/AccountPolicyRepository";
-export type {
-  AccountQueryRepository,
-  WalletBalanceSnapshot,
-  Unsubscribe,
-} from "./domain/repositories/AccountQueryRepository";
-export {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "./application/use-cases/account.use-cases";
-export {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "./application/use-cases/account-policy.use-cases";
-export { FirebaseAccountRepository } from "./infrastructure/firebase/FirebaseAccountRepository";
-export { FirebaseAccountPolicyRepository } from "./infrastructure/firebase/FirebaseAccountPolicyRepository";
-export { FirebaseAccountQueryRepository } from "./infrastructure/firebase/FirebaseAccountQueryRepository";
-// Server Actions
-export {
-  createUserAccount,
-  updateUserProfile,
-  creditWallet,
-  debitWallet,
-  assignAccountRole,
-  revokeAccountRole,
-} from "./interfaces/_actions/account.actions";
-export {
-  createAccountPolicy,
-  updateAccountPolicy,
-  deleteAccountPolicy,
-} from "./interfaces/_actions/account-policy.actions";
-// Read queries (callable from React hooks/components)
-export {
-  getUserProfile,
-  subscribeToUserProfile,
-  getWalletBalance,
-  subscribeToWalletBalance,
-  subscribeToWalletTransactions,
-  getAccountRole,
-  subscribeToAccountRoles,
-  getAccountPolicies,
-  getActiveAccountPolicies,
-  subscribeToAccountsForUser,
-} from "./interfaces/queries/account.queries";
-````
-
-## File: modules/account/infrastructure/firebase/FirebaseAccountPolicyRepository.ts
-````typescript
-/**
- * FirebaseAccountPolicyRepository — Infrastructure adapter for account policy persistence.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  query,
-  where,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
-import type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
-
-function toAccountPolicy(id: string, data: Record<string, unknown>): AccountPolicy {
-  return {
-    id,
-    accountId: data.accountId as string,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    rules: Array.isArray(data.rules) ? (data.rules as AccountPolicy["rules"]) : [],
-    isActive: data.isActive === true,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-    traceId: typeof data.traceId === "string" ? data.traceId : undefined,
-  };
-}
-
-export class FirebaseAccountPolicyRepository implements AccountPolicyRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<AccountPolicy | null> {
-    const snap = await getDoc(doc(this.db, "accountPolicies", id));
-    if (!snap.exists()) return null;
-    return toAccountPolicy(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async findAllByAccountId(accountId: string): Promise<AccountPolicy[]> {
-    const q = query(collection(this.db, "accountPolicies"), where("accountId", "==", accountId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toAccountPolicy(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async findActiveByAccountId(accountId: string): Promise<AccountPolicy[]> {
-    const q = query(
-      collection(this.db, "accountPolicies"),
-      where("accountId", "==", accountId),
-      where("isActive", "==", true),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toAccountPolicy(d.id, d.data() as Record<string, unknown>));
-  }
-
-  async create(input: CreatePolicyInput): Promise<AccountPolicy> {
-    const now = new Date().toISOString();
-    const ref = await addDoc(collection(this.db, "accountPolicies"), {
-      accountId: input.accountId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      ...(input.traceId ? { traceId: input.traceId } : {}),
-      _createdAt: serverTimestamp(),
-    });
-    return {
-      id: ref.id,
-      accountId: input.accountId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      traceId: input.traceId,
-    };
-  }
-
-  async update(id: string, data: UpdatePolicyInput): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-      _updatedAt: serverTimestamp(),
-    };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.description !== undefined) updates.description = data.description;
-    if (data.rules !== undefined) updates.rules = data.rules;
-    if (data.isActive !== undefined) updates.isActive = data.isActive;
-    await updateDoc(doc(this.db, "accountPolicies", id), updates);
-  }
-
-  async delete(id: string): Promise<void> {
-    await deleteDoc(doc(this.db, "accountPolicies", id));
-  }
-}
-````
-
-## File: modules/account/infrastructure/firebase/FirebaseAccountQueryRepository.ts
-````typescript
-/**
- * FirebaseAccountQueryRepository — Infrastructure adapter for account read queries.
- * Provides real-time subscriptions and one-shot reads.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit as fbLimit,
-  onSnapshot,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord, OrganizationRole } from "../../domain/entities/Account";
-
-function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    accountType: (data.accountType as AccountEntity["accountType"]) === "organization"
-      ? "organization"
-      : "user",
-    email: typeof data.email === "string" ? data.email : undefined,
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    bio: typeof data.bio === "string" ? data.bio : undefined,
-    wallet: data.wallet != null ? (data.wallet as AccountEntity["wallet"]) : undefined,
-    theme: data.theme != null ? (data.theme as AccountEntity["theme"]) : undefined,
-    members: Array.isArray(data.members) ? (data.members as AccountEntity["members"]) : undefined,
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : undefined,
-    teams: Array.isArray(data.teams) ? (data.teams as AccountEntity["teams"]) : undefined,
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
-    createdAt: data.createdAt as AccountEntity["createdAt"],
-  };
-}
-
-export class FirebaseAccountQueryRepository implements AccountQueryRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async getUserProfile(userId: string): Promise<AccountEntity | null> {
-    const snap = await getDoc(doc(this.db, "accounts", userId));
-    if (!snap.exists()) return null;
-    return toAccountEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  subscribeToUserProfile(
-    userId: string,
-    onUpdate: (profile: AccountEntity | null) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "accounts", userId), (snap) => {
-      onUpdate(snap.exists() ? toAccountEntity(snap.id, snap.data() as Record<string, unknown>) : null);
-    });
-  }
-
-  async getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-    const snap = await getDoc(doc(this.db, "accounts", accountId));
-    if (!snap.exists()) return { balance: 0 };
-    const data = snap.data() as Record<string, unknown>;
-    const wallet = data.wallet as Record<string, unknown> | undefined;
-    return { balance: typeof wallet?.balance === "number" ? wallet.balance : 0 };
-  }
-
-  subscribeToWalletBalance(
-    accountId: string,
-    onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "accounts", accountId), (snap) => {
-      if (!snap.exists()) {
-        onUpdate({ balance: 0 });
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      const wallet = data.wallet as Record<string, unknown> | undefined;
-      onUpdate({ balance: typeof wallet?.balance === "number" ? wallet.balance : 0 });
-    });
-  }
-
-  subscribeToWalletTransactions(
-    accountId: string,
-    maxCount: number,
-    onUpdate: (txs: WalletTransaction[]) => void,
-  ): Unsubscribe {
-    const ref = collection(this.db, "accounts", accountId, "walletTransactions");
-    const q = query(ref, orderBy("occurredAt", "desc"), fbLimit(maxCount));
-    return onSnapshot(q, (snap) => {
-      const txs: WalletTransaction[] = snap.docs.map((d) => {
-        const data = d.data() as Record<string, unknown>;
-        return {
-          id: d.id,
-          accountId: data.accountId as string,
-          amount: data.amount as number,
-          description: (data.reason as string | undefined) ?? "",
-          createdAt: data.occurredAt as WalletTransaction["createdAt"],
-        };
-      });
-      onUpdate(txs);
-    });
-  }
-
-  async getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-    const snap = await getDoc(doc(this.db, "accountRoles", accountId));
-    if (!snap.exists()) return null;
-    const data = snap.data() as Record<string, unknown>;
-    return {
-      accountId,
-      role: data.role as OrganizationRole,
-      grantedBy: data.grantedBy as string,
-      grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
-    };
-  }
-
-  subscribeToAccountRoles(
-    accountId: string,
-    onUpdate: (record: AccountRoleRecord | null) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "accountRoles", accountId), (snap) => {
-      if (!snap.exists()) {
-        onUpdate(null);
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      onUpdate({
-        accountId,
-        role: data.role as OrganizationRole,
-        grantedBy: data.grantedBy as string,
-        grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
-      });
-    });
-  }
-
-  subscribeToAccountsForUser(
-    userId: string,
-    onUpdate: (accounts: Record<string, AccountEntity>) => void,
-  ): Unsubscribe {
-    const db = this.db;
-    let ownerAccounts: Record<string, AccountEntity> = {};
-    let memberAccounts: Record<string, AccountEntity> = {};
-
-    const emit = () => {
-      onUpdate({ ...ownerAccounts, ...memberAccounts });
-    };
-
-    const ownerQuery = query(
-      collection(db, "accounts"),
-      where("ownerId", "==", userId),
-      where("accountType", "==", "organization"),
-    );
-
-    const memberQuery = query(
-      collection(db, "accounts"),
-      where("memberIds", "array-contains", userId),
-      where("accountType", "==", "organization"),
-    );
-
-    const unsubOwner = onSnapshot(ownerQuery, (snap) => {
-      ownerAccounts = {};
-      snap.docs.forEach((d) => {
-        ownerAccounts[d.id] = toAccountEntity(d.id, d.data() as Record<string, unknown>);
-      });
-      emit();
-    });
-
-    const unsubMember = onSnapshot(memberQuery, (snap) => {
-      memberAccounts = {};
-      snap.docs.forEach((d) => {
-        memberAccounts[d.id] = toAccountEntity(d.id, d.data() as Record<string, unknown>);
-      });
-      emit();
-    });
-
-    return () => {
-      unsubOwner();
-      unsubMember();
-    };
-  }
-}
-````
-
-## File: modules/account/infrastructure/firebase/FirebaseAccountRepository.ts
-````typescript
-/**
- * FirebaseAccountRepository — Infrastructure adapter for account persistence.
- * Translates Firestore documents ↔ Domain AccountEntity.
- * Firebase SDK only exists in this file.
- * Wallet operations use Firestore transactions for atomic balance enforcement.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  collection,
-  runTransaction,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { AccountRepository } from "../../domain/repositories/AccountRepository";
-import type {
-  AccountEntity,
-  UpdateProfileInput,
-  WalletTransaction,
-  AccountRoleRecord,
-  OrganizationRole,
-} from "../../domain/entities/Account";
-
-// ─── Firestore ↔ Domain Mapper ────────────────────────────────────────────────
-
-function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    accountType: (data.accountType as AccountEntity["accountType"]) === "organization"
-      ? "organization"
-      : "user",
-    email: typeof data.email === "string" ? data.email : undefined,
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    bio: typeof data.bio === "string" ? data.bio : undefined,
-    wallet: data.wallet != null ? (data.wallet as AccountEntity["wallet"]) : undefined,
-    theme: data.theme != null ? (data.theme as AccountEntity["theme"]) : undefined,
-    members: Array.isArray(data.members) ? (data.members as AccountEntity["members"]) : undefined,
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : undefined,
-    teams: Array.isArray(data.teams) ? (data.teams as AccountEntity["teams"]) : undefined,
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
-    createdAt: data.createdAt as AccountEntity["createdAt"],
-  };
-}
-
-// ─── Repository Implementation ────────────────────────────────────────────────
-
-export class FirebaseAccountRepository implements AccountRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async findById(id: string): Promise<AccountEntity | null> {
-    const snap = await getDoc(doc(this.db, "accounts", id));
-    if (!snap.exists()) return null;
-    return toAccountEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async save(account: AccountEntity): Promise<void> {
-    await setDoc(doc(this.db, "accounts", account.id), {
-      name: account.name,
-      accountType: account.accountType,
-      email: account.email ?? null,
-      photoURL: account.photoURL ?? null,
-      bio: account.bio ?? null,
-      createdAt: serverTimestamp(),
-    });
-  }
-
-  async updateProfile(userId: string, data: UpdateProfileInput): Promise<void> {
-    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.bio !== undefined) updates.bio = data.bio;
-    if (data.photoURL !== undefined) updates.photoURL = data.photoURL;
-    if (data.theme !== undefined) updates.theme = data.theme;
-    await updateDoc(doc(this.db, "accounts", userId), updates);
-  }
-
-  async getWalletBalance(accountId: string): Promise<number> {
-    const snap = await getDoc(doc(this.db, "accounts", accountId));
-    if (!snap.exists()) return 0;
-    const data = snap.data() as Record<string, unknown>;
-    const wallet = data.wallet as Record<string, unknown> | undefined;
-    return typeof wallet?.balance === "number" ? wallet.balance : 0;
-  }
-
-  async creditWallet(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<WalletTransaction> {
-    const db = this.db;
-    const accountRef = doc(db, "accounts", accountId);
-    let txId: string | undefined;
-
-    await runTransaction(db, async (txn) => {
-      const snap = await txn.get(accountRef);
-      const current = snap.exists()
-        ? ((snap.data() as Record<string, unknown>).wallet as Record<string, unknown> | undefined)
-        : undefined;
-      const currentBalance = typeof current?.balance === "number" ? current.balance : 0;
-      txn.update(accountRef, { "wallet.balance": currentBalance + amount, updatedAt: serverTimestamp() });
-    });
-
-    // Append ledger entry
-    const txRef = await import("firebase/firestore").then(async ({ addDoc }) => {
-      txId = crypto.randomUUID();
-      return addDoc(collection(db, "accounts", accountId, "walletTransactions"), {
-        id: txId,
-        accountId,
-        type: "credit",
-        amount,
-        reason: description,
-        occurredAt: serverTimestamp(),
-      });
-    });
-
-    return {
-      id: txRef.id,
-      accountId,
-      amount,
-      description,
-      createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-    };
-  }
-
-  async debitWallet(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<WalletTransaction> {
-    const db = this.db;
-    const accountRef = doc(db, "accounts", accountId);
-
-    await runTransaction(db, async (txn) => {
-      const snap = await txn.get(accountRef);
-      const current = snap.exists()
-        ? ((snap.data() as Record<string, unknown>).wallet as Record<string, unknown> | undefined)
-        : undefined;
-      const currentBalance = typeof current?.balance === "number" ? current.balance : 0;
-      if (currentBalance < amount) {
-        throw new Error(`Insufficient wallet balance: have ${currentBalance}, need ${amount}`);
-      }
-      txn.update(accountRef, { "wallet.balance": currentBalance - amount, updatedAt: serverTimestamp() });
-    });
-
-    const txRef = await import("firebase/firestore").then(async ({ addDoc }) =>
-      addDoc(collection(db, "accounts", accountId, "walletTransactions"), {
-        accountId,
-        type: "debit",
-        amount,
-        reason: description,
-        occurredAt: serverTimestamp(),
-      }),
-    );
-
-    return {
-      id: txRef.id,
-      accountId,
-      amount,
-      description,
-      createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-    };
-  }
-
-  async assignRole(
-    accountId: string,
-    role: OrganizationRole,
-    grantedBy: string,
-  ): Promise<AccountRoleRecord> {
-    const now = new Date().toISOString();
-    await setDoc(
-      doc(this.db, "accountRoles", accountId),
-      { accountId, role, grantedBy, grantedAt: now, isActive: true, updatedAt: serverTimestamp() },
-      { merge: true },
-    );
-    return {
-      accountId,
-      role,
-      grantedBy,
-      grantedAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
-    };
-  }
-
-  async revokeRole(accountId: string): Promise<void> {
-    await updateDoc(doc(this.db, "accountRoles", accountId), {
-      isActive: false,
-      revokedAt: new Date().toISOString(),
-      updatedAt: serverTimestamp(),
-    });
-  }
-
-  async getRole(accountId: string): Promise<AccountRoleRecord | null> {
-    const snap = await getDoc(doc(this.db, "accountRoles", accountId));
-    if (!snap.exists()) return null;
-    const data = snap.data() as Record<string, unknown>;
-    return {
-      accountId,
-      role: data.role as OrganizationRole,
-      grantedBy: data.grantedBy as string,
-      grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
-    };
-  }
-}
-````
-
-## File: modules/account/interfaces/_actions/account-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Policy Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateAccountPolicyUseCase,
-  UpdateAccountPolicyUseCase,
-  DeleteAccountPolicyUseCase,
-} from "../../application/use-cases/account-policy.use-cases";
-import { FirebaseAccountPolicyRepository } from "../../infrastructure/firebase/FirebaseAccountPolicyRepository";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
-
-const policyRepo = new FirebaseAccountPolicyRepository();
-
-export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
-  try {
-    return await new CreateAccountPolicyUseCase(policyRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateAccountPolicy(
-  policyId: string,
-  accountId: string,
-  data: UpdatePolicyInput,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateAccountPolicyUseCase(policyRepo).execute(policyId, accountId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteAccountPolicy(
-  policyId: string,
-  accountId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteAccountPolicyUseCase(policyRepo).execute(policyId, accountId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/account/interfaces/_actions/account.actions.ts
-````typescript
-"use server";
-
-/**
- * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateUserAccountUseCase,
-  UpdateUserProfileUseCase,
-  CreditWalletUseCase,
-  DebitWalletUseCase,
-  AssignAccountRoleUseCase,
-  RevokeAccountRoleUseCase,
-} from "../../application/use-cases/account.use-cases";
-import { FirebaseAccountRepository } from "../../infrastructure/firebase/FirebaseAccountRepository";
-import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
-
-const accountRepo = new FirebaseAccountRepository();
-
-export async function createUserAccount(
-  userId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new CreateUserAccountUseCase(accountRepo).execute(userId, name, email);
-  } catch (err) {
-    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateUserProfile(
-  userId: string,
-  data: UpdateProfileInput,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateUserProfileUseCase(accountRepo).execute(userId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function creditWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await new CreditWalletUseCase(accountRepo).execute(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function debitWallet(
-  accountId: string,
-  amount: number,
-  description: string,
-): Promise<CommandResult> {
-  try {
-    return await new DebitWalletUseCase(accountRepo).execute(accountId, amount, description);
-  } catch (err) {
-    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function assignAccountRole(
-  accountId: string,
-  role: OrganizationRole,
-  grantedBy: string,
-  traceId?: string,
-): Promise<CommandResult> {
-  try {
-    // TOKEN_REFRESH_SIGNAL is emitted inside AssignAccountRoleUseCase after role change [S6].
-    return await new AssignAccountRoleUseCase(accountRepo).execute(
-      accountId,
-      role,
-      grantedBy,
-      traceId,
-    );
-  } catch (err) {
-    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
-  try {
-    return await new RevokeAccountRoleUseCase(accountRepo).execute(accountId);
-  } catch (err) {
-    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/account/interfaces/queries/account.queries.ts
-````typescript
-/**
- * Account Read Queries — thin wrappers exposing read operations via the AccountQueryRepository port.
- * These are NOT Server Actions — they are callable from React components/hooks.
- */
-
-import { FirebaseAccountQueryRepository } from "../../infrastructure/firebase/FirebaseAccountQueryRepository";
-import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../../domain/entities/Account";
-import type { WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
-import type { AccountPolicy } from "../../domain/entities/AccountPolicy";
-
-const accountQueryRepo = new FirebaseAccountQueryRepository();
-
-// ─── User Profile ─────────────────────────────────────────────────────────────
-
-export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
-  return accountQueryRepo.getUserProfile(userId);
-}
-
-export function subscribeToUserProfile(
-  userId: string,
-  onUpdate: (profile: AccountEntity | null) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
-}
-
-// ─── Wallet ───────────────────────────────────────────────────────────────────
-
-export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
-  return accountQueryRepo.getWalletBalance(accountId);
-}
-
-export function subscribeToWalletBalance(
-  accountId: string,
-  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
-}
-
-export function subscribeToWalletTransactions(
-  accountId: string,
-  maxCount: number,
-  onUpdate: (txs: WalletTransaction[]) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
-}
-
-// ─── Role ─────────────────────────────────────────────────────────────────────
-
-export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
-  return accountQueryRepo.getAccountRole(accountId);
-}
-
-export function subscribeToAccountRoles(
-  accountId: string,
-  onUpdate: (record: AccountRoleRecord | null) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
-}
-
-// ─── Account Policy ───────────────────────────────────────────────────────────
-
-export async function getAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
-  void accountId;
-  // Keep client bundles free of server-only policy repository dependencies.
-  return [];
-}
-
-export async function getActiveAccountPolicies(accountId: string): Promise<AccountPolicy[]> {
-  void accountId;
-  // Keep client bundles free of server-only policy repository dependencies.
-  return [];
-}
-
-// ─── Multi-Account (App-Level) ────────────────────────────────────────────────
-
-export function subscribeToAccountsForUser(
-  userId: string,
-  onUpdate: (accounts: Record<string, AccountEntity>) => void,
-): Unsubscribe {
-  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
-}
-````
-
-## File: modules/account/ports/.gitkeep
-````
-
-````
-
-## File: modules/account/README.md
-````markdown
-# account — 帳戶上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/account/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`account` 承接 `identity` 的已驗證身份，管理個人檔案、偏好設定與帳戶政策，讓平台具備使用者層級的個人化與權限落點。它位於平台基礎層，負責把「登入身份」轉成「可持久化的帳戶語意」。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 帳戶設定檔 | 維護顯示名稱、頭像、偏好與其他個人資料 |
-| 帳戶政策 | 管理 AccountPolicy、custom claims 與存取控制輔助資訊 |
-| 個人化入口 | 為組織、工作區與通知提供使用者側設定基礎 |
-
-## 與其他 Bounded Context 協作
-
-- `identity` 提供身份與 token 上下文。
-- `organization`、`workspace` 與 `notification` 以帳戶資料作為使用者語意來源。
-
-## 核心聚合 / 核心概念
-
-- **`Account`**
-- **`AccountPolicy`**
-- **`AccountProfile`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/account/repositories.md
-````markdown
-# account — Repositories
-
-> **Canonical bounded context:** `account`
-> **模組路徑:** `modules/account/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `account` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/AccountPolicyRepository.ts`
-- `domain/repositories/AccountQueryRepository.ts`
-- `domain/repositories/AccountRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseAccountPolicyRepository.ts`
-- `infrastructure/firebase/FirebaseAccountQueryRepository.ts`
-- `infrastructure/firebase/FirebaseAccountRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/account/repositories.md`
-- `../../../modules/account/aggregates.md`
-````
-
-## File: modules/account/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — account
-
-> **範圍：** 僅限 `modules/account/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 帳戶 | Account | 使用者在平台的業務記錄，含 profile 資訊與狀態 | `modules/account/domain/entities/Account.ts` |
-| 帳戶政策 | AccountPolicy | 附加到帳戶的存取控制政策，決定 Firebase custom claims 內容 | `modules/account/domain/entities/AccountPolicy.ts` |
-| 帳戶 ID | accountId | Account 的業務主鍵（對應 Firebase uid，但在業務層使用 accountId 術語） | `Account.id` |
-| 自訂宣告 | customClaims | Firebase ID token 中的自訂 claims，由 AccountPolicy 決定 | `Account.customClaims` |
-| 帳戶查詢庫 | AccountQueryRepository | CQRS 讀取側 Repository port | `domain/repositories/AccountQueryRepository.ts` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Account` | `User`, `Profile` |
-| `AccountPolicy` | `Permission`, `Role`, `AccessRule` |
-| `accountId` | `userId`（帳戶層應使用 accountId） |
 ````
 
 ## File: modules/ai/.gitkeep
@@ -22799,2965 +21128,19 @@ export const useBlockEditorStore = create<BlockEditorState>((set) => ({
 > `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
-## File: modules/notification/AGENT.md
-````markdown
-# AGENT.md — notification BC
-
-## 模組定位
-
-`notification` 是通知分發的通用子域，負責系統通知的建立、發送與讀取。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `NotificationEntity` | Notification（作為 class 名），Alert, Message（作為通知） |
-| `recipientId` | userId, receiverId |
-| `NotificationType` | Type, AlertLevel |
-| `DispatchNotificationInput` | CreateNotification, SendNotification |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { notificationApi } from "@/modules/notification/api";
-import type { NotificationDTO } from "@/modules/notification/api";
-```
-
-### ❌ 禁止
-```typescript
-import { NotificationEntity } from "@/modules/notification/domain/entities/Notification";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/notification/aggregates.md
-````markdown
-# Aggregates — notification
-
-## 聚合根：NotificationEntity
-
-### 職責
-代表一則系統通知記錄。管理通知的發送與讀取狀態。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 通知主鍵 |
-| `recipientId` | `string` | 接收者帳戶 ID |
-| `title` | `string` | 通知標題 |
-| `message` | `string` | 通知內容 |
-| `type` | `NotificationType` | `info \| alert \| success \| warning` |
-| `read` | `boolean` | 是否已讀 |
-| `timestamp` | `number` | Unix timestamp（毫秒） |
-| `sourceEventType` | `string?` | 觸發此通知的事件類型 |
-| `metadata` | `Record<string, unknown>?` | 附加元資料 |
-
-### 不變數
-
-- `recipientId` 不可為空
-- `title` 不可為空
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `NotificationRepository` | `save()`, `findByRecipient()`, `markAsRead()` |
-````
-
-## File: modules/notification/api/index.ts
+## File: modules/platform/adapters/cli/index.ts
 ````typescript
 /**
- * Module: notification
- * Layer: api/barrel
- * Purpose: Public cross-module API boundary for the Notification domain.
- *
- * Other modules MUST import from here — never from domain/, application/,
- * infrastructure/, or interfaces/ directly.
+ * platform CLI driving adapter placeholder module.
  */
 
-// ─── Facade ───────────────────────────────────────────────────────────────────
-
-export { NotificationFacade, notificationFacade } from "./notification.facade";
-
-// ─── Core entity types ────────────────────────────────────────────────────────
-
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "../domain/entities/Notification";
-
-// ─── UI components ────────────────────────────────────────────────────────────
-
-export { NotificationBell } from "../interfaces/components/NotificationBell";
-
-// ─── Server Actions (cross-module public) ─────────────────────────────────────
-
-export {
-  dispatchNotification,
-  markNotificationRead,
-  markAllNotificationsRead,
-} from "../interfaces/_actions/notification.actions";
-
-// ─── Queries ─────────────────────────────────────────────────────────────────
-
-export { getNotificationsForRecipient } from "../interfaces/queries/notification.queries";
-````
-
-## File: modules/notification/api/notification.facade.ts
-````typescript
-/**
- * Module: notification
- * Layer: api/facade
- * Purpose: Public programmatic entry-point for cross-module notification dispatch.
- *
- * Other modules MUST use `notificationFacade` — never reach into domain/,
- * application/, or infrastructure/ directly.
- */
-
-import { type CommandResult } from "@shared-types";
-import {
-  DispatchNotificationUseCase,
-  MarkAllNotificationsReadUseCase,
-  MarkNotificationReadUseCase,
-} from "../application/use-cases/notification.use-cases";
-import type { DispatchNotificationInput, NotificationEntity } from "../domain/entities/Notification";
-import { FirebaseNotificationRepository } from "../infrastructure/firebase/FirebaseNotificationRepository";
-import type { NotificationRepository } from "../domain/repositories/NotificationRepository";
-
-export class NotificationFacade {
-  private readonly repo: NotificationRepository;
-
-  constructor(repo: NotificationRepository = new FirebaseNotificationRepository()) {
-    this.repo = repo;
-  }
-
-  /** Dispatch a new notification to a recipient. */
-  async dispatch(input: DispatchNotificationInput): Promise<CommandResult> {
-    return new DispatchNotificationUseCase(this.repo).execute(input);
-  }
-
-  /** Mark a single notification as read. */
-  async markAsRead(notificationId: string, recipientId: string): Promise<CommandResult> {
-    return new MarkNotificationReadUseCase(this.repo).execute(notificationId, recipientId);
-  }
-
-  /** Mark all notifications for a recipient as read. */
-  async markAllAsRead(recipientId: string): Promise<CommandResult> {
-    return new MarkAllNotificationsReadUseCase(this.repo).execute(recipientId);
-  }
-
-  /** Retrieve recent notifications for a recipient. */
-  async getForRecipient(recipientId: string, limit = 50): Promise<NotificationEntity[]> {
-    const normalised = recipientId.trim();
-    if (!normalised) return [];
-    return this.repo.findByRecipient(normalised, limit);
-  }
-
-  /** Return unread notification count for a recipient. */
-  async getUnreadCount(recipientId: string): Promise<number> {
-    const normalised = recipientId.trim();
-    if (!normalised) return 0;
-    return this.repo.getUnreadCount(normalised);
-  }
-}
-
-export const notificationFacade = new NotificationFacade();
-````
-
-## File: modules/notification/application-services.md
-````markdown
-# notification — Application Services
-
-> **Canonical bounded context:** `notification`
-> **模組路徑:** `modules/notification/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `notification` 的 application layer 服務與 use cases。內容與 `modules/notification/application/` 實作保持一致。
-
-## Application Layer 職責
-
-負責系統通知分發與通知讀取狀態管理。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/notification.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/notification/README.md`
-- 模組 AGENT：`../../../modules/notification/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/notification/application-services.md`
-````
-
-## File: modules/notification/application/use-cases/notification.use-cases.ts
-````typescript
-/**
- * Notification Use Cases — pure business workflows.
- * notification-hub = sole side-effect outlet. All notification dispatch routes through here.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
-import type { DispatchNotificationInput } from "../../domain/entities/Notification";
-
-export class DispatchNotificationUseCase {
-  constructor(private readonly notificationRepo: NotificationRepository) {}
-
-  async execute(input: DispatchNotificationInput): Promise<CommandResult> {
-    try {
-      const notification = await this.notificationRepo.dispatch(input);
-      return commandSuccess(notification.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "NOTIFICATION_DISPATCH_FAILED",
-        err instanceof Error ? err.message : "Failed to dispatch notification",
-      );
-    }
-  }
-}
-
-export class MarkNotificationReadUseCase {
-  constructor(private readonly notificationRepo: NotificationRepository) {}
-
-  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
-    try {
-      await this.notificationRepo.markAsRead(notificationId, recipientId);
-      return commandSuccess(notificationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "NOTIFICATION_MARK_READ_FAILED",
-        err instanceof Error ? err.message : "Failed to mark notification as read",
-      );
-    }
-  }
-}
-
-export class MarkAllNotificationsReadUseCase {
-  constructor(private readonly notificationRepo: NotificationRepository) {}
-
-  async execute(recipientId: string): Promise<CommandResult> {
-    try {
-      await this.notificationRepo.markAllAsRead(recipientId);
-      return commandSuccess(recipientId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "NOTIFICATION_MARK_ALL_READ_FAILED",
-        err instanceof Error ? err.message : "Failed to mark all notifications as read",
-      );
-    }
-  }
-}
-````
-
-## File: modules/notification/context-map.md
-````markdown
-# Context Map — notification
-
-## 上游（依賴）
-
-### 所有業務 BC → notification（Published Language）
-
-`notification` 訂閱各 BC 的業務事件，轉換為使用者通知。不直接依賴任何 BC 的 api。
-
----
-
-## 下游（被依賴）
-
-`notification` 不被其他 BC 依賴（通知是終端輸出，無下游）。
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| workspace → notification | workspace | notification | Published Language (Events) |
-| workspace-flow → notification | workspace-flow | notification | Published Language (Events) |
-| 其他 BC → notification | 各 BC | notification | Published Language (Events) |
-````
-
-## File: modules/notification/domain-events.md
-````markdown
-# Domain Events — notification
-
-## 發出事件
-
-`notification` 域不發出 DomainEvent（通知本身是事件的結果，而非事件的來源）。
-
-## 訂閱事件
-
-`notification` 是各 BC 事件的**消費端**，訂閱業務事件並轉換為使用者通知：
-
-| 來源 BC | 訂閱事件 | 通知內容 |
-|---------|---------|---------|
-| `workspace` | `workspace.member_joined` | 新成員加入通知 |
-| `workspace-flow` | `workspace-flow.task_status_changed` | 任務狀態變更通知 |
-| `workspace-audit` | 稽核紀錄變化 | 重要稽核事件通知（未來） |
-
-## 說明
-
-通知系統的角色是「事件翻譯器」：
-1. 其他 BC 發出領域事件
-2. notification 訂閱並翻譯為使用者可讀的通知
-3. 通知推送給對應的 recipientId
-
-這是典型的 **Published Language** 模式，notification 作為 Conformist 消費者。
-````
-
-## File: modules/notification/domain-services.md
-````markdown
-# notification — Domain Services
-
-> **Canonical bounded context:** `notification`
-> **模組路徑:** `modules/notification/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `notification` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/notification/domain-services.md`
-- `../../../modules/notification/aggregates.md`
-````
-
-## File: modules/notification/domain/entities/Notification.ts
-````typescript
-/**
- * Notification Domain Entities — pure TypeScript, zero framework dependencies.
- */
-
-export type NotificationType = "info" | "alert" | "success" | "warning";
-
-export interface NotificationEntity {
-  id: string;
-  recipientId: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  read: boolean;
-  timestamp: number;
-  sourceEventType?: string;
-  metadata?: Record<string, unknown>;
-}
-
-// ─── Value Objects ────────────────────────────────────────────────────────────
-
-export interface DispatchNotificationInput {
-  recipientId: string;
-  title: string;
-  message: string;
-  type: NotificationType;
-  sourceEventType?: string;
-  metadata?: Record<string, unknown>;
-}
-````
-
-## File: modules/notification/domain/repositories/NotificationRepository.ts
-````typescript
-import type { NotificationEntity, DispatchNotificationInput } from "../entities/Notification";
-
-export interface NotificationRepository {
-  dispatch(input: DispatchNotificationInput): Promise<NotificationEntity>;
-  markAsRead(notificationId: string, recipientId: string): Promise<void>;
-  markAllAsRead(recipientId: string): Promise<void>;
-  findByRecipient(recipientId: string, limit?: number): Promise<NotificationEntity[]>;
-  getUnreadCount(recipientId: string): Promise<number>;
-}
-````
-
-## File: modules/notification/index.ts
-````typescript
-/**
- * notification module public API
- *
- * Cross-module callers must use `notificationFacade` or the exported types.
- * Internal layers (domain/, application/, infrastructure/) remain private.
- */
-
-export { NotificationFacade, notificationFacade } from "./api";
-export type {
-  NotificationEntity,
-  NotificationType,
-  DispatchNotificationInput,
-} from "./api";
-
-export { NotificationBell } from "./interfaces";
-````
-
-## File: modules/notification/infrastructure/firebase/FirebaseNotificationRepository.ts
-````typescript
-/**
- * FirebaseNotificationRepository — Infrastructure adapter for notifications.
- */
-
-import {
-  getFirestore,
-  doc,
-  collection,
-  addDoc,
-  updateDoc,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit as fbLimit,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
-import type {
-  NotificationEntity,
-  DispatchNotificationInput,
-} from "../../domain/entities/Notification";
-
-export class FirebaseNotificationRepository implements NotificationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async dispatch(input: DispatchNotificationInput): Promise<NotificationEntity> {
-    const docRef = await addDoc(collection(this.db, "notifications"), {
-      recipientId: input.recipientId,
-      title: input.title,
-      message: input.message,
-      type: input.type,
-      read: false,
-      timestamp: Date.now(),
-      sourceEventType: input.sourceEventType ?? null,
-      metadata: input.metadata ?? null,
-      createdAt: serverTimestamp(),
-    });
-    return {
-      id: docRef.id,
-      recipientId: input.recipientId,
-      title: input.title,
-      message: input.message,
-      type: input.type,
-      read: false,
-      timestamp: Date.now(),
-      sourceEventType: input.sourceEventType,
-      metadata: input.metadata,
-    };
-  }
-
-  async markAsRead(notificationId: string, _recipientId: string): Promise<void> {
-    await updateDoc(doc(this.db, "notifications", notificationId), { read: true });
-  }
-
-  async markAllAsRead(recipientId: string): Promise<void> {
-    const q = query(
-      collection(this.db, "notifications"),
-      where("recipientId", "==", recipientId),
-      where("read", "==", false),
-    );
-    const snaps = await getDocs(q);
-    await Promise.all(snaps.docs.map((d) => updateDoc(d.ref, { read: true })));
-  }
-
-  async findByRecipient(
-    recipientId: string,
-    maxCount = 50,
-  ): Promise<NotificationEntity[]> {
-    const q = query(
-      collection(this.db, "notifications"),
-      where("recipientId", "==", recipientId),
-      orderBy("timestamp", "desc"),
-      fbLimit(maxCount),
-    );
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => {
-      const data = d.data() as Record<string, unknown>;
-      return {
-        id: d.id,
-        recipientId: data.recipientId as string,
-        title: data.title as string,
-        message: data.message as string,
-        type: data.type as NotificationEntity["type"],
-        read: data.read as boolean,
-        timestamp: data.timestamp as number,
-        sourceEventType: data.sourceEventType as string | undefined,
-        metadata: data.metadata as Record<string, unknown> | undefined,
-      };
-    });
-  }
-
-  async getUnreadCount(recipientId: string): Promise<number> {
-    const q = query(
-      collection(this.db, "notifications"),
-      where("recipientId", "==", recipientId),
-      where("read", "==", false),
-    );
-    const snaps = await getDocs(q);
-    return snaps.size;
-  }
-}
-````
-
-## File: modules/notification/interfaces/_actions/notification.actions.ts
-````typescript
-"use server";
-
-/**
- * Notification Server Actions — thin adapter to use cases.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  DispatchNotificationUseCase,
-  MarkNotificationReadUseCase,
-  MarkAllNotificationsReadUseCase,
-} from "../../application/use-cases/notification.use-cases";
-import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
-import type { DispatchNotificationInput } from "../../domain/entities/Notification";
-
-const notificationRepo = new FirebaseNotificationRepository();
-
-export async function dispatchNotification(
-  input: DispatchNotificationInput,
-): Promise<CommandResult> {
-  try {
-    return await new DispatchNotificationUseCase(notificationRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("NOTIFICATION_DISPATCH_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markNotificationRead(
-  notificationId: string,
-  recipientId: string,
-): Promise<CommandResult> {
-  try {
-    return await new MarkNotificationReadUseCase(notificationRepo).execute(notificationId, recipientId);
-  } catch (err) {
-    return commandFailureFrom("NOTIFICATION_MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
-  try {
-    return await new MarkAllNotificationsReadUseCase(notificationRepo).execute(recipientId);
-  } catch (err) {
-    return commandFailureFrom("NOTIFICATION_MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/notification/interfaces/components/NotificationBell.tsx
-````typescript
-"use client";
-
-/**
- * Module: notification
- * Layer: interfaces/components
- * Purpose: Reusable notification bell with dropdown for shell header.
- *
- * Consumes use-cases via the module facade (no direct infrastructure imports).
- * Server-action mutations are wired through the local _actions module.
- */
-
-import Link from "next/link";
-import { Bell } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "../_actions/notification.actions";
-import { getNotificationsForRecipient } from "../queries/notification.queries";
-import type { NotificationEntity } from "../../domain/entities/Notification";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@ui-shadcn/ui/dropdown-menu";
-
-const NOTIFICATION_LIMIT = 20;
-
-function formatNotificationTime(timestamp: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp));
-}
-
-interface NotificationBellProps {
-  readonly recipientId: string;
-}
-
-export function NotificationBell({ recipientId }: NotificationBellProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isMutating, setIsMutating] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-
-  const unreadCount = useMemo(
-    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
-    [notifications],
-  );
-
-  const loadNotifications = useCallback(async () => {
-    if (!recipientId) {
-      setNotifications([]);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
-      setNotifications(next);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => {
-    void loadNotifications();
-  }, [loadNotifications]);
-
-  async function handleOpenChange(nextOpen: boolean) {
-    setIsOpen(nextOpen);
-    if (nextOpen) {
-      await loadNotifications();
-    }
-  }
-
-  async function handleMarkOneRead(notificationId: string) {
-    if (!recipientId) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) =>
-      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
-    );
-    try {
-      const result = await markNotificationRead(notificationId, recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  async function handleMarkAllRead() {
-    if (!recipientId || unreadCount === 0) return;
-    setIsMutating(true);
-    const previous = notifications;
-    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
-    try {
-      const result = await markAllNotificationsRead(recipientId);
-      if (!result.success) setNotifications(previous);
-    } finally {
-      setIsMutating(false);
-    }
-  }
-
-  return (
-    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon-sm"
-          aria-label="Open notifications"
-          className="relative text-muted-foreground"
-        >
-          <Bell className="h-4 w-4" />
-          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
-            {unreadCount > 99 ? "99+" : unreadCount}
-          </span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 p-0">
-        <div className="flex items-center justify-between px-3 py-2">
-          <p className="text-sm font-semibold">Notifications</p>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs"
-            disabled={isMutating || unreadCount === 0}
-            onClick={handleMarkAllRead}
-          >
-            Mark all read
-          </Button>
-        </div>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {isLoading ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
-          ) : notifications.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
-          ) : (
-            notifications.map((notification) => (
-              <button
-                key={notification.id}
-                type="button"
-                onClick={() => void handleMarkOneRead(notification.id)}
-                disabled={isMutating}
-                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium">{notification.title}</p>
-                  {!notification.read ? (
-                    <span
-                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
-                  {notification.message}
-                </p>
-                <p className="mt-1 text-[11px] text-muted-foreground">
-                  {formatNotificationTime(notification.timestamp)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-        <DropdownMenuSeparator />
-        <div className="py-1 text-center">
-          <Link
-            href="/settings/notifications"
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            查看全部通知
-          </Link>
-        </div>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-````
-
-## File: modules/notification/interfaces/index.ts
-````typescript
-export { NotificationBell } from "./components/NotificationBell";
-````
-
-## File: modules/notification/interfaces/queries/notification.queries.ts
-````typescript
-import type { NotificationEntity } from "../../domain/entities/Notification";
-import { FirebaseNotificationRepository } from "../../infrastructure/firebase/FirebaseNotificationRepository";
-
-const notificationRepo = new FirebaseNotificationRepository();
-
-export async function getNotificationsForRecipient(
-  recipientId: string,
-  limit = 50,
-): Promise<NotificationEntity[]> {
-  const normalizedRecipientId = recipientId.trim();
-  if (!normalizedRecipientId) {
-    return [];
-  }
-
-  return notificationRepo.findByRecipient(normalizedRecipientId, limit);
-}
-````
-
-## File: modules/notification/ports/.gitkeep
-````
-
-````
-
-## File: modules/notification/README.md
-````markdown
-# notification — 通知上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/notification/`  
-> **開發狀態:** 🏗️ Midway
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`notification` 提供跨平台的通知分發能力，將知識、工作流程與工作區互動轉成使用者可感知的訊息。它是典型平台配套能力，但對協作效率與回應速度很重要。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 通知分發 | 發送 info / alert / success / warning 等系統訊息 |
-| 事件轉訊息 | 把其他上下文的事件轉成使用者可消費的通知 |
-| 通知偏好支撐 | 配合 `account` 與 `workspace` 的偏好設定輸出通知行為 |
-
-## 與其他 Bounded Context 協作
-
-- `workspace-feed`、`workspace-flow`、`workspace` 等上下文會觸發通知需求。
-- `account` 提供使用者偏好與收件對象語意。
-
-## 核心聚合 / 核心概念
-
-- **`NotificationEntity`**
-- **`NotificationPayload`**
-- **`NotificationPreference`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/notification/repositories.md
-````markdown
-# notification — Repositories
-
-> **Canonical bounded context:** `notification`
-> **模組路徑:** `modules/notification/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `notification` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/NotificationRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseNotificationRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/notification/repositories.md`
-- `../../../modules/notification/aggregates.md`
-````
-
-## File: modules/notification/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — notification
-
-> **範圍：** 僅限 `modules/notification/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 通知 | NotificationEntity | 一則系統通知記錄（含標題、內容、類型、讀取狀態） |
-| 接收者 ID | recipientId | 接收此通知的帳戶 ID |
-| 通知類型 | NotificationType | `"info" \| "alert" \| "success" \| "warning"` |
-| 分發通知輸入 | DispatchNotificationInput | 建立並發送通知的輸入物件 |
-| 來源事件類型 | sourceEventType | 觸發此通知的業務事件類型（可選，用於追蹤） |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `NotificationEntity` | `Notification`（避免與 JS Notification API 衝突） |
-| `recipientId` | `userId`, `receiverId` |
-````
-
-## File: modules/organization/AGENT.md
-````markdown
-# AGENT.md — organization BC
-
-## 模組定位
-
-`organization` 是 Xuanwu 的多租戶管理有界上下文，管理 Organization 聚合根、成員、隊伍與邀請流程。
-
-## 通用語言（Ubiquitous Language）
-
-| 正確術語 | 禁止使用 |
-|----------|----------|
-| `Organization` | Company、Tenant、Team（作為頂層組織）、Client |
-| `MemberReference` | Member、User（在組織上下文中）|
-| `Team` | Group、Squad（作為組織子群組） |
-| `PartnerInvite` | Invitation、InviteLink |
-| `OrganizationRole` | Role、Permission（作為組織角色） |
-| `Presence` | Status、OnlineStatus |
-
-## 邊界規則
-
-### ✅ 允許
-```typescript
-import { organizationApi } from "@/modules/organization/api";
-import type { OrganizationDTO, MemberReferenceDTO } from "@/modules/organization/api";
-```
-
-### ❌ 禁止
-```typescript
-import { Organization } from "@/modules/organization/domain/entities/Organization";
-```
-
-## 驗證命令
-
-```bash
-npm run lint
-npm run build
-```
-````
-
-## File: modules/organization/aggregates.md
-````markdown
-# Aggregates — organization
-
-## 聚合根：Organization
-
-### 職責
-代表一個企業或團隊租戶。管理所有成員、隊伍與合作夥伴邀請的生命週期。
-
-### 關鍵屬性
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 組織主鍵 |
-| `name` | `string` | 組織名稱 |
-| `members` | `MemberReference[]` | 成員列表（含 role） |
-| `teams` | `Team[]` | 子隊伍列表 |
-| `partnerInvites` | `PartnerInvite[]` | 未完成的邀請列表 |
-
-### 不變數
-
-- 同一 accountId 在同一 Organization 中只能有一個 MemberReference
-- `Owner` 角色至少需要一位（不可移除最後一個 Owner）
-- 過期的 PartnerInvite（`expired`）不能再被接受
-
----
-
-## 值物件
-
-| 值物件 | 說明 |
-|--------|------|
-| `MemberReference` | 成員快照（id, name, email, role, presence） |
-| `Team` | 子群組（id, name, type, memberIds） |
-| `PartnerInvite` | 邀請記錄（email, role, inviteState, invitedAt） |
-| `OrganizationRole` | `"Owner" \| "Admin" \| "Member" \| "Guest"` |
-| `Presence` | `"active" \| "away" \| "offline"` |
-| `InviteState` | `"pending" \| "accepted" \| "expired"` |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `OrganizationRepository` | `save()`, `findById()`, `findByMemberId()` |
-````
-
-## File: modules/organization/api/index.ts
-````typescript
-/**
- * organization 模組公開跨域 API。
- * 所有跨模組呼叫均需透過此檔案，禁止直接引用 organization 模組內部實作。
- */
-
-import { FirebaseOrganizationRepository } from "../infrastructure/firebase/FirebaseOrganizationRepository";
-
-// ─── DTOs ─────────────────────────────────────────────────────────────────────
-
-/** 組織成員 DTO — 供外部模組消費，不直接暴露 MemberReference 實體。 */
-export interface OrganizationMemberDTO {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  /** 成員線上狀態：active（上線）、away（暫離）、offline（離線）。 */
-  presence: "active" | "away" | "offline";
-  isExternal?: boolean;
-}
-
-/** 組織團隊 DTO — 供外部模組消費，不直接暴露 Team 實體。 */
-export interface OrganizationTeamDTO {
-  id: string;
-  name: string;
-  memberIds: string[];
-}
-
-// ─── 內部單例 ──────────────────────────────────────────────────────────────────
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-// ─── 公開 API Facade ──────────────────────────────────────────────────────────
-
-export const organizationApi = {
-  /**
-   * 取得指定組織的所有成員清單。
-   */
-  async getMembers(organizationId: string): Promise<OrganizationMemberDTO[]> {
-    const members = await orgRepo.getMembers(organizationId);
-    return members.map((m) => ({
-      id: m.id,
-      name: m.name,
-      email: m.email,
-      role: m.role,
-      presence: m.presence,
-      isExternal: m.isExternal,
-    }));
-  },
-
-  /**
-   * 取得指定組織的所有團隊清單。
-   */
-  async getTeams(organizationId: string): Promise<OrganizationTeamDTO[]> {
-    const teams = await orgRepo.getTeams(organizationId);
-    return teams.map((t) => ({
-      id: t.id,
-      name: t.name,
-      memberIds: t.memberIds,
-    }));
-  },
-} as const;
-
-// ─── Server Actions ───────────────────────────────────────────────────────────
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "../interfaces/_actions/organization.actions";
-
-// ─── Query Functions ──────────────────────────────────────────────────────────
-
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "../interfaces/queries/organization.queries";
-````
-
-## File: modules/organization/application-services.md
-````markdown
-# organization — Application Services
-
-> **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
-> **Domain Type:** Generic Subdomain
-
-本文件記錄 `organization` 的 application layer 服務與 use cases。內容與 `modules/organization/application/` 實作保持一致。
-
-## Application Layer 職責
-
-管理多租戶組織、成員、隊伍與邀請流程。
-
-Application layer 只負責：
-- 協調 use cases / DTO / process manager
-- 呼叫 domain repository ports 與 domain services
-- 不承載 UI / framework-specific concerns
-
-## 實際檔案
-
-- `application/use-cases/organization-policy.use-cases.ts`
-- `application/use-cases/organization.use-cases.ts`
-
-## 設計對齊
-
-- 模組 README：`../../../modules/organization/README.md`
-- 模組 AGENT：`../../../modules/organization/AGENT.md`
-- 與 application layer 有關的模組內就地文件：`../../../modules/organization/application-services.md`
-````
-
-## File: modules/organization/application/use-cases/organization-lifecycle.use-cases.ts
-````typescript
-/**
- * Organization Lifecycle Use Cases — org CRUD workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-} from "../../domain/entities/Organization";
-
-export class CreateOrganizationUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(command: CreateOrganizationCommand): Promise<CommandResult> {
-    try {
-      const orgId = await this.orgRepo.create(command);
-      return commandSuccess(orgId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ORGANIZATION_FAILED",
-        err instanceof Error ? err.message : "Failed to create organization",
-      );
-    }
-  }
-}
-
-export class CreateOrganizationWithTeamUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    command: CreateOrganizationCommand,
-    teamName: string,
-    teamType: "internal" | "external" = "internal",
-  ): Promise<CommandResult> {
-    try {
-      const organizationId = await this.orgRepo.create(command);
-      await this.orgRepo.createTeam({
-        organizationId,
-        name: teamName,
-        description: "",
-        type: teamType,
-      });
-      return commandSuccess(organizationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SETUP_ORGANIZATION_WITH_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to setup organization with team",
-      );
-    }
-  }
-}
-
-export class UpdateOrganizationSettingsUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(command: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
-    try {
-      await this.orgRepo.updateSettings(command);
-      return commandSuccess(command.organizationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ORGANIZATION_SETTINGS_FAILED",
-        err instanceof Error ? err.message : "Failed to update organization settings",
-      );
-    }
-  }
-}
-
-export class DeleteOrganizationUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.delete(organizationId);
-      return commandSuccess(organizationId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ORGANIZATION_FAILED",
-        err instanceof Error ? err.message : "Failed to delete organization",
-      );
-    }
-  }
-}
-````
-
-## File: modules/organization/application/use-cases/organization-member.use-cases.ts
-````typescript
-/**
- * Organization Member Use Cases — member lifecycle workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type {
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-} from "../../domain/entities/Organization";
-
-export class InviteMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: InviteMemberInput): Promise<CommandResult> {
-    try {
-      const inviteId = await this.orgRepo.inviteMember(input);
-      return commandSuccess(inviteId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "INVITE_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to invite member",
-      );
-    }
-  }
-}
-
-export class RecruitMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-  ): Promise<CommandResult> {
-    try {
-      await this.orgRepo.recruitMember(organizationId, memberId, name, email);
-      return commandSuccess(memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "RECRUIT_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to recruit member",
-      );
-    }
-  }
-}
-
-export class RemoveMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string, memberId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.removeMember(organizationId, memberId);
-      return commandSuccess(memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REMOVE_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to remove member",
-      );
-    }
-  }
-}
-
-export class UpdateMemberRoleUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: UpdateMemberRoleInput): Promise<CommandResult> {
-    try {
-      await this.orgRepo.updateMemberRole(input);
-      return commandSuccess(input.memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_MEMBER_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to update member role",
-      );
-    }
-  }
-}
-````
-
-## File: modules/organization/application/use-cases/organization-partner.use-cases.ts
-````typescript
-/**
- * Organization Partner Use Cases — external partner group workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-
-export class CreatePartnerGroupUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string, groupName: string): Promise<CommandResult> {
-    try {
-      const teamId = await this.orgRepo.createTeam({
-        organizationId,
-        name: groupName,
-        description: "",
-        type: "external",
-      });
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_PARTNER_GROUP_FAILED",
-        err instanceof Error ? err.message : "Failed to create partner group",
-      );
-    }
-  }
-}
-
-export class SendPartnerInviteUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    email: string,
-  ): Promise<CommandResult> {
-    try {
-      const inviteId = await this.orgRepo.sendPartnerInvite(organizationId, teamId, email);
-      return commandSuccess(inviteId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "SEND_PARTNER_INVITE_FAILED",
-        err instanceof Error ? err.message : "Failed to send partner invite",
-      );
-    }
-  }
-}
-
-export class DismissPartnerMemberUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<CommandResult> {
-    try {
-      await this.orgRepo.dismissPartnerMember(organizationId, teamId, memberId);
-      return commandSuccess(memberId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DISMISS_PARTNER_MEMBER_FAILED",
-        err instanceof Error ? err.message : "Failed to dismiss partner member",
-      );
-    }
-  }
-}
-````
-
-## File: modules/organization/application/use-cases/organization-policy.use-cases.ts
-````typescript
-/**
- * Organization Policy Use Cases — pure business workflows.
- * Org policy changes flow through event bus to update workspace org-policy cache downstream.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-
-// ─── Create Org Policy ────────────────────────────────────────────────────────
-
-export class CreateOrgPolicyUseCase {
-  constructor(private readonly policyRepo: OrgPolicyRepository) {}
-
-  async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
-    try {
-      const policy = await this.policyRepo.createPolicy(input);
-      return commandSuccess(policy.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create org policy",
-      );
-    }
-  }
-}
-
-// ─── Update Org Policy ────────────────────────────────────────────────────────
-
-export class UpdateOrgPolicyUseCase {
-  constructor(private readonly policyRepo: OrgPolicyRepository) {}
-
-  async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
-    try {
-      await this.policyRepo.updatePolicy(policyId, data);
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update org policy",
-      );
-    }
-  }
-}
-
-// ─── Delete Org Policy ────────────────────────────────────────────────────────
-
-export class DeleteOrgPolicyUseCase {
-  constructor(private readonly policyRepo: OrgPolicyRepository) {}
-
-  async execute(policyId: string): Promise<CommandResult> {
-    try {
-      await this.policyRepo.deletePolicy(policyId);
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ORG_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to delete org policy",
-      );
-    }
-  }
-}
-````
-
-## File: modules/organization/application/use-cases/organization-team.use-cases.ts
-````typescript
-/**
- * Organization Team Use Cases — internal team management workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
-
-export class CreateTeamUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(input: CreateTeamInput): Promise<CommandResult> {
-    try {
-      const teamId = await this.orgRepo.createTeam(input);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to create team",
-      );
-    }
-  }
-}
-
-export class DeleteTeamUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
-    try {
-      await this.orgRepo.deleteTeam(organizationId, teamId);
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_TEAM_FAILED",
-        err instanceof Error ? err.message : "Failed to delete team",
-      );
-    }
-  }
-}
-
-export class UpdateTeamMembersUseCase {
-  constructor(private readonly orgRepo: OrganizationRepository) {}
-
-  async execute(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-    action: "add" | "remove",
-  ): Promise<CommandResult> {
-    try {
-      if (action === "add") {
-        await this.orgRepo.addMemberToTeam(organizationId, teamId, memberId);
-      } else {
-        await this.orgRepo.removeMemberFromTeam(organizationId, teamId, memberId);
-      }
-      return commandSuccess(teamId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_TEAM_MEMBERS_FAILED",
-        err instanceof Error ? err.message : "Failed to update team members",
-      );
-    }
-  }
-}
-````
-
-## File: modules/organization/application/use-cases/organization.use-cases.ts
-````typescript
-/**
- * Organization Use Cases — barrel re-export.
- * Split into focused files per IDDD single-responsibility principle:
- *  - organization-lifecycle.use-cases.ts  (org CRUD)
- *  - organization-member.use-cases.ts     (member management)
- *  - organization-team.use-cases.ts       (team management)
- *  - organization-partner.use-cases.ts    (partner management)
- */
-
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "./organization-lifecycle.use-cases";
-
-export {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "./organization-member.use-cases";
-
-export {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "./organization-team.use-cases";
-
-export {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "./organization-partner.use-cases";
-````
-
-## File: modules/organization/context-map.md
-````markdown
-# Context Map — organization
-
-## 上游（依賴）
-
-### account → organization（Customer/Supplier）
-
-- `organization.members[]` 中的 `MemberReference.id` 參照 `account` 的 accountId
-- 查詢成員 profile 時呼叫 `account/api`
-
----
-
-## 下游（被依賴）
-
-### organization → workspace（Customer/Supplier）
-
-- `Workspace.accountId + accountType="organization"` 關聯至 Organization
-- 工作區列表依 organizationId 篩選
-
-### organization → workspace-audit（Published Language）
-
-- 成員加入/移除事件供 `workspace-audit` 消費（未來事件 sink 完成後）
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| account → organization | account | organization | Customer/Supplier |
-| organization → workspace | organization | workspace | Customer/Supplier |
-| organization → workspace-audit | organization | workspace-audit | Published Language (Events) |
-````
-
-## File: modules/organization/domain-events.md
-````markdown
-# Domain Events — organization
-
-## 發出事件
-
-| 事件 | 觸發條件 | 關鍵欄位 |
-|------|---------|---------|
-| `organization.created` | 新組織建立時 | `organizationId`, `name`, `ownerId`, `occurredAt` |
-| `organization.member_invited` | 成員被邀請加入 | `organizationId`, `inviteId`, `email`, `role`, `occurredAt` |
-| `organization.member_joined` | 邀請被接受，成員加入 | `organizationId`, `accountId`, `role`, `occurredAt` |
-| `organization.member_removed` | 成員被移除 | `organizationId`, `accountId`, `occurredAt` |
-| `organization.team_created` | 新 Team 建立 | `organizationId`, `teamId`, `occurredAt` |
-
-## 訂閱事件
-
-`organization` 不訂閱其他 BC 的事件（被動，等待 account 操作觸發）。
-
-## 事件格式範例
-
-```typescript
-interface OrganizationMemberJoinedEvent {
-  readonly type: "organization.member_joined";
-  readonly organizationId: string;
-  readonly accountId: string;
-  readonly role: OrganizationRole;
-  readonly occurredAt: string;  // ISO 8601
-}
-```
-````
-
-## File: modules/organization/domain-services.md
-````markdown
-# organization — Domain Services
-
-> **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `organization` 的 domain services。若某模組目前沒有獨立的 domain service，表示其規則主要封裝在 aggregate methods、value objects 或 application layer orchestration 中。
-
-## Domain Services 檔案
-
-- 目前沒有獨立的 `domain/services/*` 檔案。
-
-## 設計規則
-
-- domain services 只承載無狀態、跨聚合或跨值物件的純業務規則
-- 不得引入 React、Firebase SDK、HTTP client 等 framework-specific 依賴
-- 若規則只屬於單一 aggregate，不應抽成 domain service
-
-## 模組內對應文件
-
-- `../../../modules/organization/domain-services.md`
-- `../../../modules/organization/aggregates.md`
-````
-
-## File: modules/organization/domain/entities/Organization.ts
-````typescript
-/**
- * Organization Domain Entities — pure TypeScript, zero framework dependencies.
- */
-
-import type { Timestamp } from "@shared-types";
-
-// ─── Re-export shared types (avoid cross-module domain imports) ───────────────
-
-export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
-export type Presence = "active" | "away" | "offline";
-export type InviteState = "pending" | "accepted" | "expired";
-export type PolicyEffect = "allow" | "deny";
-
-export interface MemberReference {
-  id: string;
-  name: string;
-  email: string;
-  role: OrganizationRole;
-  presence: Presence;
-  isExternal?: boolean;
-  expiryDate?: Timestamp;
-}
-
-export interface Team {
-  id: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-  memberIds: string[];
-}
-
-export interface PartnerInvite {
-  id: string;
-  email: string;
-  teamId: string;
-  role: OrganizationRole;
-  inviteState: InviteState;
-  invitedAt: Timestamp;
-  protocol: string;
-}
-
-export interface ThemeConfig {
-  primary: string;
-  background: string;
-  accent: string;
-}
-
-// ─── Organization Aggregate ───────────────────────────────────────────────────
-
-export interface OrganizationEntity {
-  id: string;
-  name: string;
-  ownerId: string;
-  email?: string;
-  photoURL?: string;
-  description?: string;
-  theme?: ThemeConfig;
-  members: MemberReference[];
-  memberIds: string[];
-  teams: Team[];
-  partnerInvites?: PartnerInvite[];
-  createdAt: Timestamp;
-}
-
-// ─── Org Policy ───────────────────────────────────────────────────────────────
-
-export interface OrgPolicyRule {
-  resource: string;
-  actions: string[];
-  effect: PolicyEffect;
-  conditions?: Record<string, string>;
-}
-
-export type OrgPolicyScope = "workspace" | "member" | "global";
-
-export interface OrgPolicy {
-  readonly id: string;
-  readonly orgId: string;
-  readonly name: string;
-  readonly description: string;
-  readonly rules: OrgPolicyRule[];
-  readonly scope: OrgPolicyScope;
-  readonly isActive: boolean;
-  readonly createdAt: string; // ISO-8601
-  readonly updatedAt: string; // ISO-8601
-}
-
-// ─── Value Objects (Commands) ─────────────────────────────────────────────────
-
-export interface CreateOrganizationCommand {
-  readonly organizationName: string;
-  readonly ownerId: string;
-  readonly ownerName: string;
-  readonly ownerEmail: string;
-}
-
-export interface UpdateOrganizationSettingsCommand {
-  readonly organizationId: string;
-  readonly name?: string;
-  readonly description?: string;
-  readonly theme?: ThemeConfig | null;
-  readonly photoURL?: string;
-}
-
-export interface InviteMemberInput {
-  organizationId: string;
-  email: string;
-  teamId: string;
-  role: OrganizationRole;
-  protocol: string;
-}
-
-export interface UpdateMemberRoleInput {
-  organizationId: string;
-  memberId: string;
-  role: OrganizationRole;
-}
-
-export interface CreateTeamInput {
-  organizationId: string;
-  name: string;
-  description: string;
-  type: "internal" | "external";
-}
-
-export interface CreateOrgPolicyInput {
-  orgId: string;
-  name: string;
-  description: string;
-  rules: OrgPolicyRule[];
-  scope: OrgPolicyScope;
-}
-
-export interface UpdateOrgPolicyInput {
-  name?: string;
-  description?: string;
-  rules?: OrgPolicyRule[];
-  scope?: OrgPolicyScope;
-  isActive?: boolean;
-}
-````
-
-## File: modules/organization/domain/repositories/OrganizationRepository.ts
-````typescript
-/**
- * OrganizationRepository — Port for organization persistence.
- * Domain defines the interface; Infrastructure implements it.
- */
-
-import type {
-  OrganizationEntity,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  MemberReference,
-  Team,
-  PartnerInvite,
-} from "../entities/Organization";
-
-export type Unsubscribe = () => void;
-
-export interface OrganizationRepository {
-  // ─── Org Lifecycle ─────────────────────────────────────────────────────────
-  create(command: CreateOrganizationCommand): Promise<string>;
-  findById(id: string): Promise<OrganizationEntity | null>;
-  save(org: OrganizationEntity): Promise<void>;
-  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
-  delete(organizationId: string): Promise<void>;
-
-  // ─── Members ───────────────────────────────────────────────────────────────
-  inviteMember(input: InviteMemberInput): Promise<string>;
-  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
-  removeMember(organizationId: string, memberId: string): Promise<void>;
-  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
-  getMembers(organizationId: string): Promise<MemberReference[]>;
-  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
-
-  // ─── Teams ─────────────────────────────────────────────────────────────────
-  createTeam(input: CreateTeamInput): Promise<string>;
-  deleteTeam(organizationId: string, teamId: string): Promise<void>;
-  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getTeams(organizationId: string): Promise<Team[]>;
-  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
-
-  // ─── Partners ──────────────────────────────────────────────────────────────
-  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
-  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
-  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
-}
-````
-
-## File: modules/organization/domain/repositories/OrgPolicyRepository.ts
-````typescript
-/**
- * OrgPolicyRepository — Port for org-policy persistence.
- *
- * OrgPolicy lives in a top-level Firestore collection (`orgPolicies`) that is
- * independent of the `organizations` collection.  Per IDDD, each aggregate root
- * owns its own repository port.  Policy is therefore separated here from
- * {@link OrganizationRepository}.
- */
-
-import type {
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../entities/Organization";
-
-export interface OrgPolicyRepository {
-  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
-  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
-  deletePolicy(policyId: string): Promise<void>;
-  getPolicies(orgId: string): Promise<OrgPolicy[]>;
-}
-````
-
-## File: modules/organization/index.ts
-````typescript
-/**
- * organization module public API
- */
-export type {
-  OrganizationEntity,
-  OrganizationRole,
-  Presence,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  ThemeConfig,
-  OrgPolicyRule,
-  OrgPolicyScope,
-  OrgPolicy,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "./domain/entities/Organization";
-export type { OrganizationRepository, Unsubscribe } from "./domain/repositories/OrganizationRepository";
-// Use Cases
-export {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "./application/use-cases/organization.use-cases";
-export {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "./application/use-cases/organization-policy.use-cases";
-// Infrastructure
-export { FirebaseOrganizationRepository } from "./infrastructure/firebase/FirebaseOrganizationRepository";
-// Server Actions
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "./interfaces/_actions/organization.actions";
-// Read Queries
-export {
-  getOrganizationMembers,
-  subscribeToOrganizationMembers,
-  getOrganizationTeams,
-  subscribeToOrganizationTeams,
-  getPartnerInvites,
-  getOrgPolicies,
-} from "./interfaces/queries/organization.queries";
-````
-
-## File: modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts
-````typescript
-/**
- * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
- * Implements the OrganizationRepository port.
- * Firebase SDK only exists in this file.
- */
-
-import {
-  getFirestore,
-  doc,
-  getDoc,
-  setDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  addDoc,
-  arrayUnion,
-  arrayRemove,
-  onSnapshot,
-  serverTimestamp,
-  writeBatch,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  PartnerInvite,
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-  InviteMemberInput,
-  UpdateMemberRoleInput,
-  CreateTeamInput,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
-
-// ─── Repository ───────────────────────────────────────────────────────────────
-
-export class FirebaseOrganizationRepository implements OrganizationRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private organizationAccountRef(organizationId: string) {
-    return doc(this.db, "accounts", organizationId);
-  }
-
-  private buildOrganizationAccountData(
-    data: {
-      name?: string;
-      ownerId?: string;
-      email?: string;
-      photoURL?: string;
-      description?: string;
-      theme?: OrganizationEntity["theme"];
-      members?: MemberReference[];
-      memberIds?: string[];
-      teams?: Team[];
-      createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
-    },
-  ) {
-    return {
-      accountType: "organization" as const,
-      name: data.name ?? "",
-      ownerId: data.ownerId ?? "",
-      email: data.email ?? null,
-      photoURL: data.photoURL ?? null,
-      description: data.description ?? null,
-      theme: data.theme ?? null,
-      members: data.members ?? [],
-      memberIds: data.memberIds ?? [],
-      teams: data.teams ?? [],
-      createdAt: data.createdAt ?? serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
-  }
-
-  // ─── Org Lifecycle ──────────────────────────────────────────────────────────
-
-  async create(command: CreateOrganizationCommand): Promise<string> {
-    const orgRef = doc(collection(this.db, "organizations"));
-    const owner: MemberReference = {
-      id: command.ownerId,
-      name: command.ownerName,
-      email: command.ownerEmail,
-      role: "Owner",
-      presence: "active",
-    };
-    const createdAt = serverTimestamp();
-    const organizationData = {
-      name: command.organizationName,
-      ownerId: command.ownerId,
-      members: [owner],
-      memberIds: [command.ownerId],
-      teams: [],
-      createdAt,
-    };
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, organizationData);
-    batch.set(
-      this.organizationAccountRef(orgRef.id),
-      this.buildOrganizationAccountData({
-        name: command.organizationName,
-        ownerId: command.ownerId,
-        members: [owner],
-        memberIds: [command.ownerId],
-        teams: [],
-        createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-    return orgRef.id;
-  }
-
-  async findById(id: string): Promise<OrganizationEntity | null> {
-    const snap = await getDoc(doc(this.db, "organizations", id));
-    if (!snap.exists()) return null;
-    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
-  }
-
-  async save(org: OrganizationEntity): Promise<void> {
-    const orgRef = doc(this.db, "organizations", org.id);
-    const batch = writeBatch(this.db);
-    batch.set(orgRef, {
-      name: org.name,
-      ownerId: org.ownerId,
-      members: org.members,
-      memberIds: org.memberIds,
-      teams: org.teams,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(org.id),
-      this.buildOrganizationAccountData({
-        name: org.name,
-        ownerId: org.ownerId,
-        email: org.email,
-        photoURL: org.photoURL,
-        description: org.description,
-        theme: org.theme,
-        members: org.members,
-        memberIds: org.memberIds,
-        teams: org.teams,
-        createdAt: org.createdAt,
-      }),
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
-    const orgRef = doc(this.db, "organizations", command.organizationId);
-    const updates: Record<string, unknown> = {
-      accountType: "organization",
-      updatedAt: serverTimestamp(),
-    };
-    if (command.name !== undefined) updates.name = command.name;
-    if (command.description !== undefined) updates.description = command.description;
-    if (command.theme !== undefined) updates.theme = command.theme;
-    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, updates);
-    batch.set(this.organizationAccountRef(command.organizationId), updates, { merge: true });
-    await batch.commit();
-  }
-
-  async delete(organizationId: string): Promise<void> {
-    const batch = writeBatch(this.db);
-    batch.delete(doc(this.db, "organizations", organizationId));
-    batch.delete(this.organizationAccountRef(organizationId));
-    await batch.commit();
-  }
-
-  // ─── Members ────────────────────────────────────────────────────────────────
-
-  async inviteMember(input: InviteMemberInput): Promise<string> {
-    const invite = {
-      email: input.email,
-      teamId: input.teamId,
-      role: input.role,
-      inviteState: "pending",
-      protocol: input.protocol,
-      invitedAt: serverTimestamp(),
-    };
-    const ref = await addDoc(
-      collection(this.db, "organizations", input.organizationId, "invites"),
-      invite,
-    );
-    return ref.id;
-  }
-
-  async recruitMember(
-    organizationId: string,
-    memberId: string,
-    name: string,
-    email: string,
-  ): Promise<void> {
-    const orgRef = doc(this.db, "organizations", organizationId);
-    const member: MemberReference = {
-      id: memberId,
-      name,
-      email,
-      role: "Member",
-      presence: "active",
-    };
-    const batch = writeBatch(this.db);
-    batch.update(orgRef, {
-      members: arrayUnion(member),
-      memberIds: arrayUnion(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members: arrayUnion(member),
-        memberIds: arrayUnion(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async removeMember(organizationId: string, memberId: string): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", organizationId), {
-      members,
-      memberIds: arrayRemove(memberId),
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(organizationId),
-      {
-        members,
-        memberIds: arrayRemove(memberId),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
-    const orgSnap = await getDoc(doc(this.db, "organizations", input.organizationId));
-    if (!orgSnap.exists()) return;
-    const data = orgSnap.data() as Record<string, unknown>;
-    const members = Array.isArray(data.members)
-      ? (data.members as MemberReference[]).map((m) =>
-          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
-        )
-      : [];
-    const batch = writeBatch(this.db);
-    batch.update(doc(this.db, "organizations", input.organizationId), {
-      members,
-      updatedAt: serverTimestamp(),
-    });
-    batch.set(
-      this.organizationAccountRef(input.organizationId),
-      {
-        members,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    );
-    await batch.commit();
-  }
-
-  async getMembers(organizationId: string): Promise<MemberReference[]> {
-    const snap = await getDoc(doc(this.db, "organizations", organizationId));
-    if (!snap.exists()) return [];
-    const data = snap.data() as Record<string, unknown>;
-    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
-  }
-
-  subscribeToMembers(
-    organizationId: string,
-    onUpdate: (members: MemberReference[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
-      if (!snap.exists()) {
-        onUpdate([]);
-        return;
-      }
-      const data = snap.data() as Record<string, unknown>;
-      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
-    });
-  }
-
-  // ─── Teams ──────────────────────────────────────────────────────────────────
-
-  async createTeam(input: CreateTeamInput): Promise<string> {
-    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
-    await setDoc(teamRef, {
-      name: input.name,
-      description: input.description,
-      type: input.type,
-      memberIds: [],
-      createdAt: serverTimestamp(),
-    });
-    return teamRef.id;
-  }
-
-  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
-  }
-
-  async addMemberToTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayUnion(memberId),
-    });
-  }
-
-  async removeMemberFromTeam(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
-      memberIds: arrayRemove(memberId),
-    });
-  }
-
-  async getTeams(organizationId: string): Promise<Team[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "teams"),
-    );
-    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
-  }
-
-  subscribeToTeams(
-    organizationId: string,
-    onUpdate: (teams: Team[]) => void,
-  ): Unsubscribe {
-    return onSnapshot(
-      collection(this.db, "organizations", organizationId, "teams"),
-      (snap) => {
-        onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
-      },
-    );
-  }
-
-  // ─── Partners ────────────────────────────────────────────────────────────────
-
-  async sendPartnerInvite(
-    organizationId: string,
-    teamId: string,
-    email: string,
-  ): Promise<string> {
-    const ref = await addDoc(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-      {
-        email,
-        teamId,
-        role: "Guest",
-        inviteState: "pending",
-        invitedAt: serverTimestamp(),
-      },
-    );
-    return ref.id;
-  }
-
-  async dismissPartnerMember(
-    organizationId: string,
-    teamId: string,
-    memberId: string,
-  ): Promise<void> {
-    await this.removeMemberFromTeam(organizationId, teamId, memberId);
-  }
-
-  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-    const snaps = await getDocs(
-      collection(this.db, "organizations", organizationId, "partnerInvites"),
-    );
-    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/organization/infrastructure/firebase/FirebaseOrgPolicyRepository.ts
-````typescript
-/**
- * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
- * Implements the OrgPolicyRepository port.
- *
- * OrgPolicy is a separate aggregate that lives in the top-level `orgPolicies`
- * Firestore collection, independent of the `organizations` collection.
- * Per IDDD, this warrants its own repository.
- */
-
-import {
-  getFirestore,
-  doc,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  collection,
-  getDocs,
-  query,
-  where,
-  serverTimestamp,
-} from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-
-import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
-import type {
-  OrgPolicy,
-  CreateOrgPolicyInput,
-  UpdateOrgPolicyInput,
-} from "../../domain/entities/Organization";
-import { toOrgPolicy } from "./organization-mappers";
-
-export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
-    const now = new Date().toISOString();
-    const ref = await addDoc(collection(this.db, "orgPolicies"), {
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-      _createdAt: serverTimestamp(),
-    });
-    return {
-      id: ref.id,
-      orgId: input.orgId,
-      name: input.name,
-      description: input.description,
-      rules: input.rules,
-      scope: input.scope,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    };
-  }
-
-  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
-    const updates: Record<string, unknown> = {
-      updatedAt: new Date().toISOString(),
-      _updatedAt: serverTimestamp(),
-    };
-    if (data.name !== undefined) updates.name = data.name;
-    if (data.description !== undefined) updates.description = data.description;
-    if (data.rules !== undefined) updates.rules = data.rules;
-    if (data.scope !== undefined) updates.scope = data.scope;
-    if (data.isActive !== undefined) updates.isActive = data.isActive;
-    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
-  }
-
-  async deletePolicy(policyId: string): Promise<void> {
-    await deleteDoc(doc(this.db, "orgPolicies", policyId));
-  }
-
-  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
-    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
-    const snaps = await getDocs(q);
-    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
-  }
-}
-````
-
-## File: modules/organization/infrastructure/firebase/organization-mappers.ts
-````typescript
-import type {
-  OrganizationEntity,
-  MemberReference,
-  Team,
-  OrgPolicy,
-  PartnerInvite,
-  OrganizationRole,
-} from "../../domain/entities/Organization";
-
-export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
-    email: typeof data.email === "string" ? data.email : undefined,
-    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
-    description: typeof data.description === "string" ? data.description : undefined,
-    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
-    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
-    partnerInvites: Array.isArray(data.partnerInvites)
-      ? (data.partnerInvites as PartnerInvite[])
-      : undefined,
-    createdAt: data.createdAt as OrganizationEntity["createdAt"],
-  };
-}
-
-export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
-  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
-  const scope = VALID_SCOPES.has(data.scope as OrgPolicy["scope"])
-    ? (data.scope as OrgPolicy["scope"])
-    : "global";
-  return {
-    id,
-    orgId: data.orgId as string,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
-    scope,
-    isActive: data.isActive === true,
-    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
-    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
-  };
-}
-
-export function toTeam(id: string, data: Record<string, unknown>): Team {
-  return {
-    id,
-    name: typeof data.name === "string" ? data.name : "",
-    description: typeof data.description === "string" ? data.description : "",
-    type: data.type === "external" ? "external" : "internal",
-    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
-  };
-}
-
-export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
-  return {
-    id,
-    email: data.email as string,
-    teamId: data.teamId as string,
-    role: (data.role as OrganizationRole) ?? "Guest",
-    inviteState: (data.inviteState as PartnerInvite["inviteState"]) ?? "pending",
-    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
-    protocol: typeof data.protocol === "string" ? data.protocol : "",
-  };
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-lifecycle.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization lifecycle server actions — create, update settings, delete.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateOrganizationUseCase,
-  CreateOrganizationWithTeamUseCase,
-  UpdateOrganizationSettingsUseCase,
-  DeleteOrganizationUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type {
-  CreateOrganizationCommand,
-  UpdateOrganizationSettingsCommand,
-} from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function createOrganization(
-  command: CreateOrganizationCommand,
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function createOrganizationWithTeam(
-  command: CreateOrganizationCommand,
-  teamName: string,
-  teamType: "internal" | "external" = "internal",
-): Promise<CommandResult> {
-  try {
-    return await new CreateOrganizationWithTeamUseCase(orgRepo).execute(command, teamName, teamType);
-  } catch (err) {
-    return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrganizationSettings(
-  command: UpdateOrganizationSettingsCommand,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrganizationSettingsUseCase(orgRepo).execute(command);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrganizationUseCase(orgRepo).execute(organizationId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-member.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization member server actions — invite, recruit, dismiss, update role.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { InviteMemberInput } from "../../domain/entities/Organization";
-import {
-  InviteMemberUseCase,
-  RecruitMemberUseCase,
-  RemoveMemberUseCase,
-  UpdateMemberRoleUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type { UpdateMemberRoleInput } from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
-  try {
-    return await new InviteMemberUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function recruitMember(
-  organizationId: string,
-  memberId: string,
-  name: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new RecruitMemberUseCase(orgRepo).execute(organizationId, memberId, name, email);
-  } catch (err) {
-    return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissMember(
-  organizationId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new RemoveMemberUseCase(orgRepo).execute(organizationId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
-  try {
-    return await new UpdateMemberRoleUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-partner.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization partner server actions — create group, invite, dismiss.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreatePartnerGroupUseCase,
-  SendPartnerInviteUseCase,
-  DismissPartnerMemberUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function createPartnerGroup(
-  organizationId: string,
-  groupName: string,
-): Promise<CommandResult> {
-  try {
-    return await new CreatePartnerGroupUseCase(orgRepo).execute(organizationId, groupName);
-  } catch (err) {
-    return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function sendPartnerInvite(
-  organizationId: string,
-  teamId: string,
-  email: string,
-): Promise<CommandResult> {
-  try {
-    return await new SendPartnerInviteUseCase(orgRepo).execute(organizationId, teamId, email);
-  } catch (err) {
-    return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function dismissPartnerMember(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DismissPartnerMemberUseCase(orgRepo).execute(organizationId, teamId, memberId);
-  } catch (err) {
-    return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-policy.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization policy server actions — create, update, delete.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateOrgPolicyUseCase,
-  UpdateOrgPolicyUseCase,
-  DeleteOrgPolicyUseCase,
-} from "../../application/use-cases/organization-policy.use-cases";
-import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
-import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
-
-const policyRepo = new FirebaseOrgPolicyRepository();
-
-export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
-  try {
-    return await new CreateOrgPolicyUseCase(policyRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateOrgPolicy(
-  policyId: string,
-  data: UpdateOrgPolicyInput,
-): Promise<CommandResult> {
-  try {
-    return await new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
-  try {
-    return await new DeleteOrgPolicyUseCase(policyRepo).execute(policyId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization-team.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Organization team server actions — create, delete, update members.
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import {
-  CreateTeamUseCase,
-  DeleteTeamUseCase,
-  UpdateTeamMembersUseCase,
-} from "../../application/use-cases/organization.use-cases";
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import type { CreateTeamInput } from "../../domain/entities/Organization";
-
-const orgRepo = new FirebaseOrganizationRepository();
-
-export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
-  try {
-    return await new CreateTeamUseCase(orgRepo).execute(input);
-  } catch (err) {
-    return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteTeam(
-  organizationId: string,
-  teamId: string,
-): Promise<CommandResult> {
-  try {
-    return await new DeleteTeamUseCase(orgRepo).execute(organizationId, teamId);
-  } catch (err) {
-    return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateTeamMembers(
-  organizationId: string,
-  teamId: string,
-  memberId: string,
-  action: "add" | "remove",
-): Promise<CommandResult> {
-  try {
-    return await new UpdateTeamMembersUseCase(orgRepo).execute(organizationId, teamId, memberId, action);
-  } catch (err) {
-    return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-````
-
-## File: modules/organization/interfaces/_actions/organization.actions.ts
-````typescript
-/**
- * Module: organization
- * Layer: interfaces/_actions
- * Purpose: Re-export barrel for all organization Server Actions.
- *          Implementations are split by subdomain for IDDD layer-purity.
- *          Each sub-file carries its own "use server" directive; this barrel
- *          must NOT repeat it — Turbopack cannot resolve re-exports from a
- *          "use server" barrel that itself re-exports other "use server" files.
- *  - organization-lifecycle.actions.ts (create, update settings, delete)
- *  - organization-member.actions.ts    (invite, recruit, dismiss, update role)
- *  - organization-team.actions.ts      (create, delete, update members)
- *  - organization-partner.actions.ts   (create group, invite, dismiss)
- *  - organization-policy.actions.ts    (create, update, delete policy)
- */
-
-export {
-  createOrganization,
-  createOrganizationWithTeam,
-  updateOrganizationSettings,
-  deleteOrganization,
-} from "./organization-lifecycle.actions";
-
-export {
-  inviteMember,
-  recruitMember,
-  dismissMember,
-  updateMemberRole,
-} from "./organization-member.actions";
-
-export {
-  createTeam,
-  deleteTeam,
-  updateTeamMembers,
-} from "./organization-team.actions";
-
-export {
-  createPartnerGroup,
-  sendPartnerInvite,
-  dismissPartnerMember,
-} from "./organization-partner.actions";
-
-export {
-  createOrgPolicy,
-  updateOrgPolicy,
-  deleteOrgPolicy,
-} from "./organization-policy.actions";
-````
-
-## File: modules/organization/interfaces/queries/organization.queries.ts
-````typescript
-/**
- * Organization Read Queries — thin wrappers for real-time subscription and one-shot reads.
- * Callable from React components/hooks, NOT server actions.
- */
-
-import { FirebaseOrganizationRepository } from "../../infrastructure/firebase/FirebaseOrganizationRepository";
-import { FirebaseOrgPolicyRepository } from "../../infrastructure/firebase/FirebaseOrgPolicyRepository";
-import type { MemberReference, Team, PartnerInvite, OrgPolicy } from "../../domain/entities/Organization";
-import type { Unsubscribe } from "../../domain/repositories/OrganizationRepository";
-
-const orgRepo = new FirebaseOrganizationRepository();
-const policyRepo = new FirebaseOrgPolicyRepository();
-
-// ─── Members ─────────────────────────────────────────────────────────────────
-
-export async function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
-  return orgRepo.getMembers(organizationId);
-}
-
-export function subscribeToOrganizationMembers(
-  organizationId: string,
-  onUpdate: (members: MemberReference[]) => void,
-): Unsubscribe {
-  return orgRepo.subscribeToMembers(organizationId, onUpdate);
-}
-
-// ─── Teams ───────────────────────────────────────────────────────────────────
-
-export async function getOrganizationTeams(organizationId: string): Promise<Team[]> {
-  return orgRepo.getTeams(organizationId);
-}
-
-export function subscribeToOrganizationTeams(
-  organizationId: string,
-  onUpdate: (teams: Team[]) => void,
-): Unsubscribe {
-  return orgRepo.subscribeToTeams(organizationId, onUpdate);
-}
-
-// ─── Partners ─────────────────────────────────────────────────────────────────
-
-export async function getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
-  return orgRepo.getPartnerInvites(organizationId);
-}
-
-// ─── Policy ───────────────────────────────────────────────────────────────────
-
-export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
-  return policyRepo.getPolicies(orgId);
-}
-````
-
-## File: modules/organization/ports/.gitkeep
-````
-
-````
-
-## File: modules/organization/README.md
-````markdown
-# organization — 組織上下文
-
-> **Domain Type:** Generic Subdomain  
-> **模組路徑:** `modules/organization/`  
-> **開發狀態:** ✅ Done — 穩定
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`organization` 是平台多租戶治理層，負責定義團隊、成員與組織級關係。它把個人帳戶提升到群體協作層，為工作區與知識協作提供治理邊界。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| 組織管理 | 建立與維護 Organization 聚合 |
-| 成員與團隊治理 | 管理 MemberReference、Team 與組織內角色 |
-| 邀請與夥伴協作 | 處理 PartnerInvite 與跨組織協作入口 |
-
-## 與其他 Bounded Context 協作
-
-- `account` 提供個人帳戶語意；`workspace` 以組織為主要歸屬邊界。
-- `workspace-audit` 與 `notification` 會消費組織事件或範圍資訊。
-
-## 核心聚合 / 核心概念
-
-- **`Organization`**
-- **`MemberReference`**
-- **`Team`**
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
-````
-
-## File: modules/organization/repositories.md
-````markdown
-# organization — Repositories
-
-> **Canonical bounded context:** `organization`
-> **模組路徑:** `modules/organization/`
-> **Domain Type:** Generic Subdomain
-
-本文件整理 `organization` 的 repository ports 與 infrastructure 實作，作為 `domain/` 與 `infrastructure/` 邊界對照表。
-
-## Domain Repository Ports
-
-- `domain/repositories/OrganizationRepository.ts`
-
-## Infrastructure Implementations
-
-- `infrastructure/firebase/FirebaseOrganizationRepository.ts`
-
-## 設計規則
-
-- Repository 介面定義在 `domain/repositories/`
-- Repository 實作放在 `infrastructure/`
-- `application/` 只能依賴 repository ports，不直接依賴 infrastructure 實作
-
-## 模組內對應文件
-
-- `../../../modules/organization/repositories.md`
-- `../../../modules/organization/aggregates.md`
-````
-
-## File: modules/organization/ubiquitous-language.md
-````markdown
-# Ubiquitous Language — organization
-
-> **範圍：** 僅限 `modules/organization/` 有界上下文內
-
-## 術語定義
-
-| 術語 | 英文 | 定義 |
-|------|------|------|
-| 組織 | Organization | 頂層多租戶單元，代表一個企業或團隊 |
-| 成員參照 | MemberReference | 組織成員的輕量參照（含 accountId、role、presence） |
-| 隊伍 | Team | 組織內的子群組（internal / external 類型） |
-| 合作夥伴邀請 | PartnerInvite | 邀請外部合作夥伴加入隊伍的邀請記錄 |
-| 組織角色 | OrganizationRole | 成員在組織中的角色：`Owner \| Admin \| Member \| Guest` |
-| 在線狀態 | Presence | 成員的當前狀態：`active \| away \| offline` |
-| 邀請狀態 | InviteState | 邀請的當前狀態：`pending \| accepted \| expired` |
-| 政策效果 | PolicyEffect | 組織政策的效果：`allow \| deny` |
-
-## 禁止替換術語
-
-| 正確 | 禁止 |
-|------|------|
-| `Organization` | `Company`, `Tenant`, `Client` |
-| `MemberReference` | `Member`, `OrgUser` |
-| `OrganizationRole` | `Role`, `Permission` |
+export const PLATFORM_ADAPTER_CLI_FUNCTIONS = [
+	"parseCliInputToCommand",
+	"runPlatformCliCommand",
+	"renderPlatformCliResult",
+] as const;
+
+export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/adapters/external/.gitkeep
@@ -25765,9 +21148,52 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/adapters/external/index.ts
+````typescript
+/**
+ * platform external driven adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS = [
+	"buildExternalDeliveryRequest",
+	"dispatchExternalDelivery",
+	"mapExternalResponseToDispatchOutcome",
+] as const;
+
+export type PlatformAdapterExternalFunction = (typeof PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS)[number];
+````
+
+## File: modules/platform/adapters/index.ts
+````typescript
+/**
+ * platform adapter layer barrel.
+ */
+
+export * from "./cli";
+export * from "./external";
+export * from "./persistence";
+export * from "./web";
+````
+
 ## File: modules/platform/adapters/persistence/.gitkeep
 ````
 
+````
+
+## File: modules/platform/adapters/persistence/index.ts
+````typescript
+/**
+ * platform persistence driven adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS = [
+	"mapAggregateToPersistenceRecord",
+	"mapPersistenceRecordToAggregate",
+	"persistPlatformAggregate",
+	"loadPlatformAggregate",
+] as const;
+
+export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/adapters/web/.gitkeep
@@ -25775,9 +21201,145 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/adapters/web/index.ts
+````typescript
+/**
+ * platform web driving adapter placeholder module.
+ */
+
+export const PLATFORM_ADAPTER_WEB_FUNCTIONS = [
+	"mapHttpRequestToPlatformCommand",
+	"handlePlatformCommandHttp",
+	"handlePlatformQueryHttp",
+	"mapPlatformResultToHttpResponse",
+] as const;
+
+export type PlatformAdapterWebFunction = (typeof PLATFORM_ADAPTER_WEB_FUNCTIONS)[number];
+````
+
+## File: modules/platform/api/facade.ts
+````typescript
+/**
+ * platform API facade.
+ */
+
+import type {
+	ActivateSubscriptionAgreementInput,
+	ApplyConfigurationProfileInput,
+	EmitObservabilitySignalInput,
+	FireWorkflowTriggerInput,
+	GetPlatformContextViewInput,
+	GetPolicyCatalogViewInput,
+	GetSubscriptionEntitlementsInput,
+	GetWorkflowPolicyViewInput,
+	ListEnabledCapabilitiesInput,
+	PlatformCommandResult,
+	PlatformContextView,
+	PolicyCatalogView,
+	PublishPolicyCatalogInput,
+	RecordAuditSignalInput,
+	RegisterIntegrationContractInput,
+	RegisterPlatformContextInput,
+	RequestNotificationDispatchInput,
+	SubscriptionEntitlementsView,
+	WorkflowPolicyView,
+} from "./contracts";
+import type { PlatformCommandPort, PlatformQueryPort } from "../ports/input";
+
+export interface PlatformFacade {
+	registerPlatformContext(input: RegisterPlatformContextInput): Promise<PlatformCommandResult>;
+	publishPolicyCatalog(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult>;
+	applyConfigurationProfile(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult>;
+	registerIntegrationContract(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult>;
+	activateSubscriptionAgreement(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult>;
+	fireWorkflowTrigger(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult>;
+	requestNotificationDispatch(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult>;
+	recordAuditSignal(input: RecordAuditSignalInput): Promise<PlatformCommandResult>;
+	emitObservabilitySignal(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult>;
+	getPlatformContextView(input: GetPlatformContextViewInput): Promise<PlatformContextView>;
+	listEnabledCapabilities(input: ListEnabledCapabilitiesInput): Promise<string[]>;
+	getPolicyCatalogView(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView>;
+	getSubscriptionEntitlements(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView>;
+	getWorkflowPolicyView(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView>;
+}
+
+export function createPlatformFacade(ports: {
+	commandPort: PlatformCommandPort;
+	queryPort: PlatformQueryPort;
+}): PlatformFacade {
+	const { commandPort, queryPort } = ports;
+
+	return {
+		registerPlatformContext(input) {
+			return commandPort.executeCommand({ name: "registerPlatformContext", payload: input });
+		},
+		publishPolicyCatalog(input) {
+			return commandPort.executeCommand({ name: "publishPolicyCatalog", payload: input });
+		},
+		applyConfigurationProfile(input) {
+			return commandPort.executeCommand({ name: "applyConfigurationProfile", payload: input });
+		},
+		registerIntegrationContract(input) {
+			return commandPort.executeCommand({ name: "registerIntegrationContract", payload: input });
+		},
+		activateSubscriptionAgreement(input) {
+			return commandPort.executeCommand({ name: "activateSubscriptionAgreement", payload: input });
+		},
+		fireWorkflowTrigger(input) {
+			return commandPort.executeCommand({ name: "fireWorkflowTrigger", payload: input });
+		},
+		requestNotificationDispatch(input) {
+			return commandPort.executeCommand({ name: "requestNotificationDispatch", payload: input });
+		},
+		recordAuditSignal(input) {
+			return commandPort.executeCommand({ name: "recordAuditSignal", payload: input });
+		},
+		emitObservabilitySignal(input) {
+			return commandPort.executeCommand({ name: "emitObservabilitySignal", payload: input });
+		},
+		getPlatformContextView(input) {
+			return queryPort.executeQuery({ name: "getPlatformContextView", payload: input });
+		},
+		listEnabledCapabilities(input) {
+			return queryPort.executeQuery({ name: "listEnabledCapabilities", payload: input });
+		},
+		getPolicyCatalogView(input) {
+			return queryPort.executeQuery({ name: "getPolicyCatalogView", payload: input });
+		},
+		getSubscriptionEntitlements(input) {
+			return queryPort.executeQuery({ name: "getSubscriptionEntitlements", payload: input });
+		},
+		getWorkflowPolicyView(input) {
+			return queryPort.executeQuery({ name: "getWorkflowPolicyView", payload: input });
+		},
+	};
+}
+````
+
 ## File: modules/platform/application/commands/.gitkeep
 ````
 
+````
+
+## File: modules/platform/application/commands/index.ts
+````typescript
+/**
+ * platform command models placeholder module.
+ */
+
+export const PLATFORM_APPLICATION_COMMANDS = [
+	"RegisterPlatformContext",
+	"PublishPolicyCatalog",
+	"ApplyConfigurationProfile",
+	"RegisterIntegrationContract",
+	"ActivateSubscriptionAgreement",
+	"FireWorkflowTrigger",
+	"RequestNotificationDispatch",
+	"RecordAuditSignal",
+	"EmitObservabilitySignal",
+] as const;
+
+export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
 ````
 
 ## File: modules/platform/application/handlers/.gitkeep
@@ -25785,9 +21347,64 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/application/handlers/index.ts
+````typescript
+/**
+ * platform handler placeholder module.
+ */
+
+export const PLATFORM_APPLICATION_HANDLERS = [
+	"RegisterPlatformContextHandler.execute",
+	"PublishPolicyCatalogHandler.execute",
+	"ApplyConfigurationProfileHandler.execute",
+	"RegisterIntegrationContractHandler.execute",
+	"ActivateSubscriptionAgreementHandler.execute",
+	"FireWorkflowTriggerHandler.execute",
+	"RequestNotificationDispatchHandler.execute",
+	"RecordAuditSignalHandler.execute",
+	"EmitObservabilitySignalHandler.execute",
+	"GetPlatformContextViewHandler.execute",
+	"ListEnabledCapabilitiesHandler.execute",
+	"GetPolicyCatalogViewHandler.execute",
+	"GetSubscriptionEntitlementsHandler.execute",
+	"GetWorkflowPolicyViewHandler.execute",
+] as const;
+
+export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[number];
+````
+
+## File: modules/platform/application/index.ts
+````typescript
+/**
+ * platform application layer barrel.
+ */
+
+export * from "./commands";
+export * from "./queries";
+export * from "./handlers";
+export * from "./dtos";
+````
+
 ## File: modules/platform/application/queries/.gitkeep
 ````
 
+````
+
+## File: modules/platform/application/queries/index.ts
+````typescript
+/**
+ * platform query models placeholder module.
+ */
+
+export const PLATFORM_APPLICATION_QUERIES = [
+	"GetPlatformContextView",
+	"ListEnabledCapabilities",
+	"GetPolicyCatalogView",
+	"GetSubscriptionEntitlements",
+	"GetWorkflowPolicyView",
+] as const;
+
+export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[number];
 ````
 
 ## File: modules/platform/domain/aggregates/.gitkeep
@@ -25795,9 +21412,44 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/domain/aggregates/index.ts
+````typescript
+/**
+ * platform aggregate placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS = [
+	"registerPlatformContext",
+	"enablePlatformCapability",
+	"disablePlatformCapability",
+	"publishPolicyCatalogRevision",
+	"registerIntegrationContractAggregate",
+	"activateSubscriptionAgreementAggregate",
+	"renewSubscriptionAgreementAggregate",
+	"cancelSubscriptionAgreementAggregate",
+] as const;
+
+export type PlatformDomainAggregateFunction = (typeof PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/domain/entities/.gitkeep
 ````
 
+````
+
+## File: modules/platform/domain/entities/index.ts
+````typescript
+/**
+ * platform entity placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_ENTITY_FUNCTIONS = [
+	"definePolicyRuleEntity",
+	"defineSignalSubscriptionEntity",
+	"defineDispatchContextEntity",
+] as const;
+
+export type PlatformDomainEntityFunction = (typeof PLATFORM_DOMAIN_ENTITY_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/events/.gitkeep
@@ -25805,9 +21457,123 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/domain/events/index.ts
+````typescript
+/**
+ * platform domain event language.
+ *
+ * Single source of truth for all platform event type constants.
+ * events/contracts re-exports from here; do not define event types elsewhere.
+ */
+
+export interface PlatformDomainEvent<TPayload = Record<string, unknown>> {
+	type: string;
+	aggregateType: string;
+	aggregateId: string;
+	contextId: string;
+	occurredAt: string;
+	version: number;
+	correlationId?: string;
+	causationId?: string;
+	actorId?: string;
+	payload: TPayload;
+}
+
+// ─── PlatformContext aggregate events ────────────────────────────────────────
+export const PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE = "platform.context_registered" as const;
+export const PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE = "platform.capability_enabled" as const;
+export const PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE = "platform.capability_disabled" as const;
+
+// ─── PolicyCatalog aggregate events ──────────────────────────────────────────
+export const POLICY_CATALOG_PUBLISHED_EVENT_TYPE = "policy.catalog_published" as const;
+
+// ─── Configuration events (PlatformContext orchestration) ────────────────────
+export const CONFIG_PROFILE_APPLIED_EVENT_TYPE = "config.profile_applied" as const;
+
+// ─── Permission domain service events ────────────────────────────────────────
+export const PERMISSION_DECISION_RECORDED_EVENT_TYPE = "permission.decision_recorded" as const;
+
+// ─── IntegrationContract aggregate events ────────────────────────────────────
+export const INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE = "integration.contract_registered" as const;
+export const INTEGRATION_DELIVERY_FAILED_EVENT_TYPE = "integration.delivery_failed" as const;
+
+// ─── SubscriptionAgreement aggregate events ───────────────────────────────────
+export const SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE = "subscription.agreement_activated" as const;
+
+// ─── Application-layer owned events ──────────────────────────────────────────
+export const ONBOARDING_FLOW_COMPLETED_EVENT_TYPE = "onboarding.flow_completed" as const;
+export const COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE = "compliance.policy_verified" as const;
+export const REFERRAL_REWARD_RECORDED_EVENT_TYPE = "referral.reward_recorded" as const;
+export const WORKFLOW_TRIGGER_FIRED_EVENT_TYPE = "workflow.trigger_fired" as const;
+export const BACKGROUND_JOB_ENQUEUED_EVENT_TYPE = "background-job.enqueued" as const;
+export const CONTENT_ASSET_PUBLISHED_EVENT_TYPE = "content.asset_published" as const;
+export const SEARCH_QUERY_EXECUTED_EVENT_TYPE = "search.query_executed" as const;
+export const NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE = "notification.dispatch_requested" as const;
+export const AUDIT_SIGNAL_RECORDED_EVENT_TYPE = "audit.signal_recorded" as const;
+export const OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE = "observability.signal_emitted" as const;
+export const ANALYTICS_EVENT_RECORDED_EVENT_TYPE = "analytics.event_recorded" as const;
+export const SUPPORT_TICKET_OPENED_EVENT_TYPE = "support.ticket_opened" as const;
+
+// ─── All-events catalogue ─────────────────────────────────────────────────────
+export const PLATFORM_DOMAIN_EVENT_TYPES = [
+	PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
+	PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE,
+	PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE,
+	POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
+	CONFIG_PROFILE_APPLIED_EVENT_TYPE,
+	PERMISSION_DECISION_RECORDED_EVENT_TYPE,
+	INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
+	INTEGRATION_DELIVERY_FAILED_EVENT_TYPE,
+	SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
+	ONBOARDING_FLOW_COMPLETED_EVENT_TYPE,
+	COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE,
+	REFERRAL_REWARD_RECORDED_EVENT_TYPE,
+	WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
+	BACKGROUND_JOB_ENQUEUED_EVENT_TYPE,
+	CONTENT_ASSET_PUBLISHED_EVENT_TYPE,
+	SEARCH_QUERY_EXECUTED_EVENT_TYPE,
+	NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
+	AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
+	OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
+	ANALYTICS_EVENT_RECORDED_EVENT_TYPE,
+	SUPPORT_TICKET_OPENED_EVENT_TYPE,
+] as const;
+
+export type PlatformDomainEventType = (typeof PLATFORM_DOMAIN_EVENT_TYPES)[number];
+````
+
 ## File: modules/platform/domain/factories/.gitkeep
 ````
 
+````
+
+## File: modules/platform/domain/factories/index.ts
+````typescript
+/**
+ * platform domain factory placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_FACTORY_FUNCTIONS = [
+	"createPlatformContextAggregate",
+	"createPolicyCatalogAggregate",
+	"createIntegrationContractAggregate",
+	"createSubscriptionAgreementAggregate",
+] as const;
+
+export type PlatformDomainFactoryFunction = (typeof PLATFORM_DOMAIN_FACTORY_FUNCTIONS)[number];
+````
+
+## File: modules/platform/domain/index.ts
+````typescript
+/**
+ * platform domain layer barrel.
+ */
+
+export * from "./aggregates";
+export * from "./entities";
+export * from "./value-objects";
+export * from "./services";
+export * from "./events";
 ````
 
 ## File: modules/platform/domain/services/.gitkeep
@@ -25815,9 +21581,75 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/domain/services/index.ts
+````typescript
+/**
+ * platform domain service placeholder module.
+ */
+
+export const PLATFORM_DOMAIN_SERVICE_FUNCTIONS = [
+	"evaluateCapabilityEntitlement",
+	"resolvePermissionDecision",
+	"composeConfigurationProfile",
+	"validateIntegrationCompatibility",
+	"decideWorkflowDispatch",
+	"decideNotificationRouting",
+	"classifyAuditSignal",
+	"correlateObservabilitySignal",
+] as const;
+
+export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/domain/value-objects/.gitkeep
 ````
 
+````
+
+## File: modules/platform/domain/value-objects/index.ts
+````typescript
+/**
+ * platform domain value-object derivation inventory.
+ */
+
+export const PLATFORM_DOMAIN_VALUE_OBJECT_TYPES = [
+	"PlatformCapability",
+	"SubjectScope",
+	"PolicyRule",
+	"ConfigurationProfileRef",
+	"Entitlement",
+	"UsageLimit",
+	"SignalSubscription",
+	"DeliveryPolicy",
+	"NotificationRoute",
+	"ObservabilitySignal",
+	"PermissionDecision",
+	"AuditClassification",
+	"PlanConstraint",
+	"DeliveryAllowance",
+] as const;
+
+export type PlatformDomainValueObjectType = (typeof PLATFORM_DOMAIN_VALUE_OBJECT_TYPES)[number];
+
+export const PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS = [
+	"createPlatformCapability",
+	"createSubjectScope",
+	"createPolicyRule",
+	"createConfigurationProfileRef",
+	"createEntitlement",
+	"createUsageLimit",
+	"createSignalSubscription",
+	"createDeliveryPolicy",
+	"createNotificationRoute",
+	"createObservabilitySignal",
+	"createPermissionDecision",
+	"createAuditClassification",
+	"createPlanConstraint",
+	"createDeliveryAllowance",
+] as const;
+
+export type PlatformDomainValueObjectFactoryFunction =
+	(typeof PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/events/contracts/.gitkeep
@@ -25825,9 +21657,50 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/events/contracts/index.ts
+````typescript
+/**
+ * platform event contracts projection.
+ */
+
+export * from "../../domain/events";
+````
+
 ## File: modules/platform/events/handlers/.gitkeep
 ````
 
+````
+
+## File: modules/platform/events/handlers/index.ts
+````typescript
+/**
+ * platform event handler placeholder module.
+ */
+
+export const PLATFORM_EVENT_HANDLER_FUNCTIONS = [
+	"handleIngressIdentitySubjectAuthenticated",
+	"handleIngressAccountProfileAmended",
+	"handleIngressOrganizationMembershipChanged",
+	"handleIngressSubscriptionEntitlementChanged",
+	"handleIngressIntegrationCallbackReceived",
+	"handleIngressWorkflowExecutionCompleted",
+] as const;
+
+export type PlatformEventHandlerFunction = (typeof PLATFORM_EVENT_HANDLER_FUNCTIONS)[number];
+````
+
+## File: modules/platform/events/index.ts
+````typescript
+/**
+ * platform events barrel.
+ */
+
+export * from "./contracts/index";
+export * from "./handlers/index";
+export * from "./ingress/index";
+export * from "./mappers/index";
+export * from "./published/index";
+export * from "./routing/index";
 ````
 
 ## File: modules/platform/events/ingress/.gitkeep
@@ -25835,9 +21708,42 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/events/ingress/index.ts
+````typescript
+/**
+ * platform event ingress placeholder module.
+ */
+
+export const PLATFORM_EVENT_INGRESS_FUNCTIONS = [
+	"ingestIdentitySubjectAuthenticated",
+	"ingestAccountProfileAmended",
+	"ingestOrganizationMembershipChanged",
+	"ingestSubscriptionEntitlementChanged",
+	"ingestIntegrationCallbackReceived",
+	"ingestWorkflowExecutionCompleted",
+] as const;
+
+export type PlatformEventIngressFunction = (typeof PLATFORM_EVENT_INGRESS_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/events/mappers/.gitkeep
 ````
 
+````
+
+## File: modules/platform/events/mappers/index.ts
+````typescript
+/**
+ * platform event mapper placeholder module.
+ */
+
+export const PLATFORM_EVENT_MAPPER_FUNCTIONS = [
+	"mapExternalEventToPlatformEvent",
+	"mapIngressEventToCommand",
+	"mapDomainEventToPublishedEvent",
+] as const;
+
+export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/events/published/.gitkeep
@@ -25845,9 +21751,50 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/events/published/index.ts
+````typescript
+/**
+ * platform published event placeholder module.
+ */
+
+export const PLATFORM_PUBLISHED_EVENT_FUNCTIONS = [
+	"buildPublishedEventEnvelope",
+	"publishSinglePlatformEvent",
+	"publishBatchPlatformEvents",
+] as const;
+
+export type PlatformPublishedEventFunction = (typeof PLATFORM_PUBLISHED_EVENT_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/events/routing/.gitkeep
 ````
 
+````
+
+## File: modules/platform/events/routing/index.ts
+````typescript
+/**
+ * platform event routing placeholder module.
+ */
+
+export const PLATFORM_EVENT_ROUTING_FUNCTIONS = [
+	"routeIngressEvent",
+	"routeDomainEvent",
+	"resolveEventHandler",
+] as const;
+
+export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTIONS)[number];
+````
+
+## File: modules/platform/index.ts
+````typescript
+/**
+ * platform local module entry.
+ *
+ * Prefer importing from ./api for cross-module access.
+ */
+
+export * from "./api";
 ````
 
 ## File: modules/platform/infrastructure/cache/.gitkeep
@@ -25855,9 +21802,40 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/infrastructure/cache/index.ts
+````typescript
+/**
+ * platform cache infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_CACHE_FACTORIES = [
+	"createCachedPlatformContextViewRepository",
+	"createCachedPolicyCatalogViewRepository",
+	"createCachedUsageMeterRepository",
+] as const;
+
+export type PlatformInfraCacheFactory = (typeof PLATFORM_INFRA_CACHE_FACTORIES)[number];
+````
+
 ## File: modules/platform/infrastructure/db/.gitkeep
 ````
 
+````
+
+## File: modules/platform/infrastructure/db/index.ts
+````typescript
+/**
+ * platform database infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_DB_FACTORIES = [
+	"createDbPlatformContextRepository",
+	"createDbPolicyCatalogRepository",
+	"createDbIntegrationContractRepository",
+	"createDbSubscriptionAgreementRepository",
+] as const;
+
+export type PlatformInfraDbFactory = (typeof PLATFORM_INFRA_DB_FACTORIES)[number];
 ````
 
 ## File: modules/platform/infrastructure/email/.gitkeep
@@ -25865,9 +21843,51 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/infrastructure/email/index.ts
+````typescript
+/**
+ * platform email infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_EMAIL_FACTORIES = [
+	"createEmailNotificationGateway",
+] as const;
+
+export type PlatformInfraEmailFactory = (typeof PLATFORM_INFRA_EMAIL_FACTORIES)[number];
+````
+
+## File: modules/platform/infrastructure/index.ts
+````typescript
+/**
+ * platform infrastructure layer barrel.
+ */
+
+export * from "./cache";
+export * from "./db";
+export * from "./email";
+export * from "./messaging";
+export * from "./monitoring";
+export * from "./storage";
+````
+
 ## File: modules/platform/infrastructure/messaging/.gitkeep
 ````
 
+````
+
+## File: modules/platform/infrastructure/messaging/index.ts
+````typescript
+/**
+ * platform messaging infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_MESSAGING_FACTORIES = [
+	"createMessagingDomainEventPublisher",
+	"createMessagingWorkflowDispatcher",
+	"createMessagingJobQueuePort",
+] as const;
+
+export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FACTORIES)[number];
 ````
 
 ## File: modules/platform/infrastructure/monitoring/.gitkeep
@@ -25875,9 +21895,49 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/infrastructure/monitoring/index.ts
+````typescript
+/**
+ * platform monitoring infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_MONITORING_FACTORIES = [
+	"createMetricsObservabilitySink",
+	"createTracingObservabilitySink",
+	"createAnalyticsSink",
+] as const;
+
+export type PlatformInfraMonitoringFactory = (typeof PLATFORM_INFRA_MONITORING_FACTORIES)[number];
+````
+
 ## File: modules/platform/infrastructure/storage/.gitkeep
 ````
 
+````
+
+## File: modules/platform/infrastructure/storage/index.ts
+````typescript
+/**
+ * platform storage infrastructure placeholder module.
+ */
+
+export const PLATFORM_INFRA_STORAGE_FACTORIES = [
+	"createStorageAuditSignalStore",
+	"createStorageDeliveryHistoryRepository",
+	"createStorageContentRepository",
+] as const;
+
+export type PlatformInfraStorageFactory = (typeof PLATFORM_INFRA_STORAGE_FACTORIES)[number];
+````
+
+## File: modules/platform/ports/index.ts
+````typescript
+/**
+ * platform ports barrel.
+ */
+
+export * from "./input";
+export * from "./output";
 ````
 
 ## File: modules/platform/ports/input/.gitkeep
@@ -25895,9 +21955,52 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/shared/constants/index.ts
+````typescript
+/**
+ * platform shared constants placeholder module.
+ */
+
+export const PLATFORM_SHARED_CONSTANT_GROUPS = [
+	"PlatformLifecycleConstants",
+	"PlatformEventTypeConstants",
+	"PlatformErrorCodeConstants",
+] as const;
+
+export type PlatformSharedConstantGroup = (typeof PLATFORM_SHARED_CONSTANT_GROUPS)[number];
+````
+
 ## File: modules/platform/shared/errors/.gitkeep
 ````
 
+````
+
+## File: modules/platform/shared/errors/index.ts
+````typescript
+/**
+ * platform shared errors placeholder module.
+ */
+
+export const PLATFORM_SHARED_ERROR_FACTORIES = [
+	"createEntitlementDeniedError",
+	"createPolicyConflictError",
+	"createDeliveryNotAllowedError",
+] as const;
+
+export type PlatformSharedErrorFactory = (typeof PLATFORM_SHARED_ERROR_FACTORIES)[number];
+````
+
+## File: modules/platform/shared/index.ts
+````typescript
+/**
+ * platform shared utilities barrel.
+ */
+
+export * from "./constants";
+export * from "./errors";
+export * from "./types";
+export * from "./utils";
+export * from "./value-objects";
 ````
 
 ## File: modules/platform/shared/types/.gitkeep
@@ -25905,14 +22008,82 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 
 ````
 
+## File: modules/platform/shared/types/index.ts
+````typescript
+/**
+ * platform shared types placeholder module.
+ */
+
+export const PLATFORM_SHARED_TYPE_GROUPS = [
+	"CorrelationContextType",
+	"ResourceDescriptorType",
+	"DispatchOutcomeType",
+] as const;
+
+export type PlatformSharedTypeGroup = (typeof PLATFORM_SHARED_TYPE_GROUPS)[number];
+````
+
 ## File: modules/platform/shared/utils/.gitkeep
 ````
 
 ````
 
+## File: modules/platform/shared/utils/index.ts
+````typescript
+/**
+ * platform shared utilities placeholder module.
+ */
+
+export const PLATFORM_SHARED_UTILITY_FUNCTIONS = [
+	"buildCorrelationId",
+	"buildCausationId",
+	"toIsoTimestamp",
+	"assertNever",
+] as const;
+
+export type PlatformSharedUtilityFunction = (typeof PLATFORM_SHARED_UTILITY_FUNCTIONS)[number];
+````
+
 ## File: modules/platform/shared/value-objects/.gitkeep
 ````
 
+````
+
+## File: modules/platform/shared/value-objects/index.ts
+````typescript
+/**
+ * platform shared value-object derivation inventory.
+ */
+
+export const PLATFORM_SHARED_VALUE_OBJECT_TYPES = [
+	"PlatformContextId",
+	"PolicyCatalogId",
+	"IntegrationContractId",
+	"SubscriptionAgreementId",
+	"PlatformLifecycleState",
+	"ContractState",
+	"BillingState",
+	"EffectivePeriod",
+	"EndpointRef",
+	"SecretReference",
+] as const;
+
+export type PlatformSharedValueObjectType = (typeof PLATFORM_SHARED_VALUE_OBJECT_TYPES)[number];
+
+export const PLATFORM_SHARED_VALUE_OBJECT_FACTORIES = [
+	"createPlatformContextId",
+	"createPolicyCatalogId",
+	"createIntegrationContractId",
+	"createSubscriptionAgreementId",
+	"createPlatformLifecycleState",
+	"createContractState",
+	"createBillingState",
+	"createEffectivePeriod",
+	"createEndpointRef",
+	"createSecretReference",
+] as const;
+
+export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJECT_FACTORIES)[number];
 ````
 
 ## File: modules/platform/subdomains/access-control/adapters/.gitkeep
@@ -25993,11 +22164,6 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 ## File: modules/platform/subdomains/account/domain/.gitkeep
 ````
 
-````
-
-## File: modules/platform/subdomains/account/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'account'.
 ````
 
 ## File: modules/platform/subdomains/account/README.md
@@ -26305,6 +22471,41 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 <!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
 ````
 
+## File: modules/platform/subdomains/index.ts
+````typescript
+/**
+ * platform subdomain inventory module.
+ */
+
+export const PLATFORM_SUBDOMAIN_INVENTORY = [
+	"identity",
+	"account",
+	"account-profile",
+	"organization",
+	"access-control",
+	"security-policy",
+	"platform-config",
+	"feature-flag",
+	"onboarding",
+	"compliance",
+	"billing",
+	"subscription",
+	"referral",
+	"integration",
+	"workflow",
+	"notification",
+	"background-job",
+	"content",
+	"search",
+	"audit-log",
+	"observability",
+	"analytics",
+	"support",
+] as const;
+
+export type PlatformSubdomain = (typeof PLATFORM_SUBDOMAIN_INVENTORY)[number];
+````
+
 ## File: modules/platform/subdomains/integration/adapters/.gitkeep
 ````
 
@@ -26358,11 +22559,6 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 ## File: modules/platform/subdomains/notification/domain/.gitkeep
 ````
 
-````
-
-## File: modules/platform/subdomains/notification/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'notification'.
 ````
 
 ## File: modules/platform/subdomains/notification/README.md
@@ -26463,11 +22659,6 @@ export async function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
 ## File: modules/platform/subdomains/organization/domain/.gitkeep
 ````
 
-````
-
-## File: modules/platform/subdomains/organization/domain/index.ts
-````typescript
-// Purpose: Domain layer placeholder for platform subdomain 'organization'.
 ````
 
 ## File: modules/platform/subdomains/organization/README.md
@@ -38387,6 +34578,23 @@ export {
 } from "../actions/workspace.command";
 ````
 
+## File: modules/workspace/interfaces/api/index.ts
+````typescript
+/**
+ * workspace interfaces/api aggregate export.
+ *
+ * Public API boundary for contracts, facades, queries, actions, and runtime.
+ * App-layer and cross-module consumers should import from this path for
+ * domain contracts, facades, and server-side query/command surfaces.
+ *
+ * For web UI components, hooks, and navigation helpers, use
+ * modules/workspace/interfaces/web instead.
+ */
+
+export * from "./contracts";
+export * from "./facades";
+````
+
 ## File: modules/workspace/interfaces/api/queries/wiki-content-tree.query.ts
 ````typescript
 import type {
@@ -38633,6 +34841,66 @@ modules/workspace/api
 `interfaces/web` **不可**直接依賴 `infrastructure/*`、`application/*`、`domain/*`。
 ````
 
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
+````typescript
+"use client";
+
+/**
+ * WorkspaceContextCard
+ * Purpose: display the active workspace context in notebook/ai-chat sidebar.
+ * Shows workspace name + navigation links when a workspace is active,
+ * otherwise shows an empty-state hint.
+ */
+
+import Link from "next/link";
+import { FolderKanban } from "lucide-react";
+
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import type { WorkspaceEntity } from "../../../api/contracts";
+
+interface WorkspaceContextCardProps {
+  readonly workspace: WorkspaceEntity | null;
+}
+
+export function WorkspaceContextCard({ workspace }: WorkspaceContextCardProps) {
+  return (
+    <Card className="border-border/60">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-sm">
+          <FolderKanban className="size-4 text-primary" />
+          Workspace context
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm text-muted-foreground">
+        {workspace ? (
+          <>
+            <div>
+              <p className="font-medium text-foreground">{workspace.name}</p>
+              <p className="mt-1 text-xs">
+                Notebook 會優先消費這個工作區的 Knowledge、知識頁面與 RAG Query 結果。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/workspace/${workspace.id}`}>Workspace</Link>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>
+              </Button>
+            </div>
+          </>
+        ) : (
+          <p className="text-xs">
+            尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/cards/WorkspaceInformationCard.tsx
 ````typescript
 "use client";
@@ -38724,6 +34992,245 @@ export function WorkspaceInformationCard({
         </div>
       </section>
     </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceOverviewSummaryCard.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent } from "@ui-shadcn/ui/card";
+
+import {
+  formatTimestamp,
+  getWorkspaceInitials,
+  lifecycleBadgeVariant,
+} from "../layout/workspace-detail-helpers";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
+
+interface WorkspaceOverviewSummaryCardProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+
+export function WorkspaceOverviewSummaryCard({
+  workspace,
+  activeWorkspaceId,
+  onEditClick,
+  onSetActiveWorkspace,
+}: WorkspaceOverviewSummaryCardProps) {
+  const governanceSummary = getWorkspaceGovernanceSummary(workspace);
+
+  return (
+    <Card className="border border-border/50">
+      <CardContent className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex items-start gap-4">
+          <Avatar size="lg">
+            <AvatarImage src={workspace.photoURL} alt={workspace.name} />
+            <AvatarFallback>{getWorkspaceInitials(workspace.name)}</AvatarFallback>
+          </Avatar>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <p className="text-2xl font-semibold tracking-tight">{workspace.name}</p>
+              <p className="text-sm text-muted-foreground">
+                {workspace.accountType === "organization" ? "Organization" : "Personal"} workspace ·
+                account {workspace.accountId}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                {workspace.lifecycleState}
+              </Badge>
+              <Badge variant="outline">{workspace.visibility}</Badge>
+              <Badge variant="outline">Created {formatTimestamp(workspace.createdAt)}</Badge>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" size="sm" onClick={onEditClick}>
+                編輯工作區
+              </Button>
+              {activeWorkspaceId !== workspace.id && (
+                <Button type="button" variant="default" size="sm" onClick={onSetActiveWorkspace}>
+                  設為目前工作區
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[20rem]">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Capabilities</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.capabilityCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Teams</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.teamCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Locations</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.locationCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Grants</p>
+            <p className="mt-1 text-xl font-semibold">{governanceSummary.grantCount}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
+import {
+  getWorkspaceAddressLines,
+  getWorkspaceRoleAssignments,
+} from "../../view-models/workspace-supporting-records";
+
+interface WorkspaceProductSpineCardProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCardProps) {
+  const addressLines = getWorkspaceAddressLines(workspace);
+  const workspaceRoles = getWorkspaceRoleAssignments(workspace);
+
+  return (
+    <Card className="border border-border/50 xl:col-span-2">
+      <CardHeader>
+        <CardTitle>Workspace Product Spine</CardTitle>
+        <CardDescription>
+          從這個工作區穩定分流到 Knowledge、知識頁面、Notebook / AI；Search、Source、Sync
+          則作為底層支撐能力。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_0.9fr]">
+        <div className="xl:col-span-4">
+          <WorkspaceInformationCard
+            workspaceName={<p className="text-sm font-medium text-foreground">{workspace.name}</p>}
+            workspaceAddress={
+              addressLines.length > 0 ? (
+                <div className="space-y-1.5 text-sm text-foreground">
+                  {addressLines.map((line) => (
+                    <p key={line}>{line}</p>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">尚未設定工作區地址。</p>
+              )
+            }
+            workspaceRoles={
+              workspaceRoles.length > 0
+                ? workspaceRoles.map((entry) => ({
+                    id: entry.id,
+                    roleName: <p className="text-sm font-medium text-foreground">{entry.roleName}</p>,
+                    roleValue: entry.role ? (
+                      <p className="text-sm text-foreground break-all">{entry.role}</p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">未設定</p>
+                    ),
+                  }))
+                : []
+            }
+          />
+        </div>
+
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold text-foreground">Knowledge</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            先用文件、來源與資料庫建立工作區知識基底，再讓知識頁面與 AI 消費。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                文件
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold text-foreground">Knowledge Pages</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            以工作區知識頁面與文章結構承接知識脈絡，不再透過獨立 Wiki tab 中轉。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/knowledge-base/articles?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                文章
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            用 AI 對話與 RAG 查詢消費這個工作區的知識，不再把 AI 當成獨立產品島。
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                RAG Query
+              </Link>
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-dashed border-border/50 px-4 py-4">
+          <p className="text-sm font-semibold text-foreground">Supporting layers</p>
+          <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <li>
+              <span className="font-medium text-foreground">Search</span>：用 RAG Query 承接查詢、引用與回答。
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Source</span>：Files / Documents
+              是來源接入與 metadata 宿主。
+            </li>
+            <li>
+              <span className="font-medium text-foreground">Sync</span>：upload → ingest → index 流程持續把來源同步成可查詢知識。
+            </li>
+          </ul>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 ````
@@ -38874,6 +35381,136 @@ export function CreateWorkspaceDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/dialogs/WorkspaceSettingsDialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent } from "react";
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import type { WorkspaceSettingsDraft } from "../../state/workspace-settings";
+import { WorkspaceSettingsInformationFields } from "./WorkspaceSettingsInformationFields";
+
+interface WorkspaceSettingsDialogProps {
+  readonly open: boolean;
+  readonly onOpenChange: (open: boolean) => void;
+  readonly settingsDraft: WorkspaceSettingsDraft | null;
+  readonly setSettingsDraft: React.Dispatch<React.SetStateAction<WorkspaceSettingsDraft | null>>;
+  readonly isSaving: boolean;
+  readonly saveError: string | null;
+  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+}
+
+export function WorkspaceSettingsDialog({
+  open,
+  onOpenChange,
+  settingsDraft,
+  setSettingsDraft,
+  isSaving,
+  saveError,
+  onSubmit,
+}: WorkspaceSettingsDialogProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>編輯工作區設定</DialogTitle>
+          <DialogDescription>
+            更新工作區基本資料、地址與聯絡角色，讓個人與組織工作區都能直接在內頁維護。
+          </DialogDescription>
+        </DialogHeader>
+
+        {settingsDraft && (
+          <form className="space-y-6" onSubmit={onSubmit}>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-foreground">可見性</span>
+                <Select
+                  value={settingsDraft.visibility}
+                  onValueChange={(value: WorkspaceEntity["visibility"]) =>
+                    setSettingsDraft((current) =>
+                      current ? { ...current, visibility: value } : current,
+                    )
+                  }
+                  disabled={isSaving}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="visible">visible</SelectItem>
+                    <SelectItem value="hidden">hidden</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <span className="text-sm font-medium text-foreground">生命週期</span>
+                <Select
+                  value={settingsDraft.lifecycleState}
+                  onValueChange={(value: WorkspaceEntity["lifecycleState"]) =>
+                    setSettingsDraft((current) =>
+                      current ? { ...current, lifecycleState: value } : current,
+                    )
+                  }
+                  disabled={isSaving}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="preparatory">preparatory</SelectItem>
+                    <SelectItem value="active">active</SelectItem>
+                    <SelectItem value="stopped">stopped</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <WorkspaceSettingsInformationFields
+              settingsDraft={settingsDraft}
+              setSettingsDraft={setSettingsDraft}
+              isSaving={isSaving}
+            />
+
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isSaving}>
+                {isSaving ? "儲存中…" : "儲存設定"}
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -39156,6 +35793,62 @@ export function WorkspaceSettingsInformationFields({
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
+````typescript
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { formatDate } from "@shared-utils";
+import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
+
+export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
+  "primary",
+  "modules",
+  "library",
+  "spaces",
+  "databases",
+];
+
+export const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+export function getWorkspaceInitials(name: string): string {
+  const tokens = name
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (tokens.length === 0) {
+    return "WS";
+  }
+
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+export function formatTimestamp(
+  timestamp: WorkspaceEntity["createdAt"] | undefined,
+): string {
+  if (!timestamp) {
+    return "—";
+  }
+  try {
+    return formatDate(timestamp.toDate());
+  } catch {
+    return "—";
+  }
+}
+
+export function trimOrUndefined(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed || undefined;
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/layout/WorkspaceSidebarSection.tsx
 ````typescript
 "use client";
@@ -39396,6 +36089,284 @@ export function buildWorkspaceQuickAccessItems(workspaceId: string): WorkspaceQu
 }
 ````
 
+## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import { createWorkspace } from "../../../api/facades";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string | null;
+  accountType: "user" | "organization" | null;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateWorkspaceDialogRail({
+  open,
+  onOpenChange,
+  accountId,
+  accountType,
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
+  const [workspaceName, setWorkspaceName] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setWorkspaceName("");
+    setError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const name = workspaceName.trim();
+    if (!name) {
+      setError("請輸入工作區名稱。");
+      return;
+    }
+    if (!accountId || !accountType) {
+      setError("帳號資訊已失效，請重新登入後再建立工作區。");
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+    const result = await createWorkspace({
+      name,
+      accountId,
+      accountType,
+    });
+
+    if (!result.success) {
+      setError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+
+    reset();
+    onOpenChange(false);
+    onNavigate("/workspace");
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-workspace-description">
+        <DialogHeader>
+          <DialogTitle>建立新工作區</DialogTitle>
+          <DialogDescription id="rail-create-workspace-description">
+            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
+              工作區名稱
+            </label>
+            <Input
+              id="rail-workspace-name"
+              value={workspaceName}
+              onChange={(e) => {
+                setWorkspaceName(e.target.value);
+                if (error) setError(null);
+              }}
+              placeholder="例如：Project Alpha"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {error && <p className="text-sm text-destructive">{error}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { type FormEvent, useState } from "react";
+
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface OrganizationWorkspacesScreenProps {
+  readonly accountId: string | null | undefined;
+}
+
+export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspacesScreenProps) {
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    isCreatingWorkspace,
+    loadState,
+    workspaces,
+  } = useWorkspaceHub({ accountId, accountType: "organization" });
+
+  function resetDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = await createWorkspaceForAccount(workspaceName);
+    if (!result.success) return;
+    resetDialog();
+    setIsCreateOpen(false);
+  }
+
+  if (!accountId) {
+    return (
+      <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => {
+            resetDialog();
+            setIsCreateOpen(true);
+          }}
+        >
+          建立工作區
+        </Button>
+      </div>
+
+      <CreateWorkspaceDialog
+        open={isCreateOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
+        onOpenChange={setIsCreateOpen}
+        onWorkspaceNameChange={setWorkspaceName}
+        onSubmit={handleSubmit}
+      />
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Workspaces</CardTitle>
+          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">工作區載入中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
+          )}
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
+          )}
+          {loadState === "loaded" &&
+            workspaces.map((workspace) => (
+              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
+                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
+                    </Button>
+                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                      {workspace.lifecycleState}
+                    </Badge>
+                    <Badge variant="outline">{workspace.visibility}</Badge>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
+                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
+                        知識頁面
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailRouteScreen.tsx
 ````typescript
 "use client";
@@ -39440,6 +36411,865 @@ export function WorkspaceDetailRouteScreen({
       initialTab={initialTab}
       initialOverviewPanel={initialOverviewPanel}
     />
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { type FormEvent, useState } from "react";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
+import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
+import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
+
+const lifecycleBadgeVariant: Record<
+  WorkspaceEntity["lifecycleState"],
+  "default" | "secondary" | "outline"
+> = {
+  active: "default",
+  preparatory: "secondary",
+  stopped: "outline",
+};
+
+interface WorkspaceHubScreenProps {
+  readonly accountId: string | null | undefined;
+  readonly accountName: string | null | undefined;
+  readonly accountType: "user" | "organization";
+  readonly accountsHydrated: boolean;
+  readonly isBootstrapSeeded: boolean;
+}
+
+export function WorkspaceHubScreen({
+  accountId,
+  accountName,
+  accountType,
+  accountsHydrated,
+  isBootstrapSeeded,
+}: WorkspaceHubScreenProps) {
+  const router = useRouter();
+  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
+  const [workspaceName, setWorkspaceName] = useState("");
+
+  const {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    workspaceStats,
+    workspaces,
+  } = useWorkspaceHub({
+    accountId,
+    accountType,
+  });
+
+  function resetCreateWorkspaceDialog() {
+    setWorkspaceName("");
+    clearCreateError();
+  }
+
+  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const result = await createWorkspaceForAccount(workspaceName);
+
+    if (!result.success) {
+      return;
+    }
+
+    resetCreateWorkspaceDialog();
+    setIsCreateWorkspaceOpen(false);
+    if (result.aggregateId) {
+      router.push(`/workspace/${result.aggregateId}`);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
+          <p className="text-sm text-muted-foreground">
+            Review the workspaces connected to{" "}
+            <span className="font-medium text-foreground">
+              {accountName ?? "the active account"}
+            </span>
+            .
+          </p>
+        </div>
+
+        <Button
+          onClick={() => setIsCreateWorkspaceOpen(true)}
+          disabled={!accountsHydrated || !accountId}
+        >
+          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
+        </Button>
+      </div>
+
+      {!accountsHydrated && (
+        <div
+          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
+          aria-live="polite"
+          role="status"
+        >
+          {isBootstrapSeeded
+            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
+            : "正在載入帳號與工作區內容…"}
+        </div>
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Total Workspaces</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Active</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
+          </CardHeader>
+        </Card>
+        <Card className="border border-border/50">
+          <CardHeader>
+            <CardDescription>Preparatory</CardDescription>
+            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace-first Product Spine</CardTitle>
+          <CardDescription>
+            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
+            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+              <li>
+                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
+              </li>
+              <li>
+                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
+              </li>
+            </ol>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Knowledge</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">知識頁面</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
+              </p>
+            </div>
+            <div className="rounded-xl border border-border/40 px-4 py-4">
+              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border border-border/50">
+        <CardHeader>
+          <CardTitle>Workspace Records</CardTitle>
+          <CardDescription>
+            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+              Loading workspace records…
+            </div>
+          )}
+
+          {loadState === "error" && errorMessage && (
+            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
+              {errorMessage}
+            </div>
+          )}
+
+          {loadState === "loaded" && workspaces.length === 0 && (
+            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
+              <Link
+                href="/organization"
+                className="font-medium text-primary hover:underline"
+              >
+                組織情境
+              </Link>{" "}
+              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
+            </div>
+          )}
+
+          {workspaces.map((workspace) => {
+            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
+
+            return (
+              <Link
+                key={workspace.id}
+                href={`/workspace/${workspace.id}`}
+                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-semibold text-foreground">
+                        {workspace.name}
+                      </p>
+                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                        {workspace.lifecycleState}
+                      </Badge>
+                      <Badge variant="outline">{workspace.visibility}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Account scope: {workspace.accountType}
+                    </p>
+                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
+                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
+                    <span>Teams: {governanceSummary.teamCount}</span>
+                    <span>Locations: {governanceSummary.locationCount}</span>
+                    <span>Grants: {governanceSummary.grantCount}</span>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <CreateWorkspaceDialog
+        open={isCreateWorkspaceOpen}
+        workspaceName={workspaceName}
+        createError={createError}
+        isCreatingWorkspace={isCreatingWorkspace}
+        accountId={accountId}
+        onOpenChange={(open) => {
+          setIsCreateWorkspaceOpen(open);
+          if (!open) resetCreateWorkspaceDialog();
+        }}
+        onWorkspaceNameChange={(name) => {
+          setWorkspaceName(name);
+          if (createError) clearCreateError();
+        }}
+        onSubmit={handleCreateWorkspace}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
+````typescript
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+import type { WorkspaceEntity, WorkspaceMemberView } from "../../../api/contracts";
+import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { getWorkspaceMembers } from "../../../api/facades";
+
+function getMemberInitials(name: string) {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    return "??";
+  }
+
+  const tokens = trimmed.split(/\s+/).slice(0, 2);
+  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
+}
+
+function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number) {
+  return [
+    memberId,
+    channel.source,
+    channel.label,
+    channel.role ?? "",
+    channel.protocol ?? "",
+    channel.teamId ?? "",
+    String(index),
+  ].join("::");
+}
+
+const presenceLabelMap = {
+  active: "Active",
+  away: "Away",
+  offline: "Offline",
+  unknown: "Unknown",
+} as const;
+
+const sourceLabelMap = {
+  owner: "Owner",
+  direct: "Direct",
+  team: "Team",
+  personnel: "Personnel",
+} as const;
+
+interface WorkspaceMembersTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
+  const [members, setMembers] = useState<WorkspaceMemberView[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadMembers() {
+      setLoadState("loading");
+
+      try {
+        const nextMembers = await getWorkspaceMembers(workspace.id);
+        if (cancelled) {
+          return;
+        }
+
+        setMembers(nextMembers);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[WorkspaceMembersTab] Failed to load members:", error);
+        }
+
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadMembers();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workspace.id]);
+
+  const directCount = useMemo(
+    () =>
+      members.filter((member) =>
+        member.accessChannels.some((channel) => channel.source === "direct"),
+      ).length,
+    [members],
+  );
+
+  const teamCount = useMemo(
+    () =>
+      members.filter((member) =>
+        member.accessChannels.some((channel) => channel.source === "team"),
+      ).length,
+    [members],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Members</CardTitle>
+        <CardDescription>
+          {workspace.accountType === "organization"
+            ? "組織成員與工作區授權來源的整合檢視。"
+            : "個人工作區目前的共享與聯絡角色摘要。"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Visible members</p>
+            <p className="mt-1 text-xl font-semibold">{members.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Direct access</p>
+            <p className="mt-1 text-xl font-semibold">{directCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Team access</p>
+            <p className="mt-1 text-xl font-semibold">{teamCount}</p>
+          </div>
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading workspace members…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入成員資料，請重新整理頁面或稍後再試。
+          </p>
+        )}
+
+        {loadState === "loaded" && members.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            目前尚未整理出任何工作區成員或授權來源，之後可在這裡持續擴充成員維護流程。
+          </p>
+        )}
+
+        {loadState === "loaded" && members.length > 0 && (
+          <div className="space-y-3">
+            {members.map((member) => (
+              <div
+                key={member.id}
+                className="rounded-xl border border-border/40 px-4 py-4"
+              >
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="flex items-start gap-3">
+                    <Avatar>
+                      <AvatarFallback>{getMemberInitials(member.displayName)}</AvatarFallback>
+                    </Avatar>
+                    <div className="space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {member.displayName}
+                        </p>
+                        <Badge variant="outline">{presenceLabelMap[member.presence]}</Badge>
+                        {member.organizationRole && (
+                          <Badge variant="secondary">{member.organizationRole}</Badge>
+                        )}
+                        {member.isExternal && <Badge variant="outline">External</Badge>}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {member.email ?? member.id}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {member.accessChannels.map((channel, index) => (
+                      <Badge
+                        key={getAccessChannelKey(member.id, channel, index)}
+                        variant="outline"
+                      >
+                        {sourceLabelMap[channel.source]} · {channel.label}
+                        {channel.role ? ` · ${channel.role}` : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewSettingsTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+
+import { WorkspaceInformationCard } from "../cards/WorkspaceInformationCard";
+import { lifecycleBadgeVariant } from "../layout/workspace-detail-helpers";
+
+interface WorkspaceOverviewSettingsTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly onEditClick: () => void;
+}
+
+export function WorkspaceOverviewSettingsTab({
+  workspace,
+  personnelEntries,
+  addressLines,
+  onEditClick,
+}: WorkspaceOverviewSettingsTabProps) {
+  return (
+    <div className="space-y-4">
+      <Card className="border border-border/50">
+        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1.5">
+            <CardTitle>Workspace Settings</CardTitle>
+            <CardDescription>
+              檢視目前工作區設定，並從這裡進入編輯流程。
+            </CardDescription>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={onEditClick}>
+            編輯工作區
+          </Button>
+        </CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs text-muted-foreground">Visibility</p>
+            <div className="mt-2">
+              <Badge variant="outline">{workspace.visibility}</Badge>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs text-muted-foreground">Lifecycle</p>
+            <div className="mt-2">
+              <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
+                {workspace.lifecycleState}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs text-muted-foreground">Account Type</p>
+            <p className="mt-2 text-sm font-medium text-foreground">
+              {workspace.accountType === "organization" ? "Organization" : "Personal"}
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border/40 px-4 py-4">
+            <p className="text-xs text-muted-foreground">Account ID</p>
+            <p className="mt-2 break-all text-sm font-medium text-foreground">{workspace.accountId}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <WorkspaceInformationCard
+        workspaceName={<p className="text-sm font-medium text-foreground">{workspace.name}</p>}
+        workspaceAddress={
+          addressLines.length > 0 ? (
+            <div className="space-y-1.5 text-sm text-foreground">
+              {addressLines.map((line, index) => (
+                <p key={`${line}-${index}`}>{line}</p>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未設定工作區地址。</p>
+          )
+        }
+        workspaceRoles={personnelEntries.map((entry) => ({
+          id: entry.label,
+          roleName: <p className="text-sm font-medium text-foreground">{entry.label}</p>,
+          roleValue: entry.value ? (
+            <p className="break-all text-sm text-foreground">{entry.value}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">未設定</p>
+          ),
+        }))}
+      />
+    </div>
+  );
+}
+````
+
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
+````typescript
+"use client";
+
+import type { WorkspaceEntity } from "../../../api/contracts";
+import { Badge } from "@ui-shadcn/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Separator } from "@ui-shadcn/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
+import { describeGrant } from "../../view-models/workspace-grants";
+import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
+
+interface WorkspaceOverviewTabProps {
+  readonly workspace: WorkspaceEntity;
+  readonly activeWorkspaceId: string | null | undefined;
+  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
+  readonly addressLines: string[];
+  readonly showSettingsPanel?: boolean;
+  readonly onEditClick: () => void;
+  readonly onSetActiveWorkspace: () => void;
+}
+
+export function WorkspaceOverviewTab({
+  workspace,
+  activeWorkspaceId,
+  personnelEntries,
+  addressLines,
+  showSettingsPanel = false,
+  onEditClick,
+  onSetActiveWorkspace,
+}: WorkspaceOverviewTabProps) {
+  if (showSettingsPanel) {
+    return (
+      <WorkspaceOverviewSettingsTab
+        workspace={workspace}
+        personnelEntries={personnelEntries}
+        addressLines={addressLines}
+        onEditClick={onEditClick}
+      />
+    );
+  }
+
+  return (
+    <Tabs defaultValue="home" className="space-y-4">
+      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
+        <TabsList
+          variant="line"
+          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
+        >
+          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
+            Home
+          </TabsTrigger>
+          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
+            Governance
+          </TabsTrigger>
+          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
+            Profile
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="home" className="mt-4 space-y-4">
+          <WorkspaceOverviewSummaryCard
+            workspace={workspace}
+            activeWorkspaceId={activeWorkspaceId}
+            onEditClick={onEditClick}
+            onSetActiveWorkspace={onSetActiveWorkspace}
+          />
+
+          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+            <WorkspaceProductSpineCard workspace={workspace} />
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Capabilities</CardTitle>
+                <CardDescription>
+                  Runtime features currently mounted on this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.capabilities.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No capability bindings have been added yet.
+                  </p>
+                ) : (
+                  workspace.capabilities.map((capability) => (
+                    <div
+                      key={capability.id}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {capability.name}
+                        </p>
+                        <Badge variant="outline">{capability.type}</Badge>
+                        <Badge
+                          variant={capability.status === "stable" ? "secondary" : "outline"}
+                        >
+                          {capability.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {capability.description}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
+            <WorkspaceQuickstartCard workspaceId={workspace.id} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="governance" className="mt-4 space-y-4">
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Access Model</CardTitle>
+                <CardDescription>
+                  Team scopes and direct grants applied to this workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Team access</p>
+                  {workspace.teamIds.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {workspace.teamIds.map((teamId) => (
+                        <Badge key={teamId} variant="secondary">
+                          {teamId}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-foreground">Direct grants</p>
+                  {workspace.grants.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
+                  ) : (
+                    workspace.grants.map((grant, index) => (
+                      <div
+                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
+                        className="rounded-xl border border-border/40 px-4 py-3"
+                      >
+                        <p className="text-sm font-medium text-foreground">
+                          {describeGrant(grant)}
+                        </p>
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          Role: {grant.role}
+                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
+                          {grant.userId ? ` · User: ${grant.userId}` : ""}
+                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
+                        </p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border border-border/50">
+              <CardHeader>
+                <CardTitle>Locations</CardTitle>
+                <CardDescription>
+                  Physical or logical locations linked to the workspace.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {workspace.locations == null || workspace.locations.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No locations have been configured yet.
+                  </p>
+                ) : (
+                  workspace.locations.map((location) => (
+                    <div
+                      key={location.locationId}
+                      className="rounded-xl border border-border/40 px-4 py-4"
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold text-foreground">
+                          {location.label}
+                        </p>
+                        <Badge variant="outline">{location.locationId}</Badge>
+                      </div>
+                      {location.description && (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          {location.description}
+                        </p>
+                      )}
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        Capacity: {location.capacity ?? "—"}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="profile" className="mt-4 space-y-4">
+          <Card className="border border-border/50">
+            <CardHeader>
+              <CardTitle>Workspace Profile</CardTitle>
+              <CardDescription>
+                Operational contacts and registered workspace address.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Personnel</p>
+                {personnelEntries.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No personnel roles assigned.
+                  </p>
+                ) : (
+                  personnelEntries.map((entry) => (
+                    <div
+                      key={entry.label}
+                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
+                    >
+                      <span className="text-muted-foreground">{entry.label}</span>
+                      <span className="font-medium text-foreground">{entry.value}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              <Separator />
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-foreground">Address</p>
+                {addressLines.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No address information has been provided.
+                  </p>
+                ) : (
+                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
+                    {addressLines.map((line, index) => (
+                      <p key={`${line}-${index}`}>{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+      </div>
+    </Tabs>
   );
 }
 ````
@@ -39535,6 +37365,438 @@ export function useRecentWorkspaces(
 }
 
 export { MAX_VISIBLE_RECENT_WORKSPACES, getWorkspaceIdFromPath };
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount } from "../../api/facades";
+
+export type WorkspaceLoadState = "loading" | "loaded" | "error";
+
+export interface UseWorkspaceDetailResult {
+  workspace: WorkspaceEntity | null;
+  loadState: WorkspaceLoadState;
+  setWorkspace: (ws: WorkspaceEntity) => void;
+}
+
+export function useWorkspaceDetail(
+  workspaceId: string,
+  accountId: string | null | undefined,
+  accountsHydrated: boolean,
+): UseWorkspaceDetailResult {
+  const router = useRouter();
+  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
+  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkspace() {
+      if (!workspaceId) {
+        setLoadState("error");
+        return;
+      }
+
+      if (!accountId || !accountsHydrated) {
+        setWorkspace(null);
+        setLoadState("loading");
+        return;
+      }
+
+      setLoadState("loading");
+      try {
+        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
+        if (cancelled) return;
+        if (!detail) {
+          router.replace("/workspace?context=unavailable");
+          return;
+        }
+        setWorkspace(detail);
+        setLoadState("loaded");
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
+        }
+        if (!cancelled) {
+          setWorkspace(null);
+          setLoadState("error");
+        }
+      }
+    }
+
+    void loadWorkspace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId, accountsHydrated, router, workspaceId]);
+
+  return { workspace, loadState, setWorkspace };
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceHub.ts
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { createWorkspace, getWorkspacesForAccount } from "../../api/facades";
+
+export type WorkspaceHubLoadState = "idle" | "loading" | "loaded" | "error";
+
+interface UseWorkspaceHubOptions {
+  readonly accountId: string | null | undefined;
+  readonly accountType: "user" | "organization";
+}
+
+function sortWorkspaces(items: WorkspaceEntity[]) {
+  return [...items].sort((left, right) =>
+    left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
+  );
+}
+
+export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptions) {
+  const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
+  const [loadState, setLoadState] = useState<WorkspaceHubLoadState>("idle");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
+
+  const fetchWorkspaces = useCallback(
+    async (nextAccountId: string, failureMessage: string) => {
+      try {
+        const nextWorkspaces = await getWorkspacesForAccount(nextAccountId);
+        setWorkspaces(sortWorkspaces(nextWorkspaces));
+        setLoadState("loaded");
+        setErrorMessage(null);
+        return nextWorkspaces;
+      } catch (error) {
+        if (process.env.NODE_ENV !== "production") {
+          console.warn("[useWorkspaceHub] Failed to load workspaces:", error);
+        }
+        setWorkspaces([]);
+        setLoadState("error");
+        setErrorMessage(failureMessage);
+        return null;
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    async function loadWorkspaces() {
+      if (!accountId) {
+        setWorkspaces([]);
+        setLoadState("loaded");
+        setErrorMessage(null);
+        return;
+      }
+
+      setLoadState("loading");
+      setErrorMessage(null);
+
+      await fetchWorkspaces(
+        accountId,
+        "Unable to load workspace records right now.",
+      );
+    }
+
+    void loadWorkspaces();
+  }, [accountId, fetchWorkspaces]);
+
+  const refreshWorkspaces = useCallback(async () => {
+    if (!accountId) {
+      setWorkspaces([]);
+      setLoadState("loaded");
+      setErrorMessage(null);
+      return;
+    }
+
+    await fetchWorkspaces(
+      accountId,
+      "工作區已建立，但清單更新失敗。請重新整理頁面以查看新的工作區。",
+    );
+  }, [accountId, fetchWorkspaces]);
+
+  const createWorkspaceForAccount = useCallback(
+    async (name: string): Promise<CommandResult> => {
+      const nextWorkspaceName = name.trim();
+
+      if (!accountId) {
+        const error = commandFailureFrom(
+          "WORKSPACE_ACCOUNT_REQUIRED",
+          "帳號資訊已失效，請重新整理頁面後再建立工作區。",
+        );
+        setCreateError(error.error.message);
+        return error;
+      }
+
+      if (!nextWorkspaceName) {
+        const error = commandFailureFrom("WORKSPACE_NAME_REQUIRED", "請輸入工作區名稱。");
+        setCreateError(error.error.message);
+        return error;
+      }
+
+      setIsCreatingWorkspace(true);
+      setCreateError(null);
+
+      const result = await createWorkspace({
+        name: nextWorkspaceName,
+        accountId,
+        accountType,
+      });
+
+      if (!result.success) {
+        setCreateError(result.error.message);
+        setIsCreatingWorkspace(false);
+        return result;
+      }
+
+      await refreshWorkspaces();
+      setIsCreatingWorkspace(false);
+      return result;
+    },
+    [accountId, accountType, refreshWorkspaces],
+  );
+
+  const workspaceStats = useMemo(() => {
+    return {
+      total: workspaces.length,
+      active: workspaces.filter((workspace) => workspace.lifecycleState === "active").length,
+      preparatory: workspaces.filter((workspace) => workspace.lifecycleState === "preparatory").length,
+    };
+  }, [workspaces]);
+
+  const clearCreateError = useCallback(() => {
+    setCreateError(null);
+  }, []);
+
+  return {
+    createError,
+    clearCreateError,
+    createWorkspaceForAccount,
+    errorMessage,
+    isCreatingWorkspace,
+    loadState,
+    refreshWorkspaces,
+    workspaceStats,
+    workspaces,
+  };
+}
+````
+
+## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { WorkspaceEntity } from "../../api/contracts";
+import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
+import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
+import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
+
+interface UseWorkspaceSettingsSaveOptions {
+  readonly workspace: WorkspaceEntity | null;
+  readonly accountId: string | null | undefined;
+  readonly onSaved: (updated: WorkspaceEntity) => void;
+}
+
+interface UseWorkspaceSettingsSaveResult {
+  readonly isSaving: boolean;
+  readonly saveError: string | null;
+  readonly clearSaveError: () => void;
+  readonly handleSave: (
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) => Promise<void>;
+}
+
+export function useWorkspaceSettingsSave({
+  workspace,
+  accountId,
+  onSaved,
+}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
+  const router = useRouter();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  async function handleSave(
+    event: FormEvent<HTMLFormElement>,
+    settingsDraft: WorkspaceSettingsDraft | null,
+  ) {
+    event.preventDefault();
+
+    if (!workspace || !settingsDraft) return;
+
+    if (!accountId) {
+      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
+      return;
+    }
+
+    const nextWorkspaceName = settingsDraft.name.trim();
+    if (!nextWorkspaceName) {
+      setSaveError("請輸入工作區名稱。");
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    const hasAddressContent = Boolean(
+      settingsDraft.street.trim() ||
+        settingsDraft.city.trim() ||
+        settingsDraft.state.trim() ||
+        settingsDraft.postalCode.trim() ||
+        settingsDraft.country.trim() ||
+        settingsDraft.details.trim(),
+    );
+    const hasPersonnelContent = Boolean(
+      settingsDraft.managerId.trim() ||
+        settingsDraft.supervisorId.trim() ||
+        settingsDraft.safetyOfficerId.trim() ||
+        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
+    );
+
+    const normalizedCustomRoles = settingsDraft.customRoles
+      .map((entry) => ({
+        roleId: entry.roleId,
+        roleName: entry.roleName.trim(),
+        role: entry.role.trim(),
+      }))
+      .filter((entry) => entry.roleName || entry.role);
+
+    const result = await updateWorkspaceSettings({
+      workspaceId: workspace.id,
+      accountId,
+      name: nextWorkspaceName,
+      visibility: settingsDraft.visibility,
+      lifecycleState: settingsDraft.lifecycleState,
+      address:
+        workspace.address != null || hasAddressContent
+          ? {
+              street: settingsDraft.street.trim(),
+              city: settingsDraft.city.trim(),
+              state: settingsDraft.state.trim(),
+              postalCode: settingsDraft.postalCode.trim(),
+              country: settingsDraft.country.trim(),
+              details: trimOrUndefined(settingsDraft.details),
+            }
+          : undefined,
+      personnel:
+        workspace.personnel != null || hasPersonnelContent
+          ? {
+              managerId: trimOrUndefined(settingsDraft.managerId),
+              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
+              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
+              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
+            }
+          : undefined,
+    });
+
+    if (!result.success) {
+      setSaveError(result.error.message);
+      setIsSaving(false);
+      return;
+    }
+
+    try {
+      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
+      if (!detail) {
+        router.replace("/workspace?context=unavailable");
+        return;
+      }
+      onSaved(detail);
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
+      }
+      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return {
+    isSaving,
+    saveError,
+    clearSaveError: () => setSaveError(null),
+    handleSave,
+  };
+}
+````
+
+## File: modules/workspace/interfaces/web/index.ts
+````typescript
+/**
+ * workspace interfaces/web public boundary.
+ *
+ * Web-layer components, hooks, navigation, state helpers and utilities.
+ * App-layer and cross-module consumers that need UI composition must import
+ * from this path instead of reaching into individual sub-directories.
+ */
+
+export { WorkspaceDetailScreen } from "./components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "./components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "./components/screens/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "./components/tabs/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "./components/layout/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "./components/rails/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "./components/screens/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "./components/cards/WorkspaceContextCard";
+
+export {
+	WORKSPACE_TAB_GROUPS,
+	WORKSPACE_TAB_META,
+	WORKSPACE_TAB_VALUES,
+	getWorkspaceTabLabel,
+	getWorkspaceTabMeta,
+	getWorkspaceTabPrefId,
+	getWorkspaceTabStatus,
+	getWorkspaceTabsByGroup,
+	isWorkspaceTabValue,
+} from "./navigation/workspace-tabs";
+
+export { getWorkspaceStorageKey } from "./state/workspace-session";
+
+export {
+	resolveWorkspaceFromMap,
+	toWorkspaceMap,
+} from "./utils/workspace-map";
+
+export type { WorkspaceNavItem } from "./navigation/workspace-nav-items";
+export {
+	WORKSPACE_NAV_ITEMS,
+	normalizeWorkspaceOrder,
+} from "./navigation/workspace-nav-items";
+
+export type {
+	WorkspaceQuickAccessItem,
+	WorkspaceQuickAccessMatcherOptions,
+} from "./components/navigation/workspace-quick-access";
+
+export { buildWorkspaceQuickAccessItems } from "./components/navigation/workspace-quick-access";
+
+export type {
+	WorkspaceTabDevStatus,
+	WorkspaceTabGroup,
+	WorkspaceTabValue,
+} from "./navigation/workspace-tabs";
+
+export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
+export {
+	MAX_VISIBLE_RECENT_WORKSPACES,
+	getWorkspaceIdFromPath,
+	useRecentWorkspaces,
+} from "./hooks/useRecentWorkspaces";
 ````
 
 ## File: modules/workspace/interfaces/web/navigation/workspace-nav-items.ts
@@ -53493,6 +51755,22 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
+## File: .github/instructions/README.md
+````markdown
+# Instructions Index
+
+This directory contains scoped Copilot behavior rules (`*.instructions.md`).
+
+## Key Files
+
+- `../copilot-instructions.md`: repository-wide always-on instructions.
+- `bounded-context-rules.instructions.md`: module boundary and dependency direction rules.
+- `ubiquitous-language.instructions.md`: naming and ubiquitous language rules.
+- `doc-governance.instructions.md`: documentation governance and source-of-truth rules.
+
+Use this file as the stable entry point for links that target `.github/instructions/README.md`.
+````
+
 ## File: .github/prompts/analyze-repo.prompt.md
 ````markdown
 ---
@@ -53794,408 +52072,500 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: app/(shell)/_components/account-switcher.tsx
+## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
 ````typescript
 "use client";
 
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
+import type { ActiveAccount } from "@/app/providers/app-context";
+import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
 
-import type { AuthUser } from "@/app/providers/auth-context";
-import { useApp } from "@/app/providers/app-provider";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
-import { createOrganization } from "@/modules/platform/subdomains/organization";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface AccountSwitcherProps {
-  personalAccount: AuthUser | null;
-  organizationAccounts: AccountEntity[];
-  activeAccountId: string | null;
-  onSelectPersonal: () => void;
-  onSelectOrganization: (account: AccountEntity) => void;
-  onOrganizationCreated?: (account: AccountEntity) => void;
+interface CreateWorkspaceDialogRailProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  activeAccount: ActiveAccount | null;
+  isOrganizationAccount: boolean;
+  onNavigate: (href: string) => void;
 }
 
-export function AccountSwitcher({
-  personalAccount,
-  organizationAccounts,
-  activeAccountId,
-  onSelectPersonal,
-  onSelectOrganization,
-  onOrganizationCreated,
-}: AccountSwitcherProps) {
-  const router = useRouter();
-  const {
-    state: { accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationError, setOrganizationError] = useState<string | null>(null);
-  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
-
-  function resetCreateOrganizationDialog() {
-    setOrganizationName("");
-    setOrganizationError(null);
-    setIsCreatingOrganization(false);
-  }
-
-  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    if (!personalAccount) {
-      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-
-    const nextOrganizationName = organizationName.trim();
-    if (!nextOrganizationName) {
-      setOrganizationError("請輸入組織名稱。");
-      return;
-    }
-
-    setIsCreatingOrganization(true);
-    setOrganizationError(null);
-
-    const result = await createOrganization({
-      organizationName: nextOrganizationName,
-      ownerId: personalAccount.id,
-      ownerName: personalAccount.name,
-      ownerEmail: personalAccount.email,
-    });
-
-    if (!result.success) {
-      setOrganizationError(result.error.message);
-      setIsCreatingOrganization(false);
-      return;
-    }
-
-    onOrganizationCreated?.({
-      id: result.aggregateId,
-      name: nextOrganizationName,
-      accountType: "organization",
-      ownerId: personalAccount.id,
-    });
-
-    resetCreateOrganizationDialog();
-    setIsCreateOrganizationOpen(false);
-    router.push("/organization");
-  }
-
+export function CreateWorkspaceDialogRail({
+  open,
+  onOpenChange,
+  activeAccount,
+  isOrganizationAccount,
+  onNavigate,
+}: CreateWorkspaceDialogRailProps) {
   return (
-    <>
-      <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-          帳號情境
-        </p>
-        <select
-          aria-label="切換帳號情境"
-          value={activeAccountId ?? ""}
-          onChange={(event) => {
-            const nextId = event.target.value;
-            if (nextId === "__create_organization__") {
-              setIsCreateOrganizationOpen(true);
-              return;
-            }
-
-            if (!nextId || nextId === personalAccount?.id) {
-              onSelectPersonal();
-              return;
-            }
-
-            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
-            if (nextAccount) {
-              onSelectOrganization(nextAccount);
-            }
-          }}
-          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
-        >
-          {personalAccount && (
-            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
-          )}
-          {organizationAccounts.map((account) => (
-            <option key={account.id} value={account.id}>
-              {account.name}（組織）
-            </option>
-          ))}
-          <option value="__create_organization__">+建立組織</option>
-        </select>
-        {!accountsHydrated && (
-          <p className="text-xs text-muted-foreground">
-            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
-          </p>
-        )}
-      </div>
-
-      <Dialog
-        open={isCreateOrganizationOpen}
-        onOpenChange={(open) => {
-          setIsCreateOrganizationOpen(open);
-          if (!open) {
-            resetCreateOrganizationDialog();
-          }
-        }}
-      >
-        <DialogContent aria-describedby="create-organization-description">
-          <DialogHeader>
-            <DialogTitle>建立新組織</DialogTitle>
-            <DialogDescription id="create-organization-description">
-              輸入名稱後會直接建立組織並切換到新的組織內容。
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateOrganization}>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
-                組織名稱
-              </label>
-              <Input
-                id="organization-name"
-                value={organizationName}
-                onChange={(event) => {
-                  setOrganizationName(event.target.value);
-                  if (organizationError) {
-                    setOrganizationError(null);
-                  }
-                }}
-                placeholder="例如：Gig Team"
-                // eslint-disable-next-line jsx-a11y/no-autofocus
-                autoFocus
-                disabled={isCreatingOrganization}
-                maxLength={80}
-              />
-              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  resetCreateOrganizationDialog();
-                  setIsCreateOrganizationOpen(false);
-                }}
-                disabled={isCreatingOrganization}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
-                {isCreatingOrganization ? "建立中…" : "直接建立"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </>
+    <WorkspaceCreateWorkspaceDialogRail
+      open={open}
+      onOpenChange={onOpenChange}
+      accountId={activeAccount?.id ?? null}
+      accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
+      onNavigate={onNavigate}
+    />
   );
 }
 ````
 
-## File: app/(shell)/_components/create-organization-dialog.tsx
+## File: app/(shell)/_components/customize-navigation-dialog.tsx
 ````typescript
 "use client";
 
-import { type FormEvent, useState } from "react";
+/**
+ * Module: customize-navigation-dialog.tsx
+ * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
+ * Responsibilities: dialog shell, section rendering, preference state management.
+ * Constraints: UI-only; pure preference storage, no backend call.
+ *   Data/constants/localStorage live in nav-preferences-data.ts.
+ *   Row components live in nav-check-row.tsx.
+ */
 
-import type { AuthUser } from "@/app/providers/auth-context";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
-import { createOrganization } from "@/modules/platform/subdomains/organization";
+import { useMemo, useState, useEffect } from "react";
+
+import { reorder, type Edge } from "@lib-dragdrop";
+
 import { Button } from "@ui-shadcn/ui/button";
+import { Checkbox } from "@ui-shadcn/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@ui-shadcn/ui/dialog";
 import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { Separator } from "@ui-shadcn/ui/separator";
 
-interface CreateOrganizationDialogProps {
+import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
+import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
+import {
+  DIALOG_TEXT,
+  ORGANIZATION_NAV_ITEMS,
+  PERSONAL_ITEMS,
+  readNavPreferences,
+  writeNavPreferences,
+  type NavPreferences,
+  type SidebarLocaleBundle,
+} from "./nav-preferences-data";
+
+// Re-export the stable public surface so existing consumers (dashboard-sidebar,
+// workspace-sidebar-section) don't need to change their import paths.
+export type { NavPreferences };
+export { readNavPreferences };
+
+// ── Props ──────────────────────────────────────────────────────────────────
+
+interface CustomizeNavigationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  user: AuthUser | null;
-  onOrganizationCreated?: (account: AccountEntity) => void;
-  onNavigate: (href: string) => void;
+  onPreferencesChange?: (prefs: NavPreferences) => void;
 }
 
-export function CreateOrganizationDialog({
+// ── Component ──────────────────────────────────────────────────────────────
+
+export function CustomizeNavigationDialog({
   open,
   onOpenChange,
-  user,
-  onOrganizationCreated,
-  onNavigate,
-}: CreateOrganizationDialogProps) {
-  const [orgName, setOrgName] = useState("");
-  const [orgError, setOrgError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  onPreferencesChange,
+}: CustomizeNavigationDialogProps) {
+  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
+  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
 
-  function reset() {
-    setOrgName("");
-    setOrgError(null);
-    setIsCreating(false);
+  const uiLocale = useMemo<"zh" | "en">(() => {
+    if (typeof navigator === "undefined") return "zh";
+    const language = navigator.language?.toLowerCase() ?? "";
+    return language.startsWith("zh") ? "zh" : "en";
+  }, []);
+
+  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const localeFile =
+      uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
+    let canceled = false;
+    fetch(localeFile)
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed to load locale file: ${res.status}`);
+        return res.json() as Promise<SidebarLocaleBundle>;
+      })
+      .then((json) => { if (!canceled) setLocaleBundle(json); })
+      .catch(() => { if (!canceled) setLocaleBundle(null); });
+    return () => { canceled = true; };
+  }, [uiLocale]);
+
+  const text = DIALOG_TEXT[uiLocale];
+
+  const workspaceItemsById = useMemo(
+    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
+    [],
+  );
+
+  const orderedWorkspaceItems = useMemo(
+    () =>
+      prefs.workspaceOrder
+        .map((id) => workspaceItemsById[id])
+        .filter((item): item is WorkspaceNavItem => item != null),
+    [prefs.workspaceOrder, workspaceItemsById],
+  );
+
+  const getWorkspaceLabel = (item: WorkspaceNavItem) =>
+    localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
+
+  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) =>
+    uiLocale === "zh" ? item.zhLabel : item.enLabel;
+
+  function updatePrefs(update: Partial<NavPreferences>) {
+    const next = { ...prefs, ...update };
+    writeNavPreferences(next);
+    setPrefs(next);
+    onPreferencesChange?.(next);
   }
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user) {
-      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
-      return;
-    }
-    const name = orgName.trim();
-    if (!name) {
-      setOrgError("請輸入組織名稱。");
-      return;
-    }
-    setIsCreating(true);
-    setOrgError(null);
-    const result = await createOrganization({
-      organizationName: name,
-      ownerId: user.id,
-      ownerName: user.name,
-      ownerEmail: user.email,
-    });
-    if (!result.success) {
-      setOrgError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-    const newAccount: AccountEntity = {
-      id: result.aggregateId,
-      name,
-      accountType: "organization",
-      ownerId: user.id,
-    };
-    onOrganizationCreated?.(newAccount);
-    reset();
-    onOpenChange(false);
-    onNavigate("/organization");
+  function togglePersonal(id: string) {
+    const next = prefs.pinnedPersonal.includes(id)
+      ? prefs.pinnedPersonal.filter((x) => x !== id)
+      : [...prefs.pinnedPersonal, id];
+    updatePrefs({ pinnedPersonal: next });
+  }
+
+  function toggleWorkspace(id: string) {
+    const next = prefs.pinnedWorkspace.includes(id)
+      ? prefs.pinnedWorkspace.filter((x) => x !== id)
+      : [...prefs.pinnedWorkspace, id];
+    updatePrefs({ pinnedWorkspace: next });
+  }
+
+  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
+    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
+    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
+    if (startIndex === -1 || targetIndex === -1) return;
+    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
+    const nextOrder = reorder({ list: prefs.workspaceOrder, startIndex, finishIndex: destinationIndex });
+    updatePrefs({ workspaceOrder: nextOrder });
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-org-description">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>建立新組織</DialogTitle>
-          <DialogDescription id="rail-create-org-description">
-            輸入名稱後會直接建立組織並切換到新的組織內容。
-          </DialogDescription>
+          <DialogTitle>{text.title}</DialogTitle>
+          <DialogDescription>{text.description}</DialogDescription>
         </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
-              組織名稱
-            </label>
-            <Input
-              id="rail-organization-name"
-              value={orgName}
-              onChange={(e) => {
-                setOrgName(e.target.value);
-                if (orgError) setOrgError(null);
-              }}
-              placeholder="例如：Gig Team"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+
+        {/* ── Personal items ─────────────────────────────────────────── */}
+        <div className="mt-2 space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionPersonal}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {PERSONAL_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={text[item.labelKey]}
+                checked={prefs.pinnedPersonal.includes(item.id)}
+                onToggle={() => { togglePersonal(item.id); }}
+              />
+            ))}
           </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !user}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Workspace items ────────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionWorkspace}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {orderedWorkspaceItems.map((item) => (
+              <WorkspaceCheckRow
+                key={item.id}
+                id={item.id}
+                label={getWorkspaceLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                isDropTarget={dragTarget?.id === item.id}
+                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
+                onToggle={() => { toggleWorkspace(item.id); }}
+                onDragOverItem={(targetId, edge) => { setDragTarget({ id: targetId, edge }); }}
+                onDragLeaveItem={(targetId) => {
+                  setDragTarget((current) => (current?.id === targetId ? null : current));
+                }}
+                onReorder={reorderWorkspaceItems}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Organization items ──────────────────────────────────────── */}
+        <div className="space-y-1">
+          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionOrganization}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50">
+            {ORGANIZATION_NAV_ITEMS.map((item) => (
+              <CheckRow
+                key={item.id}
+                id={item.id}
+                label={getOrganizationLabel(item)}
+                checked={prefs.pinnedWorkspace.includes(item.id)}
+                onToggle={() => { toggleWorkspace(item.id); }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <Separator className="my-2" />
+
+        {/* ── Display settings ───────────────────────────────────────── */}
+        <div className="space-y-3">
+          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+            {text.sectionDisplay}
+          </p>
+          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
+            <div className="flex items-center gap-3">
+              <Checkbox
+                id="nav-limit-workspaces"
+                checked={prefs.showLimitedWorkspaces}
+                onCheckedChange={(checked) => { updatePrefs({ showLimitedWorkspaces: Boolean(checked) }); }}
+              />
+              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
+                {text.limitedLabel}
+              </Label>
+            </div>
+            {prefs.showLimitedWorkspaces && (
+              <div className="space-y-1.5 pl-7">
+                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
+                  {text.limitedInputLabel}
+                </Label>
+                <Input
+                  id="nav-max-workspaces"
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={prefs.maxWorkspaces}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1) updatePrefs({ maxWorkspaces: Math.min(val, 50) });
+                  }}
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer ─────────────────────────────────────────────────── */}
+        <div className="flex justify-end pt-2">
+          <Button type="button" onClick={() => { onOpenChange(false); }}>
+            {text.done}
+          </Button>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 ````
 
-## File: app/(shell)/_components/header-controls.tsx
+## File: app/(shell)/_components/nav-preferences-data.ts
+````typescript
+/**
+ * nav-preferences-data.ts
+ * Owns: NavPreferences type, nav-item catalogs, default values,
+ *   validation helpers, and localStorage read/write utilities.
+ * Constraints: No React imports. No UI imports. Pure data / serialization.
+ */
+
+import {
+  WORKSPACE_NAV_ITEMS,
+  normalizeWorkspaceOrder,
+} from "@/modules/workspace/api";
+
+// Re-export so existing consumers of this file (customize-navigation-dialog
+// via nav-preferences-data) keep working during the transition.
+export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+
+// ── Types ──────────────────────────────────────────────────────────────────
+
+export interface NavPreferences {
+  /** IDs of personal nav items that are pinned */
+  pinnedPersonal: string[];
+  /** IDs of workspace org-management items that are pinned */
+  pinnedWorkspace: string[];
+  /** Whether to show a limited number of workspaces */
+  showLimitedWorkspaces: boolean;
+  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
+  maxWorkspaces: number;
+  /** Explicit display order of workspace items for sidebar and customize dialog */
+  workspaceOrder: string[];
+}
+
+export interface SidebarLocaleBundle {
+  workspace?: {
+    groups?: Record<string, string>;
+    tabLabels?: Record<string, string>;
+  };
+}
+
+const STORAGE_KEY = "xuanwu:nav-preferences";
+
+// ── Personal nav items ─────────────────────────────────────────────────────
+
+export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
+  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
+];
+
+// ── Workspace / org-management items ──────────────────────────────────────
+// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
+// It is re-exported above for backward-compatible consumers of this file.
+
+export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
+  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
+  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
+  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
+];
+
+export const DIALOG_TEXT = {
+  zh: {
+    title: "Customize navigation",
+    description:
+      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
+    sectionPersonal: "個人",
+    sectionWorkspace: "工作區",
+    sectionOrganization: "組織管理",
+    sectionDisplay: "顯示設定",
+    limitedLabel: "側欄僅顯示固定數量的最近工作區",
+    limitedInputLabel: "工作區數量",
+    done: "完成",
+    recentWorkspaces: "最近工作區",
+  },
+  en: {
+    title: "Customize navigation",
+    description:
+      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
+    sectionPersonal: "Personal",
+    sectionWorkspace: "Workspace",
+    sectionOrganization: "Organization",
+    sectionDisplay: "Display",
+    limitedLabel: "Show a limited number of recent workspaces in sidebar",
+    limitedInputLabel: "Number of workspaces",
+    done: "Done",
+    recentWorkspaces: "Recent workspaces",
+  },
+} as const;
+
+// ── Defaults + validation ──────────────────────────────────────────────────
+
+export const DEFAULT_PREFS: NavPreferences = {
+  pinnedPersonal: ["recent-workspaces"],
+  pinnedWorkspace: [
+    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+  ],
+  showLimitedWorkspaces: true,
+  maxWorkspaces: 10,
+  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
+};
+
+const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
+const VALID_WORKSPACE_ITEM_IDS = new Set([
+  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
+  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
+]);
+// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
+// It is re-exported above.
+
+function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
+  if (!Array.isArray(ids)) return fallback;
+  const normalized = ids
+    .filter((id): id is string => typeof id === "string")
+    .filter((id) => validSet.has(id));
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
+}
+
+// ── localStorage helpers ───────────────────────────────────────────────────
+
+export function readNavPreferences(): NavPreferences {
+  if (typeof window === "undefined") return DEFAULT_PREFS;
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return DEFAULT_PREFS;
+    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
+    return {
+      pinnedPersonal: normalizePinnedIds(
+        parsed.pinnedPersonal,
+        VALID_PERSONAL_ITEM_IDS,
+        DEFAULT_PREFS.pinnedPersonal,
+      ),
+      pinnedWorkspace: normalizePinnedIds(
+        parsed.pinnedWorkspace,
+        VALID_WORKSPACE_ITEM_IDS,
+        DEFAULT_PREFS.pinnedWorkspace,
+      ),
+      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
+      maxWorkspaces:
+        typeof parsed.maxWorkspaces === "number"
+          ? parsed.maxWorkspaces
+          : DEFAULT_PREFS.maxWorkspaces,
+      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
+    };
+  } catch {
+    return DEFAULT_PREFS;
+  }
+}
+
+export function writeNavPreferences(prefs: NavPreferences): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+}
+````
+
+## File: app/(shell)/_components/use-recent-workspaces.ts
+````typescript
+export {
+  MAX_VISIBLE_RECENT_WORKSPACES,
+  getWorkspaceIdFromPath,
+  useRecentWorkspaces,
+} from "@/modules/workspace/api";
+````
+
+## File: app/(shell)/_components/workspace-sidebar-section.tsx
 ````typescript
 "use client";
 
-/**
- * Module: header-controls.tsx
- * Purpose: compose shell header utility controls.
- * Responsibilities: language switch, theme toggle, and notification entry.
- * Constraints: presentation-only, no domain orchestration.
- */
+import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
 
-import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import type { SidebarLocaleBundle } from "./use-sidebar-locale";
+import type { NavPreferences } from "./customize-navigation-dialog";
+import { sidebarItemClass } from "./sidebar-nav-data";
 
-import { useAuth } from "@/app/providers/auth-provider";
-import { NotificationBell } from "@/modules/platform/subdomains/notification";
-import { Button } from "@ui-shadcn/ui/button";
-import { TranslationSwitcher } from "./translation-switcher";
+// ── Tab link item shape ────────────────────────────────────────────────────────
 
-const THEME_KEY = "xuanwu_theme";
+// ── Props ─────────────────────────────────────────────────────────────────────
 
-export function HeaderControls() {
-  const { state: authState } = useAuth();
-  const [theme, setTheme] = useState<"light" | "dark">(() => {
-    if (typeof window === "undefined") return "light";
-    const storedTheme = window.localStorage.getItem(THEME_KEY);
-    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
-  });
+interface WorkspaceSidebarSectionProps {
+  workspacePathId: string;
+  navPrefs: NavPreferences;
+  localeBundle: SidebarLocaleBundle | null;
+}
 
-  const recipientId = authState.user?.id ?? "";
+// ── Component ─────────────────────────────────────────────────────────────────
 
-  useEffect(() => {
-    document.documentElement.classList.toggle("dark", theme === "dark");
-    window.localStorage.setItem(THEME_KEY, theme);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "light" ? "dark" : "light"));
-  }
-
+export function WorkspaceSidebarSection({
+  workspacePathId,
+  navPrefs,
+  localeBundle,
+}: WorkspaceSidebarSectionProps) {
   return (
-    <div className="flex items-center gap-2">
-      <TranslationSwitcher />
-
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-sm"
-        onClick={toggleTheme}
-        aria-label="Toggle theme"
-        className="text-muted-foreground"
-      >
-        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-      </Button>
-
-      <NotificationBell recipientId={recipientId} />
-    </div>
+    <ModuleWorkspaceSidebarSection
+      workspacePathId={workspacePathId}
+      navPrefs={navPrefs}
+      localeBundle={localeBundle}
+      getItemClassName={sidebarItemClass}
+    />
   );
 }
 ````
@@ -54226,359 +52596,1047 @@ export { saveThread, loadThread };
 export type { Thread };
 ````
 
-## File: app/(shell)/layout.tsx
+## File: app/(shell)/ai-chat/page.tsx
 ````typescript
 "use client";
 
 /**
- * Module: shell layout
- * Purpose: compose authenticated shell frame with sidebar, header, and content area.
- * Responsibilities: account switching, route guards, and shell-level UI composition.
- * Constraints: keep business logic in modules and providers, not layout rendering.
+ * Module: ai-chat page
+ * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
+ * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
+ * Multi-turn context: previous messages injected as system prompt.
  */
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { PanelLeftOpen, Search } from "lucide-react";
+import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { v7 as uuid } from "@lib-uuid";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
-import { AccountSwitcher } from "./_components/account-switcher";
-import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
-import { AppRail } from "./_components/app-rail";
-import { DashboardSidebar } from "./_components/dashboard-sidebar";
-import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
-import { HeaderControls } from "./_components/header-controls";
-import { HeaderUserAvatar } from "./_components/header-user-avatar";
-import { ShellGuard } from "./_components/shell-guard";
+import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
+import { sendChatMessage, saveThread, loadThread } from "./_actions";
+import { cn } from "@shared-utils";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import {
+  type ChatMessage,
+  STORAGE_KEY,
+  buildContextPrompt,
+  generateMsgId,
+  threadFromMessages,
+} from "./ai-chat-helpers";
 
-const routeTitles: Record<string, string> = {
-  "/organization": "組織治理",
-  "/organization/daily": "Account · 每日",
-  "/organization/schedule": "Account · 排程",
-  "/organization/schedule/dispatcher": "Account · 調度台",
-  "/organization/audit": "Account · 稽核",
-  "/workspace": "工作區中心",
-  "/knowledge": "Knowledge Hub",
-  "/knowledge/pages": "Knowledge · 頁面",
-  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
-  "/knowledge-base/articles": "Knowledge Base · 文章",
-  "/knowledge-database/databases": "Knowledge Database · 資料庫",
-  "/source/documents": "Source · 文件來源",
-  "/source/libraries": "Source · Libraries",
-  "/notebook/rag-query": "Notebook · Ask / Cite",
-  "/ai-chat": "AI Chat",
-  "/dev-tools": "開發工具",
-};
+export default function AiChatPage() {
+  const searchParams = useSearchParams();
+  const { state: { workspaces } } = useApp();
+  const { state: authState } = useAuth();
+  const accountId = authState.user?.id ?? "";
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [threadId, setThreadId] = useState<string | null>(null);
+  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const currentWorkspace = resolveWorkspaceFromMap(workspaces ?? {}, requestedWorkspaceId);
+  const workspaceName = currentWorkspace?.name ?? null;
+  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
+  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
 
-/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
-const mobileNavItems = [
-  { href: "/workspace", label: "工作區" },
-];
-
-const orgPrimaryItems = [
-  { label: "成員", href: "/organization/members" },
-  { label: "團隊", href: "/organization/teams" },
-  { label: "權限", href: "/organization/permissions" },
-  { label: "工作區", href: "/organization/workspaces" },
-] as const;
-
-const orgSecondaryItems = [
-  { label: "排程", href: "/organization/schedule" },
-  { label: "每日", href: "/organization/daily" },
-  { label: "稽核", href: "/organization/audit" },
-] as const;
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-function resolveShellRouteForAccount(
-  pathname: string,
-  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
-) {
-  const nextAccountIsOrganization =
-    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
-
-  if (pathname === "/organization" && !nextAccountIsOrganization) {
-    return "/workspace";
-  }
-
-  return null;
-}
-
-export default function ShellLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { state: authState, logout } = useAuth();
-  const { state: appState, dispatch } = useApp();
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
-  });
-
-  function toggleSidebar() {
-    setSidebarCollapsed((prev) => {
-      const next = !prev;
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
-      }
-      return next;
-    });
-  }
-
-  const pageTitle = routeTitles[pathname] ?? "工作區";
-  const organizationAccounts = Object.values(appState.accounts ?? {});
-  const accountWorkspaces = Object.values(appState.workspaces ?? {});
-  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
-
-  function isActiveRoute(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  function handleSelectOrganization(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    const nextRoute = resolveShellRouteForAccount(pathname, account);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleSelectPersonal() {
-    if (!authState.user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
-    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
-    if (nextRoute) {
-      router.replace(nextRoute);
-    }
-  }
-
-  function handleOrganizationCreated(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-  }
-
-  function handleSelectWorkspace(workspaceId: string | null) {
-    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
-  }
-
+  // Load persisted thread on mount
   useEffect(() => {
-    if (!appState.accountsHydrated || !appState.activeAccount) {
-      return;
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    const storedId = localStorage.getItem(storageKey);
+    if (!storedId) return;
+    setThreadId(storedId);
+    void loadThread(accountId, storedId).then((thread) => {
+      if (!thread || thread.messages.length === 0) return;
+      setThreadCreatedAt(thread.createdAt);
+      setMessages(
+        thread.messages
+          .filter((m) => m.role === "user" || m.role === "assistant")
+          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
+      );
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+  const summaryItems = useMemo(() => {
+    if (messages.length === 0) {
+      return [
+        "先整理來源文件與工作區脈絡，再開始對話。",
+        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
+      ];
     }
 
-    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
-    if (nextRoute && nextRoute !== pathname) {
-      router.replace(nextRoute);
-    }
-  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
+    return [
+      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
+      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
+    ];
+  }, [latestUserPrompt, messages]);
 
-  async function handleLogout() {
-    setLogoutError(null);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const text = input.trim();
+    if (!text || isPending) return;
+
+    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
+    setInput("");
+    setError(null);
+    setIsPending(true);
+
+    // Build multi-turn context from history (exclude the new user message)
+    const contextPrompt = buildContextPrompt(messages);
+
     try {
-      await logout();
+      const result = await sendChatMessage({
+        prompt: text,
+        ...(contextPrompt ? { system: contextPrompt } : {}),
+      });
+      if (result.ok) {
+        const assistantMsg: ChatMessage = {
+          id: generateMsgId(),
+          role: "assistant",
+          content: result.data.text,
+        };
+        const finalMessages = [...nextMessages, assistantMsg];
+        setMessages(finalMessages);
+
+        // Persist thread to Firestore
+        if (accountId) {
+          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+          let currentThreadId = threadId;
+          if (!currentThreadId) {
+            currentThreadId = uuid();
+            setThreadId(currentThreadId);
+            localStorage.setItem(storageKey, currentThreadId);
+          }
+          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
+          void saveThread(accountId, thread);
+        }
+      } else {
+        setError(result.error.message);
+      }
     } catch {
-      setLogoutError("登出失敗，請稍後再試。");
+      setError("無法連接至 AI 服務，請稍後再試。");
+    } finally {
+      setIsPending(false);
+      // Defer scroll to allow React to flush the new message into the DOM first.
+      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
+    }
+  }
+
+  function handleNewThread() {
+    if (!accountId) return;
+    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
+    localStorage.removeItem(storageKey);
+    setThreadId(null);
+    setMessages([]);
+    setThreadCreatedAt(new Date().toISOString());
+    setError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSubmit(e as unknown as React.FormEvent);
     }
   }
 
   return (
-    <ShellGuard>
-      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-      <div className="flex h-screen overflow-hidden bg-background">
-        <AppRail
-          pathname={pathname}
-          user={authState.user}
-          activeAccount={appState.activeAccount}
-          organizationAccounts={organizationAccounts}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          isOrganizationAccount={showAccountManagement}
-          onSelectPersonal={handleSelectPersonal}
-          onSelectOrganization={handleSelectOrganization}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          onSelectWorkspace={handleSelectWorkspace}
-          onOrganizationCreated={handleOrganizationCreated}
-          onSignOut={() => {
-            void handleLogout();
-          }}
-        />
-        <DashboardSidebar
-          pathname={pathname}
-          activeAccount={appState.activeAccount}
-          workspaces={accountWorkspaces}
-          workspacesHydrated={appState.workspacesHydrated}
-          activeWorkspaceId={appState.activeWorkspaceId}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          onSelectWorkspace={handleSelectWorkspace}
-        />
+    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
+      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
+        <div className="space-y-4">
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="size-4 text-primary" />
+                Notebook / AI
+              </CardTitle>
+              <CardDescription>
+                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
+              </CardDescription>
+            </CardHeader>
+          </Card>
 
-        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
-            <div className="flex h-12 items-center justify-between gap-4">
-              <div className="min-w-0 flex items-center gap-3">
-                {sidebarCollapsed && (
-                  <button
-                    type="button"
-                    onClick={toggleSidebar}
-                    aria-label="展開側欄"
-                    title="展開側欄"
-                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
-                  >
-                    <PanelLeftOpen className="size-4" />
-                  </button>
-                )}
-                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
-                <AppBreadcrumbs />
-                {/* Global search */}
-                <button
-                  type="button"
-                  aria-label="全域搜尋"
-                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
-                  onClick={() => setSearchOpen(true)}
-                >
-                  <Search className="size-3 shrink-0" />
-                  <span>搜尋…</span>
-                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
-                </button>
-              </div>
+          <WorkspaceContextCard workspace={currentWorkspace} />
 
-              <div className="ml-auto flex items-center gap-3">
-                <HeaderControls />
-                <HeaderUserAvatar
-                  name={authState.user?.name ?? "Dimension Member"}
-                  email={authState.user?.email ?? "—"}
-                  onSignOut={() => {
-                    void handleLogout();
-                  }}
-                />
-              </div>
-            </div>
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <BookOpen className="size-4 text-primary" />
+                Source context
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <FileText className="size-3.5" />
+                文件來源 / Documents
+              </Link>
+              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <BookOpen className="size-3.5" />
+                知識頁面 / Pages
+              </Link>
+              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
+                <Bot className="size-3.5" />
+                Ask / Cite / RAG Query
+              </Link>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-3 pb-3 md:hidden">
-              <AccountSwitcher
-                personalAccount={authState.user}
-                organizationAccounts={organizationAccounts}
-                activeAccountId={appState.activeAccount?.id ?? null}
-                onSelectPersonal={handleSelectPersonal}
-                onSelectOrganization={handleSelectOrganization}
-                onOrganizationCreated={handleOrganizationCreated}
-              />
-            </div>
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">Summary snapshot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              {summaryItems.map((item) => (
+                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
+                  {item}
+                </p>
+              ))}
+            </CardContent>
+          </Card>
 
-            {showAccountManagement && (
-              <>
-                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgPrimaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
-                  {orgSecondaryItems.map((item) => {
-                    const isActive = isActiveRoute(item.href);
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        aria-current={isActive ? "page" : undefined}
-                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "border border-border/60 text-muted-foreground hover:bg-muted"
-                        }`}
-                      >
-                        {item.label}
-                      </Link>
-                    );
-                  })}
-                </nav>
-              </>
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-sm">
+                <Lightbulb className="size-4 text-primary" />
+                Insight board
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2 text-xs text-muted-foreground">
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
+              </p>
+              <p className="rounded-md border border-border/50 px-3 py-2">
+                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </aside>
+
+      <section className="flex min-h-0 flex-col">
+        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
+          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
+            <Bot className="size-4 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
+            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
+          </div>
+          <div className="ml-auto flex items-center gap-2">
+            {threadId && (
+              <span className="text-[10px] text-muted-foreground/60">
+                Thread · {messages.length} 則
+              </span>
             )}
-            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
-              {mobileNavItems.map((item) => {
-                const isActive = isActiveRoute(item.href);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "border border-border/60 text-muted-foreground hover:bg-muted"
-                    }`}
-                  >
-                    {item.label}
-                  </Link>
-                );
-              })}
-            </nav>
-          </header>
+            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
+              <Plus className="mr-1 size-3.5" />
+              新對話
+            </Button>
+          </div>
+        </div>
 
-          {logoutError && (
-            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
+        {workspaceName && (
+          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {messages.length === 0 && !isPending && (
+            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
+                <Bot className="size-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
+                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
+                </p>
+              </div>
+            </div>
           )}
 
-          <main className="flex-1 overflow-auto p-6">{children}</main>
+          <div className="mx-auto max-w-2xl space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
+              >
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
+                    msg.role === "user"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-foreground",
+                  )}
+                >
+                  <p className="whitespace-pre-wrap">{msg.content}</p>
+                </div>
+              </div>
+            ))}
+
+            {isPending && (
+              <div className="flex justify-start">
+                <div className="rounded-2xl bg-muted px-4 py-2.5">
+                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
+                {error}
+              </div>
+            )}
+
+            <div ref={bottomRef} />
+          </div>
         </div>
-      </div>
-    </ShellGuard>
+
+        <form
+          onSubmit={(e) => void handleSubmit(e)}
+          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
+        >
+          <div className="mx-auto flex max-w-2xl items-end gap-2">
+            <textarea
+              rows={1}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
+              disabled={isPending}
+              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{ maxHeight: "120px" }}
+            />
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isPending || !input.trim()}
+              className="shrink-0 gap-1.5"
+            >
+              {isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <SendHorizonal className="size-4" />
+              )}
+              <span className="hidden sm:inline">送出</span>
+            </Button>
+          </div>
+        </form>
+      </section>
+    </div>
   );
 }
 ````
 
-## File: app/(shell)/organization/_utils.ts
+## File: app/(shell)/knowledge/block-editor/page.tsx
 ````typescript
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
-import type { ActiveAccount } from "@/app/providers/app-context";
+"use client";
 
-export function isOrganizationAccount(
-  activeAccount: ActiveAccount | null,
-): activeAccount is AccountEntity & { accountType: "organization" } {
+import { BlockEditorView } from "@/modules/notion/api";
+
+export default function KnowledgeBlockEditorPage() {
   return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">區塊編輯器</h1>
+        <p className="text-sm text-muted-foreground">
+          極簡 Zustand 狀態管理。Enter 新增區塊，Backspace 刪除空白區塊，拖曳重排。
+        </p>
+      </header>
+
+      <BlockEditorView />
+    </div>
   );
 }
+````
 
-export function formatDateTime(value: string | Date | null | undefined): string {
-  if (!value) return "—";
-  try {
-    return new Intl.DateTimeFormat("zh-TW", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(value instanceof Date ? value : new Date(value));
-  } catch {
-    return value instanceof Date ? value.toISOString() : String(value);
+## File: app/(shell)/knowledge/page.tsx
+````typescript
+"use client";
+
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { buildWikiContentTree } from "@/modules/workspace/api";
+import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+const QUICK_ACCESS = [
+  {
+    href: "/knowledge/pages?scope=account",
+    title: "Pages",
+    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
+    icon: FileText,
+  },
+  {
+    href: "/source/libraries",
+    title: "Libraries",
+    description: "維持 schema / table 型知識資產。",
+    icon: Database,
+  },
+  {
+    href: "/source/documents",
+    title: "Documents",
+    description: "來源文件、upload 與 ingest 狀態檢視。",
+    icon: BookOpen,
+  },
+  {
+    href: "/knowledge-base/articles",
+    title: "Articles",
+    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
+    icon: FolderKanban,
+  },
+  {
+    href: "/knowledge-database/databases",
+    title: "Databases",
+    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
+    icon: Brain,
+  },
+  {
+    href: "/notebook/rag-query",
+    title: "Ask / Cite",
+    description: "查詢、引用與回答檢視。",
+    icon: MessageSquare,
+  },
+] as const;
+
+export default function KnowledgeHubPage() {
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
+    const personalUser = authState.user;
+    const activeAccountId = appState.activeAccount?.id;
+    const seeds: WikiAccountSeed[] = [];
+
+    if (personalUser) {
+      seeds.push({
+        accountId: personalUser.id,
+        accountName: personalUser.name,
+        accountType: "personal",
+        isActive: activeAccountId === personalUser.id,
+      });
+    }
+
+    const organizations = Object.values(appState.accounts);
+    for (const organization of organizations) {
+      seeds.push({
+        accountId: organization.id,
+        accountName: organization.name,
+        accountType: "organization",
+        isActive: activeAccountId === organization.id,
+      });
+    }
+
+    return seeds;
+  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+
+  useEffect(() => {
+    let disposed = false;
+
+    async function load() {
+      setLoading(true);
+      try {
+        const result = await buildWikiContentTree(accountSeeds);
+        if (!disposed) {
+          setContentTree(result);
+        }
+      } catch {
+        if (!disposed) {
+          setContentTree([]);
+        }
+      } finally {
+        if (!disposed) {
+          setLoading(false);
+        }
+      }
+    }
+
+    void load();
+
+    return () => {
+      disposed = true;
+    };
+  }, [accountSeeds]);
+
+  const activeAccount = contentTree.find((node) => node.isActive);
+  const highlightedWorkspace =
+    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
+    activeAccount?.workspaces[0];
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
+        <p className="text-sm text-muted-foreground">
+          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
+        </p>
+      </header>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
+          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loading ? (
+            <Skeleton className="h-6 w-48" />
+          ) : activeAccount ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Active Account</p>
+                <div className="mt-2 flex items-center gap-2 text-sm">
+                  <Building2 className="size-4 text-primary" />
+                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
+                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-border/60 px-4 py-3">
+                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
+                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
+                  <FolderKanban className="size-4 text-primary" />
+                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+          )}
+
+          {highlightedWorkspace && (
+            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
+              <div className="rounded-xl border border-border/60 px-4 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
+                </p>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button asChild size="sm">
+                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
+                      Notebook / AI
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    先整理文件來源、Libraries 與 upload / ingest。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    再用頁面樹與內容脈絡整理知識結構。
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border/60 px-4 py-4">
+                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    最後才消費這些知識做問答、摘要與洞察。
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {QUICK_ACCESS.map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
+                        <item.icon className="size-4" />
+                      </div>
+                      <CardTitle className="text-sm">{item.title}</CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
+          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+              <Skeleton className="h-20" />
+            </div>
+          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
+            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              {activeAccount.workspaces.map((workspace) => (
+                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-1">
+                      {workspace.contentBaseItems
+                        .filter((item) => item.enabled)
+                        .map((item) => (
+                          <Badge key={item.key} variant="secondary" className="text-[10px]">
+                            {item.label}
+                          </Badge>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          Knowledge
+                        </Link>
+                      </Button>
+                      <Button asChild size="sm" variant="outline">
+                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
+                          <Brain className="mr-1 size-3.5" />
+                          Notebook
+                        </Link>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/[pageId]/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState, useTransition } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { ArrowLeft, Archive, MessageSquare, X } from "lucide-react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  getKnowledgePage,
+  renameKnowledgePage,
+  archiveKnowledgePage,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  PageEditorView,
+} from "@/modules/notion/api";
+import type { KnowledgePage } from "@/modules/notion/api";
+import { CommentPanel } from "@/modules/knowledge-collaboration/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { TitleEditor, IconPicker, CoverEditor } from "./knowledge-page-header-widgets";
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export default function KnowledgePageDetailPage() {
+  const params = useParams();
+  const router = useRouter();
+  const pageId = params.pageId as string;
+
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+
+  const [page, setPage] = useState<KnowledgePage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [commentOpen, setCommentOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!accountId || !pageId) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const p = await getKnowledgePage(accountId, pageId);
+      setPage(p);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, pageId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  function handleRename(title: string) {
+    startTransition(async () => {
+      const result = await renameKnowledgePage({ accountId, pageId, title });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, title } : prev);
+      }
+    });
   }
+
+  function handleIconChange(iconUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageIcon({ accountId, pageId, iconUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, iconUrl: iconUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleCoverChange(coverUrl: string) {
+    startTransition(async () => {
+      const result = await updateKnowledgePageCover({ accountId, pageId, coverUrl });
+      if (result.success) {
+        setPage((prev) => prev ? { ...prev, coverUrl: coverUrl || undefined } : prev);
+      }
+    });
+  }
+
+  function handleArchive() {
+    startTransition(async () => {
+      await archiveKnowledgePage({ accountId, pageId });
+      router.push("/knowledge/pages");
+    });
+  }
+
+  // ── Loading skeleton ────────────────────────────────────────────────────────
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-6 w-72" />
+        <Skeleton className="h-64 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // ── Not found ───────────────────────────────────────────────────────────────
+
+  if (!page) {
+    return (
+      <div className="space-y-4">
+        <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+          <ArrowLeft className="mr-1.5 h-4 w-4" />
+          頁面列表
+        </Button>
+        <p className="text-sm text-muted-foreground">找不到此頁面，可能已被封存或刪除。</p>
+      </div>
+    );
+  }
+
+  // ── Page view ───────────────────────────────────────────────────────────────
+
+  const updatedAt = page.updatedAtISO
+    ? new Date(page.updatedAtISO).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
+  return (
+    <div className="space-y-0">
+      {/* Cover image */}
+      {page.coverUrl && (
+        <div
+          className="relative h-40 w-full overflow-hidden rounded-t-xl bg-muted"
+          style={{ backgroundImage: `url(${page.coverUrl})`, backgroundSize: "cover", backgroundPosition: "center" }}
+        />
+      )}
+
+      <div className="space-y-4 px-0 pt-4">
+        {/* Top bar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => router.push("/knowledge/pages")}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" />
+            頁面列表
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={commentOpen ? "default" : "outline"}
+              onClick={() => setCommentOpen((v) => !v)}
+            >
+              <MessageSquare className="mr-1.5 h-3.5 w-3.5" />
+              留言
+            </Button>
+            {page.status === "active" && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleArchive}
+                disabled={isPending}
+              >
+                <Archive className="mr-1.5 h-3.5 w-3.5" />
+                封存
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Page header */}
+        <header className="space-y-2 border-b border-border/60 pb-4">
+          {/* Icon row */}
+          <div className="flex items-end gap-3">
+            <IconPicker
+              value={page.iconUrl}
+              onChange={handleIconChange}
+              isPending={isPending}
+            />
+            <CoverEditor
+              value={page.coverUrl}
+              onChange={handleCoverChange}
+              isPending={isPending}
+            />
+          </div>
+          <TitleEditor
+            initialTitle={page.title}
+            onSave={handleRename}
+            isPending={isPending}
+          />
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {page.status === "archived" && (
+              <Badge variant="secondary">已封存</Badge>
+            )}
+            {page.approvalState === "approved" && (
+              <Badge variant="default">已審核</Badge>
+            )}
+            {page.verificationState === "verified" && (
+              <Badge variant="outline">已驗證</Badge>
+            )}
+            {page.verificationState === "needs_review" && (
+              <Badge variant="destructive">待審查</Badge>
+            )}
+            {updatedAt && <span>更新於 {updatedAt}</span>}
+          </div>
+        </header>
+
+        {/* Main content + optional comment side panel */}
+        <div className={`flex gap-4 ${commentOpen ? "items-start" : ""}`}>
+          {/* Block editor — connected to Firebase */}
+          <div className="min-w-0 flex-1">
+            {accountId ? (
+              <PageEditorView accountId={accountId} pageId={pageId} />
+            ) : (
+              <p className="text-sm text-muted-foreground">請先登入以載入內容。</p>
+            )}
+          </div>
+
+          {/* Comment panel — slides in from right */}
+          {commentOpen && accountId && (
+            <aside className="w-72 shrink-0 rounded-xl border border-border/60 bg-card p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">留言</span>
+                <button
+                  type="button"
+                  onClick={() => setCommentOpen(false)}
+                  className="ml-auto rounded p-0.5 text-muted-foreground hover:text-foreground"
+                  aria-label="關閉留言面板"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <CommentPanel
+                accountId={accountId}
+                workspaceId={appState.activeWorkspaceId ?? ""}
+                contentId={pageId}
+                contentType="page"
+                currentUserId={authState.user?.id ?? ""}
+              />
+            </aside>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/knowledge/pages/page.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { useAuth } from "@/app/providers/auth-provider";
+import { getKnowledgePageTree, getKnowledgePageTreeByWorkspace, PageTreeView } from "@/modules/notion/api";
+import type { KnowledgePageTreeNode } from "@/modules/notion/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+export default function KnowledgePagesPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const { state: authState } = useAuth();
+
+  const accountId = appState.activeAccount?.id ?? authState.user?.id ?? "";
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() ?? "";
+  const scopeParam = searchParams.get("scope")?.trim() ?? "";
+  const isAccountSummary = scopeParam === "account";
+  const workspaceId = isAccountSummary ? "" : requestedWorkspaceId || appState.activeWorkspaceId || "";
+  const currentUserId = authState.user?.id ?? "";
+
+  const [nodes, setNodes] = useState<KnowledgePageTreeNode[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    if (!accountId) { setLoading(false); return; }
+    if (!isAccountSummary && !workspaceId) {
+      setNodes([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const tree = isAccountSummary
+        ? await getKnowledgePageTree(accountId)
+        : await getKnowledgePageTreeByWorkspace(accountId, workspaceId);
+      setNodes(tree);
+    } finally {
+      setLoading(false);
+    }
+  }, [accountId, isAccountSummary, workspaceId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">頁面</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={isAccountSummary ? "secondary" : "outline"}>
+            {isAccountSummary ? "Account Summary" : "Workspace Scope"}
+          </Badge>
+          <p className="text-sm text-muted-foreground">
+            {isAccountSummary
+              ? "這是顯式 account summary mode。僅用於跨工作區總覽，預設不在此建立新頁面。"
+              : "知識頁面階層樹預設綁定目前工作區。點選頁面進入內容編輯器。"}
+          </p>
+        </div>
+      </header>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => router.push("/knowledge")}
+          className="inline-flex items-center rounded-md border border-border/60 bg-background px-3 py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          返回 Knowledge Hub
+        </button>
+      </div>
+
+      {!accountId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未取得帳號情境，請先登入。
+        </p>
+      ) : !isAccountSummary && !workspaceId ? (
+        <p className="rounded-md border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+          尚未選定工作區。請先從工作區進入知識頁面，或在網址帶入 workspaceId 後再查看頁面樹。
+        </p>
+      ) : loading ? (
+        <div className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
+          ))}
+        </div>
+      ) : (
+        <PageTreeView
+          nodes={nodes}
+          accountId={accountId}
+          workspaceId={workspaceId || undefined}
+          currentUserId={currentUserId}
+          allowCreate={!isAccountSummary && Boolean(workspaceId)}
+          emptyStateDescription={
+            isAccountSummary
+              ? "這個 account summary 目前沒有可顯示的頁面。請改從工作區建立與維護頁面。"
+              : "這個工作區尚無頁面。點擊「新增頁面」開始建立。"
+          }
+          onPageClick={(pageId) => router.push(`/knowledge/pages/${pageId}`)}
+          onCreated={() => load()}
+        />
+      )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { RagQueryView } from "@/modules/search/api";
+
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId} />
+    </div>
+  );
 }
 ````
 
@@ -54754,659 +53812,6 @@ export default function OrganizationDailyPage() {
 }
 ````
 
-## File: app/(shell)/organization/members/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/platform/subdomains/organization";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-type MemberRole = "Admin" | "Member" | "Guest";
-
-export default function OrganizationMembersPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
-  const [inviteSubmitting, setInviteSubmitting] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-
-  const [removingId, setRemovingId] = useState<string | null>(null);
-
-  async function loadMembers(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationMembers(organizationId);
-      setMembers(data);
-      setLoadState("loaded");
-    } catch {
-      setMembers([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationMembers(organizationId);
-        if (!cancelled) {
-          setMembers(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleInvite() {
-    if (!activeOrganizationId || !inviteEmail.trim()) return;
-    setInviteSubmitting(true);
-    setInviteError(null);
-    const result = await inviteMember({
-      organizationId: activeOrganizationId,
-      email: inviteEmail.trim(),
-      teamId: "",
-      role: inviteRole,
-      protocol: "email",
-    });
-    setInviteSubmitting(false);
-    if (result.success) {
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteRole("Member");
-      await loadMembers(activeOrganizationId);
-    } else {
-      setInviteError(result.error.message);
-    }
-  }
-
-  async function handleDismiss(memberId: string) {
-    if (!activeOrganizationId) return;
-    setRemovingId(memberId);
-    await dismissMember(activeOrganizationId, memberId);
-    setRemovingId(null);
-    await loadMembers(activeOrganizationId);
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
-        </div>
-        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Members</CardTitle>
-          <CardDescription>組織成員清單與目前角色。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && members.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
-          )}
-          {loadState === "loaded" &&
-            members.map((member) => (
-              <div
-                key={member.id}
-                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
-              >
-                <div>
-                  <p className="text-sm font-medium">{member.name}</p>
-                  <p className="text-xs text-muted-foreground">{member.email}</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline">{member.role}</Badge>
-                  <Badge variant="secondary">{member.presence}</Badge>
-                  {member.role !== "Owner" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={removingId === member.id}
-                      onClick={() => handleDismiss(member.id)}
-                    >
-                      移除
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>邀請成員</DialogTitle>
-            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="invite-email">電子信箱</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="member@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="invite-role">角色</Label>
-              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                  <SelectItem value="Member">Member</SelectItem>
-                  <SelectItem value="Guest">Guest</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setInviteOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
-              {inviteSubmitting ? "邀請中…" : "送出邀請"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/page.tsx
-````typescript
-"use client";
-
-/**
- * Organization Overview Page — /organization
- * Lists organizations visible to the current user and allows switching
- * to an organization account context.
- * Section pages live under /organization/[section].
- */
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-
-function isOrganizationAccount(
-  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
-): activeAccount is AccountEntity & { accountType: "organization" } {
-  return (
-    activeAccount != null &&
-    "accountType" in activeAccount &&
-    activeAccount.accountType === "organization"
-  );
-}
-
-export default function OrganizationPage() {
-  const router = useRouter();
-  const { state: appState, dispatch } = useApp();
-  const { state: authState } = useAuth();
-  const { user } = authState;
-  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
-
-  const orgList = Object.values(accounts);
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  function handleSwitch(account: AccountEntity) {
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
-    router.replace("/workspace");
-  }
-
-  function handleSwitchToPersonal() {
-    if (!user) return;
-    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
-    router.replace("/workspace");
-  }
-
-  return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
-        </p>
-      </div>
-
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="text-base font-semibold">Recommended flow</h2>
-        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>
-            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
-          </li>
-          <li>
-            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
-          </li>
-        </ol>
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link href="/workspace">回到 Workspace Hub</Link>
-          </Button>
-          {activeOrganizationId && (
-            <Button asChild size="sm" variant="outline">
-              <Link href="/organization/members">組織治理模組</Link>
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Quick-access dashboard — visible only when an org context is active */}
-      {activeOrganizationId && (
-        <section className="space-y-3">
-          <h2 className="text-base font-semibold">組織功能</h2>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {[
-              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
-              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
-              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
-              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
-              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
-              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
-              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
-            ].map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
-                  <CardHeader className="pb-2 pt-4">
-                    <CardTitle className="text-sm">{item.title}</CardTitle>
-                    <CardDescription className="text-xs">{item.desc}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {!accountsHydrated && (
-        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          {bootstrapPhase === "seeded"
-            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
-            : "正在載入組織資料…"}
-        </div>
-      )}
-
-      {/* Personal account */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="font-medium">{user?.name ?? "—"}</p>
-            <p className="text-xs text-muted-foreground">{user?.email}</p>
-          </div>
-          {activeAccount?.id === user?.id ? (
-            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              Active
-            </span>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToPersonal}
-            >
-              Switch
-            </Button>
-          )}
-        </div>
-      </section>
-
-      {/* Organizations */}
-      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
-        <h2 className="mb-4 text-base font-semibold">
-          Organizations
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            ({orgList.length})
-          </span>
-        </h2>
-
-        {orgList.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            You are not a member of any organization yet.
-          </p>
-        ) : (
-          <ul className="space-y-3">
-            {orgList.map((org) => (
-              <li
-                key={org.id}
-                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
-              >
-                <div>
-                  <p className="font-medium">{org.name}</p>
-                  {org.description && (
-                    <p className="text-xs text-muted-foreground">{org.description}</p>
-                  )}
-                </div>
-                {activeAccount?.id === org.id ? (
-                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                    Active
-                  </span>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleSwitch(org)}
-                  >
-                    Switch
-                  </Button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {activeOrganizationId && (
-        <p className="text-sm text-muted-foreground">
-          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
-        </p>
-      )}
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/organization/permissions/page.tsx
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { createOrgPolicy, getOrgPolicies } from "@/modules/platform/subdomains/organization";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import { isOrganizationAccount } from "../_utils";
-
-type PolicyScope = "workspace" | "member" | "global";
-
-export default function OrganizationPermissionsPage() {
-  const { state: appState } = useApp();
-  const { activeAccount } = appState;
-  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
-
-  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newScope, setNewScope] = useState<PolicyScope>("member");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadPolicies(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrgPolicies(organizationId);
-      setPolicies(data);
-      setLoadState("loaded");
-    } catch {
-      setPolicies([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrgPolicies(organizationId);
-        if (!cancelled) {
-          setPolicies(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setPolicies([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createOrgPolicy({
-      orgId: activeOrganizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      rules: [],
-      scope: newScope,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewScope("member");
-      await loadPolicies(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Permissions</CardTitle>
-          <CardDescription>組織層級政策規則與 scope。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && policies.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
-          )}
-          {loadState === "loaded" &&
-            policies.map((policy) => (
-              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-medium">{policy.name}</p>
-                  <Badge variant="outline">{policy.scope}</Badge>
-                  <Badge variant={policy.isActive ? "default" : "secondary"}>
-                    {policy.isActive ? "active" : "inactive"}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>新增政策</DialogTitle>
-            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="policy-name">名稱</Label>
-              <Input
-                id="policy-name"
-                placeholder="政策名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-description">描述</Label>
-              <Input
-                id="policy-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="policy-scope">Scope</Label>
-              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
-                <SelectTrigger id="policy-scope">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">Member（成員）</SelectItem>
-                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
-                  <SelectItem value="global">Global（全域）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/schedule/page.tsx
 ````typescript
 "use client";
@@ -55451,393 +53856,51 @@ export default function OrganizationSchedulePage() {
 }
 ````
 
-## File: app/(shell)/organization/teams/page.tsx
+## File: app/(shell)/organization/workspaces/page.tsx
 ````typescript
 "use client";
 
-import { useEffect, useState } from "react";
-
 import { useApp } from "@/app/providers/app-provider";
-import { createTeam, getOrganizationTeams } from "@/modules/platform/subdomains/organization";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
+import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
 import { isOrganizationAccount } from "../_utils";
 
-export default function OrganizationTeamsPage() {
+export default function OrganizationWorkspacesPage() {
   const { state: appState } = useApp();
   const { activeAccount } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
-  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newType, setNewType] = useState<"internal" | "external">("internal");
-  const [createSubmitting, setCreateSubmitting] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  async function loadTeams(organizationId: string) {
-    setLoadState("loading");
-    try {
-      const data = await getOrganizationTeams(organizationId);
-      setTeams(data);
-      setLoadState("loaded");
-    } catch {
-      setTeams([]);
-      setLoadState("error");
-    }
-  }
-
-  useEffect(() => {
-    if (!activeOrganizationId) return;
-    const organizationId: string = activeOrganizationId;
-    let cancelled = false;
-
-    async function load() {
-      setLoadState("loading");
-      try {
-        const data = await getOrganizationTeams(organizationId);
-        if (!cancelled) {
-          setTeams(data);
-          setLoadState("loaded");
-        }
-      } catch {
-        if (!cancelled) {
-          setTeams([]);
-          setLoadState("error");
-        }
-      }
-    }
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeOrganizationId]);
-
-  async function handleCreate() {
-    if (!activeOrganizationId || !newName.trim()) return;
-    setCreateSubmitting(true);
-    setCreateError(null);
-    const result = await createTeam({
-      organizationId: activeOrganizationId,
-      name: newName.trim(),
-      description: newDescription.trim(),
-      type: newType,
-    });
-    setCreateSubmitting(false);
-    if (result.success) {
-      setCreateOpen(false);
-      setNewName("");
-      setNewDescription("");
-      setNewType("internal");
-      await loadTeams(activeOrganizationId);
-    } else {
-      setCreateError(result.error.message);
-    }
-  }
-
-  if (!activeOrganizationId) {
-    return (
-      <div className="">
-        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
-          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
-        </div>
-        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
-      </div>
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Teams</CardTitle>
-          <CardDescription>組織團隊與成員關聯。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
-          )}
-          {loadState === "loaded" && teams.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
-          )}
-          {loadState === "loaded" &&
-            teams.map((team) => (
-              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium">{team.name}</p>
-                  <Badge variant="outline">{team.type}</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Members: {team.memberIds.length}
-                </p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>建立團隊</DialogTitle>
-            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-1">
-              <Label htmlFor="team-name">名稱</Label>
-              <Input
-                id="team-name"
-                placeholder="團隊名稱"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-description">描述</Label>
-              <Input
-                id="team-description"
-                placeholder="選填"
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="team-type">類型</Label>
-              <Select
-                value={newType}
-                onValueChange={(v) => setNewType(v as "internal" | "external")}
-              >
-                <SelectTrigger id="team-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="internal">Internal（內部）</SelectItem>
-                  <SelectItem value="external">External（外部）</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {createError && <p className="text-sm text-destructive">{createError}</p>}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>
-              取消
-            </Button>
-            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
-              {createSubmitting ? "建立中…" : "建立"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
 }
 ````
 
-## File: app/(shell)/settings/notifications/page.tsx
+## File: app/(shell)/source/documents/page.tsx
 ````typescript
-/**
- * Route: /settings/notifications
- * Purpose: Full-page notification center showing all notifications for the
- *          authenticated user with read/unread filtering and bulk actions.
- */
 "use client";
 
-import { Bell, CheckCheck, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 
-import { useAuth } from "@/app/providers/auth-provider";
-import {
-  markAllNotificationsRead,
-  markNotificationRead,
-  getNotificationsForRecipient,
-  type NotificationEntity,
-} from "@/modules/platform/subdomains/notification";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
+import { useApp } from "@/app/providers/app-provider";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { SourceDocumentsView } from "@/modules/source/api";
 
-type Filter = "all" | "unread";
-
-const TYPE_BADGE: Record<string, string> = {
-  info: "bg-blue-100 text-blue-800",
-  alert: "bg-red-100 text-red-800",
-  success: "bg-green-100 text-green-800",
-  warning: "bg-yellow-100 text-yellow-800",
-};
-
-function formatTime(ts: number) {
-  return new Intl.DateTimeFormat("zh-TW", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(ts));
-}
-
-export default function NotificationCenterPage() {
-  const { state: authState } = useAuth();
-  const recipientId = authState.user?.id ?? "";
-
-  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<Filter>("all");
-  const [isPending, startTransition] = useTransition();
-
-  const load = useCallback(async () => {
-    if (!recipientId) { setIsLoading(false); return; }
-    setIsLoading(true);
-    try {
-      const data = await getNotificationsForRecipient(recipientId, 100);
-      setNotifications(data);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [recipientId]);
-
-  useEffect(() => { void load(); }, [load]);
-
-  const displayed = useMemo(
-    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
-    [notifications, filter],
-  );
-
-  const unreadCount = useMemo(
-    () => notifications.filter((n) => !n.read).length,
-    [notifications],
-  );
-
-  function handleMarkOne(id: string) {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
-      await markNotificationRead(id, recipientId);
-    });
-  }
-
-  function handleMarkAll() {
-    startTransition(async () => {
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-      await markAllNotificationsRead(recipientId);
-    });
-  }
+export default function SourceDocumentsPage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { workspaces, activeWorkspaceId },
+  } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId ?? undefined;
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-6">
-      {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-xl font-semibold">通知中心</h1>
-          {unreadCount > 0 && (
-            <Badge variant="secondary" className="ml-1">{unreadCount} 未讀</Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
-            className="text-xs"
-          >
-            {filter === "all" ? "只看未讀" : "顯示全部"}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={isPending || unreadCount === 0}
-            onClick={handleMarkAll}
-            className="text-xs gap-1"
-          >
-            <CheckCheck className="h-3.5 w-3.5" />
-            全部標為已讀
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
+        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
+      </header>
 
-      {/* Body */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full rounded-lg" />
-          ))}
-        </div>
-      ) : displayed.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
-          <Bell className="h-10 w-10 opacity-30" />
-          <p className="text-sm">{filter === "unread" ? "沒有未讀通知" : "目前沒有通知"}</p>
-        </div>
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border">
-          {displayed.map((n) => (
-            <li
-              key={n.id}
-              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
-            >
-              {!n.read && (
-                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
-              )}
-              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium">{n.title}</p>
-                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
-                    {n.type}
-                  </span>
-                </div>
-                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
-              </div>
-              {!n.read && (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={isPending}
-                  onClick={() => handleMarkOne(n.id)}
-                  title="標為已讀"
-                  className="shrink-0 text-muted-foreground hover:text-foreground"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
+      <SourceDocumentsView workspaceId={workspaceId} />
     </div>
   );
 }
@@ -55877,6 +53940,82 @@ export default function WorkspaceFeedPage() {
         accountId={accountId}
         workspaceId={workspaceId}
         workspaceName={workspaceName}
+      />
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/workspace/[workspaceId]/page.tsx
+````typescript
+"use client";
+
+import { useParams, useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+
+export default function WorkspaceDetailPage() {
+  const params = useParams<{ workspaceId: string }>();
+  const searchParams = useSearchParams();
+  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
+  const initialTab = searchParams.get("tab") ?? undefined;
+  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
+  const {
+    state: { activeAccount, accountsHydrated },
+  } = useApp();
+
+  return (
+    <WorkspaceDetailRouteScreen
+      workspaceId={workspaceId}
+      accountId={activeAccount?.id}
+      accountsHydrated={accountsHydrated}
+      initialTab={initialTab}
+      initialOverviewPanel={initialOverviewPanel}
+    />
+  );
+}
+````
+
+## File: app/(shell)/workspace/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import type { ActiveAccount } from "@/app/providers/app-context";
+import { useApp } from "@/app/providers/app-provider";
+import { WorkspaceHubScreen } from "@/modules/workspace/api";
+
+function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
+  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
+}
+
+function getActiveAccountType(activeAccount: ActiveAccount | null) {
+  return isOrganizationAccount(activeAccount) ? "organization" : "user";
+}
+
+export default function WorkspacePage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { activeAccount, accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const context = searchParams.get("context");
+
+  return (
+    <div className="space-y-4">
+      {context === "unavailable" && (
+        <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
+          目前帳戶無法存取該工作區，已返回工作區清單。
+        </div>
+      )}
+
+      <WorkspaceHubScreen
+        accountId={activeAccount?.id}
+        accountName={activeAccount?.name}
+        accountType={getActiveAccountType(activeAccount)}
+        accountsHydrated={accountsHydrated}
+        isBootstrapSeeded={bootstrapPhase === "seeded"}
       />
     </div>
   );
@@ -56433,6 +54572,38 @@ flowchart LR
 5. Cross-context data exchange uses published language, never raw external payloads.
 ````
 
+## File: docs/README.md
+````markdown
+# Xuanwu Strategic Architecture Docs
+
+## Purpose
+
+This folder is the strategic documentation set for **Hexagonal Architecture with Domain-Driven Design**.
+
+## Reading Guide
+
+```mermaid
+flowchart TD
+  A[README] --> B[architecture-overview.md]
+  B --> C[subdomains.md]
+  C --> D[bounded-contexts.md]
+  D --> E[context-map.md]
+  E --> F[ubiquitous-language.md]
+  F --> G[strategic-patterns.md]
+  G --> H[integration-guidelines.md]
+  D --> I[contexts/_template.md]
+  I --> J[contexts/*.md]
+  E --> K[decisions/README.md]
+```
+
+## Rules
+
+1. Update `bounded-contexts.md` and `context-map.md` together when boundaries change.
+2. Update `ubiquitous-language.md` before introducing new domain terms.
+3. Keep cross-context collaboration API-first and explicit.
+4. Record strategic changes as ADRs under `decisions/`.
+````
+
 ## File: docs/strategic-patterns.md
 ````markdown
 # Strategic Patterns
@@ -56600,84 +54771,6 @@ When adding or changing docs:
 
 If a question is broad, inspect summaries and README indexes before opening detailed files.
 If multiple files appear to overlap, identify the canonical file and treat others as supporting context.
-````
-
-## File: modules/knowledge-collaboration/interfaces/_actions/comment.actions.ts
-````typescript
-"use server";
-
-/**
- * Module: knowledge-collaboration
- * Layer: interfaces/_actions
- * Purpose: Comment Aggregate Server Actions — create, update, resolve, delete.
- * Version actions: see version.actions.ts
- * Permission actions: see permission.actions.ts
- */
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import { dispatchNotification } from "@/modules/platform/subdomains/notification";
-import {
-  CreateCommentUseCase,
-  UpdateCommentUseCase,
-  ResolveCommentUseCase,
-  DeleteCommentUseCase,
-} from "../../application/use-cases/comment.use-cases";
-import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
-import type {
-  CreateCommentDto,
-  UpdateCommentDto,
-  ResolveCommentDto,
-  DeleteCommentDto,
-} from "../../application/dto/knowledge-collaboration.dto";
-
-function makeCommentRepo() { return new FirebaseCommentRepository(); }
-
-export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
-  try {
-    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
-    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
-      await Promise.allSettled(
-        input.mentionedUserIds.map((recipientId) =>
-          dispatchNotification({
-            recipientId,
-            title: "有人提及了你",
-            message: input.body.slice(0, 100),
-            type: "info",
-            sourceEventType: "comment.mention",
-            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
-          }),
-        ),
-      );
-    }
-    return result;
-  } catch (err) {
-    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
-  try {
-    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
-  try {
-    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
-
-export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
-  try {
-    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
-  } catch (err) {
-    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
-  }
-}
 ````
 
 ## File: modules/knowledge/subdomains/ai/application/.gitkeep
@@ -57861,12 +55954,27 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 - `../../../modules/notebook/aggregates.md`
 ````
 
+## File: modules/notebooklm/subdomains/conversation/.gitkeep
+````
+
+````
+
 ## File: modules/notebooklm/subdomains/note/.gitkeep
 ````
 
 ````
 
 ## File: modules/notebooklm/subdomains/notebook/.gitkeep
+````
+
+````
+
+## File: modules/notebooklm/subdomains/source/.gitkeep
+````
+
+````
+
+## File: modules/notebooklm/subdomains/synthesis/.gitkeep
 ````
 
 ````
@@ -58009,6 +56117,19 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 | [docs/domain-services.md](./docs/domain-services.md) | Domain services |
 ````
 
+## File: modules/notion/api/index.ts
+````typescript
+/**
+ * Module: notion
+ * Layer: api (top-level public boundary)
+ * Purpose: Unified ACL for all notion subdomains.
+ *          External consumers (app/, other modules) must only import from here.
+ */
+
+// ── knowledge subdomain ───────────────────────────────────────────────────────
+export * from "../subdomains/knowledge/api";
+````
+
 ## File: modules/notion/core/adapters/.gitkeep
 ````
 
@@ -58027,22 +56148,6 @@ export { answerRagQuery, generateNotebookResponse } from "./_actions/notebook.ac
 ## File: modules/notion/core/domain/events/index.ts
 ````typescript
 export type { NotionDomainEvent } from "./NotionDomainEvent";
-````
-
-## File: modules/notion/core/domain/events/NotionDomainEvent.ts
-````typescript
-/**
- * Module: notion/core
- * Layer: domain/events
- * Purpose: Base interface for all Notion domain events.
- */
-
-export interface NotionDomainEvent {
-  readonly eventId: string;
-  readonly occurredAt: string; // ISO 8601 string
-  readonly type: string;
-  readonly payload: Record<string, unknown>;
-}
 ````
 
 ## File: modules/notion/core/domain/index.ts
@@ -60142,138 +58247,6 @@ export class UpdatePageCoverUseCase {
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
-````typescript
-/**
- * Module: notion/subdomains/knowledge
- * Layer: application/use-cases
- * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
- */
-
-import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
-import { v7 as generateId } from "@lib-uuid";
-
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
-import {
-  PublishDomainEventUseCase,
-  type IEventStoreRepository,
-  type IEventBusRepository,
-} from "@/modules/shared/api";
-import {
-  ApproveKnowledgePageSchema,
-  type ApproveKnowledgePageDto,
-  VerifyKnowledgePageSchema,
-  type VerifyKnowledgePageDto,
-  RequestPageReviewSchema,
-  type RequestPageReviewDto,
-  AssignPageOwnerSchema,
-  type AssignPageOwnerDto,
-} from "../dto/KnowledgeWikiDto";
-
-export class ApproveKnowledgePageUseCase {
-  constructor(
-    private readonly repo: IKnowledgePageRepository,
-    private readonly eventStore: IEventStoreRepository,
-    private readonly eventBus: IEventBusRepository,
-  ) {}
-
-  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
-    const parsed = ApproveKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const {
-      accountId,
-      pageId,
-      actorId,
-      causationId: inputCausationId,
-      extractedTasks,
-      extractedInvoices,
-      correlationId: inputCorrelationId,
-      workspaceId,
-    } = parsed.data;
-
-    const causationId = inputCausationId ?? generateId();
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
-    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
-
-    const nowISO = new Date().toISOString();
-    page.approve(actorId, nowISO);
-    await this.repo.save(page);
-
-    const correlationId = inputCorrelationId ?? generateId();
-    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
-      id: generateId(),
-      eventName: "knowledge.page_approved",
-      aggregateType: "KnowledgePage",
-      aggregateId: pageId,
-      payload: {
-        pageId,
-        accountId,
-        workspaceId: workspaceId ?? page.workspaceId,
-        extractedTasks,
-        extractedInvoices,
-        actorId,
-        causationId: inputCausationId,
-        correlationId,
-      },
-      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
-    });
-
-    return commandSuccess(pageId, Date.now());
-  }
-}
-
-export class VerifyKnowledgePageUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
-    const parsed = VerifyKnowledgePageSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.verify(verifiedByUserId, verificationExpiresAtISO);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class RequestPageReviewUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
-    const parsed = RequestPageReviewSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, requestedByUserId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.requestReview(requestedByUserId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-
-export class AssignPageOwnerUseCase {
-  constructor(private readonly repo: IKnowledgePageRepository) {}
-
-  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
-    const parsed = AssignPageOwnerSchema.safeParse(input);
-    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
-
-    const { accountId, pageId, ownerId } = parsed.data;
-    const page = await this.repo.findById(accountId, pageId);
-    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
-    page.assignOwner(ownerId);
-    await this.repo.save(page);
-    return commandSuccess(page.id, Date.now());
-  }
-}
-````
-
 ## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageUseCases.ts
 ````typescript
 /**
@@ -61694,203 +59667,549 @@ export const VerificationStateSchema = z.enum(["verified", "needs_review"]);
 export type VerificationState = z.infer<typeof VerificationStateSchema>;
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseBacklinkIndexRepository.ts
 ````typescript
 /**
  * Module: notion/subdomains/knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IContentBlockRepository.
- * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ * Purpose: Firebase adapter implementing IBacklinkIndexRepository.
+ * Firestore paths:
+ *   accounts/{accountId}/backlinkIndex/{targetPageId}
+ *   accounts/{accountId}/backlinkOutbound/{sourcePageId}
  */
 
-import {
-  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
-  query, serverTimestamp, setDoc, updateDoc, where,
-} from "firebase/firestore";
+import { doc, getDoc, getDocs, collection, getFirestore, writeBatch } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import { v7 as generateId } from "@lib-uuid";
-import { ContentBlock } from "../../domain/aggregates/ContentBlock";
-import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
-import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
-import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
-import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+import type { IBacklinkIndexRepository, UpsertBacklinkEntriesInput, RemoveBacklinksFromSourceInput } from "../../domain/repositories/IBacklinkIndexRepository";
+import { BacklinkIndex } from "../../domain/aggregates/BacklinkIndex";
+import type { BacklinkEntry, BacklinkIndexSnapshot } from "../../domain/aggregates/BacklinkIndex";
 
-const VALID_TYPES = new Set<string>(BLOCK_TYPES);
-
-function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentBlocks");
+function backlinkIndexDoc(db: ReturnType<typeof getFirestore>, accountId: string, targetPageId: string) {
+  return doc(db, "accounts", accountId, "backlinkIndex", targetPageId);
 }
-function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
-  return doc(db, "accounts", accountId, "contentBlocks", blockId);
+function backlinkOutboundDoc(db: ReturnType<typeof getFirestore>, accountId: string, sourcePageId: string) {
+  return doc(db, "accounts", accountId, "backlinkOutbound", sourcePageId);
 }
 
-function toBlockContent(raw: unknown): BlockContent {
-  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
-  const obj = raw as Record<string, unknown>;
-  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
-  return {
-    type,
-    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
-    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
-  };
+function toEntries(raw: unknown): BacklinkEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e): e is Record<string, unknown> => typeof e === "object" && e !== null)
+    .map((e) => ({
+      sourcePageId: typeof e.sourcePageId === "string" ? e.sourcePageId : "",
+      sourcePageTitle: typeof e.sourcePageTitle === "string" ? e.sourcePageTitle : "",
+      blockId: typeof e.blockId === "string" ? e.blockId : "",
+      lastSeenAtISO: typeof e.lastSeenAtISO === "string" ? e.lastSeenAtISO : "",
+    }));
 }
 
-function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
-  return {
-    id,
-    pageId: typeof d.pageId === "string" ? d.pageId : "",
-    accountId: typeof d.accountId === "string" ? d.accountId : "",
-    content: toBlockContent(d.content),
-    order: typeof d.order === "number" ? d.order : 0,
-    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
-    isDeleted: d.isDeleted === true,
-    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
-    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
-  };
-}
-
-export class FirebaseContentBlockRepository implements IContentBlockRepository {
+export class FirebaseBacklinkIndexRepository implements IBacklinkIndexRepository {
   private get db() { return getFirestore(firebaseClientApp); }
 
-  async save(block: ContentBlock): Promise<void> {
-    const snap = block.getSnapshot();
-    const ref = blockDoc(this.db, snap.accountId, snap.id);
-    const existing = await getDoc(ref);
-    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
-    } else {
-      await updateDoc(ref, data);
+  async upsertFromSource(input: UpsertBacklinkEntriesInput): Promise<void> {
+    const { accountId, targetPageId, sourcePageId, entries } = input;
+    const ref = backlinkIndexDoc(this.db, accountId, targetPageId);
+    const snap = await getDoc(ref);
+    const existing = snap.exists() ? toEntries((snap.data() as Record<string, unknown>).entries) : [];
+    const nowISO = new Date().toISOString();
+    const filtered = existing.filter((e) => !entries.some((ne) => e.blockId === ne.blockId && e.sourcePageId === sourcePageId));
+    const newEntries: BacklinkEntry[] = entries.map((e) => ({ sourcePageId, sourcePageTitle: (e as BacklinkEntry).sourcePageTitle ?? "", blockId: e.blockId, lastSeenAtISO: nowISO }));
+    const merged = [...filtered, ...newEntries];
+
+    const batch = writeBatch(this.db);
+    batch.set(ref, { targetPageId, accountId, entries: merged, updatedAtISO: nowISO }, { merge: true });
+
+    // Update outbound index
+    const outRef = backlinkOutboundDoc(this.db, accountId, sourcePageId);
+    batch.set(outRef, { sourcePageId, accountId, targetPageIds: [targetPageId], updatedAtISO: nowISO }, { merge: true });
+    await batch.commit();
+  }
+
+  async removeFromSource(input: RemoveBacklinksFromSourceInput): Promise<void> {
+    const { accountId, sourcePageId } = input;
+    const outRef = backlinkOutboundDoc(this.db, accountId, sourcePageId);
+    const outSnap = await getDoc(outRef);
+    const targetPageIds: string[] = outSnap.exists()
+      ? ((outSnap.data() as Record<string, unknown>).targetPageIds as string[] ?? [])
+      : [];
+
+    const batch = writeBatch(this.db);
+    const nowISO = new Date().toISOString();
+    for (const targetPageId of targetPageIds) {
+      const ref = backlinkIndexDoc(this.db, accountId, targetPageId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) continue;
+      const entries = toEntries((snap.data() as Record<string, unknown>).entries).filter((e) => e.sourcePageId !== sourcePageId);
+      batch.set(ref, { entries, updatedAtISO: nowISO }, { merge: true });
     }
+    batch.set(outRef, { targetPageIds: [], updatedAtISO: nowISO }, { merge: true });
+    await batch.commit();
   }
 
-  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
-    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
+  async findByTargetPage(accountId: string, targetPageId: string): Promise<BacklinkIndex | null> {
+    const snap = await getDoc(backlinkIndexDoc(this.db, accountId, targetPageId));
     if (!snap.exists()) return null;
-    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+    const d = snap.data() as Record<string, unknown>;
+    const snapshot: BacklinkIndexSnapshot = {
+      targetPageId,
+      accountId,
+      entries: toEntries(d.entries),
+      updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+    };
+    return BacklinkIndex.reconstitute(snapshot);
   }
 
-  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId), where("isDeleted", "==", false)),
-    );
-    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async delete(accountId: string, blockId: string): Promise<void> {
-    await deleteDoc(blockDoc(this.db, accountId, blockId));
-  }
-
-  async nextOrder(accountId: string, pageId: string): Promise<number> {
-    const snaps = await getDocs(
-      query(blocksCol(this.db, accountId), where("pageId", "==", pageId), where("isDeleted", "==", false)),
-    );
-    return snaps.size;
+  async listOutboundTargets(accountId: string, sourcePageId: string): Promise<ReadonlyArray<string>> {
+    const snap = await getDoc(backlinkOutboundDoc(this.db, accountId, sourcePageId));
+    if (!snap.exists()) return [];
+    const d = snap.data() as Record<string, unknown>;
+    return Array.isArray(d.targetPageIds) ? (d.targetPageIds as string[]) : [];
   }
 }
 ````
 
-## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgeCollectionRepository.ts
 ````typescript
 /**
  * Module: notion/subdomains/knowledge
  * Layer: infrastructure/firebase
- * Purpose: Firebase adapter implementing IKnowledgePageRepository.
- * Firestore path: accounts/{accountId}/contentPages/{pageId}
+ * Purpose: Firebase adapter implementing IKnowledgeCollectionRepository.
+ * Firestore path: accounts/{accountId}/knowledgeCollections/{collectionId}
  */
 
 import {
-  collection, doc, getDoc, getDocs, getFirestore,
-  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+  arrayRemove, arrayUnion, collection, doc, getDoc, getDocs,
+  getFirestore, query, serverTimestamp, setDoc, updateDoc, where,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
 import { v7 as generateId } from "@lib-uuid";
-import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
-import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
-import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import { KnowledgeCollection } from "../../domain/aggregates/KnowledgeCollection";
+import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+import type { IKnowledgeCollectionRepository } from "../../domain/repositories/IKnowledgeCollectionRepository";
 
-function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
-  return collection(db, "accounts", accountId, "contentPages");
+function col(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "knowledgeCollections");
 }
-function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
-  return doc(db, "accounts", accountId, "contentPages", pageId);
+function docRef(db: ReturnType<typeof getFirestore>, accountId: string, id: string) {
+  return doc(db, "accounts", accountId, "knowledgeCollections", id);
 }
 
-function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgeCollectionSnapshot {
   return {
     id,
     accountId: typeof d.accountId === "string" ? d.accountId : "",
     workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
-    title: typeof d.title === "string" ? d.title : "",
-    slug: typeof d.slug === "string" ? d.slug : "",
-    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
-    order: typeof d.order === "number" ? d.order : 0,
-    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
+    name: typeof d.name === "string" ? d.name : "",
+    description: typeof d.description === "string" ? d.description : undefined,
+    columns: Array.isArray(d.columns) ? (d.columns as KnowledgeCollectionSnapshot["columns"]) : [],
+    pageIds: Array.isArray(d.pageIds) ? (d.pageIds as string[]) : [],
     status: d.status === "archived" ? "archived" : "active",
-    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
-    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
-    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
-    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
-    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
-    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
-    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
-    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
-    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
-    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
+    spaceType: d.spaceType === "wiki" ? "wiki" : "database",
     createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
     createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
     updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
   };
 }
 
-export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
+export class FirebaseKnowledgeCollectionRepository implements IKnowledgeCollectionRepository {
   private get db() { return getFirestore(firebaseClientApp); }
 
-  async save(page: KnowledgePage): Promise<void> {
-    const snap = page.getSnapshot();
-    const ref = pageDoc(this.db, snap.accountId, snap.id);
+  async save(coll: KnowledgeCollection): Promise<void> {
+    const snap = coll.getSnapshot();
+    const ref = docRef(this.db, snap.accountId, snap.id);
     const existing = await getDoc(ref);
-    const data: Record<string, unknown> = {
-      ...snap,
-      blockIds: [...snap.blockIds],
-      updatedAt: serverTimestamp(),
-    };
-    if (!existing.exists()) {
-      data.createdAt = serverTimestamp();
-      await setDoc(ref, data);
-    } else {
-      await updateDoc(ref, data);
-    }
+    const data: Record<string, unknown> = { ...snap, columns: [...snap.columns], pageIds: [...snap.pageIds], updatedAt: serverTimestamp() };
+    if (!existing.exists()) { data.createdAt = serverTimestamp(); await setDoc(ref, data); }
+    else { await updateDoc(ref, data); }
   }
 
-  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
-    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
+  async findById(accountId: string, collectionId: string): Promise<KnowledgeCollection | null> {
+    const snap = await getDoc(docRef(this.db, accountId, collectionId));
     if (!snap.exists()) return null;
-    return KnowledgePage.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+    return KnowledgeCollection.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
   }
 
-  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("status", "==", "active"), orderBy("order", "asc")),
-    );
-    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  async listByAccountId(accountId: string): Promise<KnowledgeCollection[]> {
+    const snaps = await getDocs(col(this.db, accountId));
+    return snaps.docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
   }
 
-  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("workspaceId", "==", workspaceId), where("status", "==", "active"), orderBy("order", "asc")),
-    );
-    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
-  }
-
-  async nextOrder(accountId: string, parentPageId: string | null): Promise<number> {
-    const snaps = await getDocs(
-      query(pagesCol(this.db, accountId), where("parentPageId", "==", parentPageId ?? null)),
-    );
-    return snaps.size;
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgeCollection[]> {
+    const snaps = await getDocs(query(col(this.db, accountId), where("workspaceId", "==", workspaceId)));
+    return snaps.docs.map((d) => KnowledgeCollection.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
   }
 }
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/index.ts
+````typescript
+export { FirebaseKnowledgePageRepository } from "./FirebaseKnowledgePageRepository";
+export { FirebaseContentBlockRepository } from "./FirebaseContentBlockRepository";
+export { FirebaseKnowledgeCollectionRepository } from "./FirebaseKnowledgeCollectionRepository";
+export { FirebaseBacklinkIndexRepository } from "./FirebaseBacklinkIndexRepository";
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/index.ts
+````typescript
+export * from "./firebase";
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/index.ts
+````typescript
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+} from "./knowledge-page.actions";
+
+export {
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+} from "./knowledge-block.actions";
+
+export {
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  addCollectionColumn,
+  archiveKnowledgeCollection,
+} from "./knowledge-collection.actions";
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-collection.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseKnowledgeCollectionRepository";
+import {
+  CreateKnowledgeCollectionUseCase,
+  RenameKnowledgeCollectionUseCase,
+  AddPageToCollectionUseCase,
+  RemovePageFromCollectionUseCase,
+  AddCollectionColumnUseCase,
+  ArchiveKnowledgeCollectionUseCase,
+} from "../../application/use-cases/KnowledgeCollectionUseCases";
+import type {
+  CreateKnowledgeCollectionDto,
+  RenameKnowledgeCollectionDto,
+  AddPageToCollectionDto,
+  RemovePageFromCollectionDto,
+  AddCollectionColumnDto,
+  ArchiveKnowledgeCollectionDto,
+} from "../../application/dto/KnowledgeCollectionDto";
+
+const makeCollRepo = () => new FirebaseKnowledgeCollectionRepository();
+
+export async function createKnowledgeCollection(input: CreateKnowledgeCollectionDto): Promise<CommandResult> {
+  try { return await new CreateKnowledgeCollectionUseCase(makeCollRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function renameKnowledgeCollection(input: RenameKnowledgeCollectionDto): Promise<CommandResult> {
+  try { return await new RenameKnowledgeCollectionUseCase(makeCollRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function addPageToCollection(input: AddPageToCollectionDto): Promise<CommandResult> {
+  try { return await new AddPageToCollectionUseCase(makeCollRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_ADD_PAGE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function removePageFromCollection(input: RemovePageFromCollectionDto): Promise<CommandResult> {
+  try { return await new RemovePageFromCollectionUseCase(makeCollRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_REMOVE_PAGE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function addCollectionColumn(input: AddCollectionColumnDto): Promise<CommandResult> {
+  try { return await new AddCollectionColumnUseCase(makeCollRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_ADD_COLUMN_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function archiveKnowledgeCollection(input: ArchiveKnowledgeCollectionDto): Promise<CommandResult> {
+  try { return await new ArchiveKnowledgeCollectionUseCase(makeCollRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("COLLECTION_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/PageDialog.tsx
+````typescript
+"use client";
+
+import { useState, useTransition } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { createKnowledgePage } from "../_actions/knowledge-page.actions";
+
+interface PageDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  accountId: string;
+  workspaceId: string;
+  currentUserId: string;
+  parentPageId?: string | null;
+  onSuccess?: (pageId?: string) => void;
+}
+
+export function PageDialog({ open, onOpenChange, accountId, workspaceId, currentUserId, parentPageId, onSuccess }: PageDialogProps) {
+  const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  function reset() { setTitle(""); setError(null); }
+  function handleOpenChange(next: boolean) { if (!next) reset(); onOpenChange(next); }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim()) { setError("頁面標題為必填"); return; }
+    setError(null);
+    startTransition(async () => {
+      const result = await createKnowledgePage({ accountId, workspaceId, title: title.trim(), parentPageId: parentPageId ?? null, createdByUserId: currentUserId });
+      if (result.success) { reset(); onOpenChange(false); onSuccess?.(result.aggregateId); }
+      else { setError(result.error?.message ?? "建立失敗"); }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader><DialogTitle>{parentPageId ? "新增子頁面" : "新增頁面"}</DialogTitle></DialogHeader>
+        <form id="page-form" className="space-y-3" onSubmit={handleSubmit}>
+          <div className="space-y-1.5">
+            <Label htmlFor="page-title">標題 *</Label>
+            <Input id="page-title" placeholder="頁面標題" value={title} onChange={(e) => setTitle(e.target.value)} autoFocus disabled={isPending} />
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </form>
+        <DialogFooter>
+          <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)} disabled={isPending}>取消</Button>
+          <Button type="submit" form="page-form" size="sm" disabled={isPending || !title.trim()}>{isPending ? "建立中…" : "建立"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/PageEditorView.tsx
+````typescript
+"use client";
+
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/components
+ * Purpose: PageEditorView — renders the block editor for a knowledge page.
+ *          Connects accountId/pageId context to BlockEditorView.
+ */
+
+import { BlockEditorView } from "./BlockEditorView";
+
+export interface PageEditorViewProps {
+  accountId: string;
+  pageId: string;
+}
+
+export function PageEditorView({ accountId, pageId }: PageEditorViewProps) {
+  // accountId and pageId are available for future direct Firestore subscriptions.
+  void accountId;
+  void pageId;
+  return <BlockEditorView />;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/PageTreeView.tsx
+````typescript
+"use client";
+
+import { ChevronDown, ChevronRight, FilePlus, FileText } from "lucide-react";
+import { useState } from "react";
+import { Button } from "@ui-shadcn/ui/button";
+import type { KnowledgePageTreeNode } from "../../domain/aggregates/KnowledgePage";
+import { PageDialog } from "./PageDialog";
+
+export interface PageTreeViewProps {
+  nodes: KnowledgePageTreeNode[];
+  accountId: string;
+  workspaceId?: string;
+  currentUserId: string;
+  allowCreate?: boolean;
+  emptyStateDescription?: string;
+  onPageClick?: (pageId: string) => void;
+  onCreated?: () => void;
+}
+
+function TreeNode({
+  node, accountId, workspaceId, currentUserId, allowCreate, onPageClick, onCreated, depth,
+}: { node: KnowledgePageTreeNode; accountId: string; workspaceId?: string; currentUserId: string; allowCreate: boolean; onPageClick?: (id: string) => void; onCreated?: () => void; depth: number }) {
+  const [expanded, setExpanded] = useState(depth < 1);
+  const [addChildOpen, setAddChildOpen] = useState(false);
+  const hasChildren = node.children && node.children.length > 0;
+  const canCreate = allowCreate && Boolean(workspaceId);
+
+  return (
+    <li>
+      <div className="group flex items-center gap-1 rounded-md px-2 py-1 hover:bg-muted/30" style={{ paddingLeft: `${8 + depth * 16}px` }}>
+        <button type="button" className="flex h-5 w-5 shrink-0 items-center justify-center text-muted-foreground" onClick={() => setExpanded((v) => !v)}>
+          {hasChildren ? (expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />) : <FileText className="h-3.5 w-3.5" />}
+        </button>
+        <button type="button" className="min-w-0 flex-1 truncate text-left text-sm" onClick={() => onPageClick?.(node.id)}>
+          {node.title}
+        </button>
+        {canCreate && (
+          <button type="button" className="invisible shrink-0 rounded p-0.5 text-muted-foreground hover:text-foreground group-hover:visible" onClick={(e) => { e.stopPropagation(); setAddChildOpen(true); }}>
+            <FilePlus className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+      {expanded && hasChildren && (
+        <ul>
+          {node.children.map((child) => (
+            <TreeNode key={child.id} node={child} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={depth + 1} />
+          ))}
+        </ul>
+      )}
+      {addChildOpen && (
+        <PageDialog open={addChildOpen} onOpenChange={setAddChildOpen} accountId={accountId} workspaceId={workspaceId ?? ""} currentUserId={currentUserId} parentPageId={node.id} onSuccess={onCreated} />
+      )}
+    </li>
+  );
+}
+
+export function PageTreeView({ nodes, accountId, workspaceId, currentUserId, allowCreate = true, emptyStateDescription, onPageClick, onCreated }: PageTreeViewProps) {
+  const [createOpen, setCreateOpen] = useState(false);
+  if (!nodes.length) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-center text-sm text-muted-foreground">
+        <FileText className="h-8 w-8 opacity-40" />
+        <p>{emptyStateDescription ?? "尚無頁面"}</p>
+        {allowCreate && workspaceId && (
+          <>
+            <Button size="sm" variant="outline" onClick={() => setCreateOpen(true)}>新增頁面</Button>
+            <PageDialog open={createOpen} onOpenChange={setCreateOpen} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} parentPageId={null} onSuccess={onCreated} />
+          </>
+        )}
+      </div>
+    );
+  }
+  return <ul className="space-y-0.5">{nodes.map((n) => <TreeNode key={n.id} node={n} accountId={accountId} workspaceId={workspaceId} currentUserId={currentUserId} allowCreate={allowCreate} onPageClick={onPageClick} onCreated={onCreated} depth={0} />)}</ul>;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/store/block-editor.store.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/store
+ * Purpose: Zustand store for the block editor UI state.
+ *          Manages optimistic block operations before persistence.
+ */
+"use client";
+
+import { create } from "zustand";
+import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+
+export interface EditorBlock {
+  id: string;
+  content: BlockContent;
+  order: number;
+  parentBlockId: string | null;
+  isFocused: boolean;
+}
+
+interface BlockEditorState {
+  pageId: string | null;
+  accountId: string | null;
+  blocks: EditorBlock[];
+  isDirty: boolean;
+
+  setPage: (accountId: string, pageId: string) => void;
+  setBlocks: (blocks: EditorBlock[]) => void;
+  addBlock: (after: string | null, content?: BlockContent) => EditorBlock;
+  updateBlock: (id: string, content: BlockContent) => void;
+  deleteBlock: (id: string) => void;
+  reorder: (ids: string[]) => void;
+  clearDirty: () => void;
+}
+
+function makeId() {
+  return crypto.randomUUID();
+}
+
+export const useBlockEditorStore = create<BlockEditorState>((set, get) => ({
+  pageId: null,
+  accountId: null,
+  blocks: [],
+  isDirty: false,
+
+  setPage(accountId, pageId) {
+    set({ accountId, pageId, blocks: [], isDirty: false });
+  },
+
+  setBlocks(blocks) {
+    set({ blocks, isDirty: false });
+  },
+
+  addBlock(afterId, content = { type: "text", richText: [] }) {
+    const blocks = [...get().blocks];
+    const idx = afterId ? blocks.findIndex((b) => b.id === afterId) : blocks.length - 1;
+    const newBlock: EditorBlock = {
+      id: makeId(),
+      content,
+      order: idx + 1,
+      parentBlockId: null,
+      isFocused: true,
+    };
+    const updated = [
+      ...blocks.slice(0, idx + 1),
+      newBlock,
+      ...blocks.slice(idx + 1).map((b) => ({ ...b, order: b.order + 1 })),
+    ];
+    set({ blocks: updated, isDirty: true });
+    return newBlock;
+  },
+
+  updateBlock(id, content) {
+    set({
+      blocks: get().blocks.map((b) => (b.id === id ? { ...b, content } : b)),
+      isDirty: true,
+    });
+  },
+
+  deleteBlock(id) {
+    set({
+      blocks: get().blocks.filter((b) => b.id !== id),
+      isDirty: true,
+    });
+  },
+
+  reorder(ids) {
+    const map = new Map(get().blocks.map((b) => [b.id, b]));
+    const reordered = ids
+      .map((id, i) => {
+        const b = map.get(id);
+        return b ? { ...b, order: i } : null;
+      })
+      .filter((b): b is EditorBlock => b !== null);
+    set({ blocks: reordered, isDirty: true });
+  },
+
+  clearDirty() {
+    set({ isDirty: false });
+  },
+}));
 ````
 
 ## File: modules/notion/subdomains/knowledge/README.md
@@ -61954,21 +60273,6 @@ export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository
 ## File: modules/notion/subdomains/versioning/.gitkeep
 ````
 
-````
-
-## File: modules/platform/adapters/cli/index.ts
-````typescript
-/**
- * platform CLI driving adapter placeholder module.
- */
-
-export const PLATFORM_ADAPTER_CLI_FUNCTIONS = [
-	"parseCliInputToCommand",
-	"runPlatformCliCommand",
-	"renderPlatformCliResult",
-] as const;
-
-export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/adapters/cli/parseCliInputToCommand.ts
@@ -62075,21 +60379,6 @@ export type PlatformAdapterCliFunction = (typeof PLATFORM_ADAPTER_CLI_FUNCTIONS)
 // TODO: implement dispatchExternalDelivery function
 ````
 
-## File: modules/platform/adapters/external/index.ts
-````typescript
-/**
- * platform external driven adapter placeholder module.
- */
-
-export const PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS = [
-	"buildExternalDeliveryRequest",
-	"dispatchExternalDelivery",
-	"mapExternalResponseToDispatchOutcome",
-] as const;
-
-export type PlatformAdapterExternalFunction = (typeof PLATFORM_ADAPTER_EXTERNAL_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/adapters/external/mapExternalResponseToDispatchOutcome.ts
 ````typescript
 /**
@@ -62108,34 +60397,6 @@ export type PlatformAdapterExternalFunction = (typeof PLATFORM_ADAPTER_EXTERNAL_
  */
 
 // TODO: implement mapExternalResponseToDispatchOutcome mapper function
-````
-
-## File: modules/platform/adapters/index.ts
-````typescript
-/**
- * platform adapter layer barrel.
- */
-
-export * from "./cli";
-export * from "./external";
-export * from "./persistence";
-export * from "./web";
-````
-
-## File: modules/platform/adapters/persistence/index.ts
-````typescript
-/**
- * platform persistence driven adapter placeholder module.
- */
-
-export const PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS = [
-	"mapAggregateToPersistenceRecord",
-	"mapPersistenceRecordToAggregate",
-	"persistPlatformAggregate",
-	"loadPlatformAggregate",
-] as const;
-
-export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSISTENCE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/adapters/persistence/mapIntegrationContractToPersistenceRecord.ts
@@ -62277,22 +60538,6 @@ export type PlatformAdapterPersistenceFunction = (typeof PLATFORM_ADAPTER_PERSIS
 // TODO: implement handlePlatformQueryHttp server action / route handler
 ````
 
-## File: modules/platform/adapters/web/index.ts
-````typescript
-/**
- * platform web driving adapter placeholder module.
- */
-
-export const PLATFORM_ADAPTER_WEB_FUNCTIONS = [
-	"mapHttpRequestToPlatformCommand",
-	"handlePlatformCommandHttp",
-	"handlePlatformQueryHttp",
-	"mapPlatformResultToHttpResponse",
-] as const;
-
-export type PlatformAdapterWebFunction = (typeof PLATFORM_ADAPTER_WEB_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/adapters/web/mapHttpRequestToPlatformCommand.ts
 ````typescript
 /**
@@ -62337,103 +60582,27 @@ export type PlatformAdapterWebFunction = (typeof PLATFORM_ADAPTER_WEB_FUNCTIONS)
 // TODO: implement mapPlatformResultToHttpResponse mapping function
 ````
 
-## File: modules/platform/api/facade.ts
+## File: modules/platform/ai/.gitkeep
+````
+
+````
+
+## File: modules/platform/api/contracts.ts
 ````typescript
 /**
- * platform API facade.
+ * platform API contracts boundary.
+ *
+ * Keep the source of truth in application/domain and re-export here for API consumers.
  */
 
-import type {
-	ActivateSubscriptionAgreementInput,
-	ApplyConfigurationProfileInput,
-	EmitObservabilitySignalInput,
-	FireWorkflowTriggerInput,
-	GetPlatformContextViewInput,
-	GetPolicyCatalogViewInput,
-	GetSubscriptionEntitlementsInput,
-	GetWorkflowPolicyViewInput,
-	ListEnabledCapabilitiesInput,
-	PlatformCommandResult,
+export * from "../application/dtos";
+export type {
 	PlatformContextView,
 	PolicyCatalogView,
-	PublishPolicyCatalogInput,
-	RecordAuditSignalInput,
-	RegisterIntegrationContractInput,
-	RegisterPlatformContextInput,
-	RequestNotificationDispatchInput,
 	SubscriptionEntitlementsView,
 	WorkflowPolicyView,
-} from "./contracts";
-import type { PlatformCommandPort, PlatformQueryPort } from "../ports/input";
-
-export interface PlatformFacade {
-	registerPlatformContext(input: RegisterPlatformContextInput): Promise<PlatformCommandResult>;
-	publishPolicyCatalog(input: PublishPolicyCatalogInput): Promise<PlatformCommandResult>;
-	applyConfigurationProfile(input: ApplyConfigurationProfileInput): Promise<PlatformCommandResult>;
-	registerIntegrationContract(input: RegisterIntegrationContractInput): Promise<PlatformCommandResult>;
-	activateSubscriptionAgreement(input: ActivateSubscriptionAgreementInput): Promise<PlatformCommandResult>;
-	fireWorkflowTrigger(input: FireWorkflowTriggerInput): Promise<PlatformCommandResult>;
-	requestNotificationDispatch(input: RequestNotificationDispatchInput): Promise<PlatformCommandResult>;
-	recordAuditSignal(input: RecordAuditSignalInput): Promise<PlatformCommandResult>;
-	emitObservabilitySignal(input: EmitObservabilitySignalInput): Promise<PlatformCommandResult>;
-	getPlatformContextView(input: GetPlatformContextViewInput): Promise<PlatformContextView>;
-	listEnabledCapabilities(input: ListEnabledCapabilitiesInput): Promise<string[]>;
-	getPolicyCatalogView(input: GetPolicyCatalogViewInput): Promise<PolicyCatalogView>;
-	getSubscriptionEntitlements(input: GetSubscriptionEntitlementsInput): Promise<SubscriptionEntitlementsView>;
-	getWorkflowPolicyView(input: GetWorkflowPolicyViewInput): Promise<WorkflowPolicyView>;
-}
-
-export function createPlatformFacade(ports: {
-	commandPort: PlatformCommandPort;
-	queryPort: PlatformQueryPort;
-}): PlatformFacade {
-	const { commandPort, queryPort } = ports;
-
-	return {
-		registerPlatformContext(input) {
-			return commandPort.executeCommand({ name: "registerPlatformContext", payload: input });
-		},
-		publishPolicyCatalog(input) {
-			return commandPort.executeCommand({ name: "publishPolicyCatalog", payload: input });
-		},
-		applyConfigurationProfile(input) {
-			return commandPort.executeCommand({ name: "applyConfigurationProfile", payload: input });
-		},
-		registerIntegrationContract(input) {
-			return commandPort.executeCommand({ name: "registerIntegrationContract", payload: input });
-		},
-		activateSubscriptionAgreement(input) {
-			return commandPort.executeCommand({ name: "activateSubscriptionAgreement", payload: input });
-		},
-		fireWorkflowTrigger(input) {
-			return commandPort.executeCommand({ name: "fireWorkflowTrigger", payload: input });
-		},
-		requestNotificationDispatch(input) {
-			return commandPort.executeCommand({ name: "requestNotificationDispatch", payload: input });
-		},
-		recordAuditSignal(input) {
-			return commandPort.executeCommand({ name: "recordAuditSignal", payload: input });
-		},
-		emitObservabilitySignal(input) {
-			return commandPort.executeCommand({ name: "emitObservabilitySignal", payload: input });
-		},
-		getPlatformContextView(input) {
-			return queryPort.executeQuery({ name: "getPlatformContextView", payload: input });
-		},
-		listEnabledCapabilities(input) {
-			return queryPort.executeQuery({ name: "listEnabledCapabilities", payload: input });
-		},
-		getPolicyCatalogView(input) {
-			return queryPort.executeQuery({ name: "getPolicyCatalogView", payload: input });
-		},
-		getSubscriptionEntitlements(input) {
-			return queryPort.executeQuery({ name: "getSubscriptionEntitlements", payload: input });
-		},
-		getWorkflowPolicyView(input) {
-			return queryPort.executeQuery({ name: "getWorkflowPolicyView", payload: input });
-		},
-	};
-}
+} from "../ports/output";
+export * from "../domain/events";
 ````
 
 ## File: modules/platform/application/commands/ActivateSubscriptionAgreementCommand.ts
@@ -62522,27 +60691,6 @@ export function createPlatformFacade(ports: {
  */
 
 // TODO: implement FireWorkflowTriggerCommand command payload type
-````
-
-## File: modules/platform/application/commands/index.ts
-````typescript
-/**
- * platform command models placeholder module.
- */
-
-export const PLATFORM_APPLICATION_COMMANDS = [
-	"RegisterPlatformContext",
-	"PublishPolicyCatalog",
-	"ApplyConfigurationProfile",
-	"RegisterIntegrationContract",
-	"ActivateSubscriptionAgreement",
-	"FireWorkflowTrigger",
-	"RequestNotificationDispatch",
-	"RecordAuditSignal",
-	"EmitObservabilitySignal",
-] as const;
-
-export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[number];
 ````
 
 ## File: modules/platform/application/commands/PublishPolicyCatalogCommand.ts
@@ -62653,6 +60801,123 @@ export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[
  */
 
 // TODO: implement RequestNotificationDispatchCommand command payload type
+````
+
+## File: modules/platform/application/dtos/index.ts
+````typescript
+/**
+ * platform application contracts and DTOs.
+ */
+
+export type PlatformCommandName =
+	| "registerPlatformContext"
+	| "publishPolicyCatalog"
+	| "applyConfigurationProfile"
+	| "registerIntegrationContract"
+	| "activateSubscriptionAgreement"
+	| "fireWorkflowTrigger"
+	| "requestNotificationDispatch"
+	| "recordAuditSignal"
+	| "emitObservabilitySignal";
+
+export type PlatformQueryName =
+	| "getPlatformContextView"
+	| "listEnabledCapabilities"
+	| "getPolicyCatalogView"
+	| "getSubscriptionEntitlements"
+	| "getWorkflowPolicyView";
+
+export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformCommandResult {
+	ok: boolean;
+	code?: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface RegisterPlatformContextInput {
+	contextId: string;
+	subjectScope: string;
+}
+
+export interface PublishPolicyCatalogInput {
+	contextId: string;
+	revision: number;
+}
+
+export interface ApplyConfigurationProfileInput {
+	contextId: string;
+	profileRef: string;
+}
+
+export interface RegisterIntegrationContractInput {
+	contextId: string;
+	integrationContractId: string;
+	endpointRef: string;
+	protocol: "http" | "webhook" | "queue" | "topic" | "file";
+}
+
+export interface ActivateSubscriptionAgreementInput {
+	contextId: string;
+	subscriptionAgreementId: string;
+	planCode: string;
+}
+
+export interface FireWorkflowTriggerInput {
+	contextId: string;
+	triggerKey: string;
+	triggeredBy: string;
+}
+
+export interface RequestNotificationDispatchInput {
+	contextId: string;
+	channel: string;
+	recipientRef: string;
+	templateKey: string;
+}
+
+export interface RecordAuditSignalInput {
+	contextId: string;
+	signalType: string;
+	severity: string;
+}
+
+export interface EmitObservabilitySignalInput {
+	contextId: string;
+	signalName: string;
+	signalLevel: string;
+	sourceRef: string;
+}
+
+export interface GetPlatformContextViewInput {
+	contextId: string;
+}
+
+export interface ListEnabledCapabilitiesInput {
+	contextId: string;
+}
+
+export interface GetPolicyCatalogViewInput {
+	contextId: string;
+}
+
+export interface GetSubscriptionEntitlementsInput {
+	contextId: string;
+}
+
+export interface GetWorkflowPolicyViewInput {
+	contextId: string;
+	triggerKey: string;
+}
 ````
 
 ## File: modules/platform/application/dtos/PlatformCommandResult.dto.ts
@@ -63032,32 +61297,6 @@ export type PlatformApplicationCommand = (typeof PLATFORM_APPLICATION_COMMANDS)[
 // TODO: implement GetWorkflowPolicyViewHandler use case handler class
 ````
 
-## File: modules/platform/application/handlers/index.ts
-````typescript
-/**
- * platform handler placeholder module.
- */
-
-export const PLATFORM_APPLICATION_HANDLERS = [
-	"RegisterPlatformContextHandler.execute",
-	"PublishPolicyCatalogHandler.execute",
-	"ApplyConfigurationProfileHandler.execute",
-	"RegisterIntegrationContractHandler.execute",
-	"ActivateSubscriptionAgreementHandler.execute",
-	"FireWorkflowTriggerHandler.execute",
-	"RequestNotificationDispatchHandler.execute",
-	"RecordAuditSignalHandler.execute",
-	"EmitObservabilitySignalHandler.execute",
-	"GetPlatformContextViewHandler.execute",
-	"ListEnabledCapabilitiesHandler.execute",
-	"GetPolicyCatalogViewHandler.execute",
-	"GetSubscriptionEntitlementsHandler.execute",
-	"GetWorkflowPolicyViewHandler.execute",
-] as const;
-
-export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[number];
-````
-
 ## File: modules/platform/application/handlers/ListEnabledCapabilitiesHandler.ts
 ````typescript
 /**
@@ -63249,18 +61488,6 @@ export type PlatformApplicationHandler = (typeof PLATFORM_APPLICATION_HANDLERS)[
 // TODO: implement RequestNotificationDispatchHandler use case handler class
 ````
 
-## File: modules/platform/application/index.ts
-````typescript
-/**
- * platform application layer barrel.
- */
-
-export * from "./commands";
-export * from "./queries";
-export * from "./handlers";
-export * from "./dtos";
-````
-
 ## File: modules/platform/application/queries/GetPlatformContextViewQuery.ts
 ````typescript
 /**
@@ -63349,23 +61576,6 @@ export * from "./dtos";
 // TODO: implement GetWorkflowPolicyViewQuery query input type
 ````
 
-## File: modules/platform/application/queries/index.ts
-````typescript
-/**
- * platform query models placeholder module.
- */
-
-export const PLATFORM_APPLICATION_QUERIES = [
-	"GetPlatformContextView",
-	"ListEnabledCapabilities",
-	"GetPolicyCatalogView",
-	"GetSubscriptionEntitlements",
-	"GetWorkflowPolicyView",
-] as const;
-
-export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[number];
-````
-
 ## File: modules/platform/application/queries/ListEnabledCapabilitiesQuery.ts
 ````typescript
 /**
@@ -63386,26 +61596,6 @@ export type PlatformApplicationQuery = (typeof PLATFORM_APPLICATION_QUERIES)[num
  */
 
 // TODO: implement ListEnabledCapabilitiesQuery query input type
-````
-
-## File: modules/platform/domain/aggregates/index.ts
-````typescript
-/**
- * platform aggregate placeholder module.
- */
-
-export const PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS = [
-	"registerPlatformContext",
-	"enablePlatformCapability",
-	"disablePlatformCapability",
-	"publishPolicyCatalogRevision",
-	"registerIntegrationContractAggregate",
-	"activateSubscriptionAgreementAggregate",
-	"renewSubscriptionAgreementAggregate",
-	"cancelSubscriptionAgreementAggregate",
-] as const;
-
-export type PlatformDomainAggregateFunction = (typeof PLATFORM_DOMAIN_AGGREGATE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/aggregates/IntegrationContract.ts
@@ -63581,21 +61771,6 @@ export type PlatformDomainAggregateFunction = (typeof PLATFORM_DOMAIN_AGGREGATE_
  */
 
 // TODO: implement DispatchContextEntity interface / class
-````
-
-## File: modules/platform/domain/entities/index.ts
-````typescript
-/**
- * platform entity placeholder module.
- */
-
-export const PLATFORM_DOMAIN_ENTITY_FUNCTIONS = [
-	"definePolicyRuleEntity",
-	"defineSignalSubscriptionEntity",
-	"defineDispatchContextEntity",
-] as const;
-
-export type PlatformDomainEntityFunction = (typeof PLATFORM_DOMAIN_ENTITY_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/entities/PolicyRuleEntity.ts
@@ -64269,35 +62444,6 @@ export type PlatformDomainEntityFunction = (typeof PLATFORM_DOMAIN_ENTITY_FUNCTI
 // TODO: implement createSubscriptionAgreementAggregate factory function
 ````
 
-## File: modules/platform/domain/factories/index.ts
-````typescript
-/**
- * platform domain factory placeholder module.
- */
-
-export const PLATFORM_DOMAIN_FACTORY_FUNCTIONS = [
-	"createPlatformContextAggregate",
-	"createPolicyCatalogAggregate",
-	"createIntegrationContractAggregate",
-	"createSubscriptionAgreementAggregate",
-] as const;
-
-export type PlatformDomainFactoryFunction = (typeof PLATFORM_DOMAIN_FACTORY_FUNCTIONS)[number];
-````
-
-## File: modules/platform/domain/index.ts
-````typescript
-/**
- * platform domain layer barrel.
- */
-
-export * from "./aggregates";
-export * from "./entities";
-export * from "./value-objects";
-export * from "./services";
-export * from "./events";
-````
-
 ## File: modules/platform/domain/services/AuditClassificationService.ts
 ````typescript
 /**
@@ -64351,26 +62497,6 @@ export * from "./events";
  */
 
 // TODO: implement ConfigurationCompositionService domain service
-````
-
-## File: modules/platform/domain/services/index.ts
-````typescript
-/**
- * platform domain service placeholder module.
- */
-
-export const PLATFORM_DOMAIN_SERVICE_FUNCTIONS = [
-	"evaluateCapabilityEntitlement",
-	"resolvePermissionDecision",
-	"composeConfigurationProfile",
-	"validateIntegrationCompatibility",
-	"decideWorkflowDispatch",
-	"decideNotificationRouting",
-	"classifyAuditSignal",
-	"correlateObservabilitySignal",
-] as const;
-
-export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/domain/services/IntegrationCompatibilityService.ts
@@ -64545,52 +62671,6 @@ export type PlatformDomainServiceFunction = (typeof PLATFORM_DOMAIN_SERVICE_FUNC
 // TODO: implement Entitlement value object
 ````
 
-## File: modules/platform/domain/value-objects/index.ts
-````typescript
-/**
- * platform domain value-object derivation inventory.
- */
-
-export const PLATFORM_DOMAIN_VALUE_OBJECT_TYPES = [
-	"PlatformCapability",
-	"SubjectScope",
-	"PolicyRule",
-	"ConfigurationProfileRef",
-	"Entitlement",
-	"UsageLimit",
-	"SignalSubscription",
-	"DeliveryPolicy",
-	"NotificationRoute",
-	"ObservabilitySignal",
-	"PermissionDecision",
-	"AuditClassification",
-	"PlanConstraint",
-	"DeliveryAllowance",
-] as const;
-
-export type PlatformDomainValueObjectType = (typeof PLATFORM_DOMAIN_VALUE_OBJECT_TYPES)[number];
-
-export const PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS = [
-	"createPlatformCapability",
-	"createSubjectScope",
-	"createPolicyRule",
-	"createConfigurationProfileRef",
-	"createEntitlement",
-	"createUsageLimit",
-	"createSignalSubscription",
-	"createDeliveryPolicy",
-	"createNotificationRoute",
-	"createObservabilitySignal",
-	"createPermissionDecision",
-	"createAuditClassification",
-	"createPlanConstraint",
-	"createDeliveryAllowance",
-] as const;
-
-export type PlatformDomainValueObjectFactoryFunction =
-	(typeof PLATFORM_DOMAIN_VALUE_OBJECT_FACTORY_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/domain/value-objects/NotificationRoute.ts
 ````typescript
 /**
@@ -64733,15 +62813,6 @@ export type PlatformDomainValueObjectFactoryFunction =
  */
 
 // TODO: implement UsageLimit value object
-````
-
-## File: modules/platform/events/contracts/index.ts
-````typescript
-/**
- * platform event contracts projection.
- */
-
-export * from "../../domain/events";
 ````
 
 ## File: modules/platform/events/handlers/handleIngressAccountProfileAmended.ts
@@ -64924,56 +62995,6 @@ export * from "../../domain/events";
 // TODO: implement handleIngressWorkflowExecutionCompleted ingress event handler
 ````
 
-## File: modules/platform/events/handlers/index.ts
-````typescript
-/**
- * platform event handler placeholder module.
- */
-
-export const PLATFORM_EVENT_HANDLER_FUNCTIONS = [
-	"handleIngressIdentitySubjectAuthenticated",
-	"handleIngressAccountProfileAmended",
-	"handleIngressOrganizationMembershipChanged",
-	"handleIngressSubscriptionEntitlementChanged",
-	"handleIngressIntegrationCallbackReceived",
-	"handleIngressWorkflowExecutionCompleted",
-] as const;
-
-export type PlatformEventHandlerFunction = (typeof PLATFORM_EVENT_HANDLER_FUNCTIONS)[number];
-````
-
-## File: modules/platform/events/index.ts
-````typescript
-/**
- * platform events barrel.
- */
-
-export * from "./contracts/index";
-export * from "./handlers/index";
-export * from "./ingress/index";
-export * from "./mappers/index";
-export * from "./published/index";
-export * from "./routing/index";
-````
-
-## File: modules/platform/events/ingress/index.ts
-````typescript
-/**
- * platform event ingress placeholder module.
- */
-
-export const PLATFORM_EVENT_INGRESS_FUNCTIONS = [
-	"ingestIdentitySubjectAuthenticated",
-	"ingestAccountProfileAmended",
-	"ingestOrganizationMembershipChanged",
-	"ingestSubscriptionEntitlementChanged",
-	"ingestIntegrationCallbackReceived",
-	"ingestWorkflowExecutionCompleted",
-] as const;
-
-export type PlatformEventIngressFunction = (typeof PLATFORM_EVENT_INGRESS_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/events/ingress/ingestAccountProfileAmended.ts
 ````typescript
 /**
@@ -65136,21 +63157,6 @@ export type PlatformEventIngressFunction = (typeof PLATFORM_EVENT_INGRESS_FUNCTI
 // TODO: implement ingestWorkflowExecutionCompleted ingress parser / Zod schema validation
 ````
 
-## File: modules/platform/events/mappers/index.ts
-````typescript
-/**
- * platform event mapper placeholder module.
- */
-
-export const PLATFORM_EVENT_MAPPER_FUNCTIONS = [
-	"mapExternalEventToPlatformEvent",
-	"mapIngressEventToCommand",
-	"mapDomainEventToPublishedEvent",
-] as const;
-
-export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/events/mappers/mapDomainEventToPublishedEvent.ts
 ````typescript
 /**
@@ -65239,21 +63245,6 @@ export type PlatformEventMapperFunction = (typeof PLATFORM_EVENT_MAPPER_FUNCTION
 // TODO: implement buildPublishedEventEnvelope utility function
 ````
 
-## File: modules/platform/events/published/index.ts
-````typescript
-/**
- * platform published event placeholder module.
- */
-
-export const PLATFORM_PUBLISHED_EVENT_FUNCTIONS = [
-	"buildPublishedEventEnvelope",
-	"publishSinglePlatformEvent",
-	"publishBatchPlatformEvents",
-] as const;
-
-export type PlatformPublishedEventFunction = (typeof PLATFORM_PUBLISHED_EVENT_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/events/published/publishBatchPlatformEvents.ts
 ````typescript
 /**
@@ -65293,21 +63284,6 @@ export type PlatformPublishedEventFunction = (typeof PLATFORM_PUBLISHED_EVENT_FU
  */
 
 // TODO: implement publishSinglePlatformEvent utility function
-````
-
-## File: modules/platform/events/routing/index.ts
-````typescript
-/**
- * platform event routing placeholder module.
- */
-
-export const PLATFORM_EVENT_ROUTING_FUNCTIONS = [
-	"routeIngressEvent",
-	"routeDomainEvent",
-	"resolveEventHandler",
-] as const;
-
-export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTIONS)[number];
 ````
 
 ## File: modules/platform/events/routing/resolveEventHandler.ts
@@ -65373,17 +63349,6 @@ export type PlatformEventRoutingFunction = (typeof PLATFORM_EVENT_ROUTING_FUNCTI
  */
 
 // TODO: implement routeIngressEvent routing function and routing table
-````
-
-## File: modules/platform/index.ts
-````typescript
-/**
- * platform local module entry.
- *
- * Prefer importing from ./api for cross-module access.
- */
-
-export * from "./api";
 ````
 
 ## File: modules/platform/infrastructure/cache/CachedPlatformContextViewRepository.ts
@@ -65468,21 +63433,6 @@ export * from "./api";
  */
 
 // TODO: implement CachedUsageMeterRepository cache-aside repository
-````
-
-## File: modules/platform/infrastructure/cache/index.ts
-````typescript
-/**
- * platform cache infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_CACHE_FACTORIES = [
-	"createCachedPlatformContextViewRepository",
-	"createCachedPolicyCatalogViewRepository",
-	"createCachedUsageMeterRepository",
-] as const;
-
-export type PlatformInfraCacheFactory = (typeof PLATFORM_INFRA_CACHE_FACTORIES)[number];
 ````
 
 ## File: modules/platform/infrastructure/db/FirebaseIntegrationContractRepository.ts
@@ -65597,35 +63547,6 @@ export type PlatformInfraCacheFactory = (typeof PLATFORM_INFRA_CACHE_FACTORIES)[
 // TODO: implement FirebaseSubscriptionAgreementRepository Firestore repository
 ````
 
-## File: modules/platform/infrastructure/db/index.ts
-````typescript
-/**
- * platform database infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_DB_FACTORIES = [
-	"createDbPlatformContextRepository",
-	"createDbPolicyCatalogRepository",
-	"createDbIntegrationContractRepository",
-	"createDbSubscriptionAgreementRepository",
-] as const;
-
-export type PlatformInfraDbFactory = (typeof PLATFORM_INFRA_DB_FACTORIES)[number];
-````
-
-## File: modules/platform/infrastructure/email/index.ts
-````typescript
-/**
- * platform email infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_EMAIL_FACTORIES = [
-	"createEmailNotificationGateway",
-] as const;
-
-export type PlatformInfraEmailFactory = (typeof PLATFORM_INFRA_EMAIL_FACTORIES)[number];
-````
-
 ## File: modules/platform/infrastructure/email/SmtpNotificationGateway.ts
 ````typescript
 /**
@@ -65653,35 +63574,6 @@ export type PlatformInfraEmailFactory = (typeof PLATFORM_INFRA_EMAIL_FACTORIES)[
  */
 
 // TODO: implement SmtpNotificationGateway
-````
-
-## File: modules/platform/infrastructure/index.ts
-````typescript
-/**
- * platform infrastructure layer barrel.
- */
-
-export * from "./cache";
-export * from "./db";
-export * from "./email";
-export * from "./messaging";
-export * from "./monitoring";
-export * from "./storage";
-````
-
-## File: modules/platform/infrastructure/messaging/index.ts
-````typescript
-/**
- * platform messaging infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_MESSAGING_FACTORIES = [
-	"createMessagingDomainEventPublisher",
-	"createMessagingWorkflowDispatcher",
-	"createMessagingJobQueuePort",
-] as const;
-
-export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FACTORIES)[number];
 ````
 
 ## File: modules/platform/infrastructure/messaging/QStashDomainEventPublisher.ts
@@ -65779,21 +63671,6 @@ export type PlatformInfraMessagingFactory = (typeof PLATFORM_INFRA_MESSAGING_FAC
 // TODO: implement FirebaseObservabilitySink
 ````
 
-## File: modules/platform/infrastructure/monitoring/index.ts
-````typescript
-/**
- * platform monitoring infrastructure placeholder module.
- */
-
-export const PLATFORM_INFRA_MONITORING_FACTORIES = [
-	"createMetricsObservabilitySink",
-	"createTracingObservabilitySink",
-	"createAnalyticsSink",
-] as const;
-
-export type PlatformInfraMonitoringFactory = (typeof PLATFORM_INFRA_MONITORING_FACTORIES)[number];
-````
-
 ## File: modules/platform/infrastructure/storage/FirebaseStorageAuditSignalStore.ts
 ````typescript
 /**
@@ -65822,29 +63699,60 @@ export type PlatformInfraMonitoringFactory = (typeof PLATFORM_INFRA_MONITORING_F
 // TODO: implement FirebaseStorageAuditSignalStore
 ````
 
-## File: modules/platform/infrastructure/storage/index.ts
+## File: modules/platform/ports/input/index.ts
 ````typescript
 /**
- * platform storage infrastructure placeholder module.
+ * platform input ports.
  */
 
-export const PLATFORM_INFRA_STORAGE_FACTORIES = [
-	"createStorageAuditSignalStore",
-	"createStorageDeliveryHistoryRepository",
-	"createStorageContentRepository",
-] as const;
+import type { PlatformDomainEvent } from "../../domain/events";
 
-export type PlatformInfraStorageFactory = (typeof PLATFORM_INFRA_STORAGE_FACTORIES)[number];
-````
+export type PlatformCommandName =
+	| "registerPlatformContext"
+	| "publishPolicyCatalog"
+	| "applyConfigurationProfile"
+	| "registerIntegrationContract"
+	| "activateSubscriptionAgreement"
+	| "fireWorkflowTrigger"
+	| "requestNotificationDispatch"
+	| "recordAuditSignal"
+	| "emitObservabilitySignal";
 
-## File: modules/platform/ports/index.ts
-````typescript
-/**
- * platform ports barrel.
- */
+export type PlatformQueryName =
+	| "getPlatformContextView"
+	| "listEnabledCapabilities"
+	| "getPolicyCatalogView"
+	| "getSubscriptionEntitlements"
+	| "getWorkflowPolicyView";
 
-export * from "./input";
-export * from "./output";
+export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
+	name: TName;
+	payload: TPayload;
+}
+
+export interface PlatformCommandResult {
+	ok: boolean;
+	code?: string;
+	message?: string;
+	metadata?: Record<string, unknown>;
+}
+
+export interface PlatformCommandPort {
+	executeCommand<TCommand extends PlatformCommand>(command: TCommand): Promise<PlatformCommandResult>;
+}
+
+export interface PlatformQueryPort {
+	executeQuery<TResult, TQuery extends PlatformQuery>(query: TQuery): Promise<TResult>;
+}
+
+export interface PlatformEventIngressPort {
+	ingestEvent(event: PlatformDomainEvent): Promise<void>;
+}
 ````
 
 ## File: modules/platform/ports/input/PlatformCommandPort.ts
@@ -66145,6 +64053,156 @@ export * from "./output";
  */
 
 // TODO: implement / re-export ExternalSystemGateway interface
+````
+
+## File: modules/platform/ports/output/index.ts
+````typescript
+/**
+ * platform output ports.
+ */
+
+import type { PlatformCommandResult } from "../input";
+import type { PlatformDomainEvent } from "../../domain/events";
+
+export interface PlatformContextRepository {
+	findById(contextId: string): Promise<unknown | null>;
+	save(context: unknown): Promise<void>;
+}
+
+export interface PolicyCatalogRepository {
+	findActiveByContextId(contextId: string): Promise<unknown | null>;
+	saveRevision(catalog: unknown): Promise<void>;
+}
+
+export interface IntegrationContractRepository {
+	findById(integrationContractId: string): Promise<unknown | null>;
+	save(contract: unknown): Promise<void>;
+}
+
+export interface SubscriptionAgreementRepository {
+	findEffectiveByContextId(contextId: string): Promise<unknown | null>;
+	save(agreement: unknown): Promise<void>;
+}
+
+export interface AccountRepository {
+	findById(accountId: string): Promise<unknown | null>;
+}
+
+export interface OnboardingRepository {
+	findById(onboardingId: string): Promise<unknown | null>;
+}
+
+export interface CompliancePolicyStore {
+	getPolicy(policyRef: string): Promise<unknown | null>;
+}
+
+export interface ReferralRepository {
+	findById(referralId: string): Promise<unknown | null>;
+}
+
+export interface ContentRepository {
+	findById(contentId: string): Promise<unknown | null>;
+}
+
+export interface SupportRepository {
+	findById(ticketId: string): Promise<unknown | null>;
+}
+
+export interface PlatformContextView {
+	contextId: string;
+	lifecycleState: string;
+	capabilityKeys: string[];
+}
+
+export interface PolicyCatalogView {
+	contextId: string;
+	revision: number;
+	permissionRuleCount: number;
+	workflowRuleCount: number;
+	notificationRuleCount: number;
+	auditRuleCount: number;
+}
+
+export interface SubscriptionEntitlementsView {
+	contextId: string;
+	planCode: string;
+	entitlements: string[];
+	usageLimits: string[];
+}
+
+export interface WorkflowPolicyView {
+	contextId: string;
+	triggerKey: string;
+	enabled: boolean;
+}
+
+export interface PlatformContextViewRepository {
+	getView(contextId: string): Promise<PlatformContextView | null>;
+}
+
+export interface PolicyCatalogViewRepository {
+	getView(contextId: string): Promise<PolicyCatalogView | null>;
+}
+
+export interface UsageMeterRepository {
+	getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null>;
+}
+
+export interface DeliveryHistoryRepository {
+	listByContext(contextId: string): Promise<readonly unknown[]>;
+}
+
+export interface WorkflowPolicyRepository {
+	getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null>;
+}
+
+export interface ConfigurationProfileStore {
+	getProfile(profileRef: string): Promise<unknown | null>;
+}
+
+export interface SubjectDirectory {
+	getSubject(subjectId: string): Promise<unknown | null>;
+}
+
+export interface SecretReferenceResolver {
+	resolve(secretRef: string): Promise<string>;
+}
+
+export interface DomainEventPublisher {
+	publish(events: readonly PlatformDomainEvent[]): Promise<void>;
+}
+
+export interface WorkflowDispatcherPort {
+	dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface NotificationGateway {
+	dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface AuditSignalStore {
+	write(signal: Record<string, unknown>): Promise<void>;
+}
+
+export interface ObservabilitySink {
+	emit(signal: Record<string, unknown>): Promise<void>;
+}
+
+export interface AnalyticsSink {
+	record(event: Record<string, unknown>): Promise<void>;
+}
+
+export interface ExternalSystemGateway {
+	call(request: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface JobQueuePort {
+	enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult>;
+}
+
+export interface SearchIndexPort {
+	index(document: Record<string, unknown>): Promise<void>;
+}
 ````
 
 ## File: modules/platform/ports/output/IntegrationContractRepository.ts
@@ -66601,21 +64659,6 @@ export * from "./output";
 // TODO: implement / re-export WorkflowPolicyRepository interface
 ````
 
-## File: modules/platform/shared/constants/index.ts
-````typescript
-/**
- * platform shared constants placeholder module.
- */
-
-export const PLATFORM_SHARED_CONSTANT_GROUPS = [
-	"PlatformLifecycleConstants",
-	"PlatformEventTypeConstants",
-	"PlatformErrorCodeConstants",
-] as const;
-
-export type PlatformSharedConstantGroup = (typeof PLATFORM_SHARED_CONSTANT_GROUPS)[number];
-````
-
 ## File: modules/platform/shared/constants/PlatformErrorCodeConstants.ts
 ````typescript
 /**
@@ -66748,34 +64791,6 @@ export type PlatformSharedConstantGroup = (typeof PLATFORM_SHARED_CONSTANT_GROUP
 // TODO: implement createPolicyConflictError factory function
 ````
 
-## File: modules/platform/shared/errors/index.ts
-````typescript
-/**
- * platform shared errors placeholder module.
- */
-
-export const PLATFORM_SHARED_ERROR_FACTORIES = [
-	"createEntitlementDeniedError",
-	"createPolicyConflictError",
-	"createDeliveryNotAllowedError",
-] as const;
-
-export type PlatformSharedErrorFactory = (typeof PLATFORM_SHARED_ERROR_FACTORIES)[number];
-````
-
-## File: modules/platform/shared/index.ts
-````typescript
-/**
- * platform shared utilities barrel.
- */
-
-export * from "./constants";
-export * from "./errors";
-export * from "./types";
-export * from "./utils";
-export * from "./value-objects";
-````
-
 ## File: modules/platform/shared/types/CorrelationContext.ts
 ````typescript
 /**
@@ -66828,21 +64843,6 @@ export * from "./value-objects";
  */
 
 // TODO: implement DispatchOutcome discriminated union type
-````
-
-## File: modules/platform/shared/types/index.ts
-````typescript
-/**
- * platform shared types placeholder module.
- */
-
-export const PLATFORM_SHARED_TYPE_GROUPS = [
-	"CorrelationContextType",
-	"ResourceDescriptorType",
-	"DispatchOutcomeType",
-] as const;
-
-export type PlatformSharedTypeGroup = (typeof PLATFORM_SHARED_TYPE_GROUPS)[number];
 ````
 
 ## File: modules/platform/shared/types/ResourceDescriptor.ts
@@ -66923,22 +64923,6 @@ export type PlatformSharedTypeGroup = (typeof PLATFORM_SHARED_TYPE_GROUPS)[numbe
 // TODO: implement buildCorrelationId UUID generator
 ````
 
-## File: modules/platform/shared/utils/index.ts
-````typescript
-/**
- * platform shared utilities placeholder module.
- */
-
-export const PLATFORM_SHARED_UTILITY_FUNCTIONS = [
-	"buildCorrelationId",
-	"buildCausationId",
-	"toIsoTimestamp",
-	"assertNever",
-] as const;
-
-export type PlatformSharedUtilityFunction = (typeof PLATFORM_SHARED_UTILITY_FUNCTIONS)[number];
-````
-
 ## File: modules/platform/shared/utils/toIsoTimestamp.ts
 ````typescript
 /**
@@ -67015,43 +64999,6 @@ export type PlatformSharedUtilityFunction = (typeof PLATFORM_SHARED_UTILITY_FUNC
  */
 
 // TODO: implement EndpointRef value object
-````
-
-## File: modules/platform/shared/value-objects/index.ts
-````typescript
-/**
- * platform shared value-object derivation inventory.
- */
-
-export const PLATFORM_SHARED_VALUE_OBJECT_TYPES = [
-	"PlatformContextId",
-	"PolicyCatalogId",
-	"IntegrationContractId",
-	"SubscriptionAgreementId",
-	"PlatformLifecycleState",
-	"ContractState",
-	"BillingState",
-	"EffectivePeriod",
-	"EndpointRef",
-	"SecretReference",
-] as const;
-
-export type PlatformSharedValueObjectType = (typeof PLATFORM_SHARED_VALUE_OBJECT_TYPES)[number];
-
-export const PLATFORM_SHARED_VALUE_OBJECT_FACTORIES = [
-	"createPlatformContextId",
-	"createPolicyCatalogId",
-	"createIntegrationContractId",
-	"createSubscriptionAgreementId",
-	"createPlatformLifecycleState",
-	"createContractState",
-	"createBillingState",
-	"createEffectivePeriod",
-	"createEndpointRef",
-	"createSecretReference",
-] as const;
-
-export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJECT_FACTORIES)[number];
 ````
 
 ## File: modules/platform/shared/value-objects/IntegrationContractId.ts
@@ -67147,19 +65094,6 @@ export type PlatformSharedValueObjectFactory = (typeof PLATFORM_SHARED_VALUE_OBJ
 // TODO: implement SubscriptionAgreementId branded type and createSubscriptionAgreementId factory
 ````
 
-## File: modules/platform/subdomains/account-profile/adapters/create-legacy-account-profile-application.adapter.ts
-````typescript
-import { getUserProfile, subscribeToUserProfile } from "@/modules/account/api";
-import type { LegacyAccountProfileApplicationPort } from "../application";
-
-export function createLegacyAccountProfileApplicationAdapter(): LegacyAccountProfileApplicationPort {
-	return {
-		getUserProfile,
-		subscribeToUserProfile,
-	};
-}
-````
-
 ## File: modules/platform/subdomains/account-profile/adapters/index.ts
 ````typescript
 export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-account-profile-application.adapter";
@@ -67170,82 +65104,1222 @@ export { createLegacyAccountProfileApplicationAdapter } from "./create-legacy-ac
 export type { LegacyAccountProfileApplicationPort } from "./legacy-account-profile-application.port";
 ````
 
-## File: modules/platform/subdomains/account-profile/application/legacy-account-profile-application.port.ts
+## File: modules/platform/subdomains/account/adapters/account-service.ts
 ````typescript
-import { getUserProfile, subscribeToUserProfile } from "@/modules/account/api";
+/**
+ * AccountService — Composition root for account use cases.
+ * Wires repositories and ports; provides a unified service interface.
+ */
+
+import {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "../application/use-cases/account.use-cases";
+import {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "../application/use-cases/account-policy.use-cases";
+import { FirebaseAccountRepository } from "./firebase/FirebaseAccountRepository";
+import { FirebaseAccountQueryRepository } from "./firebase/FirebaseAccountQueryRepository";
+import { FirebaseAccountPolicyRepository } from "./firebase/FirebaseAccountPolicyRepository";
+import { tokenRefreshAdapter } from "./identity-token-refresh.adapter";
+import type { UpdateProfileInput, OrganizationRole } from "../domain/entities/Account";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../domain/entities/AccountPolicy";
+import type { CommandResult } from "@shared-types";
+
+const accountRepo = new FirebaseAccountRepository();
+const policyRepo = new FirebaseAccountPolicyRepository();
+
+export const accountService = {
+  createUserAccount: (userId: string, name: string, email: string): Promise<CommandResult> =>
+    new CreateUserAccountUseCase(accountRepo).execute(userId, name, email),
+
+  updateUserProfile: (userId: string, data: UpdateProfileInput): Promise<CommandResult> =>
+    new UpdateUserProfileUseCase(accountRepo).execute(userId, data),
+
+  creditWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new CreditWalletUseCase(accountRepo).execute(accountId, amount, description),
+
+  debitWallet: (accountId: string, amount: number, description: string): Promise<CommandResult> =>
+    new DebitWalletUseCase(accountRepo).execute(accountId, amount, description),
+
+  assignRole: (accountId: string, role: OrganizationRole, grantedBy: string, traceId?: string): Promise<CommandResult> =>
+    new AssignAccountRoleUseCase(accountRepo, tokenRefreshAdapter).execute(accountId, role, grantedBy, traceId),
+
+  revokeRole: (accountId: string): Promise<CommandResult> =>
+    new RevokeAccountRoleUseCase(accountRepo, tokenRefreshAdapter).execute(accountId),
+
+  createPolicy: (input: CreatePolicyInput): Promise<CommandResult> =>
+    new CreateAccountPolicyUseCase(policyRepo, tokenRefreshAdapter).execute(input),
+
+  updatePolicy: (policyId: string, accountId: string, data: UpdatePolicyInput, traceId?: string): Promise<CommandResult> =>
+    new UpdateAccountPolicyUseCase(policyRepo, tokenRefreshAdapter).execute(policyId, accountId, data, traceId),
+
+  deletePolicy: (policyId: string, accountId: string): Promise<CommandResult> =>
+    new DeleteAccountPolicyUseCase(policyRepo, tokenRefreshAdapter).execute(policyId, accountId),
+};
 
 /**
- * Temporary compatibility port during migration from account profile concerns.
+ * Creates a wired set of client-side account use cases.
+ * Keeps infrastructure wiring in the module boundary rather than in UI files.
  */
-export interface LegacyAccountProfileApplicationPort {
-	getUserProfile: typeof getUserProfile;
-	subscribeToUserProfile: typeof subscribeToUserProfile;
+export function createClientAccountUseCases() {
+  const repo = new FirebaseAccountRepository();
+  return {
+    createUserAccountUseCase: new CreateUserAccountUseCase(repo),
+  };
+}
+
+export { FirebaseAccountQueryRepository };
+````
+
+## File: modules/platform/subdomains/account/adapters/firebase/FirebaseAccountPolicyRepository.ts
+````typescript
+/**
+ * FirebaseAccountPolicyRepository — Policy persistence adapter.
+ * Firebase SDK only exists in this file.
+ */
+
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
+import type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+
+function toAccountPolicy(id: string, data: Record<string, unknown>): AccountPolicy {
+  return {
+    id,
+    accountId: data.accountId as string,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    rules: Array.isArray(data.rules) ? (data.rules as AccountPolicy["rules"]) : [],
+    isActive: data.isActive === true,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+    traceId: typeof data.traceId === "string" ? data.traceId : undefined,
+  };
+}
+
+export class FirebaseAccountPolicyRepository implements AccountPolicyRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<AccountPolicy | null> {
+    const snap = await getDoc(doc(this.db, "accountPolicies", id));
+    if (!snap.exists()) return null;
+    return toAccountPolicy(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async findAllByAccountId(accountId: string): Promise<AccountPolicy[]> {
+    const q = query(collection(this.db, "accountPolicies"), where("accountId", "==", accountId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toAccountPolicy(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async findActiveByAccountId(accountId: string): Promise<AccountPolicy[]> {
+    const q = query(
+      collection(this.db, "accountPolicies"),
+      where("accountId", "==", accountId),
+      where("isActive", "==", true),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toAccountPolicy(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async create(input: CreatePolicyInput): Promise<AccountPolicy> {
+    const now = new Date().toISOString();
+    const ref = await addDoc(collection(this.db, "accountPolicies"), {
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      ...(input.traceId ? { traceId: input.traceId } : {}),
+      _createdAt: serverTimestamp(),
+    });
+    return {
+      id: ref.id,
+      accountId: input.accountId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      traceId: input.traceId,
+    };
+  }
+
+  async update(policyId: string, data: UpdatePolicyInput): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAt: new Date().toISOString(), _updatedAt: serverTimestamp() };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.rules !== undefined) updates.rules = data.rules;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    await updateDoc(doc(this.db, "accountPolicies", policyId), updates);
+  }
+
+  async delete(policyId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "accountPolicies", policyId));
+  }
 }
 ````
 
-## File: modules/platform/subdomains/account/adapters/create-legacy-account-application.adapter.ts
+## File: modules/platform/subdomains/account/adapters/firebase/FirebaseAccountQueryRepository.ts
 ````typescript
-import {
-	createClientAccountUseCases,
-	getActiveAccountPolicies,
-	getAccountPolicies,
-	getAccountRole,
-	getUserProfile,
-	subscribeToAccountRoles,
-	subscribeToAccountsForUser,
-	subscribeToUserProfile,
-} from "@/modules/account/api";
-import type { LegacyAccountApplicationPort } from "../application";
+/**
+ * FirebaseAccountQueryRepository — Read-side infrastructure adapter.
+ * Provides real-time subscriptions and one-shot reads.
+ * Firebase SDK only exists in this file.
+ */
 
-export function createLegacyAccountApplicationAdapter(): LegacyAccountApplicationPort {
-	return {
-		createClientAccountUseCases,
-		getUserProfile,
-		subscribeToUserProfile,
-		subscribeToAccountsForUser,
-		getAccountRole,
-		subscribeToAccountRoles,
-		getAccountPolicies,
-		getActiveAccountPolicies,
-	};
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit as fbLimit,
+  onSnapshot,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "../../domain/repositories/AccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord, OrganizationRole } from "../../domain/entities/Account";
+
+function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    accountType:
+      (data.accountType as AccountEntity["accountType"]) === "organization"
+        ? "organization"
+        : "user",
+    email: typeof data.email === "string" ? data.email : undefined,
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    bio: typeof data.bio === "string" ? data.bio : undefined,
+    wallet: data.wallet != null ? (data.wallet as AccountEntity["wallet"]) : undefined,
+    theme: data.theme != null ? (data.theme as AccountEntity["theme"]) : undefined,
+    members: Array.isArray(data.members) ? (data.members as AccountEntity["members"]) : undefined,
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : undefined,
+    teams: Array.isArray(data.teams) ? (data.teams as AccountEntity["teams"]) : undefined,
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+    createdAt: data.createdAt as AccountEntity["createdAt"],
+  };
+}
+
+export class FirebaseAccountQueryRepository implements AccountQueryRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async getUserProfile(userId: string): Promise<AccountEntity | null> {
+    const snap = await getDoc(doc(this.db, "accounts", userId));
+    if (!snap.exists()) return null;
+    return toAccountEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  subscribeToUserProfile(userId: string, onUpdate: (profile: AccountEntity | null) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, "accounts", userId), (snap) => {
+      onUpdate(
+        snap.exists() ? toAccountEntity(snap.id, snap.data() as Record<string, unknown>) : null,
+      );
+    });
+  }
+
+  async getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+    const snap = await getDoc(doc(this.db, "accounts", accountId));
+    if (!snap.exists()) return { balance: 0 };
+    const data = snap.data() as Record<string, unknown>;
+    const wallet = data.wallet as Record<string, unknown> | undefined;
+    return { balance: typeof wallet?.balance === "number" ? wallet.balance : 0 };
+  }
+
+  subscribeToWalletBalance(accountId: string, onUpdate: (snapshot: WalletBalanceSnapshot) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, "accounts", accountId), (snap) => {
+      if (!snap.exists()) {
+        onUpdate({ balance: 0 });
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      const wallet = data.wallet as Record<string, unknown> | undefined;
+      onUpdate({ balance: typeof wallet?.balance === "number" ? wallet.balance : 0 });
+    });
+  }
+
+  subscribeToWalletTransactions(
+    accountId: string,
+    maxCount: number,
+    onUpdate: (txs: WalletTransaction[]) => void,
+  ): Unsubscribe {
+    const ref = collection(this.db, "accounts", accountId, "walletTransactions");
+    const q = query(ref, orderBy("occurredAt", "desc"), fbLimit(maxCount));
+    return onSnapshot(q, (snap) => {
+      const txs: WalletTransaction[] = snap.docs.map((d) => {
+        const data = d.data() as Record<string, unknown>;
+        return {
+          id: d.id,
+          accountId: data.accountId as string,
+          amount: data.amount as number,
+          description: (data.reason as string | undefined) ?? "",
+          createdAt: data.occurredAt as WalletTransaction["createdAt"],
+        };
+      });
+      onUpdate(txs);
+    });
+  }
+
+  async getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+    const snap = await getDoc(doc(this.db, "accountRoles", accountId));
+    if (!snap.exists()) return null;
+    const data = snap.data() as Record<string, unknown>;
+    return {
+      accountId,
+      role: data.role as OrganizationRole,
+      grantedBy: data.grantedBy as string,
+      grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
+    };
+  }
+
+  subscribeToAccountRoles(accountId: string, onUpdate: (record: AccountRoleRecord | null) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, "accountRoles", accountId), (snap) => {
+      if (!snap.exists()) {
+        onUpdate(null);
+        return;
+      }
+      const data = snap.data() as Record<string, unknown>;
+      onUpdate({
+        accountId,
+        role: data.role as OrganizationRole,
+        grantedBy: data.grantedBy as string,
+        grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
+      });
+    });
+  }
+
+  subscribeToAccountsForUser(userId: string, onUpdate: (accounts: Record<string, AccountEntity>) => void): Unsubscribe {
+    const db = this.db;
+    let ownerAccounts: Record<string, AccountEntity> = {};
+    let memberAccounts: Record<string, AccountEntity> = {};
+
+    const emit = () => {
+      onUpdate({ ...ownerAccounts, ...memberAccounts });
+    };
+
+    const ownerQuery = query(
+      collection(db, "accounts"),
+      where("ownerId", "==", userId),
+      where("accountType", "==", "organization"),
+    );
+
+    const memberQuery = query(
+      collection(db, "accounts"),
+      where("memberIds", "array-contains", userId),
+      where("accountType", "==", "organization"),
+    );
+
+    const unsubOwner = onSnapshot(ownerQuery, (snap) => {
+      ownerAccounts = {};
+      snap.docs.forEach((d) => {
+        ownerAccounts[d.id] = toAccountEntity(d.id, d.data() as Record<string, unknown>);
+      });
+      emit();
+    });
+
+    const unsubMember = onSnapshot(memberQuery, (snap) => {
+      memberAccounts = {};
+      snap.docs.forEach((d) => {
+        memberAccounts[d.id] = toAccountEntity(d.id, d.data() as Record<string, unknown>);
+      });
+      emit();
+    });
+
+    return () => {
+      unsubOwner();
+      unsubMember();
+    };
+  }
 }
 ````
 
-## File: modules/platform/subdomains/account/adapters/index.ts
+## File: modules/platform/subdomains/account/adapters/firebase/FirebaseAccountRepository.ts
 ````typescript
-export { createLegacyAccountApplicationAdapter } from "./create-legacy-account-application.adapter";
-````
+/**
+ * FirebaseAccountRepository — Infrastructure adapter for account persistence.
+ * Translates Firestore documents ↔ Domain AccountEntity.
+ * Firebase SDK only exists in this file.
+ */
 
-## File: modules/platform/subdomains/account/application/index.ts
-````typescript
-export type { LegacyAccountApplicationPort } from "./legacy-account-application.port";
-````
-
-## File: modules/platform/subdomains/account/application/legacy-account-application.port.ts
-````typescript
 import {
-	createClientAccountUseCases,
-	getActiveAccountPolicies,
-	getAccountPolicies,
-	getAccountRole,
-	getUserProfile,
-	subscribeToAccountRoles,
-	subscribeToAccountsForUser,
-	subscribeToUserProfile,
-} from "@/modules/account/api";
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  collection,
+  addDoc,
+  runTransaction,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { AccountRepository } from "../../domain/repositories/AccountRepository";
+import type {
+  AccountEntity,
+  UpdateProfileInput,
+  WalletTransaction,
+  AccountRoleRecord,
+  OrganizationRole,
+} from "../../domain/entities/Account";
+
+function toAccountEntity(id: string, data: Record<string, unknown>): AccountEntity {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    accountType:
+      (data.accountType as AccountEntity["accountType"]) === "organization"
+        ? "organization"
+        : "user",
+    email: typeof data.email === "string" ? data.email : undefined,
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    bio: typeof data.bio === "string" ? data.bio : undefined,
+    wallet: data.wallet != null ? (data.wallet as AccountEntity["wallet"]) : undefined,
+    theme: data.theme != null ? (data.theme as AccountEntity["theme"]) : undefined,
+    members: Array.isArray(data.members) ? (data.members as AccountEntity["members"]) : undefined,
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : undefined,
+    teams: Array.isArray(data.teams) ? (data.teams as AccountEntity["teams"]) : undefined,
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : undefined,
+    createdAt: data.createdAt as AccountEntity["createdAt"],
+  };
+}
+
+export class FirebaseAccountRepository implements AccountRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async findById(id: string): Promise<AccountEntity | null> {
+    const snap = await getDoc(doc(this.db, "accounts", id));
+    if (!snap.exists()) return null;
+    return toAccountEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async save(account: AccountEntity): Promise<void> {
+    await setDoc(doc(this.db, "accounts", account.id), {
+      name: account.name,
+      accountType: account.accountType,
+      email: account.email ?? null,
+      photoURL: account.photoURL ?? null,
+      bio: account.bio ?? null,
+      createdAt: serverTimestamp(),
+    });
+  }
+
+  async updateProfile(userId: string, data: UpdateProfileInput): Promise<void> {
+    const updates: Record<string, unknown> = { updatedAt: serverTimestamp() };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.bio !== undefined) updates.bio = data.bio;
+    if (data.photoURL !== undefined) updates.photoURL = data.photoURL;
+    if (data.theme !== undefined) updates.theme = data.theme;
+    await updateDoc(doc(this.db, "accounts", userId), updates);
+  }
+
+  async getWalletBalance(accountId: string): Promise<number> {
+    const snap = await getDoc(doc(this.db, "accounts", accountId));
+    if (!snap.exists()) return 0;
+    const data = snap.data() as Record<string, unknown>;
+    const wallet = data.wallet as Record<string, unknown> | undefined;
+    return typeof wallet?.balance === "number" ? wallet.balance : 0;
+  }
+
+  async creditWallet(accountId: string, amount: number, description: string): Promise<WalletTransaction> {
+    const db = this.db;
+    const accountRef = doc(db, "accounts", accountId);
+
+    await runTransaction(db, async (txn) => {
+      const snap = await txn.get(accountRef);
+      const current = snap.exists()
+        ? ((snap.data() as Record<string, unknown>).wallet as Record<string, unknown> | undefined)
+        : undefined;
+      const currentBalance = typeof current?.balance === "number" ? current.balance : 0;
+      txn.update(accountRef, {
+        "wallet.balance": currentBalance + amount,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    const txRef = await addDoc(collection(db, "accounts", accountId, "walletTransactions"), {
+      accountId,
+      type: "credit",
+      amount,
+      reason: description,
+      occurredAt: serverTimestamp(),
+    });
+
+    return {
+      id: txRef.id,
+      accountId,
+      amount,
+      description,
+      createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+    };
+  }
+
+  async debitWallet(accountId: string, amount: number, description: string): Promise<WalletTransaction> {
+    const db = this.db;
+    const accountRef = doc(db, "accounts", accountId);
+
+    await runTransaction(db, async (txn) => {
+      const snap = await txn.get(accountRef);
+      const current = snap.exists()
+        ? ((snap.data() as Record<string, unknown>).wallet as Record<string, unknown> | undefined)
+        : undefined;
+      const currentBalance = typeof current?.balance === "number" ? current.balance : 0;
+      if (currentBalance < amount) {
+        throw new Error(`Insufficient wallet balance: have ${currentBalance}, need ${amount}`);
+      }
+      txn.update(accountRef, {
+        "wallet.balance": currentBalance - amount,
+        updatedAt: serverTimestamp(),
+      });
+    });
+
+    const txRef = await addDoc(collection(db, "accounts", accountId, "walletTransactions"), {
+      accountId,
+      type: "debit",
+      amount,
+      reason: description,
+      occurredAt: serverTimestamp(),
+    });
+
+    return {
+      id: txRef.id,
+      accountId,
+      amount,
+      description,
+      createdAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+    };
+  }
+
+  async assignRole(accountId: string, role: OrganizationRole, grantedBy: string): Promise<AccountRoleRecord> {
+    await setDoc(
+      doc(this.db, "accountRoles", accountId),
+      { accountId, role, grantedBy, grantedAt: new Date().toISOString(), isActive: true, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+    return {
+      accountId,
+      role,
+      grantedBy,
+      grantedAt: { seconds: Date.now() / 1000, nanoseconds: 0, toDate: () => new Date() },
+    };
+  }
+
+  async revokeRole(accountId: string): Promise<void> {
+    await updateDoc(doc(this.db, "accountRoles", accountId), {
+      isActive: false,
+      revokedAt: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    });
+  }
+
+  async getRole(accountId: string): Promise<AccountRoleRecord | null> {
+    const snap = await getDoc(doc(this.db, "accountRoles", accountId));
+    if (!snap.exists()) return null;
+    const data = snap.data() as Record<string, unknown>;
+    return {
+      accountId,
+      role: data.role as OrganizationRole,
+      grantedBy: data.grantedBy as string,
+      grantedAt: data.grantedAt as AccountRoleRecord["grantedAt"],
+    };
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/adapters/identity-token-refresh.adapter.ts
+````typescript
+/**
+ * IdentityTokenRefreshAdapter — Implements TokenRefreshPort using the platform identity subdomain.
+ * This adapter lives in the adapters layer so the application layer stays clean.
+ */
+
+import { identityApi } from "@/modules/platform/subdomains/identity";
+import type { TokenRefreshPort, TokenRefreshSignalInput } from "../domain/ports/TokenRefreshPort";
+
+export class IdentityTokenRefreshAdapter implements TokenRefreshPort {
+  async emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void> {
+    await identityApi.emitTokenRefreshSignal(input);
+  }
+}
+
+export const tokenRefreshAdapter = new IdentityTokenRefreshAdapter();
+````
+
+## File: modules/platform/subdomains/account/adapters/server-actions/account-policy.actions.ts
+````typescript
+"use server";
 
 /**
- * Temporary compatibility port during migration from modules/account.
+ * Account Policy Server Actions — thin adapter: Server Actions → Application Use Cases.
  */
-export interface LegacyAccountApplicationPort {
-	createClientAccountUseCases: typeof createClientAccountUseCases;
-	getUserProfile: typeof getUserProfile;
-	subscribeToUserProfile: typeof subscribeToUserProfile;
-	subscribeToAccountsForUser: typeof subscribeToAccountsForUser;
-	getAccountRole: typeof getAccountRole;
-	subscribeToAccountRoles: typeof subscribeToAccountRoles;
-	getAccountPolicies: typeof getAccountPolicies;
-	getActiveAccountPolicies: typeof getActiveAccountPolicies;
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../account-service";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+
+export async function createAccountPolicy(input: CreatePolicyInput): Promise<CommandResult> {
+  try {
+    return await accountService.createPolicy(input);
+  } catch (err) {
+    return commandFailureFrom("CREATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateAccountPolicy(
+  policyId: string,
+  accountId: string,
+  data: UpdatePolicyInput,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updatePolicy(policyId, accountId, data, traceId);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteAccountPolicy(
+  policyId: string,
+  accountId: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.deletePolicy(policyId, accountId);
+  } catch (err) {
+    return commandFailureFrom("DELETE_ACCOUNT_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/adapters/server-actions/account.actions.ts
+````typescript
+"use server";
+
+/**
+ * Account Server Actions — thin adapter: Next.js Server Actions → Application Use Cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { accountService } from "../account-service";
+import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+
+export async function createUserAccount(
+  userId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.createUserAccount(userId, name, email);
+  } catch (err) {
+    return commandFailureFrom("CREATE_USER_ACCOUNT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateUserProfile(
+  userId: string,
+  data: UpdateProfileInput,
+): Promise<CommandResult> {
+  try {
+    return await accountService.updateUserProfile(userId, data);
+  } catch (err) {
+    return commandFailureFrom("UPDATE_USER_PROFILE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function creditWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.creditWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_CREDIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function debitWallet(
+  accountId: string,
+  amount: number,
+  description: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.debitWallet(accountId, amount, description);
+  } catch (err) {
+    return commandFailureFrom("WALLET_DEBIT_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function assignAccountRole(
+  accountId: string,
+  role: OrganizationRole,
+  grantedBy: string,
+  traceId?: string,
+): Promise<CommandResult> {
+  try {
+    return await accountService.assignRole(accountId, role, grantedBy, traceId);
+  } catch (err) {
+    return commandFailureFrom("ASSIGN_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function revokeAccountRole(accountId: string): Promise<CommandResult> {
+  try {
+    return await accountService.revokeRole(accountId);
+  } catch (err) {
+    return commandFailureFrom("REVOKE_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/application/use-cases/account-policy.use-cases.ts
+````typescript
+/**
+ * Account Policy Use Cases — pure application logic.
+ * Token-refresh side effects are injected via TokenRefreshPort, not imported directly.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
+import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
+import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
+
+// ─── Create Account Policy ────────────────────────────────────────────────────
+
+export class CreateAccountPolicyUseCase {
+  constructor(
+    private readonly policyRepo: AccountPolicyRepository,
+    private readonly tokenRefresh: TokenRefreshPort,
+  ) {}
+
+  async execute(input: CreatePolicyInput): Promise<CommandResult> {
+    try {
+      const policy = await this.policyRepo.create(input);
+      await this.tokenRefresh.emitTokenRefreshSignal({
+        accountId: input.accountId,
+        reason: "policy:changed",
+        ...(input.traceId ? { traceId: input.traceId } : {}),
+      });
+      return commandSuccess(policy.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_ACCOUNT_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to create account policy",
+      );
+    }
+  }
+}
+
+// ─── Update Account Policy ────────────────────────────────────────────────────
+
+export class UpdateAccountPolicyUseCase {
+  constructor(
+    private readonly policyRepo: AccountPolicyRepository,
+    private readonly tokenRefresh: TokenRefreshPort,
+  ) {}
+
+  async execute(
+    policyId: string,
+    accountId: string,
+    data: UpdatePolicyInput,
+    traceId?: string,
+  ): Promise<CommandResult> {
+    try {
+      const existing = await this.policyRepo.findById(policyId);
+      if (!existing) {
+        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
+      }
+      await this.policyRepo.update(policyId, data);
+      await this.tokenRefresh.emitTokenRefreshSignal({
+        accountId,
+        reason: "policy:changed",
+        ...(traceId ? { traceId } : {}),
+      });
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_ACCOUNT_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to update account policy",
+      );
+    }
+  }
+}
+
+// ─── Delete Account Policy ────────────────────────────────────────────────────
+
+export class DeleteAccountPolicyUseCase {
+  constructor(
+    private readonly policyRepo: AccountPolicyRepository,
+    private readonly tokenRefresh: TokenRefreshPort,
+  ) {}
+
+  async execute(policyId: string, accountId: string): Promise<CommandResult> {
+    try {
+      const existing = await this.policyRepo.findById(policyId);
+      if (!existing) {
+        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
+      }
+      await this.policyRepo.delete(policyId);
+      await this.tokenRefresh.emitTokenRefreshSignal({
+        accountId,
+        reason: "policy:changed",
+      });
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "DELETE_ACCOUNT_POLICY_FAILED",
+        err instanceof Error ? err.message : "Failed to delete account policy",
+      );
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/application/use-cases/account.use-cases.ts
+````typescript
+/**
+ * Account Use Cases — pure application logic.
+ * All cross-domain dependencies are injected via ports (no direct imports).
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { AccountRepository } from "../../domain/repositories/AccountRepository";
+import type { TokenRefreshPort } from "../../domain/ports/TokenRefreshPort";
+import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
+
+// ─── Create User Account ──────────────────────────────────────────────────────
+
+export class CreateUserAccountUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(userId: string, name: string, email: string): Promise<CommandResult> {
+    try {
+      await this.accountRepo.save({
+        id: userId,
+        name,
+        email,
+        accountType: "user",
+      });
+      return commandSuccess(userId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "CREATE_USER_ACCOUNT_FAILED",
+        err instanceof Error ? err.message : "Failed to create user account",
+      );
+    }
+  }
+}
+
+// ─── Update User Profile ──────────────────────────────────────────────────────
+
+export class UpdateUserProfileUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult> {
+    try {
+      await this.accountRepo.updateProfile(userId, data);
+      return commandSuccess(userId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "UPDATE_USER_PROFILE_FAILED",
+        err instanceof Error ? err.message : "Failed to update user profile",
+      );
+    }
+  }
+}
+
+// ─── Credit Wallet ────────────────────────────────────────────────────────────
+
+export class CreditWalletUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(accountId: string, amount: number, description: string): Promise<CommandResult> {
+    try {
+      if (amount <= 0) {
+        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Credit amount must be positive");
+      }
+      const tx = await this.accountRepo.creditWallet(accountId, amount, description);
+      return commandSuccess(tx.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WALLET_CREDIT_FAILED",
+        err instanceof Error ? err.message : "Failed to credit wallet",
+      );
+    }
+  }
+}
+
+// ─── Debit Wallet ─────────────────────────────────────────────────────────────
+
+export class DebitWalletUseCase {
+  constructor(private readonly accountRepo: AccountRepository) {}
+
+  async execute(accountId: string, amount: number, description: string): Promise<CommandResult> {
+    try {
+      if (amount <= 0) {
+        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Debit amount must be positive");
+      }
+      const balance = await this.accountRepo.getWalletBalance(accountId);
+      if (balance < amount) {
+        return commandFailureFrom("WALLET_INSUFFICIENT_FUNDS", "Insufficient wallet balance");
+      }
+      const tx = await this.accountRepo.debitWallet(accountId, amount, description);
+      return commandSuccess(tx.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "WALLET_DEBIT_FAILED",
+        err instanceof Error ? err.message : "Failed to debit wallet",
+      );
+    }
+  }
+}
+
+// ─── Assign Account Role ──────────────────────────────────────────────────────
+
+export class AssignAccountRoleUseCase {
+  constructor(
+    private readonly accountRepo: AccountRepository,
+    private readonly tokenRefresh: TokenRefreshPort,
+  ) {}
+
+  async execute(
+    accountId: string,
+    role: OrganizationRole,
+    grantedBy: string,
+    traceId?: string,
+  ): Promise<CommandResult> {
+    try {
+      const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
+      await this.tokenRefresh.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+        ...(traceId ? { traceId } : {}),
+      });
+      return commandSuccess(record.accountId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "ASSIGN_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to assign role",
+      );
+    }
+  }
+}
+
+// ─── Revoke Account Role ──────────────────────────────────────────────────────
+
+export class RevokeAccountRoleUseCase {
+  constructor(
+    private readonly accountRepo: AccountRepository,
+    private readonly tokenRefresh: TokenRefreshPort,
+  ) {}
+
+  async execute(accountId: string): Promise<CommandResult> {
+    try {
+      await this.accountRepo.revokeRole(accountId);
+      await this.tokenRefresh.emitTokenRefreshSignal({
+        accountId,
+        reason: "role:changed",
+      });
+      return commandSuccess(accountId, Date.now());
+    } catch (err) {
+      return commandFailureFrom(
+        "REVOKE_ROLE_FAILED",
+        err instanceof Error ? err.message : "Failed to revoke role",
+      );
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/account/domain/entities/Account.ts
+````typescript
+/**
+ * Account Domain Entities — pure TypeScript, zero framework dependencies.
+ * Bounded context: platform/account subdomain.
+ */
+
+import type { Timestamp } from "@shared-types";
+
+export type AccountType = "user" | "organization";
+export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
+export type Presence = "active" | "away" | "offline";
+
+export interface ThemeConfig {
+  primary: string;
+  background: string;
+  accent: string;
+}
+
+export interface Wallet {
+  balance: number;
+}
+
+export interface ExpertiseBadge {
+  id: string;
+  name: string;
+  icon?: string;
+}
+
+export interface MemberReference {
+  id: string;
+  name: string;
+  email: string;
+  role: OrganizationRole;
+  presence: Presence;
+  isExternal?: boolean;
+  expiryDate?: Timestamp;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+  memberIds: string[];
+}
+
+export interface AccountEntity {
+  id: string;
+  name: string;
+  accountType: AccountType;
+  email?: string;
+  photoURL?: string;
+  bio?: string;
+  achievements?: string[];
+  expertiseBadges?: ExpertiseBadge[];
+  wallet?: Wallet;
+  description?: string;
+  ownerId?: string;
+  role?: OrganizationRole;
+  theme?: ThemeConfig;
+  members?: MemberReference[];
+  memberIds?: string[];
+  teams?: Team[];
+  createdAt?: Timestamp;
+}
+
+export type AccountRoleRecord = {
+  accountId: string;
+  role: OrganizationRole;
+  grantedBy: string;
+  grantedAt: Timestamp;
+};
+
+// ─── Value Objects ────────────────────────────────────────────────────────────
+
+export interface UpdateProfileInput {
+  name?: string;
+  bio?: string;
+  photoURL?: string;
+  theme?: ThemeConfig;
+}
+
+export interface WalletTransaction {
+  id: string;
+  accountId: string;
+  amount: number;
+  description: string;
+  createdAt: Timestamp;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/entities/AccountPolicy.ts
+````typescript
+/**
+ * AccountPolicy — Domain Entity.
+ * Represents an access-control policy attached to an account.
+ * Account-level policies trigger CUSTOM_CLAIMS refresh via TokenRefreshPort.
+ * Zero external dependencies.
+ */
+
+export type PolicyEffect = "allow" | "deny";
+
+export interface PolicyRule {
+  resource: string;
+  actions: string[];
+  effect: PolicyEffect;
+  conditions?: Record<string, string>;
+}
+
+export interface AccountPolicy {
+  readonly id: string;
+  readonly accountId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly rules: PolicyRule[];
+  readonly isActive: boolean;
+  readonly createdAt: string; // ISO-8601
+  readonly updatedAt: string; // ISO-8601
+  readonly traceId?: string;
+}
+
+// ─── Value Objects (Commands) ─────────────────────────────────────────────────
+
+export interface CreatePolicyInput {
+  readonly accountId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly rules: PolicyRule[];
+  readonly traceId?: string;
+}
+
+export interface UpdatePolicyInput {
+  readonly name?: string;
+  readonly description?: string;
+  readonly rules?: PolicyRule[];
+  readonly isActive?: boolean;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/index.ts
+````typescript
+export type {
+  AccountType,
+  OrganizationRole,
+  Presence,
+  ThemeConfig,
+  Wallet,
+  ExpertiseBadge,
+  MemberReference,
+  Team,
+  AccountEntity,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+} from "./entities/Account";
+
+export type {
+  PolicyEffect,
+  PolicyRule,
+  AccountPolicy,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "./entities/AccountPolicy";
+
+export type { AccountRepository } from "./repositories/AccountRepository";
+export type { AccountQueryRepository, WalletBalanceSnapshot, Unsubscribe } from "./repositories/AccountQueryRepository";
+export type { AccountPolicyRepository } from "./repositories/AccountPolicyRepository";
+export type { TokenRefreshPort, TokenRefreshSignalInput } from "./ports/TokenRefreshPort";
+````
+
+## File: modules/platform/subdomains/account/domain/ports/TokenRefreshPort.ts
+````typescript
+/**
+ * TokenRefreshPort — Driven port for emitting token-refresh signals.
+ * Decouples account application layer from the identity subdomain.
+ * Platform identity adapter implements this port.
+ */
+
+export interface TokenRefreshSignalInput {
+  accountId: string;
+  reason: string;
+  traceId?: string;
+}
+
+export interface TokenRefreshPort {
+  emitTokenRefreshSignal(input: TokenRefreshSignalInput): Promise<void>;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/repositories/AccountPolicyRepository.ts
+````typescript
+/**
+ * AccountPolicyRepository — Policy CRUD persistence port.
+ */
+
+import type { AccountPolicy, CreatePolicyInput, UpdatePolicyInput } from "../entities/AccountPolicy";
+
+export interface AccountPolicyRepository {
+  findById(id: string): Promise<AccountPolicy | null>;
+  findAllByAccountId(accountId: string): Promise<AccountPolicy[]>;
+  findActiveByAccountId(accountId: string): Promise<AccountPolicy[]>;
+  create(input: CreatePolicyInput): Promise<AccountPolicy>;
+  update(policyId: string, data: UpdatePolicyInput): Promise<void>;
+  delete(policyId: string): Promise<void>;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/repositories/AccountQueryRepository.ts
+````typescript
+/**
+ * AccountQueryRepository — Read-side persistence port (CQRS).
+ * Separated from AccountRepository for CQRS clarity.
+ */
+
+import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../entities/Account";
+
+export interface WalletBalanceSnapshot {
+  balance: number;
+}
+
+export type Unsubscribe = () => void;
+
+export interface AccountQueryRepository {
+  getUserProfile(userId: string): Promise<AccountEntity | null>;
+  subscribeToUserProfile(userId: string, onUpdate: (profile: AccountEntity | null) => void): Unsubscribe;
+  getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot>;
+  subscribeToWalletBalance(accountId: string, onUpdate: (snapshot: WalletBalanceSnapshot) => void): Unsubscribe;
+  subscribeToWalletTransactions(accountId: string, maxCount: number, onUpdate: (txs: WalletTransaction[]) => void): Unsubscribe;
+  getAccountRole(accountId: string): Promise<AccountRoleRecord | null>;
+  subscribeToAccountRoles(accountId: string, onUpdate: (record: AccountRoleRecord | null) => void): Unsubscribe;
+  subscribeToAccountsForUser(userId: string, onUpdate: (accounts: Record<string, AccountEntity>) => void): Unsubscribe;
+}
+````
+
+## File: modules/platform/subdomains/account/domain/repositories/AccountRepository.ts
+````typescript
+/**
+ * AccountRepository — Write-side persistence port (CQRS).
+ * Domain owns the contract; Infrastructure implements it.
+ */
+
+import type {
+  AccountEntity,
+  UpdateProfileInput,
+  WalletTransaction,
+  AccountRoleRecord,
+  OrganizationRole,
+} from "../entities/Account";
+
+export interface AccountRepository {
+  findById(id: string): Promise<AccountEntity | null>;
+  save(account: AccountEntity): Promise<void>;
+  updateProfile(userId: string, data: UpdateProfileInput): Promise<void>;
+  getWalletBalance(accountId: string): Promise<number>;
+  creditWallet(accountId: string, amount: number, description: string): Promise<WalletTransaction>;
+  debitWallet(accountId: string, amount: number, description: string): Promise<WalletTransaction>;
+  assignRole(accountId: string, role: OrganizationRole, grantedBy: string): Promise<AccountRoleRecord>;
+  revokeRole(accountId: string): Promise<void>;
+  getRole(accountId: string): Promise<AccountRoleRecord | null>;
 }
 ````
 
@@ -67765,186 +66839,2002 @@ export interface TokenRefreshRepository {
 }
 ````
 
-## File: modules/platform/subdomains/index.ts
+## File: modules/platform/subdomains/notification/adapters/firebase/FirebaseNotificationRepository.ts
 ````typescript
 /**
- * platform subdomain inventory module.
+ * FirebaseNotificationRepository — Infrastructure adapter for notification persistence.
+ * Firebase SDK is isolated to this file. Query recipient requires Firestore index:
+ *   notifications: recipientId ASC, timestamp DESC
+ *   notifications: recipientId ASC, read ASC
  */
 
-export const PLATFORM_SUBDOMAIN_INVENTORY = [
-	"identity",
-	"account",
-	"account-profile",
-	"organization",
-	"access-control",
-	"security-policy",
-	"platform-config",
-	"feature-flag",
-	"onboarding",
-	"compliance",
-	"billing",
-	"subscription",
-	"referral",
-	"integration",
-	"workflow",
-	"notification",
-	"background-job",
-	"content",
-	"search",
-	"audit-log",
-	"observability",
-	"analytics",
-	"support",
-] as const;
-
-export type PlatformSubdomain = (typeof PLATFORM_SUBDOMAIN_INVENTORY)[number];
-````
-
-## File: modules/platform/subdomains/notification/adapters/create-legacy-notification-application.adapter.ts
-````typescript
 import {
-	dispatchNotification,
-	markAllNotificationsRead,
-	markNotificationRead,
-} from "@/modules/notification/api";
-import type { LegacyNotificationApplicationPort } from "../application";
+  getFirestore,
+  collection,
+  doc,
+  addDoc,
+  updateDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit as fbLimit,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
+import type { NotificationEntity, DispatchNotificationInput } from "../../domain/entities/Notification";
 
-export function createLegacyNotificationApplicationAdapter(): LegacyNotificationApplicationPort {
-	return {
-		dispatchNotification,
-		markNotificationRead,
-		markAllNotificationsRead,
-	};
+function toNotification(id: string, data: Record<string, unknown>): NotificationEntity {
+  return {
+    id,
+    recipientId: data.recipientId as string,
+    title: data.title as string,
+    message: data.message as string,
+    type: data.type as NotificationEntity["type"],
+    read: data.read as boolean,
+    timestamp: data.timestamp as number,
+    sourceEventType: typeof data.sourceEventType === "string" ? data.sourceEventType : undefined,
+    metadata: data.metadata != null ? (data.metadata as Record<string, unknown>) : undefined,
+  };
+}
+
+export class FirebaseNotificationRepository implements NotificationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async dispatch(input: DispatchNotificationInput): Promise<NotificationEntity> {
+    const now = Date.now();
+    const ref = await addDoc(collection(this.db, "notifications"), {
+      recipientId: input.recipientId,
+      title: input.title,
+      message: input.message,
+      type: input.type,
+      read: false,
+      timestamp: now,
+      sourceEventType: input.sourceEventType ?? null,
+      metadata: input.metadata ?? null,
+      _createdAt: serverTimestamp(),
+    });
+    return {
+      id: ref.id,
+      recipientId: input.recipientId,
+      title: input.title,
+      message: input.message,
+      type: input.type,
+      read: false,
+      timestamp: now,
+      sourceEventType: input.sourceEventType,
+      metadata: input.metadata,
+    };
+  }
+
+  async markAsRead(notificationId: string, _recipientId: string): Promise<void> {
+    await updateDoc(doc(this.db, "notifications", notificationId), { read: true });
+  }
+
+  async markAllAsRead(recipientId: string): Promise<void> {
+    const q = query(
+      collection(this.db, "notifications"),
+      where("recipientId", "==", recipientId),
+      where("read", "==", false),
+    );
+    const snaps = await getDocs(q);
+    await Promise.all(snaps.docs.map((d) => updateDoc(d.ref, { read: true })));
+  }
+
+  async findByRecipient(recipientId: string, maxCount = 50): Promise<NotificationEntity[]> {
+    const q = query(
+      collection(this.db, "notifications"),
+      where("recipientId", "==", recipientId),
+      orderBy("timestamp", "desc"),
+      fbLimit(maxCount),
+    );
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toNotification(d.id, d.data() as Record<string, unknown>));
+  }
+
+  async getUnreadCount(recipientId: string): Promise<number> {
+    const q = query(
+      collection(this.db, "notifications"),
+      where("recipientId", "==", recipientId),
+      where("read", "==", false),
+    );
+    const snaps = await getDocs(q);
+    return snaps.size;
+  }
 }
 ````
 
-## File: modules/platform/subdomains/notification/adapters/index.ts
+## File: modules/platform/subdomains/notification/adapters/notification-service.ts
 ````typescript
-export { createLegacyNotificationApplicationAdapter } from "./create-legacy-notification-application.adapter";
-````
+/**
+ * NotificationService — Composition root for notification use cases.
+ */
 
-## File: modules/platform/subdomains/notification/application/index.ts
-````typescript
-export type { LegacyNotificationApplicationPort } from "./legacy-notification-application.port";
-````
-
-## File: modules/platform/subdomains/notification/application/legacy-notification-application.port.ts
-````typescript
+import { FirebaseNotificationRepository } from "./firebase/FirebaseNotificationRepository";
 import {
-	dispatchNotification,
-	markAllNotificationsRead,
-	markNotificationRead,
-} from "@/modules/notification/api";
+  DispatchNotificationUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "../application/use-cases/notification.use-cases";
+import type { DispatchNotificationInput } from "../domain/entities/Notification";
+import type { CommandResult } from "@shared-types";
+
+const notificationRepo = new FirebaseNotificationRepository();
+
+export const notificationService = {
+  dispatch: (input: DispatchNotificationInput): Promise<CommandResult> =>
+    new DispatchNotificationUseCase(notificationRepo).execute(input),
+
+  markAsRead: (notificationId: string, recipientId: string): Promise<CommandResult> =>
+    new MarkNotificationReadUseCase(notificationRepo).execute(notificationId, recipientId),
+
+  markAllAsRead: (recipientId: string): Promise<CommandResult> =>
+    new MarkAllNotificationsReadUseCase(notificationRepo).execute(recipientId),
+
+  getForRecipient: (recipientId: string, maxCount?: number) =>
+    notificationRepo.findByRecipient(recipientId, maxCount),
+
+  getUnreadCount: (recipientId: string) => notificationRepo.getUnreadCount(recipientId),
+};
+````
+
+## File: modules/platform/subdomains/notification/adapters/server-actions/notification.actions.ts
+````typescript
+"use server";
 
 /**
- * Temporary compatibility port during migration from modules/notification.
+ * Notification Server Actions — thin adapters over use cases.
  */
-export interface LegacyNotificationApplicationPort {
-	dispatchNotification: typeof dispatchNotification;
-	markNotificationRead: typeof markNotificationRead;
-	markAllNotificationsRead: typeof markAllNotificationsRead;
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { notificationService } from "../notification-service";
+import type { DispatchNotificationInput } from "../../domain/entities/Notification";
+
+export async function dispatchNotification(input: DispatchNotificationInput): Promise<CommandResult> {
+  try {
+    return await notificationService.dispatch(input);
+  } catch (err) {
+    return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function markNotificationRead(
+  notificationId: string,
+  recipientId: string,
+): Promise<CommandResult> {
+  try {
+    return await notificationService.markAsRead(notificationId, recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function markAllNotificationsRead(recipientId: string): Promise<CommandResult> {
+  try {
+    return await notificationService.markAllAsRead(recipientId);
+  } catch (err) {
+    return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
 }
 ````
 
-## File: modules/platform/subdomains/organization/adapters/create-legacy-organization-application.adapter.ts
+## File: modules/platform/subdomains/notification/application/use-cases/notification.use-cases.ts
 ````typescript
-import {
-	createOrganization,
-	createOrganizationWithTeam,
-	createOrgPolicy,
-	createPartnerGroup,
-	createTeam,
-	deleteOrganization,
-	deleteOrgPolicy,
-	deleteTeam,
-	dismissMember,
-	dismissPartnerMember,
-	inviteMember,
-	recruitMember,
-	sendPartnerInvite,
-	updateMemberRole,
-	updateOrganizationSettings,
-	updateOrgPolicy,
-	updateTeamMembers,
-} from "@/modules/organization/api";
-import type { LegacyOrganizationApplicationPort } from "../application";
+/**
+ * Notification Application Use Cases — orchestrate domain intent without framework concerns.
+ */
 
-export function createLegacyOrganizationApplicationAdapter(): LegacyOrganizationApplicationPort {
-	return {
-		createOrganization,
-		createOrganizationWithTeam,
-		updateOrganizationSettings,
-		deleteOrganization,
-		inviteMember,
-		recruitMember,
-		dismissMember,
-		updateMemberRole,
-		createTeam,
-		deleteTeam,
-		updateTeamMembers,
-		createPartnerGroup,
-		sendPartnerInvite,
-		dismissPartnerMember,
-		createOrgPolicy,
-		updateOrgPolicy,
-		deleteOrgPolicy,
-	};
+import { commandSuccess, commandFailureFrom } from "@shared-types";
+import type { CommandResult } from "@shared-types";
+import type { NotificationRepository } from "../../domain/repositories/NotificationRepository";
+import type { DispatchNotificationInput, NotificationEntity } from "../../domain/entities/Notification";
+
+export class DispatchNotificationUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(input: DispatchNotificationInput): Promise<CommandResult<NotificationEntity>> {
+    try {
+      const notification = await this.repo.dispatch(input);
+      return commandSuccess(notification);
+    } catch (err) {
+      return commandFailureFrom("DISPATCH_NOTIFICATION_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+export class MarkNotificationReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(notificationId: string, recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAsRead(notificationId, recipientId);
+      return commandSuccess(undefined);
+    } catch (err) {
+      return commandFailureFrom("MARK_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
+}
+
+export class MarkAllNotificationsReadUseCase {
+  constructor(private readonly repo: NotificationRepository) {}
+
+  async execute(recipientId: string): Promise<CommandResult> {
+    try {
+      await this.repo.markAllAsRead(recipientId);
+      return commandSuccess(undefined);
+    } catch (err) {
+      return commandFailureFrom("MARK_ALL_READ_FAILED", err instanceof Error ? err.message : "Unexpected error");
+    }
+  }
 }
 ````
 
-## File: modules/platform/subdomains/organization/adapters/index.ts
+## File: modules/platform/subdomains/notification/domain/entities/Notification.ts
 ````typescript
-export { createLegacyOrganizationApplicationAdapter } from "./create-legacy-organization-application.adapter";
+/**
+ * Notification Domain Entities — pure TypeScript, zero framework dependencies.
+ */
+
+export type NotificationType = "info" | "alert" | "success" | "warning";
+
+export interface NotificationEntity {
+  id: string;
+  recipientId: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  read: boolean;
+  timestamp: number;
+  sourceEventType?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DispatchNotificationInput {
+  recipientId: string;
+  title: string;
+  message: string;
+  type: NotificationType;
+  sourceEventType?: string;
+  metadata?: Record<string, unknown>;
+}
 ````
 
-## File: modules/platform/subdomains/organization/application/index.ts
+## File: modules/platform/subdomains/notification/domain/index.ts
 ````typescript
-export type { LegacyOrganizationApplicationPort } from "./legacy-organization-application.port";
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "./entities/Notification";
+export type { NotificationRepository } from "./repositories/NotificationRepository";
 ````
 
-## File: modules/platform/subdomains/organization/application/legacy-organization-application.port.ts
+## File: modules/platform/subdomains/notification/domain/repositories/NotificationRepository.ts
 ````typescript
-import {
-	createOrganization,
-	createOrganizationWithTeam,
-	createOrgPolicy,
-	createPartnerGroup,
-	createTeam,
-	deleteOrganization,
-	deleteOrgPolicy,
-	deleteTeam,
-	dismissMember,
-	dismissPartnerMember,
-	inviteMember,
-	recruitMember,
-	sendPartnerInvite,
-	updateMemberRole,
-	updateOrganizationSettings,
-	updateOrgPolicy,
-	updateTeamMembers,
-} from "@/modules/organization/api";
+/**
+ * NotificationRepository — Port for notification persistence.
+ */
+
+import type { NotificationEntity, DispatchNotificationInput } from "../entities/Notification";
+
+export interface NotificationRepository {
+  dispatch(input: DispatchNotificationInput): Promise<NotificationEntity>;
+  markAsRead(notificationId: string, recipientId: string): Promise<void>;
+  markAllAsRead(recipientId: string): Promise<void>;
+  findByRecipient(recipientId: string, limit?: number): Promise<NotificationEntity[]>;
+  getUnreadCount(recipientId: string): Promise<number>;
+}
+````
+
+## File: modules/platform/subdomains/notification/interfaces/components/NotificationBell.tsx
+````typescript
+"use client";
 
 /**
- * Temporary compatibility port during migration from modules/organization.
+ * NotificationBell — Reusable notification bell for shell header.
+ * Lives in platform/subdomains/notification/interfaces.
  */
-export interface LegacyOrganizationApplicationPort {
-	createOrganization: typeof createOrganization;
-	createOrganizationWithTeam: typeof createOrganizationWithTeam;
-	updateOrganizationSettings: typeof updateOrganizationSettings;
-	deleteOrganization: typeof deleteOrganization;
-	inviteMember: typeof inviteMember;
-	recruitMember: typeof recruitMember;
-	dismissMember: typeof dismissMember;
-	updateMemberRole: typeof updateMemberRole;
-	createTeam: typeof createTeam;
-	deleteTeam: typeof deleteTeam;
-	updateTeamMembers: typeof updateTeamMembers;
-	createPartnerGroup: typeof createPartnerGroup;
-	sendPartnerInvite: typeof sendPartnerInvite;
-	dismissPartnerMember: typeof dismissPartnerMember;
-	createOrgPolicy: typeof createOrgPolicy;
-	updateOrgPolicy: typeof updateOrgPolicy;
-	deleteOrgPolicy: typeof deleteOrgPolicy;
+
+import Link from "next/link";
+import { Bell } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
+import {
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "../../adapters/server-actions/notification.actions";
+import { getNotificationsForRecipient } from "../../adapters/queries/notification.queries";
+import type { NotificationEntity } from "../../domain/entities/Notification";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@ui-shadcn/ui/dropdown-menu";
+
+const NOTIFICATION_LIMIT = 20;
+
+function formatNotificationTime(timestamp: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(timestamp));
+}
+
+interface NotificationBellProps {
+  readonly recipientId: string;
+}
+
+export function NotificationBell({ recipientId }: NotificationBellProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isMutating, setIsMutating] = useState(false);
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+
+  const unreadCount = useMemo(
+    () => notifications.reduce((count, n) => count + (n.read ? 0 : 1), 0),
+    [notifications],
+  );
+
+  const loadNotifications = useCallback(async () => {
+    if (!recipientId) {
+      setNotifications([]);
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const next = await getNotificationsForRecipient(recipientId, NOTIFICATION_LIMIT);
+      setNotifications(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => {
+    void loadNotifications();
+  }, [loadNotifications]);
+
+  async function handleOpenChange(nextOpen: boolean) {
+    setIsOpen(nextOpen);
+    if (nextOpen) {
+      await loadNotifications();
+    }
+  }
+
+  async function handleMarkOneRead(notificationId: string) {
+    if (!recipientId) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) =>
+      current.map((n) => (n.id === notificationId ? { ...n, read: true } : n)),
+    );
+    try {
+      const result = await markNotificationRead(notificationId, recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  async function handleMarkAllRead() {
+    if (!recipientId || unreadCount === 0) return;
+    setIsMutating(true);
+    const previous = notifications;
+    setNotifications((current) => current.map((n) => ({ ...n, read: true })));
+    try {
+      const result = await markAllNotificationsRead(recipientId);
+      if (!result.success) setNotifications(previous);
+    } finally {
+      setIsMutating(false);
+    }
+  }
+
+  return (
+    <DropdownMenu open={isOpen} onOpenChange={handleOpenChange}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-sm"
+          aria-label="Open notifications"
+          className="relative text-muted-foreground"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -right-1 -top-1 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] font-semibold leading-4 text-primary-foreground">
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-80 p-0">
+        <div className="flex items-center justify-between px-3 py-2">
+          <p className="text-sm font-semibold">Notifications</p>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs"
+            disabled={isMutating || unreadCount === 0}
+            onClick={handleMarkAllRead}
+          >
+            Mark all read
+          </Button>
+        </div>
+        <DropdownMenuSeparator />
+        <div className="max-h-80 overflow-y-auto">
+          {isLoading ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Loading...</p>
+          ) : notifications.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">No notifications</p>
+          ) : (
+            notifications.map((notification) => (
+              <button
+                key={notification.id}
+                type="button"
+                onClick={() => void handleMarkOneRead(notification.id)}
+                disabled={isMutating}
+                className="block w-full border-b border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-sm font-medium">{notification.title}</p>
+                  {!notification.read ? (
+                    <span
+                      className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary"
+                      aria-hidden="true"
+                    />
+                  ) : null}
+                </div>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                  {notification.message}
+                </p>
+                <p className="mt-1 text-[11px] text-muted-foreground">
+                  {formatNotificationTime(notification.timestamp)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <DropdownMenuSeparator />
+        <div className="py-1 text-center">
+          <Link
+            href="/settings/notifications"
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            查看全部通知
+          </Link>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/firebase/FirebaseOrganizationRepository.ts
+````typescript
+/**
+ * FirebaseOrganizationRepository — Infrastructure adapter for organization persistence.
+ * Firebase SDK is isolated to this file and organization-mappers.ts.
+ * Dual-write: `organizations` (primary) + `accounts` (for organization account profile).
+ */
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  addDoc,
+  arrayUnion,
+  arrayRemove,
+  onSnapshot,
+  serverTimestamp,
+  writeBatch,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrganizationRepository, Unsubscribe } from "../../domain/repositories/OrganizationRepository";
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  OrganizationRole,
+} from "../../domain/entities/Organization";
+import { toOrganizationEntity, toTeam, toPartnerInvite } from "./organization-mappers";
+
+export class FirebaseOrganizationRepository implements OrganizationRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private orgAccountRef(organizationId: string) {
+    return doc(this.db, "accounts", organizationId);
+  }
+
+  private buildAccountData(data: {
+    name?: string;
+    ownerId?: string;
+    email?: string;
+    photoURL?: string;
+    description?: string;
+    theme?: OrganizationEntity["theme"];
+    members?: MemberReference[];
+    memberIds?: string[];
+    teams?: Team[];
+    createdAt?: OrganizationEntity["createdAt"] | ReturnType<typeof serverTimestamp>;
+  }) {
+    return {
+      accountType: "organization" as const,
+      name: data.name ?? "",
+      ownerId: data.ownerId ?? "",
+      email: data.email ?? null,
+      photoURL: data.photoURL ?? null,
+      description: data.description ?? null,
+      theme: data.theme ?? null,
+      members: data.members ?? [],
+      memberIds: data.memberIds ?? [],
+      teams: data.teams ?? [],
+      createdAt: data.createdAt ?? serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+  }
+
+  async create(command: CreateOrganizationCommand): Promise<string> {
+    const orgRef = doc(collection(this.db, "organizations"));
+    const owner: MemberReference = {
+      id: command.ownerId,
+      name: command.ownerName,
+      email: command.ownerEmail,
+      role: "Owner",
+      presence: "active",
+    };
+    const createdAt = serverTimestamp();
+    const batch = writeBatch(this.db);
+    batch.set(orgRef, {
+      name: command.organizationName,
+      ownerId: command.ownerId,
+      members: [owner],
+      memberIds: [command.ownerId],
+      teams: [],
+      createdAt,
+    });
+    batch.set(
+      this.orgAccountRef(orgRef.id),
+      this.buildAccountData({
+        name: command.organizationName,
+        ownerId: command.ownerId,
+        members: [owner],
+        memberIds: [command.ownerId],
+        teams: [],
+        createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+    return orgRef.id;
+  }
+
+  async findById(id: string): Promise<OrganizationEntity | null> {
+    const snap = await getDoc(doc(this.db, "organizations", id));
+    if (!snap.exists()) return null;
+    return toOrganizationEntity(snap.id, snap.data() as Record<string, unknown>);
+  }
+
+  async save(org: OrganizationEntity): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.set(doc(this.db, "organizations", org.id), {
+      name: org.name,
+      ownerId: org.ownerId,
+      members: org.members,
+      memberIds: org.memberIds,
+      teams: org.teams,
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(
+      this.orgAccountRef(org.id),
+      this.buildAccountData({
+        name: org.name,
+        ownerId: org.ownerId,
+        email: org.email,
+        photoURL: org.photoURL,
+        description: org.description,
+        theme: org.theme,
+        members: org.members,
+        memberIds: org.memberIds,
+        teams: org.teams,
+        createdAt: org.createdAt,
+      }),
+      { merge: true },
+    );
+    await batch.commit();
+  }
+
+  async updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void> {
+    const updates: Record<string, unknown> = {
+      accountType: "organization",
+      updatedAt: serverTimestamp(),
+    };
+    if (command.name !== undefined) updates.name = command.name;
+    if (command.description !== undefined) updates.description = command.description;
+    if (command.theme !== undefined) updates.theme = command.theme;
+    if (command.photoURL !== undefined) updates.photoURL = command.photoURL;
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", command.organizationId), updates);
+    batch.set(this.orgAccountRef(command.organizationId), updates, { merge: true });
+    await batch.commit();
+  }
+
+  async delete(organizationId: string): Promise<void> {
+    const batch = writeBatch(this.db);
+    batch.delete(doc(this.db, "organizations", organizationId));
+    batch.delete(this.orgAccountRef(organizationId));
+    await batch.commit();
+  }
+
+  async inviteMember(input: InviteMemberInput): Promise<string> {
+    const ref = await addDoc(collection(this.db, "organizations", input.organizationId, "invites"), {
+      email: input.email,
+      teamId: input.teamId,
+      role: input.role,
+      inviteState: "pending",
+      protocol: input.protocol,
+      invitedAt: serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  async recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void> {
+    const member: MemberReference = { id: memberId, name, email, role: "Member", presence: "active" };
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), {
+      members: arrayUnion(member),
+      memberIds: arrayUnion(memberId),
+      updatedAt: serverTimestamp(),
+    });
+    batch.set(this.orgAccountRef(organizationId), { members: arrayUnion(member), memberIds: arrayUnion(memberId), updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }
+
+  async removeMember(organizationId: string, memberId: string): Promise<void> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).filter((m) => m.id !== memberId)
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", organizationId), { members, memberIds: arrayRemove(memberId), updatedAt: serverTimestamp() });
+    batch.set(this.orgAccountRef(organizationId), { members, memberIds: arrayRemove(memberId), updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }
+
+  async updateMemberRole(input: UpdateMemberRoleInput): Promise<void> {
+    const snap = await getDoc(doc(this.db, "organizations", input.organizationId));
+    if (!snap.exists()) return;
+    const data = snap.data() as Record<string, unknown>;
+    const members = Array.isArray(data.members)
+      ? (data.members as MemberReference[]).map((m) =>
+          m.id === input.memberId ? { ...m, role: input.role as OrganizationRole } : m,
+        )
+      : [];
+    const batch = writeBatch(this.db);
+    batch.update(doc(this.db, "organizations", input.organizationId), { members, updatedAt: serverTimestamp() });
+    batch.set(this.orgAccountRef(input.organizationId), { members, updatedAt: serverTimestamp() }, { merge: true });
+    await batch.commit();
+  }
+
+  async getMembers(organizationId: string): Promise<MemberReference[]> {
+    const snap = await getDoc(doc(this.db, "organizations", organizationId));
+    if (!snap.exists()) return [];
+    const data = snap.data() as Record<string, unknown>;
+    return Array.isArray(data.members) ? (data.members as MemberReference[]) : [];
+  }
+
+  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe {
+    return onSnapshot(doc(this.db, "organizations", organizationId), (snap) => {
+      if (!snap.exists()) { onUpdate([]); return; }
+      const data = snap.data() as Record<string, unknown>;
+      onUpdate(Array.isArray(data.members) ? (data.members as MemberReference[]) : []);
+    });
+  }
+
+  async createTeam(input: CreateTeamInput): Promise<string> {
+    const teamRef = doc(collection(this.db, "organizations", input.organizationId, "teams"));
+    await setDoc(teamRef, {
+      name: input.name,
+      description: input.description,
+      type: input.type,
+      memberIds: [],
+      createdAt: serverTimestamp(),
+    });
+    return teamRef.id;
+  }
+
+  async deleteTeam(organizationId: string, teamId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "organizations", organizationId, "teams", teamId));
+  }
+
+  async addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayUnion(memberId),
+    });
+  }
+
+  async removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await updateDoc(doc(this.db, "organizations", organizationId, "teams", teamId), {
+      memberIds: arrayRemove(memberId),
+    });
+  }
+
+  async getTeams(organizationId: string): Promise<Team[]> {
+    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "teams"));
+    return snaps.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>));
+  }
+
+  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe {
+    return onSnapshot(collection(this.db, "organizations", organizationId, "teams"), (snap) => {
+      onUpdate(snap.docs.map((d) => toTeam(d.id, d.data() as Record<string, unknown>)));
+    });
+  }
+
+  async sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string> {
+    const ref = await addDoc(collection(this.db, "organizations", organizationId, "partnerInvites"), {
+      email,
+      teamId,
+      role: "Guest",
+      inviteState: "pending",
+      invitedAt: serverTimestamp(),
+    });
+    return ref.id;
+  }
+
+  async dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void> {
+    await this.removeMemberFromTeam(organizationId, teamId, memberId);
+  }
+
+  async getPartnerInvites(organizationId: string): Promise<PartnerInvite[]> {
+    const snaps = await getDocs(collection(this.db, "organizations", organizationId, "partnerInvites"));
+    return snaps.docs.map((d) => toPartnerInvite(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/firebase/FirebaseOrgPolicyRepository.ts
+````typescript
+/**
+ * FirebaseOrgPolicyRepository — Infrastructure adapter for org-policy persistence.
+ * OrgPolicy lives in top-level `orgPolicies` collection, independent of `organizations`.
+ */
+
+import {
+  getFirestore,
+  doc,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  collection,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type { OrgPolicy, CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+import { toOrgPolicy } from "./organization-mappers";
+
+export class FirebaseOrgPolicyRepository implements OrgPolicyRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  async createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy> {
+    const now = new Date().toISOString();
+    const ref = await addDoc(collection(this.db, "orgPolicies"), {
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+      _createdAt: serverTimestamp(),
+    });
+    return {
+      id: ref.id,
+      orgId: input.orgId,
+      name: input.name,
+      description: input.description,
+      rules: input.rules,
+      scope: input.scope,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void> {
+    const updates: Record<string, unknown> = {
+      updatedAt: new Date().toISOString(),
+      _updatedAt: serverTimestamp(),
+    };
+    if (data.name !== undefined) updates.name = data.name;
+    if (data.description !== undefined) updates.description = data.description;
+    if (data.rules !== undefined) updates.rules = data.rules;
+    if (data.scope !== undefined) updates.scope = data.scope;
+    if (data.isActive !== undefined) updates.isActive = data.isActive;
+    await updateDoc(doc(this.db, "orgPolicies", policyId), updates);
+  }
+
+  async deletePolicy(policyId: string): Promise<void> {
+    await deleteDoc(doc(this.db, "orgPolicies", policyId));
+  }
+
+  async getPolicies(orgId: string): Promise<OrgPolicy[]> {
+    const q = query(collection(this.db, "orgPolicies"), where("orgId", "==", orgId));
+    const snaps = await getDocs(q);
+    return snaps.docs.map((d) => toOrgPolicy(d.id, d.data() as Record<string, unknown>));
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/firebase/organization-mappers.ts
+````typescript
+import type {
+  OrganizationEntity,
+  MemberReference,
+  Team,
+  OrgPolicy,
+  PartnerInvite,
+} from "../../domain/entities/Organization";
+
+export function toOrganizationEntity(id: string, data: Record<string, unknown>): OrganizationEntity {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    ownerId: typeof data.ownerId === "string" ? data.ownerId : "",
+    email: typeof data.email === "string" ? data.email : undefined,
+    photoURL: typeof data.photoURL === "string" ? data.photoURL : undefined,
+    description: typeof data.description === "string" ? data.description : undefined,
+    theme: data.theme != null ? (data.theme as OrganizationEntity["theme"]) : undefined,
+    members: Array.isArray(data.members) ? (data.members as MemberReference[]) : [],
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+    teams: Array.isArray(data.teams) ? (data.teams as Team[]) : [],
+    partnerInvites: Array.isArray(data.partnerInvites) ? (data.partnerInvites as PartnerInvite[]) : undefined,
+    createdAt: data.createdAt as OrganizationEntity["createdAt"],
+  };
+}
+
+export function toTeam(id: string, data: Record<string, unknown>): Team {
+  return {
+    id,
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    type: data.type === "external" ? "external" : "internal",
+    memberIds: Array.isArray(data.memberIds) ? (data.memberIds as string[]) : [],
+  };
+}
+
+export function toPartnerInvite(id: string, data: Record<string, unknown>): PartnerInvite {
+  const VALID_STATES = new Set<PartnerInvite["inviteState"]>(["pending", "accepted", "expired"]);
+  return {
+    id,
+    email: typeof data.email === "string" ? data.email : "",
+    teamId: typeof data.teamId === "string" ? data.teamId : "",
+    role: (data.role as PartnerInvite["role"]) ?? "Guest",
+    inviteState: VALID_STATES.has(data.inviteState as PartnerInvite["inviteState"])
+      ? (data.inviteState as PartnerInvite["inviteState"])
+      : "pending",
+    invitedAt: data.invitedAt as PartnerInvite["invitedAt"],
+    protocol: typeof data.protocol === "string" ? data.protocol : "",
+  };
+}
+
+export function toOrgPolicy(id: string, data: Record<string, unknown>): OrgPolicy {
+  const VALID_SCOPES = new Set<OrgPolicy["scope"]>(["workspace", "member", "global"]);
+  return {
+    id,
+    orgId: typeof data.orgId === "string" ? data.orgId : "",
+    name: typeof data.name === "string" ? data.name : "",
+    description: typeof data.description === "string" ? data.description : "",
+    rules: Array.isArray(data.rules) ? (data.rules as OrgPolicy["rules"]) : [],
+    scope: VALID_SCOPES.has(data.scope as OrgPolicy["scope"]) ? (data.scope as OrgPolicy["scope"]) : "global",
+    isActive: data.isActive === true,
+    createdAt: typeof data.createdAt === "string" ? data.createdAt : new Date().toISOString(),
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : new Date().toISOString(),
+  };
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/organization-service.ts
+````typescript
+/**
+ * OrganizationService — Composition root for organization use cases.
+ */
+
+import { FirebaseOrganizationRepository } from "./firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "./firebase/FirebaseOrgPolicyRepository";
+import {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "../application/use-cases/organization-lifecycle.use-cases";
+import {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "../application/use-cases/organization-member.use-cases";
+import {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "../application/use-cases/organization-team.use-cases";
+import {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "../application/use-cases/organization-partner.use-cases";
+import {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "../application/use-cases/organization-policy.use-cases";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "../domain/entities/Organization";
+import type { CommandResult } from "@shared-types";
+
+const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
+
+export const organizationService = {
+  createOrganization: (cmd: CreateOrganizationCommand): Promise<CommandResult> =>
+    new CreateOrganizationUseCase(orgRepo).execute(cmd),
+
+  createOrganizationWithTeam: (
+    cmd: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> =>
+    new CreateOrganizationWithTeamUseCase(orgRepo).execute(cmd, teamName, teamType),
+
+  updateSettings: (cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> =>
+    new UpdateOrganizationSettingsUseCase(orgRepo).execute(cmd),
+
+  deleteOrganization: (orgId: string): Promise<CommandResult> =>
+    new DeleteOrganizationUseCase(orgRepo).execute(orgId),
+
+  inviteMember: (input: InviteMemberInput): Promise<CommandResult> =>
+    new InviteMemberUseCase(orgRepo).execute(input),
+
+  recruitMember: (orgId: string, memberId: string, name: string, email: string): Promise<CommandResult> =>
+    new RecruitMemberUseCase(orgRepo).execute(orgId, memberId, name, email),
+
+  removeMember: (orgId: string, memberId: string): Promise<CommandResult> =>
+    new RemoveMemberUseCase(orgRepo).execute(orgId, memberId),
+
+  updateMemberRole: (input: UpdateMemberRoleInput): Promise<CommandResult> =>
+    new UpdateMemberRoleUseCase(orgRepo).execute(input),
+
+  createTeam: (input: CreateTeamInput): Promise<CommandResult> =>
+    new CreateTeamUseCase(orgRepo).execute(input),
+
+  deleteTeam: (orgId: string, teamId: string): Promise<CommandResult> =>
+    new DeleteTeamUseCase(orgRepo).execute(orgId, teamId),
+
+  updateTeamMembers: (orgId: string, teamId: string, memberId: string, action: "add" | "remove"): Promise<CommandResult> =>
+    new UpdateTeamMembersUseCase(orgRepo).execute(orgId, teamId, memberId, action),
+
+  createPartnerGroup: (orgId: string, groupName: string): Promise<CommandResult> =>
+    new CreatePartnerGroupUseCase(orgRepo).execute(orgId, groupName),
+
+  sendPartnerInvite: (orgId: string, teamId: string, email: string): Promise<CommandResult> =>
+    new SendPartnerInviteUseCase(orgRepo).execute(orgId, teamId, email),
+
+  dismissPartnerMember: (orgId: string, teamId: string, memberId: string): Promise<CommandResult> =>
+    new DismissPartnerMemberUseCase(orgRepo).execute(orgId, teamId, memberId),
+
+  createOrgPolicy: (input: CreateOrgPolicyInput): Promise<CommandResult> =>
+    new CreateOrgPolicyUseCase(policyRepo).execute(input),
+
+  updateOrgPolicy: (policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> =>
+    new UpdateOrgPolicyUseCase(policyRepo).execute(policyId, data),
+
+  deleteOrgPolicy: (policyId: string): Promise<CommandResult> =>
+    new DeleteOrgPolicyUseCase(policyRepo).execute(policyId),
+};
+````
+
+## File: modules/platform/subdomains/organization/adapters/server-actions/organization-policy.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Policy Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../organization-service";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+export async function createOrgPolicy(input: CreateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.createOrgPolicy(input); }
+  catch (err) { return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrgPolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+  try { return await organizationService.updateOrgPolicy(policyId, data); }
+  catch (err) { return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrgPolicy(policyId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrgPolicy(policyId); }
+  catch (err) { return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/adapters/server-actions/organization.actions.ts
+````typescript
+"use server";
+
+/**
+ * Organization Server Actions — thin adapters over use cases.
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { organizationService } from "../organization-service";
+import type {
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+} from "../../domain/entities/Organization";
+
+export async function createOrganization(cmd: CreateOrganizationCommand): Promise<CommandResult> {
+  try { return await organizationService.createOrganization(cmd); }
+  catch (err) { return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createOrganizationWithTeam(
+  cmd: CreateOrganizationCommand,
+  teamName: string,
+  teamType: "internal" | "external" = "internal",
+): Promise<CommandResult> {
+  try { return await organizationService.createOrganizationWithTeam(cmd, teamName, teamType); }
+  catch (err) { return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateOrganizationSettings(cmd: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+  try { return await organizationService.updateSettings(cmd); }
+  catch (err) { return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteOrganization(organizationId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteOrganization(organizationId); }
+  catch (err) { return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function inviteMember(input: InviteMemberInput): Promise<CommandResult> {
+  try { return await organizationService.inviteMember(input); }
+  catch (err) { return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function recruitMember(
+  organizationId: string,
+  memberId: string,
+  name: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.recruitMember(organizationId, memberId, name, email); }
+  catch (err) { return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissMember(organizationId: string, memberId: string): Promise<CommandResult> {
+  try { return await organizationService.removeMember(organizationId, memberId); }
+  catch (err) { return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateMemberRole(input: UpdateMemberRoleInput): Promise<CommandResult> {
+  try { return await organizationService.updateMemberRole(input); }
+  catch (err) { return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createTeam(input: CreateTeamInput): Promise<CommandResult> {
+  try { return await organizationService.createTeam(input); }
+  catch (err) { return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function deleteTeam(organizationId: string, teamId: string): Promise<CommandResult> {
+  try { return await organizationService.deleteTeam(organizationId, teamId); }
+  catch (err) { return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function updateTeamMembers(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+  action: "add" | "remove",
+): Promise<CommandResult> {
+  try { return await organizationService.updateTeamMembers(organizationId, teamId, memberId, action); }
+  catch (err) { return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function createPartnerGroup(organizationId: string, groupName: string): Promise<CommandResult> {
+  try { return await organizationService.createPartnerGroup(organizationId, groupName); }
+  catch (err) { return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function sendPartnerInvite(
+  organizationId: string,
+  teamId: string,
+  email: string,
+): Promise<CommandResult> {
+  try { return await organizationService.sendPartnerInvite(organizationId, teamId, email); }
+  catch (err) { return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+
+export async function dismissPartnerMember(
+  organizationId: string,
+  teamId: string,
+  memberId: string,
+): Promise<CommandResult> {
+  try { return await organizationService.dismissPartnerMember(organizationId, teamId, memberId); }
+  catch (err) { return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Unexpected error"); }
+}
+````
+
+## File: modules/platform/subdomains/organization/application/use-cases/organization-lifecycle.use-cases.ts
+````typescript
+/**
+ * Organization Lifecycle Use Cases — org CRUD workflows.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type { CreateOrganizationCommand, UpdateOrganizationSettingsCommand } from "../../domain/entities/Organization";
+
+export class CreateOrganizationUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(command: CreateOrganizationCommand): Promise<CommandResult> {
+    try {
+      const orgId = await this.orgRepo.create(command);
+      return commandSuccess(orgId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("CREATE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Failed to create organization");
+    }
+  }
+}
+
+export class CreateOrganizationWithTeamUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    command: CreateOrganizationCommand,
+    teamName: string,
+    teamType: "internal" | "external" = "internal",
+  ): Promise<CommandResult> {
+    try {
+      const organizationId = await this.orgRepo.create(command);
+      await this.orgRepo.createTeam({ organizationId, name: teamName, description: "", type: teamType });
+      return commandSuccess(organizationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("SETUP_ORGANIZATION_WITH_TEAM_FAILED", err instanceof Error ? err.message : "Failed to setup organization with team");
+    }
+  }
+}
+
+export class UpdateOrganizationSettingsUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(command: UpdateOrganizationSettingsCommand): Promise<CommandResult> {
+    try {
+      await this.orgRepo.updateSettings(command);
+      return commandSuccess(command.organizationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("UPDATE_ORGANIZATION_SETTINGS_FAILED", err instanceof Error ? err.message : "Failed to update organization settings");
+    }
+  }
+}
+
+export class DeleteOrganizationUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.delete(organizationId);
+      return commandSuccess(organizationId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("DELETE_ORGANIZATION_FAILED", err instanceof Error ? err.message : "Failed to delete organization");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/application/use-cases/organization-member.use-cases.ts
+````typescript
+/**
+ * Organization Member Use Cases — member lifecycle workflows.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type { InviteMemberInput, UpdateMemberRoleInput } from "../../domain/entities/Organization";
+
+export class InviteMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(input: InviteMemberInput): Promise<CommandResult> {
+    try {
+      const inviteId = await this.orgRepo.inviteMember(input);
+      return commandSuccess(inviteId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("INVITE_MEMBER_FAILED", err instanceof Error ? err.message : "Failed to invite member");
+    }
+  }
+}
+
+export class RecruitMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, memberId: string, name: string, email: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.recruitMember(organizationId, memberId, name, email);
+      return commandSuccess(memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("RECRUIT_MEMBER_FAILED", err instanceof Error ? err.message : "Failed to recruit member");
+    }
+  }
+}
+
+export class RemoveMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, memberId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.removeMember(organizationId, memberId);
+      return commandSuccess(memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("REMOVE_MEMBER_FAILED", err instanceof Error ? err.message : "Failed to remove member");
+    }
+  }
+}
+
+export class UpdateMemberRoleUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(input: UpdateMemberRoleInput): Promise<CommandResult> {
+    try {
+      await this.orgRepo.updateMemberRole(input);
+      return commandSuccess(input.memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("UPDATE_MEMBER_ROLE_FAILED", err instanceof Error ? err.message : "Failed to update member role");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/application/use-cases/organization-partner.use-cases.ts
+````typescript
+/**
+ * Organization Partner Use Cases — external partner group workflows.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+
+export class CreatePartnerGroupUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, groupName: string): Promise<CommandResult> {
+    try {
+      const teamId = await this.orgRepo.createTeam({ organizationId, name: groupName, description: "", type: "external" });
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("CREATE_PARTNER_GROUP_FAILED", err instanceof Error ? err.message : "Failed to create partner group");
+    }
+  }
+}
+
+export class SendPartnerInviteUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, teamId: string, email: string): Promise<CommandResult> {
+    try {
+      const inviteId = await this.orgRepo.sendPartnerInvite(organizationId, teamId, email);
+      return commandSuccess(inviteId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("SEND_PARTNER_INVITE_FAILED", err instanceof Error ? err.message : "Failed to send partner invite");
+    }
+  }
+}
+
+export class DismissPartnerMemberUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, teamId: string, memberId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.dismissPartnerMember(organizationId, teamId, memberId);
+      return commandSuccess(memberId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("DISMISS_PARTNER_MEMBER_FAILED", err instanceof Error ? err.message : "Failed to dismiss partner member");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/application/use-cases/organization-policy.use-cases.ts
+````typescript
+/**
+ * Organization Policy Use Cases — org-level RBAC policy management.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrgPolicyRepository } from "../../domain/repositories/OrgPolicyRepository";
+import type { CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../../domain/entities/Organization";
+
+export class CreateOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(input: CreateOrgPolicyInput): Promise<CommandResult> {
+    try {
+      const policy = await this.policyRepo.createPolicy(input);
+      return commandSuccess(policy.id, Date.now());
+    } catch (err) {
+      return commandFailureFrom("CREATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Failed to create org policy");
+    }
+  }
+}
+
+export class UpdateOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(policyId: string, data: UpdateOrgPolicyInput): Promise<CommandResult> {
+    try {
+      await this.policyRepo.updatePolicy(policyId, data);
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("UPDATE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Failed to update org policy");
+    }
+  }
+}
+
+export class DeleteOrgPolicyUseCase {
+  constructor(private readonly policyRepo: OrgPolicyRepository) {}
+
+  async execute(policyId: string): Promise<CommandResult> {
+    try {
+      await this.policyRepo.deletePolicy(policyId);
+      return commandSuccess(policyId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("DELETE_ORG_POLICY_FAILED", err instanceof Error ? err.message : "Failed to delete org policy");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/application/use-cases/organization-team.use-cases.ts
+````typescript
+/**
+ * Organization Team Use Cases — internal team management workflows.
+ */
+
+import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
+import type { OrganizationRepository } from "../../domain/repositories/OrganizationRepository";
+import type { CreateTeamInput } from "../../domain/entities/Organization";
+
+export class CreateTeamUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(input: CreateTeamInput): Promise<CommandResult> {
+    try {
+      const teamId = await this.orgRepo.createTeam(input);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("CREATE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to create team");
+    }
+  }
+}
+
+export class DeleteTeamUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(organizationId: string, teamId: string): Promise<CommandResult> {
+    try {
+      await this.orgRepo.deleteTeam(organizationId, teamId);
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("DELETE_TEAM_FAILED", err instanceof Error ? err.message : "Failed to delete team");
+    }
+  }
+}
+
+export class UpdateTeamMembersUseCase {
+  constructor(private readonly orgRepo: OrganizationRepository) {}
+
+  async execute(
+    organizationId: string,
+    teamId: string,
+    memberId: string,
+    action: "add" | "remove",
+  ): Promise<CommandResult> {
+    try {
+      if (action === "add") {
+        await this.orgRepo.addMemberToTeam(organizationId, teamId, memberId);
+      } else {
+        await this.orgRepo.removeMemberFromTeam(organizationId, teamId, memberId);
+      }
+      return commandSuccess(teamId, Date.now());
+    } catch (err) {
+      return commandFailureFrom("UPDATE_TEAM_MEMBERS_FAILED", err instanceof Error ? err.message : "Failed to update team members");
+    }
+  }
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/entities/Organization.ts
+````typescript
+/**
+ * Organization Domain Entities — pure TypeScript, zero framework dependencies.
+ */
+
+import type { Timestamp } from "@shared-types";
+
+export type OrganizationRole = "Owner" | "Admin" | "Member" | "Guest";
+export type Presence = "active" | "away" | "offline";
+export type InviteState = "pending" | "accepted" | "expired";
+export type PolicyEffect = "allow" | "deny";
+
+export interface MemberReference {
+  id: string;
+  name: string;
+  email: string;
+  role: OrganizationRole;
+  presence: Presence;
+  isExternal?: boolean;
+  expiryDate?: Timestamp;
+}
+
+export interface Team {
+  id: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+  memberIds: string[];
+}
+
+export interface PartnerInvite {
+  id: string;
+  email: string;
+  teamId: string;
+  role: OrganizationRole;
+  inviteState: InviteState;
+  invitedAt: Timestamp;
+  protocol: string;
+}
+
+export interface ThemeConfig {
+  primary: string;
+  background: string;
+  accent: string;
+}
+
+export interface OrganizationEntity {
+  id: string;
+  name: string;
+  ownerId: string;
+  email?: string;
+  photoURL?: string;
+  description?: string;
+  theme?: ThemeConfig;
+  members: MemberReference[];
+  memberIds: string[];
+  teams: Team[];
+  partnerInvites?: PartnerInvite[];
+  createdAt: Timestamp;
+}
+
+export interface OrgPolicyRule {
+  resource: string;
+  actions: string[];
+  effect: PolicyEffect;
+  conditions?: Record<string, string>;
+}
+
+export type OrgPolicyScope = "workspace" | "member" | "global";
+
+export interface OrgPolicy {
+  readonly id: string;
+  readonly orgId: string;
+  readonly name: string;
+  readonly description: string;
+  readonly rules: OrgPolicyRule[];
+  readonly scope: OrgPolicyScope;
+  readonly isActive: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface CreateOrganizationCommand {
+  readonly organizationName: string;
+  readonly ownerId: string;
+  readonly ownerName: string;
+  readonly ownerEmail: string;
+}
+
+export interface UpdateOrganizationSettingsCommand {
+  readonly organizationId: string;
+  readonly name?: string;
+  readonly description?: string;
+  readonly theme?: ThemeConfig | null;
+  readonly photoURL?: string;
+}
+
+export interface InviteMemberInput {
+  organizationId: string;
+  email: string;
+  teamId: string;
+  role: OrganizationRole;
+  protocol: string;
+}
+
+export interface UpdateMemberRoleInput {
+  organizationId: string;
+  memberId: string;
+  role: OrganizationRole;
+}
+
+export interface CreateTeamInput {
+  organizationId: string;
+  name: string;
+  description: string;
+  type: "internal" | "external";
+}
+
+export interface CreateOrgPolicyInput {
+  orgId: string;
+  name: string;
+  description: string;
+  rules: OrgPolicyRule[];
+  scope: OrgPolicyScope;
+}
+
+export interface UpdateOrgPolicyInput {
+  name?: string;
+  description?: string;
+  rules?: OrgPolicyRule[];
+  scope?: OrgPolicyScope;
+  isActive?: boolean;
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/index.ts
+````typescript
+export type {
+  OrganizationEntity,
+  OrganizationRole,
+  Presence,
+  InviteState,
+  PolicyEffect,
+  MemberReference,
+  Team,
+  PartnerInvite,
+  ThemeConfig,
+  OrgPolicy,
+  OrgPolicyRule,
+  OrgPolicyScope,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrgPolicyInput,
+  UpdateOrgPolicyInput,
+} from "./entities/Organization";
+export type { OrganizationRepository, Unsubscribe } from "./repositories/OrganizationRepository";
+export type { OrgPolicyRepository } from "./repositories/OrgPolicyRepository";
+````
+
+## File: modules/platform/subdomains/organization/domain/repositories/OrganizationRepository.ts
+````typescript
+/**
+ * OrganizationRepository — Port for organization persistence.
+ */
+
+import type {
+  OrganizationEntity,
+  InviteMemberInput,
+  UpdateMemberRoleInput,
+  CreateTeamInput,
+  CreateOrganizationCommand,
+  UpdateOrganizationSettingsCommand,
+  MemberReference,
+  Team,
+  PartnerInvite,
+} from "../entities/Organization";
+
+export type Unsubscribe = () => void;
+
+export interface OrganizationRepository {
+  create(command: CreateOrganizationCommand): Promise<string>;
+  findById(id: string): Promise<OrganizationEntity | null>;
+  save(org: OrganizationEntity): Promise<void>;
+  updateSettings(command: UpdateOrganizationSettingsCommand): Promise<void>;
+  delete(organizationId: string): Promise<void>;
+
+  inviteMember(input: InviteMemberInput): Promise<string>;
+  recruitMember(organizationId: string, memberId: string, name: string, email: string): Promise<void>;
+  removeMember(organizationId: string, memberId: string): Promise<void>;
+  updateMemberRole(input: UpdateMemberRoleInput): Promise<void>;
+  getMembers(organizationId: string): Promise<MemberReference[]>;
+  subscribeToMembers(organizationId: string, onUpdate: (members: MemberReference[]) => void): Unsubscribe;
+
+  createTeam(input: CreateTeamInput): Promise<string>;
+  deleteTeam(organizationId: string, teamId: string): Promise<void>;
+  addMemberToTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  removeMemberFromTeam(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getTeams(organizationId: string): Promise<Team[]>;
+  subscribeToTeams(organizationId: string, onUpdate: (teams: Team[]) => void): Unsubscribe;
+
+  sendPartnerInvite(organizationId: string, teamId: string, email: string): Promise<string>;
+  dismissPartnerMember(organizationId: string, teamId: string, memberId: string): Promise<void>;
+  getPartnerInvites(organizationId: string): Promise<PartnerInvite[]>;
+}
+````
+
+## File: modules/platform/subdomains/organization/domain/repositories/OrgPolicyRepository.ts
+````typescript
+/**
+ * OrgPolicyRepository — Port for org-policy persistence.
+ */
+
+import type { OrgPolicy, CreateOrgPolicyInput, UpdateOrgPolicyInput } from "../entities/Organization";
+
+export interface OrgPolicyRepository {
+  createPolicy(input: CreateOrgPolicyInput): Promise<OrgPolicy>;
+  updatePolicy(policyId: string, data: UpdateOrgPolicyInput): Promise<void>;
+  deletePolicy(policyId: string): Promise<void>;
+  getPolicies(orgId: string): Promise<OrgPolicy[]>;
+}
+````
+
+## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
+````typescript
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
+
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { getWorkspaceFiles } from "../queries/file.queries";
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
+import { FileProcessingDialog } from "./FileProcessingDialog";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import { getFirebaseStorage } from "@integration-firebase";
+
+interface WorkspaceFilesTabProps {
+  readonly workspace: WorkspaceEntity;
+}
+
+interface PendingUploadProcessing {
+  readonly sourceFileId: string;
+  readonly filename: string;
+  readonly gcsUri: string;
+  readonly mimeType: string;
+  readonly sizeBytes: number;
+}
+
+export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
+  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
+  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
+  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
+  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
+
+  const reloadFiles = useCallback(async () => {
+    setLoadState("loading");
+
+    try {
+      const nextAssets = await getWorkspaceFiles(workspace);
+      setAssets(nextAssets);
+      setLoadState("loaded");
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(
+          "[WorkspaceFilesTab] Failed to load file metadata:",
+          error instanceof Error ? error.message : "unknown error",
+        );
+      }
+
+      setAssets([]);
+      setLoadState("error");
+    }
+  }, [workspace]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFiles() {
+      await reloadFiles();
+      if (cancelled) {
+        return;
+      }
+    }
+
+    void loadFiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [reloadFiles]);
+
+  async function handleUploadFile(file: File) {
+    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+    setUploadState("uploading");
+    setUploadMessage(null);
+
+    try {
+      const initResult = await uploadInitFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileName: file.name,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      if (!initResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
+        return;
+      }
+
+      const storage = getFirebaseStorage();
+      const storageRef = ref(storage, initResult.data.uploadPath);
+      await uploadBytes(storageRef, file, {
+        contentType: file.type || "application/octet-stream",
+      });
+      await getDownloadURL(storageRef);
+
+      const completeResult = await uploadCompleteFile({
+        workspaceId: workspace.id,
+        organizationId,
+        actorAccountId: workspace.accountId,
+        fileId: initResult.data.fileId,
+        versionId: initResult.data.versionId,
+      });
+
+      if (!completeResult.ok) {
+        setUploadState("error");
+        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
+        return;
+      }
+
+      setUploadState("success");
+      setUploadMessage(
+        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
+      );
+      setPendingUploadProcessing({
+        sourceFileId: initResult.data.fileId,
+        filename: file.name,
+        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
+        mimeType: file.type || "application/octet-stream",
+        sizeBytes: file.size,
+      });
+
+      await reloadFiles();
+    } catch (error) {
+      if (process.env.NODE_ENV !== "production") {
+        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
+      }
+      setUploadState("error");
+      setUploadMessage(
+        error instanceof Error
+          ? `Storage upload failed: ${error.message}`
+          : "Storage upload failed unexpectedly.",
+      );
+    }
+  }
+
+  const availableCount = useMemo(
+    () => assets.filter((asset) => asset.status === "active").length,
+    [assets],
+  );
+
+  return (
+    <Card className="border border-border/50">
+      <CardHeader>
+        <CardTitle>Files</CardTitle>
+        <CardDescription>
+          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-xl border border-border/40 px-4 py-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-1">
+              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
+                Upload file
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
+              </p>
+            </div>
+            <Input
+              id="workspace-file-upload"
+              type="file"
+              className="max-w-xs"
+              disabled={uploadState === "uploading"}
+              onChange={(event) => {
+                const nextFile = event.target.files?.[0];
+                if (!nextFile) {
+                  return;
+                }
+
+                void handleUploadFile(nextFile);
+                event.currentTarget.value = "";
+              }}
+            />
+          </div>
+          {uploadMessage && (
+            <p
+              className={`mt-3 text-xs ${
+                uploadState === "error" ? "text-destructive" : "text-emerald-600"
+              }`}
+            >
+              {uploadMessage}
+            </p>
+          )}
+          {uploadState === "uploading" && (
+            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
+          )}
+        </div>
+
+        {loadState === "loading" && (
+          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
+        )}
+
+        {loadState === "error" && (
+          <p className="text-sm text-destructive">
+            無法載入已持久化的檔案資料，請稍後再試。
+          </p>
+        )}
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Registered assets</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Directly available</p>
+            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
+          </div>
+          <div className="rounded-xl border border-border/40 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Derived manifests</p>
+            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {loadState === "loaded" && assets.length === 0 && (
+            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
+              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
+            </div>
+          )}
+
+          {assets.map((asset) => (
+            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
+                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
+                      {asset.status}
+                    </Badge>
+                    <Badge variant="outline">{asset.kind}</Badge>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  <p>Source: {asset.source}</p>
+                  {asset.href && (
+                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
+                      <a href={asset.href} target="_blank" rel="noreferrer">
+                        Open asset
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+
+      {pendingUploadProcessing && (
+        <FileProcessingDialog
+          open
+          onClose={() => setPendingUploadProcessing(null)}
+          accountId={workspace.accountId}
+          workspaceId={workspace.id}
+          sourceFileId={pendingUploadProcessing.sourceFileId}
+          filename={pendingUploadProcessing.filename}
+          gcsUri={pendingUploadProcessing.gcsUri}
+          mimeType={pendingUploadProcessing.mimeType}
+          sizeBytes={pendingUploadProcessing.sizeBytes}
+        />
+      )}
+    </Card>
+  );
+}
+````
+
+## File: modules/source/interfaces/queries/file.queries.ts
+````typescript
+import type { WorkspaceEntity } from "@/modules/workspace/api";
+
+import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
+import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
+import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
+import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
+import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
+import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
+
+export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
+  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+
+  return listWorkspaceFilesUseCase.execute({
+    workspaceId: workspace.id,
+    organizationId,
+    actorAccountId: workspace.accountId,
+  });
+}
+
+export async function getWorkspaceRagDocuments(
+  workspace: WorkspaceEntity,
+): Promise<readonly RagDocumentRecord[]> {
+  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
+  const repo = new FirebaseRagDocumentRepository();
+
+  return repo.findByWorkspace({
+    organizationId,
+    workspaceId: workspace.id,
+  });
 }
 ````
 
@@ -68020,6 +68910,30 @@ Per Context7 `/sairyss/domain-driven-hexagon` guidance:
 - domain model remains technology-agnostic
 - persistence concerns stay out of aggregate modeling
 - repository abstraction is external to aggregate core
+````
+
+## File: modules/workspace/api/index.ts
+````typescript
+/**
+ * workspace api/index.ts
+ *
+ * Canonical public boundary for the workspace bounded context.
+ *
+ * Cross-module consumers (app/, other modules) MUST import from this path:
+ *   import { ... } from "@/modules/workspace/api"
+ *
+ * Direct imports into domain/, application/, infrastructure/, interfaces/, or
+ * ports/ sub-directories from outside this bounded context are forbidden.
+ *
+ * Surface breakdown:
+ *  - contracts.ts  → types, value-object helpers, domain event contracts
+ *  - facade.ts     → commands and queries (Server Actions / query functions)
+ *  - ui.ts         → web UI components, hooks, navigation, state utilities
+ */
+
+export * from "./contracts";
+export * from "./facade";
+export * from "./ui";
 ````
 
 ## File: modules/workspace/application/dtos/wiki-content-tree.dto.ts
@@ -68391,2058 +69305,26 @@ export type {
 } from "../../../domain/entities/WorkspaceMemberView";
 ````
 
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceContextCard.tsx
-````typescript
-"use client";
-
-/**
- * WorkspaceContextCard
- * Purpose: display the active workspace context in notebook/ai-chat sidebar.
- * Shows workspace name + navigation links when a workspace is active,
- * otherwise shows an empty-state hint.
- */
-
-import Link from "next/link";
-import { FolderKanban } from "lucide-react";
-
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import type { WorkspaceEntity } from "../../../api/contracts";
-
-interface WorkspaceContextCardProps {
-  readonly workspace: WorkspaceEntity | null;
-}
-
-export function WorkspaceContextCard({ workspace }: WorkspaceContextCardProps) {
-  return (
-    <Card className="border-border/60">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-sm">
-          <FolderKanban className="size-4 text-primary" />
-          Workspace context
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm text-muted-foreground">
-        {workspace ? (
-          <>
-            <div>
-              <p className="font-medium text-foreground">{workspace.name}</p>
-              <p className="mt-1 text-xs">
-                Notebook 會優先消費這個工作區的 Knowledge、知識頁面與 RAG Query 結果。
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/workspace/${workspace.id}`}>Workspace</Link>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>
-              </Button>
-            </div>
-          </>
-        ) : (
-          <p className="text-xs">
-            尚未帶入工作區。建議從 Workspace Hub 或工作區頁面進入，讓 Notebook 綁定知識上下文。
-          </p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceOverviewSummaryCard.tsx
+## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx
 ````typescript
 "use client";
 
 import type { WorkspaceEntity } from "../../../api/contracts";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@ui-shadcn/ui/avatar";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent } from "@ui-shadcn/ui/card";
+import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
 
-import {
-  formatTimestamp,
-  getWorkspaceInitials,
-  lifecycleBadgeVariant,
-} from "../layout/workspace-detail-helpers";
-import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
-
-interface WorkspaceOverviewSummaryCardProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
-}
-
-export function WorkspaceOverviewSummaryCard({
-  workspace,
-  activeWorkspaceId,
-  onEditClick,
-  onSetActiveWorkspace,
-}: WorkspaceOverviewSummaryCardProps) {
-  const governanceSummary = getWorkspaceGovernanceSummary(workspace);
-
-  return (
-    <Card className="border border-border/50">
-      <CardContent className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex items-start gap-4">
-          <Avatar size="lg">
-            <AvatarImage src={workspace.photoURL} alt={workspace.name} />
-            <AvatarFallback>{getWorkspaceInitials(workspace.name)}</AvatarFallback>
-          </Avatar>
-
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <p className="text-2xl font-semibold tracking-tight">{workspace.name}</p>
-              <p className="text-sm text-muted-foreground">
-                {workspace.accountType === "organization" ? "Organization" : "Personal"} workspace ·
-                account {workspace.accountId}
-              </p>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                {workspace.lifecycleState}
-              </Badge>
-              <Badge variant="outline">{workspace.visibility}</Badge>
-              <Badge variant="outline">Created {formatTimestamp(workspace.createdAt)}</Badge>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" onClick={onEditClick}>
-                編輯工作區
-              </Button>
-              {activeWorkspaceId !== workspace.id && (
-                <Button type="button" variant="default" size="sm" onClick={onSetActiveWorkspace}>
-                  設為目前工作區
-                </Button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:min-w-[20rem]">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Capabilities</p>
-            <p className="mt-1 text-xl font-semibold">{governanceSummary.capabilityCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Teams</p>
-            <p className="mt-1 text-xl font-semibold">{governanceSummary.teamCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Locations</p>
-            <p className="mt-1 text-xl font-semibold">{governanceSummary.locationCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Grants</p>
-            <p className="mt-1 text-xl font-semibold">{governanceSummary.grantCount}</p>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/cards/WorkspaceProductSpineCard.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
-import {
-  getWorkspaceAddressLines,
-  getWorkspaceRoleAssignments,
-} from "../../view-models/workspace-supporting-records";
-
-interface WorkspaceProductSpineCardProps {
+interface WorkspaceDailyTabProps {
   readonly workspace: WorkspaceEntity;
 }
 
-export function WorkspaceProductSpineCard({ workspace }: WorkspaceProductSpineCardProps) {
-  const addressLines = getWorkspaceAddressLines(workspace);
-  const workspaceRoles = getWorkspaceRoleAssignments(workspace);
-
+export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
   return (
-    <Card className="border border-border/50 xl:col-span-2">
-      <CardHeader>
-        <CardTitle>Workspace Product Spine</CardTitle>
-        <CardDescription>
-          從這個工作區穩定分流到 Knowledge、知識頁面、Notebook / AI；Search、Source、Sync
-          則作為底層支撐能力。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4 xl:grid-cols-[1fr_1fr_1fr_0.9fr]">
-        <div className="xl:col-span-4">
-          <WorkspaceInformationCard
-            workspaceName={<p className="text-sm font-medium text-foreground">{workspace.name}</p>}
-            workspaceAddress={
-              addressLines.length > 0 ? (
-                <div className="space-y-1.5 text-sm text-foreground">
-                  {addressLines.map((line) => (
-                    <p key={line}>{line}</p>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">尚未設定工作區地址。</p>
-              )
-            }
-            workspaceRoles={
-              workspaceRoles.length > 0
-                ? workspaceRoles.map((entry) => ({
-                    id: entry.id,
-                    roleName: <p className="text-sm font-medium text-foreground">{entry.roleName}</p>,
-                    roleValue: entry.role ? (
-                      <p className="text-sm text-foreground break-all">{entry.role}</p>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">未設定</p>
-                    ),
-                  }))
-                : []
-            }
-          />
-        </div>
-
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Knowledge</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            先用文件、來源與資料庫建立工作區知識基底，再讓知識頁面與 AI 消費。
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/workspace/${workspace.id}?tab=Files`}>Files 分頁</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                文件
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Knowledge Pages</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            以工作區知識頁面與文章結構承接知識脈絡，不再透過獨立 Wiki tab 中轉。
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>知識頁面</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/knowledge-base/articles?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                文章
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            用 AI 對話與 RAG 查詢消費這個工作區的知識，不再把 AI 當成獨立產品島。
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.id)}`}>AI 對話</Link>
-            </Button>
-            <Button asChild size="sm" variant="outline">
-              <Link href={`/notebook/rag-query?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                RAG Query
-              </Link>
-            </Button>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-dashed border-border/50 px-4 py-4">
-          <p className="text-sm font-semibold text-foreground">Supporting layers</p>
-          <ul className="mt-2 space-y-2 text-xs leading-relaxed text-muted-foreground">
-            <li>
-              <span className="font-medium text-foreground">Search</span>：用 RAG Query 承接查詢、引用與回答。
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Source</span>：Files / Documents
-              是來源接入與 metadata 宿主。
-            </li>
-            <li>
-              <span className="font-medium text-foreground">Sync</span>：upload → ingest → index 流程持續把來源同步成可查詢知識。
-            </li>
-          </ul>
-        </div>
-      </CardContent>
-    </Card>
+    <WorkspaceFeedWorkspaceView
+      accountId={workspace.accountId}
+      workspaceId={workspace.id}
+      workspaceName={workspace.name}
+    />
   );
 }
-````
-
-## File: modules/workspace/interfaces/web/components/dialogs/WorkspaceSettingsDialog.tsx
-````typescript
-"use client";
-
-import { type FormEvent } from "react";
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@ui-shadcn/ui/select";
-import type { WorkspaceSettingsDraft } from "../../state/workspace-settings";
-import { WorkspaceSettingsInformationFields } from "./WorkspaceSettingsInformationFields";
-
-interface WorkspaceSettingsDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-  readonly settingsDraft: WorkspaceSettingsDraft | null;
-  readonly setSettingsDraft: React.Dispatch<React.SetStateAction<WorkspaceSettingsDraft | null>>;
-  readonly isSaving: boolean;
-  readonly saveError: string | null;
-  readonly onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-}
-
-export function WorkspaceSettingsDialog({
-  open,
-  onOpenChange,
-  settingsDraft,
-  setSettingsDraft,
-  isSaving,
-  saveError,
-  onSubmit,
-}: WorkspaceSettingsDialogProps) {
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>編輯工作區設定</DialogTitle>
-          <DialogDescription>
-            更新工作區基本資料、地址與聯絡角色，讓個人與組織工作區都能直接在內頁維護。
-          </DialogDescription>
-        </DialogHeader>
-
-        {settingsDraft && (
-          <form className="space-y-6" onSubmit={onSubmit}>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <span className="text-sm font-medium text-foreground">可見性</span>
-                <Select
-                  value={settingsDraft.visibility}
-                  onValueChange={(value: WorkspaceEntity["visibility"]) =>
-                    setSettingsDraft((current) =>
-                      current ? { ...current, visibility: value } : current,
-                    )
-                  }
-                  disabled={isSaving}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="visible">visible</SelectItem>
-                    <SelectItem value="hidden">hidden</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <span className="text-sm font-medium text-foreground">生命週期</span>
-                <Select
-                  value={settingsDraft.lifecycleState}
-                  onValueChange={(value: WorkspaceEntity["lifecycleState"]) =>
-                    setSettingsDraft((current) =>
-                      current ? { ...current, lifecycleState: value } : current,
-                    )
-                  }
-                  disabled={isSaving}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="preparatory">preparatory</SelectItem>
-                    <SelectItem value="active">active</SelectItem>
-                    <SelectItem value="stopped">stopped</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <WorkspaceSettingsInformationFields
-              settingsDraft={settingsDraft}
-              setSettingsDraft={setSettingsDraft}
-              isSaving={isSaving}
-            />
-
-            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-                disabled={isSaving}
-              >
-                取消
-              </Button>
-              <Button type="submit" disabled={isSaving}>
-                {isSaving ? "儲存中…" : "儲存設定"}
-              </Button>
-            </DialogFooter>
-          </form>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/layout/workspace-detail-helpers.ts
-````typescript
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { formatDate } from "@shared-utils";
-import type { WorkspaceTabGroup } from "../../navigation/workspace-tabs";
-
-export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
-  "primary",
-  "modules",
-  "library",
-  "spaces",
-  "databases",
-];
-
-export const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-export function getWorkspaceInitials(name: string): string {
-  const tokens = name
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2);
-
-  if (tokens.length === 0) {
-    return "WS";
-  }
-
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
-}
-
-export function formatTimestamp(
-  timestamp: WorkspaceEntity["createdAt"] | undefined,
-): string {
-  if (!timestamp) {
-    return "—";
-  }
-  try {
-    return formatDate(timestamp.toDate());
-  } catch {
-    return "—";
-  }
-}
-
-export function trimOrUndefined(value: string): string | undefined {
-  const trimmed = value.trim();
-  return trimmed || undefined;
-}
-````
-
-## File: modules/workspace/interfaces/web/components/rails/CreateWorkspaceDialogRail.tsx
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-
-import { createWorkspace } from "../../../api/facades";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@ui-shadcn/ui/dialog";
-import { Input } from "@ui-shadcn/ui/input";
-
-interface CreateWorkspaceDialogRailProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  accountId: string | null;
-  accountType: "user" | "organization" | null;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateWorkspaceDialogRail({
-  open,
-  onOpenChange,
-  accountId,
-  accountType,
-  onNavigate,
-}: CreateWorkspaceDialogRailProps) {
-  const [workspaceName, setWorkspaceName] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-
-  function reset() {
-    setWorkspaceName("");
-    setError(null);
-    setIsCreating(false);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const name = workspaceName.trim();
-    if (!name) {
-      setError("請輸入工作區名稱。");
-      return;
-    }
-    if (!accountId || !accountType) {
-      setError("帳號資訊已失效，請重新登入後再建立工作區。");
-      return;
-    }
-
-    setIsCreating(true);
-    setError(null);
-    const result = await createWorkspace({
-      name,
-      accountId,
-      accountType,
-    });
-
-    if (!result.success) {
-      setError(result.error.message);
-      setIsCreating(false);
-      return;
-    }
-
-    reset();
-    onOpenChange(false);
-    onNavigate("/workspace");
-  }
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        onOpenChange(isOpen);
-        if (!isOpen) reset();
-      }}
-    >
-      <DialogContent aria-describedby="rail-create-workspace-description">
-        <DialogHeader>
-          <DialogTitle>建立新工作區</DialogTitle>
-          <DialogDescription id="rail-create-workspace-description">
-            輸入名稱後會直接建立工作區並加入目前帳號的工作區清單中。
-          </DialogDescription>
-        </DialogHeader>
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground" htmlFor="rail-workspace-name">
-              工作區名稱
-            </label>
-            <Input
-              id="rail-workspace-name"
-              value={workspaceName}
-              onChange={(e) => {
-                setWorkspaceName(e.target.value);
-                if (error) setError(null);
-              }}
-              placeholder="例如：Project Alpha"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus
-              disabled={isCreating}
-              maxLength={80}
-            />
-            {error && <p className="text-sm text-destructive">{error}</p>}
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                reset();
-                onOpenChange(false);
-              }}
-              disabled={isCreating}
-            >
-              取消
-            </Button>
-            <Button type="submit" disabled={isCreating || !accountId || !accountType}>
-              {isCreating ? "建立中…" : "直接建立"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/OrganizationWorkspacesScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { type FormEvent, useState } from "react";
-
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface OrganizationWorkspacesScreenProps {
-  readonly accountId: string | null | undefined;
-}
-
-export function OrganizationWorkspacesScreen({ accountId }: OrganizationWorkspacesScreenProps) {
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    isCreatingWorkspace,
-    loadState,
-    workspaces,
-  } = useWorkspaceHub({ accountId, accountType: "organization" });
-
-  function resetDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const result = await createWorkspaceForAccount(workspaceName);
-    if (!result.success) return;
-    resetDialog();
-    setIsCreateOpen(false);
-  }
-
-  if (!accountId) {
-    return (
-      <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
-    );
-  }
-
-  return (
-    <div className="space-y-8">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">工作區</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            組織下所有工作區清單，含 lifecycle 狀態與快速連結。
-          </p>
-        </div>
-        <Button
-          size="sm"
-          onClick={() => {
-            resetDialog();
-            setIsCreateOpen(true);
-          }}
-        >
-          建立工作區
-        </Button>
-      </div>
-
-      <CreateWorkspaceDialog
-        open={isCreateOpen}
-        workspaceName={workspaceName}
-        createError={createError}
-        isCreatingWorkspace={isCreatingWorkspace}
-        accountId={accountId}
-        onOpenChange={setIsCreateOpen}
-        onWorkspaceNameChange={setWorkspaceName}
-        onSubmit={handleSubmit}
-      />
-
-      <Card className="border-border/50">
-        <CardHeader>
-          <CardTitle>Workspaces</CardTitle>
-          <CardDescription>組織下所有工作區清單，含 lifecycle 狀態與快速連結。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <p className="text-sm text-muted-foreground">工作區載入中…</p>
-          )}
-          {loadState === "error" && (
-            <p className="text-sm text-destructive">無法載入工作區資料，請稍後再試。</p>
-          )}
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <p className="text-sm text-muted-foreground">目前沒有可顯示的工作區。</p>
-          )}
-          {loadState === "loaded" &&
-            workspaces.map((workspace) => (
-              <div key={workspace.id} className="rounded-lg border border-border/40 px-3 py-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="link" className="h-auto p-0 text-sm font-medium">
-                      <Link href={`/workspace/${workspace.id}`}>{workspace.name}</Link>
-                    </Button>
-                    <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                      {workspace.lifecycleState}
-                    </Badge>
-                    <Badge variant="outline">{workspace.visibility}</Badge>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/workspace/${workspace.id}?tab=Files`}>檔案</Link>
-                    </Button>
-                    <Button asChild variant="outline" size="sm" className="h-6 text-xs">
-                      <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.id)}`}>
-                        知識頁面
-                      </Link>
-                    </Button>
-                  </div>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{workspace.id}</p>
-              </div>
-            ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/screens/WorkspaceHubScreen.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { type FormEvent, useState } from "react";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-import { useWorkspaceHub } from "../../hooks/useWorkspaceHub";
-import { getWorkspaceGovernanceSummary } from "../../view-models/workspace-supporting-records";
-import { CreateWorkspaceDialog } from "../dialogs/CreateWorkspaceDialog";
-
-const lifecycleBadgeVariant: Record<
-  WorkspaceEntity["lifecycleState"],
-  "default" | "secondary" | "outline"
-> = {
-  active: "default",
-  preparatory: "secondary",
-  stopped: "outline",
-};
-
-interface WorkspaceHubScreenProps {
-  readonly accountId: string | null | undefined;
-  readonly accountName: string | null | undefined;
-  readonly accountType: "user" | "organization";
-  readonly accountsHydrated: boolean;
-  readonly isBootstrapSeeded: boolean;
-}
-
-export function WorkspaceHubScreen({
-  accountId,
-  accountName,
-  accountType,
-  accountsHydrated,
-  isBootstrapSeeded,
-}: WorkspaceHubScreenProps) {
-  const router = useRouter();
-  const [isCreateWorkspaceOpen, setIsCreateWorkspaceOpen] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
-
-  const {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    workspaceStats,
-    workspaces,
-  } = useWorkspaceHub({
-    accountId,
-    accountType,
-  });
-
-  function resetCreateWorkspaceDialog() {
-    setWorkspaceName("");
-    clearCreateError();
-  }
-
-  async function handleCreateWorkspace(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-
-    const result = await createWorkspaceForAccount(workspaceName);
-
-    if (!result.success) {
-      return;
-    }
-
-    resetCreateWorkspaceDialog();
-    setIsCreateWorkspaceOpen(false);
-    if (result.aggregateId) {
-      router.push(`/workspace/${result.aggregateId}`);
-    }
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="flex flex-col gap-2">
-          <h1 className="text-2xl font-bold tracking-tight">Workspace Hub</h1>
-          <p className="text-sm text-muted-foreground">
-            Review the workspaces connected to{" "}
-            <span className="font-medium text-foreground">
-              {accountName ?? "the active account"}
-            </span>
-            .
-          </p>
-        </div>
-
-        <Button
-          onClick={() => setIsCreateWorkspaceOpen(true)}
-          disabled={!accountsHydrated || !accountId}
-        >
-          {!accountsHydrated ? "同步帳號中…" : "建立工作區"}
-        </Button>
-      </div>
-
-      {!accountsHydrated && (
-        <div
-          className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground"
-          aria-live="polite"
-          role="status"
-        >
-          {isBootstrapSeeded
-            ? "正在同步可用的組織與工作區內容，完成後即可直接建立或切換工作區。"
-            : "正在載入帳號與工作區內容…"}
-        </div>
-      )}
-
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Total Workspaces</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.total}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Active</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.active}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card className="border border-border/50">
-          <CardHeader>
-            <CardDescription>Preparatory</CardDescription>
-            <CardTitle className="text-3xl">{workspaceStats.preparatory}</CardTitle>
-          </CardHeader>
-        </Card>
-      </div>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace-first Product Spine</CardTitle>
-          <CardDescription>
-            目前先把主流程收斂成 Identity → Organization → Workspace，再由工作區承接 Knowledge、知識頁面、Notebook / AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Entry flow</p>
-            <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
-              <li>
-                <span className="font-medium text-foreground">1. Identity</span>：登入後先建立個人／組織帳號情境。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">2. Organization</span>：切換至目標 account / organization。
-              </li>
-              <li>
-                <span className="font-medium text-foreground">3. Workspace</span>：進入工作區後再分流到知識、知識頁面、Notebook / AI。
-              </li>
-            </ol>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Knowledge</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                文件、來源、Libraries 與 upload / ingest 流程都由工作區承接。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">知識頁面</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                頁面樹、內容導覽與知識結構直接從工作區知識頁面進入。
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/40 px-4 py-4">
-              <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                問答、推理與 RAG 查詢作為工作區內的消費層，而非獨立入口。
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border border-border/50">
-        <CardHeader>
-          <CardTitle>Workspace Records</CardTitle>
-          <CardDescription>
-            Lifecycle 與 supporting governance records 目前仍由 workspace 模組擁有，但已收斂在專用 supporting ports；點入後會以工作區為樞紐進入 Knowledge / 知識頁面 / Notebook-AI。
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loadState === "loading" && (
-            <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-              Loading workspace records…
-            </div>
-          )}
-
-          {loadState === "error" && errorMessage && (
-            <div className="rounded-xl border border-destructive/30 px-4 py-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          )}
-
-          {loadState === "loaded" && workspaces.length === 0 && (
-            <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-              目前這個帳號尚未建立任何工作區。你可以先完成{" "}
-              <Link
-                href="/organization"
-                className="font-medium text-primary hover:underline"
-              >
-                組織情境
-              </Link>{" "}
-              設定，再使用上方的建立工作區入口，回到 workspace-first 主流程。
-            </div>
-          )}
-
-          {workspaces.map((workspace) => {
-            const governanceSummary = getWorkspaceGovernanceSummary(workspace);
-
-            return (
-              <Link
-                key={workspace.id}
-                href={`/workspace/${workspace.id}`}
-                className="block rounded-xl border border-border/40 px-4 py-4 shadow-sm transition hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70"
-              >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">
-                        {workspace.name}
-                      </p>
-                      <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                        {workspace.lifecycleState}
-                      </Badge>
-                      <Badge variant="outline">{workspace.visibility}</Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Account scope: {workspace.accountType}
-                    </p>
-                    <p className="text-xs font-medium text-primary">點擊進入工作區</p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-xs text-muted-foreground sm:text-right">
-                    <span>Capabilities: {governanceSummary.capabilityCount}</span>
-                    <span>Teams: {governanceSummary.teamCount}</span>
-                    <span>Locations: {governanceSummary.locationCount}</span>
-                    <span>Grants: {governanceSummary.grantCount}</span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </CardContent>
-      </Card>
-
-      <CreateWorkspaceDialog
-        open={isCreateWorkspaceOpen}
-        workspaceName={workspaceName}
-        createError={createError}
-        isCreatingWorkspace={isCreatingWorkspace}
-        accountId={accountId}
-        onOpenChange={(open) => {
-          setIsCreateWorkspaceOpen(open);
-          if (!open) resetCreateWorkspaceDialog();
-        }}
-        onWorkspaceNameChange={(name) => {
-          setWorkspaceName(name);
-          if (createError) clearCreateError();
-        }}
-        onSubmit={handleCreateWorkspace}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceMembersTab.tsx
-````typescript
-"use client";
-
-import { useEffect, useMemo, useState } from "react";
-
-import type { WorkspaceEntity, WorkspaceMemberView } from "../../../api/contracts";
-import { Avatar, AvatarFallback } from "@ui-shadcn/ui/avatar";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { getWorkspaceMembers } from "../../../api/facades";
-
-function getMemberInitials(name: string) {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return "??";
-  }
-
-  const tokens = trimmed.split(/\s+/).slice(0, 2);
-  return tokens.map((token) => token[0]?.toUpperCase() ?? "").join("");
-}
-
-function getAccessChannelKey(memberId: string, channel: WorkspaceMemberView["accessChannels"][number], index: number) {
-  return [
-    memberId,
-    channel.source,
-    channel.label,
-    channel.role ?? "",
-    channel.protocol ?? "",
-    channel.teamId ?? "",
-    String(index),
-  ].join("::");
-}
-
-const presenceLabelMap = {
-  active: "Active",
-  away: "Away",
-  offline: "Offline",
-  unknown: "Unknown",
-} as const;
-
-const sourceLabelMap = {
-  owner: "Owner",
-  direct: "Direct",
-  team: "Team",
-  personnel: "Personnel",
-} as const;
-
-interface WorkspaceMembersTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-export function WorkspaceMembersTab({ workspace }: WorkspaceMembersTabProps) {
-  const [members, setMembers] = useState<WorkspaceMemberView[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadMembers() {
-      setLoadState("loading");
-
-      try {
-        const nextMembers = await getWorkspaceMembers(workspace.id);
-        if (cancelled) {
-          return;
-        }
-
-        setMembers(nextMembers);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[WorkspaceMembersTab] Failed to load members:", error);
-        }
-
-        if (!cancelled) {
-          setMembers([]);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadMembers();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [workspace.id]);
-
-  const directCount = useMemo(
-    () =>
-      members.filter((member) =>
-        member.accessChannels.some((channel) => channel.source === "direct"),
-      ).length,
-    [members],
-  );
-
-  const teamCount = useMemo(
-    () =>
-      members.filter((member) =>
-        member.accessChannels.some((channel) => channel.source === "team"),
-      ).length,
-    [members],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Members</CardTitle>
-        <CardDescription>
-          {workspace.accountType === "organization"
-            ? "組織成員與工作區授權來源的整合檢視。"
-            : "個人工作區目前的共享與聯絡角色摘要。"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Visible members</p>
-            <p className="mt-1 text-xl font-semibold">{members.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Direct access</p>
-            <p className="mt-1 text-xl font-semibold">{directCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Team access</p>
-            <p className="mt-1 text-xl font-semibold">{teamCount}</p>
-          </div>
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading workspace members…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入成員資料，請重新整理頁面或稍後再試。
-          </p>
-        )}
-
-        {loadState === "loaded" && members.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            目前尚未整理出任何工作區成員或授權來源，之後可在這裡持續擴充成員維護流程。
-          </p>
-        )}
-
-        {loadState === "loaded" && members.length > 0 && (
-          <div className="space-y-3">
-            {members.map((member) => (
-              <div
-                key={member.id}
-                className="rounded-xl border border-border/40 px-4 py-4"
-              >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <Avatar>
-                      <AvatarFallback>{getMemberInitials(member.displayName)}</AvatarFallback>
-                    </Avatar>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {member.displayName}
-                        </p>
-                        <Badge variant="outline">{presenceLabelMap[member.presence]}</Badge>
-                        {member.organizationRole && (
-                          <Badge variant="secondary">{member.organizationRole}</Badge>
-                        )}
-                        {member.isExternal && <Badge variant="outline">External</Badge>}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {member.email ?? member.id}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {member.accessChannels.map((channel, index) => (
-                      <Badge
-                        key={getAccessChannelKey(member.id, channel, index)}
-                        variant="outline"
-                      >
-                        {sourceLabelMap[channel.source]} · {channel.label}
-                        {channel.role ? ` · ${channel.role}` : ""}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewSettingsTab.tsx
-````typescript
-"use client";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-
-import { WorkspaceInformationCard } from "../cards/WorkspaceInformationCard";
-import { lifecycleBadgeVariant } from "../layout/workspace-detail-helpers";
-
-interface WorkspaceOverviewSettingsTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly onEditClick: () => void;
-}
-
-export function WorkspaceOverviewSettingsTab({
-  workspace,
-  personnelEntries,
-  addressLines,
-  onEditClick,
-}: WorkspaceOverviewSettingsTabProps) {
-  return (
-    <div className="space-y-4">
-      <Card className="border border-border/50">
-        <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <div className="space-y-1.5">
-            <CardTitle>Workspace Settings</CardTitle>
-            <CardDescription>
-              檢視目前工作區設定，並從這裡進入編輯流程。
-            </CardDescription>
-          </div>
-          <Button type="button" variant="outline" size="sm" onClick={onEditClick}>
-            編輯工作區
-          </Button>
-        </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs text-muted-foreground">Visibility</p>
-            <div className="mt-2">
-              <Badge variant="outline">{workspace.visibility}</Badge>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs text-muted-foreground">Lifecycle</p>
-            <div className="mt-2">
-              <Badge variant={lifecycleBadgeVariant[workspace.lifecycleState]}>
-                {workspace.lifecycleState}
-              </Badge>
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs text-muted-foreground">Account Type</p>
-            <p className="mt-2 text-sm font-medium text-foreground">
-              {workspace.accountType === "organization" ? "Organization" : "Personal"}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-border/40 px-4 py-4">
-            <p className="text-xs text-muted-foreground">Account ID</p>
-            <p className="mt-2 break-all text-sm font-medium text-foreground">{workspace.accountId}</p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <WorkspaceInformationCard
-        workspaceName={<p className="text-sm font-medium text-foreground">{workspace.name}</p>}
-        workspaceAddress={
-          addressLines.length > 0 ? (
-            <div className="space-y-1.5 text-sm text-foreground">
-              {addressLines.map((line, index) => (
-                <p key={`${line}-${index}`}>{line}</p>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未設定工作區地址。</p>
-          )
-        }
-        workspaceRoles={personnelEntries.map((entry) => ({
-          id: entry.label,
-          roleName: <p className="text-sm font-medium text-foreground">{entry.label}</p>,
-          roleValue: entry.value ? (
-            <p className="break-all text-sm text-foreground">{entry.value}</p>
-          ) : (
-            <p className="text-sm text-muted-foreground">未設定</p>
-          ),
-        }))}
-      />
-    </div>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceOverviewTab.tsx
-````typescript
-"use client";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { Badge } from "@ui-shadcn/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Separator } from "@ui-shadcn/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-import { describeGrant } from "../../view-models/workspace-grants";
-import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
-
-interface WorkspaceOverviewTabProps {
-  readonly workspace: WorkspaceEntity;
-  readonly activeWorkspaceId: string | null | undefined;
-  readonly personnelEntries: Array<{ label: string; value: string | undefined }>;
-  readonly addressLines: string[];
-  readonly showSettingsPanel?: boolean;
-  readonly onEditClick: () => void;
-  readonly onSetActiveWorkspace: () => void;
-}
-
-export function WorkspaceOverviewTab({
-  workspace,
-  activeWorkspaceId,
-  personnelEntries,
-  addressLines,
-  showSettingsPanel = false,
-  onEditClick,
-  onSetActiveWorkspace,
-}: WorkspaceOverviewTabProps) {
-  if (showSettingsPanel) {
-    return (
-      <WorkspaceOverviewSettingsTab
-        workspace={workspace}
-        personnelEntries={personnelEntries}
-        addressLines={addressLines}
-        onEditClick={onEditClick}
-      />
-    );
-  }
-
-  return (
-    <Tabs defaultValue="home" className="space-y-4">
-      <div className="rounded-2xl border border-border/50 bg-card/70 p-3 shadow-sm">
-        <TabsList
-          variant="line"
-          className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-b border-border/60 bg-transparent p-0"
-        >
-          <TabsTrigger value="home" className="min-w-fit px-3 py-2">
-            Home
-          </TabsTrigger>
-          <TabsTrigger value="governance" className="min-w-fit px-3 py-2">
-            Governance
-          </TabsTrigger>
-          <TabsTrigger value="profile" className="min-w-fit px-3 py-2">
-            Profile
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="home" className="mt-4 space-y-4">
-          <WorkspaceOverviewSummaryCard
-            workspace={workspace}
-            activeWorkspaceId={activeWorkspaceId}
-            onEditClick={onEditClick}
-            onSetActiveWorkspace={onSetActiveWorkspace}
-          />
-
-          <div className="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-            <WorkspaceProductSpineCard workspace={workspace} />
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Capabilities</CardTitle>
-                <CardDescription>
-                  Runtime features currently mounted on this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.capabilities.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No capability bindings have been added yet.
-                  </p>
-                ) : (
-                  workspace.capabilities.map((capability) => (
-                    <div
-                      key={capability.id}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {capability.name}
-                        </p>
-                        <Badge variant="outline">{capability.type}</Badge>
-                        <Badge
-                          variant={capability.status === "stable" ? "secondary" : "outline"}
-                        >
-                          {capability.status}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-sm text-muted-foreground">
-                        {capability.description}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          {workspace.lifecycleState === "preparatory" && workspace.capabilities.length === 0 && (
-            <WorkspaceQuickstartCard workspaceId={workspace.id} />
-          )}
-        </TabsContent>
-
-        <TabsContent value="governance" className="mt-4 space-y-4">
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Access Model</CardTitle>
-                <CardDescription>
-                  Team scopes and direct grants applied to this workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Team access</p>
-                  {workspace.teamIds.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No team access assigned.</p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {workspace.teamIds.map((teamId) => (
-                        <Badge key={teamId} variant="secondary">
-                          {teamId}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <Separator />
-
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-foreground">Direct grants</p>
-                  {workspace.grants.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No direct grants recorded.</p>
-                  ) : (
-                    workspace.grants.map((grant, index) => (
-                      <div
-                        key={`grant-${grant.role}-${grant.teamId ?? "none"}-${grant.userId ?? "none"}-${grant.protocol ?? "none"}-${index}`}
-                        className="rounded-xl border border-border/40 px-4 py-3"
-                      >
-                        <p className="text-sm font-medium text-foreground">
-                          {describeGrant(grant)}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Role: {grant.role}
-                          {grant.teamId ? ` · Team: ${grant.teamId}` : ""}
-                          {grant.userId ? ` · User: ${grant.userId}` : ""}
-                          {grant.protocol ? ` · Protocol: ${grant.protocol}` : ""}
-                        </p>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border border-border/50">
-              <CardHeader>
-                <CardTitle>Locations</CardTitle>
-                <CardDescription>
-                  Physical or logical locations linked to the workspace.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {workspace.locations == null || workspace.locations.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No locations have been configured yet.
-                  </p>
-                ) : (
-                  workspace.locations.map((location) => (
-                    <div
-                      key={location.locationId}
-                      className="rounded-xl border border-border/40 px-4 py-4"
-                    >
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold text-foreground">
-                          {location.label}
-                        </p>
-                        <Badge variant="outline">{location.locationId}</Badge>
-                      </div>
-                      {location.description && (
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {location.description}
-                        </p>
-                      )}
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Capacity: {location.capacity ?? "—"}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="profile" className="mt-4 space-y-4">
-          <Card className="border border-border/50">
-            <CardHeader>
-              <CardTitle>Workspace Profile</CardTitle>
-              <CardDescription>
-                Operational contacts and registered workspace address.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Personnel</p>
-                {personnelEntries.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No personnel roles assigned.
-                  </p>
-                ) : (
-                  personnelEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3 text-sm"
-                    >
-                      <span className="text-muted-foreground">{entry.label}</span>
-                      <span className="font-medium text-foreground">{entry.value}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-
-              <Separator />
-
-              <div className="space-y-2">
-                <p className="text-sm font-medium text-foreground">Address</p>
-                {addressLines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No address information has been provided.
-                  </p>
-                ) : (
-                  <div className="rounded-xl border border-border/40 px-4 py-4 text-sm text-muted-foreground">
-                    {addressLines.map((line, index) => (
-                      <p key={`${line}-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-      </div>
-    </Tabs>
-  );
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceDetail.ts
-````typescript
-"use client";
-
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount } from "../../api/facades";
-
-export type WorkspaceLoadState = "loading" | "loaded" | "error";
-
-export interface UseWorkspaceDetailResult {
-  workspace: WorkspaceEntity | null;
-  loadState: WorkspaceLoadState;
-  setWorkspace: (ws: WorkspaceEntity) => void;
-}
-
-export function useWorkspaceDetail(
-  workspaceId: string,
-  accountId: string | null | undefined,
-  accountsHydrated: boolean,
-): UseWorkspaceDetailResult {
-  const router = useRouter();
-  const [workspace, setWorkspace] = useState<WorkspaceEntity | null>(null);
-  const [loadState, setLoadState] = useState<WorkspaceLoadState>("loading");
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadWorkspace() {
-      if (!workspaceId) {
-        setLoadState("error");
-        return;
-      }
-
-      if (!accountId || !accountsHydrated) {
-        setWorkspace(null);
-        setLoadState("loading");
-        return;
-      }
-
-      setLoadState("loading");
-      try {
-        const detail = await getWorkspaceByIdForAccount(accountId, workspaceId);
-        if (cancelled) return;
-        if (!detail) {
-          router.replace("/workspace?context=unavailable");
-          return;
-        }
-        setWorkspace(detail);
-        setLoadState("loaded");
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useWorkspaceDetail] Failed to load workspace:", error);
-        }
-        if (!cancelled) {
-          setWorkspace(null);
-          setLoadState("error");
-        }
-      }
-    }
-
-    void loadWorkspace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [accountId, accountsHydrated, router, workspaceId]);
-
-  return { workspace, loadState, setWorkspace };
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceHub.ts
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-
-import { commandFailureFrom, type CommandResult } from "@shared-types";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { createWorkspace, getWorkspacesForAccount } from "../../api/facades";
-
-export type WorkspaceHubLoadState = "idle" | "loading" | "loaded" | "error";
-
-interface UseWorkspaceHubOptions {
-  readonly accountId: string | null | undefined;
-  readonly accountType: "user" | "organization";
-}
-
-function sortWorkspaces(items: WorkspaceEntity[]) {
-  return [...items].sort((left, right) =>
-    left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
-  );
-}
-
-export function useWorkspaceHub({ accountId, accountType }: UseWorkspaceHubOptions) {
-  const [workspaces, setWorkspaces] = useState<WorkspaceEntity[]>([]);
-  const [loadState, setLoadState] = useState<WorkspaceHubLoadState>("idle");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [createError, setCreateError] = useState<string | null>(null);
-  const [isCreatingWorkspace, setIsCreatingWorkspace] = useState(false);
-
-  const fetchWorkspaces = useCallback(
-    async (nextAccountId: string, failureMessage: string) => {
-      try {
-        const nextWorkspaces = await getWorkspacesForAccount(nextAccountId);
-        setWorkspaces(sortWorkspaces(nextWorkspaces));
-        setLoadState("loaded");
-        setErrorMessage(null);
-        return nextWorkspaces;
-      } catch (error) {
-        if (process.env.NODE_ENV !== "production") {
-          console.warn("[useWorkspaceHub] Failed to load workspaces:", error);
-        }
-        setWorkspaces([]);
-        setLoadState("error");
-        setErrorMessage(failureMessage);
-        return null;
-      }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    async function loadWorkspaces() {
-      if (!accountId) {
-        setWorkspaces([]);
-        setLoadState("loaded");
-        setErrorMessage(null);
-        return;
-      }
-
-      setLoadState("loading");
-      setErrorMessage(null);
-
-      await fetchWorkspaces(
-        accountId,
-        "Unable to load workspace records right now.",
-      );
-    }
-
-    void loadWorkspaces();
-  }, [accountId, fetchWorkspaces]);
-
-  const refreshWorkspaces = useCallback(async () => {
-    if (!accountId) {
-      setWorkspaces([]);
-      setLoadState("loaded");
-      setErrorMessage(null);
-      return;
-    }
-
-    await fetchWorkspaces(
-      accountId,
-      "工作區已建立，但清單更新失敗。請重新整理頁面以查看新的工作區。",
-    );
-  }, [accountId, fetchWorkspaces]);
-
-  const createWorkspaceForAccount = useCallback(
-    async (name: string): Promise<CommandResult> => {
-      const nextWorkspaceName = name.trim();
-
-      if (!accountId) {
-        const error = commandFailureFrom(
-          "WORKSPACE_ACCOUNT_REQUIRED",
-          "帳號資訊已失效，請重新整理頁面後再建立工作區。",
-        );
-        setCreateError(error.error.message);
-        return error;
-      }
-
-      if (!nextWorkspaceName) {
-        const error = commandFailureFrom("WORKSPACE_NAME_REQUIRED", "請輸入工作區名稱。");
-        setCreateError(error.error.message);
-        return error;
-      }
-
-      setIsCreatingWorkspace(true);
-      setCreateError(null);
-
-      const result = await createWorkspace({
-        name: nextWorkspaceName,
-        accountId,
-        accountType,
-      });
-
-      if (!result.success) {
-        setCreateError(result.error.message);
-        setIsCreatingWorkspace(false);
-        return result;
-      }
-
-      await refreshWorkspaces();
-      setIsCreatingWorkspace(false);
-      return result;
-    },
-    [accountId, accountType, refreshWorkspaces],
-  );
-
-  const workspaceStats = useMemo(() => {
-    return {
-      total: workspaces.length,
-      active: workspaces.filter((workspace) => workspace.lifecycleState === "active").length,
-      preparatory: workspaces.filter((workspace) => workspace.lifecycleState === "preparatory").length,
-    };
-  }, [workspaces]);
-
-  const clearCreateError = useCallback(() => {
-    setCreateError(null);
-  }, []);
-
-  return {
-    createError,
-    clearCreateError,
-    createWorkspaceForAccount,
-    errorMessage,
-    isCreatingWorkspace,
-    loadState,
-    refreshWorkspaces,
-    workspaceStats,
-    workspaces,
-  };
-}
-````
-
-## File: modules/workspace/interfaces/web/hooks/useWorkspaceSettingsSave.ts
-````typescript
-"use client";
-
-import { type FormEvent, useState } from "react";
-import { useRouter } from "next/navigation";
-import type { WorkspaceEntity } from "../../api/contracts";
-import { getWorkspaceByIdForAccount, updateWorkspaceSettings } from "../../api/facades";
-import type { WorkspaceSettingsDraft } from "../state/workspace-settings";
-import { trimOrUndefined } from "../components/layout/workspace-detail-helpers";
-
-interface UseWorkspaceSettingsSaveOptions {
-  readonly workspace: WorkspaceEntity | null;
-  readonly accountId: string | null | undefined;
-  readonly onSaved: (updated: WorkspaceEntity) => void;
-}
-
-interface UseWorkspaceSettingsSaveResult {
-  readonly isSaving: boolean;
-  readonly saveError: string | null;
-  readonly clearSaveError: () => void;
-  readonly handleSave: (
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) => Promise<void>;
-}
-
-export function useWorkspaceSettingsSave({
-  workspace,
-  accountId,
-  onSaved,
-}: UseWorkspaceSettingsSaveOptions): UseWorkspaceSettingsSaveResult {
-  const router = useRouter();
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
-
-  async function handleSave(
-    event: FormEvent<HTMLFormElement>,
-    settingsDraft: WorkspaceSettingsDraft | null,
-  ) {
-    event.preventDefault();
-
-    if (!workspace || !settingsDraft) return;
-
-    if (!accountId) {
-      setSaveError("帳號上下文尚未完成同步，請稍候再試。");
-      return;
-    }
-
-    const nextWorkspaceName = settingsDraft.name.trim();
-    if (!nextWorkspaceName) {
-      setSaveError("請輸入工作區名稱。");
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    const hasAddressContent = Boolean(
-      settingsDraft.street.trim() ||
-        settingsDraft.city.trim() ||
-        settingsDraft.state.trim() ||
-        settingsDraft.postalCode.trim() ||
-        settingsDraft.country.trim() ||
-        settingsDraft.details.trim(),
-    );
-    const hasPersonnelContent = Boolean(
-      settingsDraft.managerId.trim() ||
-        settingsDraft.supervisorId.trim() ||
-        settingsDraft.safetyOfficerId.trim() ||
-        settingsDraft.customRoles.some((entry) => entry.roleName.trim() || entry.role.trim()),
-    );
-
-    const normalizedCustomRoles = settingsDraft.customRoles
-      .map((entry) => ({
-        roleId: entry.roleId,
-        roleName: entry.roleName.trim(),
-        role: entry.role.trim(),
-      }))
-      .filter((entry) => entry.roleName || entry.role);
-
-    const result = await updateWorkspaceSettings({
-      workspaceId: workspace.id,
-      accountId,
-      name: nextWorkspaceName,
-      visibility: settingsDraft.visibility,
-      lifecycleState: settingsDraft.lifecycleState,
-      address:
-        workspace.address != null || hasAddressContent
-          ? {
-              street: settingsDraft.street.trim(),
-              city: settingsDraft.city.trim(),
-              state: settingsDraft.state.trim(),
-              postalCode: settingsDraft.postalCode.trim(),
-              country: settingsDraft.country.trim(),
-              details: trimOrUndefined(settingsDraft.details),
-            }
-          : undefined,
-      personnel:
-        workspace.personnel != null || hasPersonnelContent
-          ? {
-              managerId: trimOrUndefined(settingsDraft.managerId),
-              supervisorId: trimOrUndefined(settingsDraft.supervisorId),
-              safetyOfficerId: trimOrUndefined(settingsDraft.safetyOfficerId),
-              customRoles: normalizedCustomRoles.length > 0 ? normalizedCustomRoles : undefined,
-            }
-          : undefined,
-    });
-
-    if (!result.success) {
-      setSaveError(result.error.message);
-      setIsSaving(false);
-      return;
-    }
-
-    try {
-      const detail = await getWorkspaceByIdForAccount(accountId, workspace.id);
-      if (!detail) {
-        router.replace("/workspace?context=unavailable");
-        return;
-      }
-      onSaved(detail);
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[useWorkspaceSettingsSave] Failed to refresh workspace after save:", error);
-      }
-      setSaveError("工作區已更新，但重新整理資料失敗。請稍後再試。");
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  return {
-    isSaving,
-    saveError,
-    clearSaveError: () => setSaveError(null),
-    handleSave,
-  };
-}
-````
-
-## File: modules/workspace/interfaces/web/index.ts
-````typescript
-/**
- * workspace interfaces/web public boundary.
- *
- * Web-layer components, hooks, navigation, state helpers and utilities.
- * App-layer and cross-module consumers that need UI composition must import
- * from this path instead of reaching into individual sub-directories.
- */
-
-export { WorkspaceDetailScreen } from "./components/screens/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "./components/screens/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "./components/screens/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "./components/tabs/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "./components/layout/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "./components/rails/CreateWorkspaceDialogRail";
-export { OrganizationWorkspacesScreen } from "./components/screens/OrganizationWorkspacesScreen";
-export { WorkspaceContextCard } from "./components/cards/WorkspaceContextCard";
-
-export {
-	WORKSPACE_TAB_GROUPS,
-	WORKSPACE_TAB_META,
-	WORKSPACE_TAB_VALUES,
-	getWorkspaceTabLabel,
-	getWorkspaceTabMeta,
-	getWorkspaceTabPrefId,
-	getWorkspaceTabStatus,
-	getWorkspaceTabsByGroup,
-	isWorkspaceTabValue,
-} from "./navigation/workspace-tabs";
-
-export { getWorkspaceStorageKey } from "./state/workspace-session";
-
-export {
-	resolveWorkspaceFromMap,
-	toWorkspaceMap,
-} from "./utils/workspace-map";
-
-export type { WorkspaceNavItem } from "./navigation/workspace-nav-items";
-export {
-	WORKSPACE_NAV_ITEMS,
-	normalizeWorkspaceOrder,
-} from "./navigation/workspace-nav-items";
-
-export type {
-	WorkspaceQuickAccessItem,
-	WorkspaceQuickAccessMatcherOptions,
-} from "./components/navigation/workspace-quick-access";
-
-export { buildWorkspaceQuickAccessItems } from "./components/navigation/workspace-quick-access";
-
-export type {
-	WorkspaceTabDevStatus,
-	WorkspaceTabGroup,
-	WorkspaceTabValue,
-} from "./navigation/workspace-tabs";
-
-export { useWorkspaceHub } from "./hooks/useWorkspaceHub";
-export {
-	MAX_VISIBLE_RECENT_WORKSPACES,
-	getWorkspaceIdFromPath,
-	useRecentWorkspaces,
-} from "./hooks/useRecentWorkspaces";
 ````
 
 ## File: modules/workspace/ports/input/WorkspaceQueryPort.ts
@@ -79868,6 +78750,87 @@ import { PublishDomainEventUseCase } from "@/modules/shared/application/publish-
 - When ownership shifts, update contracts and architecture docs in the same change.
 ````
 
+## File: .github/instructions/architecture-mddd.instructions.md
+````markdown
+---
+description: 'MDDD architecture rules for layer ownership and dependency direction.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture MDDD
+
+## Layer Direction
+
+- `interfaces -> application -> domain <- infrastructure`
+- Keep `domain/` framework-free.
+
+## Layer Constraints
+
+- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
+- `application/` orchestrates use cases and coordinates domain abstractions.
+- `infrastructure/` implements domain ports and repository interfaces.
+- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+
+## Layer Ownership
+
+- `domain/`: entities, value objects, domain services, repository interfaces.
+- `application/`: use cases and DTO orchestration.
+- `infrastructure/`: adapters and external implementations.
+- `interfaces/`: UI, transport, and action wiring.
+- Module `api/` public entry is the only cross-module boundary.
+
+## Dependency Guardrails
+
+- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
+- Do not reverse dependency direction for convenience during refactors.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill hexagonal-ddd
+````
+
+## File: .github/instructions/architecture-modules.instructions.md
+````markdown
+---
+description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
+applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
+---
+
+# Architecture Modules
+
+## Required Shape
+
+- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
+- Public boundary should be exposed by `api/`; `index.ts` remains aggregate export only.
+
+## Naming
+
+- Module folder: kebab-case bounded context.
+- Use case file: `verb-noun.use-case.ts`.
+- Repository interface: `PascalCaseRepository`.
+- Repository implementation: `TechnologyPascalCaseRepository`.
+- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
+- Domain event discriminant: `module-name.action`.
+
+## Refactor Checklist
+
+1. Confirm ownership.
+2. Map API consumers.
+3. Preserve boundaries during split/merge/delete.
+4. Update docs and imports in the same change.
+5. Migrate public API and event contracts before removing old paths.
+
+## Module Lifecycle Notes
+
+- New module: establish a public contract immediately (via `api/`) and document inventory updates.
+- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
+- Delete: remove consumers first, then delete module, then update docs and dependency references.
+
+Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
+#use skill modules-mddd-api-surface
+#use skill hexagonal-ddd
+````
+
 ## File: .github/instructions/doc-governance.instructions.md
 ````markdown
 ---
@@ -79930,22 +78893,6 @@ applyTo: 'docs/**/*.md'
 Tags: #use skill context7 #use skill xuanwu-app-skill
 ````
 
-## File: .github/instructions/README.md
-````markdown
-# Instructions Index
-
-This directory contains scoped Copilot behavior rules (`*.instructions.md`).
-
-## Key Files
-
-- `../copilot-instructions.md`: repository-wide always-on instructions.
-- `bounded-context-rules.instructions.md`: module boundary and dependency direction rules.
-- `ubiquitous-language.instructions.md`: naming and ubiquitous language rules.
-- `doc-governance.instructions.md`: documentation governance and source-of-truth rules.
-
-Use this file as the stable entry point for links that target `.github/instructions/README.md`.
-````
-
 ## File: .github/instructions/ubiquitous-language.instructions.md
 ````markdown
 ---
@@ -79988,298 +78935,344 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill hexagonal-ddd
 ````
 
-## File: app/(shell)/_components/create-workspace-dialog-rail.tsx
+## File: app/(shell)/_components/account-switcher.tsx
 ````typescript
 "use client";
 
-import type { ActiveAccount } from "@/app/providers/app-context";
-import { CreateWorkspaceDialogRail as WorkspaceCreateWorkspaceDialogRail } from "@/modules/workspace/api";
+import { type FormEvent, useState } from "react";
+import { useRouter } from "next/navigation";
 
-interface CreateWorkspaceDialogRailProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  activeAccount: ActiveAccount | null;
-  isOrganizationAccount: boolean;
-  onNavigate: (href: string) => void;
-}
-
-export function CreateWorkspaceDialogRail({
-  open,
-  onOpenChange,
-  activeAccount,
-  isOrganizationAccount,
-  onNavigate,
-}: CreateWorkspaceDialogRailProps) {
-  return (
-    <WorkspaceCreateWorkspaceDialogRail
-      open={open}
-      onOpenChange={onOpenChange}
-      accountId={activeAccount?.id ?? null}
-      accountType={activeAccount ? (isOrganizationAccount ? "organization" : "user") : null}
-      onNavigate={onNavigate}
-    />
-  );
-}
-````
-
-## File: app/(shell)/_components/customize-navigation-dialog.tsx
-````typescript
-"use client";
-
-/**
- * Module: customize-navigation-dialog.tsx
- * Purpose: Let users pick which nav items stay pinned in the secondary sidebar.
- * Responsibilities: dialog shell, section rendering, preference state management.
- * Constraints: UI-only; pure preference storage, no backend call.
- *   Data/constants/localStorage live in nav-preferences-data.ts.
- *   Row components live in nav-check-row.tsx.
- */
-
-import { useMemo, useState, useEffect } from "react";
-
-import { reorder, type Edge } from "@lib-dragdrop";
-
+import type { AuthUser } from "@/app/providers/auth-context";
+import { useApp } from "@/app/providers/app-provider";
+import type { AccountEntity } from "@/modules/platform/api";
+import { createOrganization } from "@/modules/platform/api";
 import { Button } from "@ui-shadcn/ui/button";
-import { Checkbox } from "@ui-shadcn/ui/checkbox";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@ui-shadcn/ui/dialog";
 import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { Separator } from "@ui-shadcn/ui/separator";
 
-import { CheckRow, WorkspaceCheckRow } from "./nav-check-row";
-import { type WorkspaceNavItem, WORKSPACE_NAV_ITEMS } from "@/modules/workspace/api";
-import {
-  DIALOG_TEXT,
-  ORGANIZATION_NAV_ITEMS,
-  PERSONAL_ITEMS,
-  readNavPreferences,
-  writeNavPreferences,
-  type NavPreferences,
-  type SidebarLocaleBundle,
-} from "./nav-preferences-data";
-
-// Re-export the stable public surface so existing consumers (dashboard-sidebar,
-// workspace-sidebar-section) don't need to change their import paths.
-export type { NavPreferences };
-export { readNavPreferences };
-
-// ── Props ──────────────────────────────────────────────────────────────────
-
-interface CustomizeNavigationDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onPreferencesChange?: (prefs: NavPreferences) => void;
+interface AccountSwitcherProps {
+  personalAccount: AuthUser | null;
+  organizationAccounts: AccountEntity[];
+  activeAccountId: string | null;
+  onSelectPersonal: () => void;
+  onSelectOrganization: (account: AccountEntity) => void;
+  onOrganizationCreated?: (account: AccountEntity) => void;
 }
 
-// ── Component ──────────────────────────────────────────────────────────────
+export function AccountSwitcher({
+  personalAccount,
+  organizationAccounts,
+  activeAccountId,
+  onSelectPersonal,
+  onSelectOrganization,
+  onOrganizationCreated,
+}: AccountSwitcherProps) {
+  const router = useRouter();
+  const {
+    state: { accountsHydrated, bootstrapPhase },
+  } = useApp();
+  const [isCreateOrganizationOpen, setIsCreateOrganizationOpen] = useState(false);
+  const [organizationName, setOrganizationName] = useState("");
+  const [organizationError, setOrganizationError] = useState<string | null>(null);
+  const [isCreatingOrganization, setIsCreatingOrganization] = useState(false);
 
-export function CustomizeNavigationDialog({
-  open,
-  onOpenChange,
-  onPreferencesChange,
-}: CustomizeNavigationDialogProps) {
-  const [prefs, setPrefs] = useState<NavPreferences>(() => readNavPreferences());
-  const [dragTarget, setDragTarget] = useState<{ id: string; edge: Edge | null } | null>(null);
-
-  const uiLocale = useMemo<"zh" | "en">(() => {
-    if (typeof navigator === "undefined") return "zh";
-    const language = navigator.language?.toLowerCase() ?? "";
-    return language.startsWith("zh") ? "zh" : "en";
-  }, []);
-
-  const [localeBundle, setLocaleBundle] = useState<SidebarLocaleBundle | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const localeFile =
-      uiLocale === "zh" ? "/localized-files/zh-TW.json" : "/localized-files/en.json";
-    let canceled = false;
-    fetch(localeFile)
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to load locale file: ${res.status}`);
-        return res.json() as Promise<SidebarLocaleBundle>;
-      })
-      .then((json) => { if (!canceled) setLocaleBundle(json); })
-      .catch(() => { if (!canceled) setLocaleBundle(null); });
-    return () => { canceled = true; };
-  }, [uiLocale]);
-
-  const text = DIALOG_TEXT[uiLocale];
-
-  const workspaceItemsById = useMemo(
-    () => Object.fromEntries(WORKSPACE_NAV_ITEMS.map((item) => [item.id, item])),
-    [],
-  );
-
-  const orderedWorkspaceItems = useMemo(
-    () =>
-      prefs.workspaceOrder
-        .map((id) => workspaceItemsById[id])
-        .filter((item): item is WorkspaceNavItem => item != null),
-    [prefs.workspaceOrder, workspaceItemsById],
-  );
-
-  const getWorkspaceLabel = (item: WorkspaceNavItem) =>
-    localeBundle?.workspace?.tabLabels?.[item.tabKey] ?? item.fallbackLabel;
-
-  const getOrganizationLabel = (item: (typeof ORGANIZATION_NAV_ITEMS)[number]) =>
-    uiLocale === "zh" ? item.zhLabel : item.enLabel;
-
-  function updatePrefs(update: Partial<NavPreferences>) {
-    const next = { ...prefs, ...update };
-    writeNavPreferences(next);
-    setPrefs(next);
-    onPreferencesChange?.(next);
+  function resetCreateOrganizationDialog() {
+    setOrganizationName("");
+    setOrganizationError(null);
+    setIsCreatingOrganization(false);
   }
 
-  function togglePersonal(id: string) {
-    const next = prefs.pinnedPersonal.includes(id)
-      ? prefs.pinnedPersonal.filter((x) => x !== id)
-      : [...prefs.pinnedPersonal, id];
-    updatePrefs({ pinnedPersonal: next });
-  }
+  async function handleCreateOrganization(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
 
-  function toggleWorkspace(id: string) {
-    const next = prefs.pinnedWorkspace.includes(id)
-      ? prefs.pinnedWorkspace.filter((x) => x !== id)
-      : [...prefs.pinnedWorkspace, id];
-    updatePrefs({ pinnedWorkspace: next });
-  }
+    if (!personalAccount) {
+      setOrganizationError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
 
-  function reorderWorkspaceItems(sourceId: string, targetId: string, edge: Edge | null) {
-    const startIndex = prefs.workspaceOrder.indexOf(sourceId);
-    const targetIndex = prefs.workspaceOrder.indexOf(targetId);
-    if (startIndex === -1 || targetIndex === -1) return;
-    const destinationIndex = edge === "bottom" ? targetIndex + 1 : targetIndex;
-    const nextOrder = reorder({ list: prefs.workspaceOrder, startIndex, finishIndex: destinationIndex });
-    updatePrefs({ workspaceOrder: nextOrder });
+    const nextOrganizationName = organizationName.trim();
+    if (!nextOrganizationName) {
+      setOrganizationError("請輸入組織名稱。");
+      return;
+    }
+
+    setIsCreatingOrganization(true);
+    setOrganizationError(null);
+
+    const result = await createOrganization({
+      organizationName: nextOrganizationName,
+      ownerId: personalAccount.id,
+      ownerName: personalAccount.name,
+      ownerEmail: personalAccount.email,
+    });
+
+    if (!result.success) {
+      setOrganizationError(result.error.message);
+      setIsCreatingOrganization(false);
+      return;
+    }
+
+    onOrganizationCreated?.({
+      id: result.aggregateId,
+      name: nextOrganizationName,
+      accountType: "organization",
+      ownerId: personalAccount.id,
+    });
+
+    resetCreateOrganizationDialog();
+    setIsCreateOrganizationOpen(false);
+    router.push("/organization");
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{text.title}</DialogTitle>
-          <DialogDescription>{text.description}</DialogDescription>
-        </DialogHeader>
+    <>
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+          帳號情境
+        </p>
+        <select
+          aria-label="切換帳號情境"
+          value={activeAccountId ?? ""}
+          onChange={(event) => {
+            const nextId = event.target.value;
+            if (nextId === "__create_organization__") {
+              setIsCreateOrganizationOpen(true);
+              return;
+            }
 
-        {/* ── Personal items ─────────────────────────────────────────── */}
-        <div className="mt-2 space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionPersonal}
+            if (!nextId || nextId === personalAccount?.id) {
+              onSelectPersonal();
+              return;
+            }
+
+            const nextAccount = organizationAccounts.find((account) => account.id === nextId);
+            if (nextAccount) {
+              onSelectOrganization(nextAccount);
+            }
+          }}
+          className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 text-sm text-foreground"
+        >
+          {personalAccount && (
+            <option value={personalAccount.id}>{personalAccount.name}（個人）</option>
+          )}
+          {organizationAccounts.map((account) => (
+            <option key={account.id} value={account.id}>
+              {account.name}（組織）
+            </option>
+          ))}
+          <option value="__create_organization__">+建立組織</option>
+        </select>
+        {!accountsHydrated && (
+          <p className="text-xs text-muted-foreground">
+            {bootstrapPhase === "seeded" ? "正在同步組織上下文…" : "正在載入帳號上下文…"}
           </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {PERSONAL_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={text[item.labelKey]}
-                checked={prefs.pinnedPersonal.includes(item.id)}
-                onToggle={() => { togglePersonal(item.id); }}
-              />
-            ))}
-          </div>
-        </div>
+        )}
+      </div>
 
-        <Separator className="my-2" />
+      <Dialog
+        open={isCreateOrganizationOpen}
+        onOpenChange={(open) => {
+          setIsCreateOrganizationOpen(open);
+          if (!open) {
+            resetCreateOrganizationDialog();
+          }
+        }}
+      >
+        <DialogContent aria-describedby="create-organization-description">
+          <DialogHeader>
+            <DialogTitle>建立新組織</DialogTitle>
+            <DialogDescription id="create-organization-description">
+              輸入名稱後會直接建立組織並切換到新的組織內容。
+            </DialogDescription>
+          </DialogHeader>
 
-        {/* ── Workspace items ────────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionWorkspace}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {orderedWorkspaceItems.map((item) => (
-              <WorkspaceCheckRow
-                key={item.id}
-                id={item.id}
-                label={getWorkspaceLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                isDropTarget={dragTarget?.id === item.id}
-                activeDropEdge={dragTarget?.id === item.id ? dragTarget.edge : null}
-                onToggle={() => { toggleWorkspace(item.id); }}
-                onDragOverItem={(targetId, edge) => { setDragTarget({ id: targetId, edge }); }}
-                onDragLeaveItem={(targetId) => {
-                  setDragTarget((current) => (current?.id === targetId ? null : current));
+          <form className="space-y-4" onSubmit={handleCreateOrganization}>
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-foreground" htmlFor="organization-name">
+                組織名稱
+              </label>
+              <Input
+                id="organization-name"
+                value={organizationName}
+                onChange={(event) => {
+                  setOrganizationName(event.target.value);
+                  if (organizationError) {
+                    setOrganizationError(null);
+                  }
                 }}
-                onReorder={reorderWorkspaceItems}
+                placeholder="例如：Gig Team"
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
+                disabled={isCreatingOrganization}
+                maxLength={80}
               />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Organization items ──────────────────────────────────────── */}
-        <div className="space-y-1">
-          <p className="mb-1 px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionOrganization}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50">
-            {ORGANIZATION_NAV_ITEMS.map((item) => (
-              <CheckRow
-                key={item.id}
-                id={item.id}
-                label={getOrganizationLabel(item)}
-                checked={prefs.pinnedWorkspace.includes(item.id)}
-                onToggle={() => { toggleWorkspace(item.id); }}
-              />
-            ))}
-          </div>
-        </div>
-
-        <Separator className="my-2" />
-
-        {/* ── Display settings ───────────────────────────────────────── */}
-        <div className="space-y-3">
-          <p className="px-2 text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {text.sectionDisplay}
-          </p>
-          <div className="rounded-lg border border-border/60 bg-background/50 px-4 py-3 space-y-3">
-            <div className="flex items-center gap-3">
-              <Checkbox
-                id="nav-limit-workspaces"
-                checked={prefs.showLimitedWorkspaces}
-                onCheckedChange={(checked) => { updatePrefs({ showLimitedWorkspaces: Boolean(checked) }); }}
-              />
-              <Label htmlFor="nav-limit-workspaces" className="cursor-pointer text-sm font-medium">
-                {text.limitedLabel}
-              </Label>
+              {organizationError && <p className="text-sm text-destructive">{organizationError}</p>}
             </div>
-            {prefs.showLimitedWorkspaces && (
-              <div className="space-y-1.5 pl-7">
-                <Label htmlFor="nav-max-workspaces" className="text-xs text-muted-foreground">
-                  {text.limitedInputLabel}
-                </Label>
-                <Input
-                  id="nav-max-workspaces"
-                  type="number"
-                  min={1}
-                  max={50}
-                  value={prefs.maxWorkspaces}
-                  onChange={(e) => {
-                    const val = parseInt(e.target.value, 10);
-                    if (!isNaN(val) && val >= 1) updatePrefs({ maxWorkspaces: Math.min(val, 50) });
-                  }}
-                  className="w-full"
-                />
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* ── Footer ─────────────────────────────────────────────────── */}
-        <div className="flex justify-end pt-2">
-          <Button type="button" onClick={() => { onOpenChange(false); }}>
-            {text.done}
-          </Button>
-        </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  resetCreateOrganizationDialog();
+                  setIsCreateOrganizationOpen(false);
+                }}
+                disabled={isCreatingOrganization}
+              >
+                取消
+              </Button>
+              <Button type="submit" disabled={isCreatingOrganization || !personalAccount}>
+                {isCreatingOrganization ? "建立中…" : "直接建立"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+````
+
+## File: app/(shell)/_components/create-organization-dialog.tsx
+````typescript
+"use client";
+
+import { type FormEvent, useState } from "react";
+
+import type { AuthUser } from "@/app/providers/auth-context";
+import type { AccountEntity } from "@/modules/platform/api";
+import { createOrganization } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+
+interface CreateOrganizationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: AuthUser | null;
+  onOrganizationCreated?: (account: AccountEntity) => void;
+  onNavigate: (href: string) => void;
+}
+
+export function CreateOrganizationDialog({
+  open,
+  onOpenChange,
+  user,
+  onOrganizationCreated,
+  onNavigate,
+}: CreateOrganizationDialogProps) {
+  const [orgName, setOrgName] = useState("");
+  const [orgError, setOrgError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+
+  function reset() {
+    setOrgName("");
+    setOrgError(null);
+    setIsCreating(false);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user) {
+      setOrgError("帳號資訊已失效，請重新登入後再建立組織。");
+      return;
+    }
+    const name = orgName.trim();
+    if (!name) {
+      setOrgError("請輸入組織名稱。");
+      return;
+    }
+    setIsCreating(true);
+    setOrgError(null);
+    const result = await createOrganization({
+      organizationName: name,
+      ownerId: user.id,
+      ownerName: user.name,
+      ownerEmail: user.email,
+    });
+    if (!result.success) {
+      setOrgError(result.error.message);
+      setIsCreating(false);
+      return;
+    }
+    const newAccount: AccountEntity = {
+      id: result.aggregateId,
+      name,
+      accountType: "organization",
+      ownerId: user.id,
+    };
+    onOrganizationCreated?.(newAccount);
+    reset();
+    onOpenChange(false);
+    onNavigate("/organization");
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) reset();
+      }}
+    >
+      <DialogContent aria-describedby="rail-create-org-description">
+        <DialogHeader>
+          <DialogTitle>建立新組織</DialogTitle>
+          <DialogDescription id="rail-create-org-description">
+            輸入名稱後會直接建立組織並切換到新的組織內容。
+          </DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-foreground" htmlFor="rail-organization-name">
+              組織名稱
+            </label>
+            <Input
+              id="rail-organization-name"
+              value={orgName}
+              onChange={(e) => {
+                setOrgName(e.target.value);
+                if (orgError) setOrgError(null);
+              }}
+              placeholder="例如：Gig Team"
+              // eslint-disable-next-line jsx-a11y/no-autofocus
+              autoFocus
+              disabled={isCreating}
+              maxLength={80}
+            />
+            {orgError && <p className="text-sm text-destructive">{orgError}</p>}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                reset();
+                onOpenChange(false);
+              }}
+              disabled={isCreating}
+            >
+              取消
+            </Button>
+            <Button type="submit" disabled={isCreating || !user}>
+              {isCreating ? "建立中…" : "直接建立"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );
@@ -80308,7 +79301,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 
-import { createKnowledgePage } from "@/modules/knowledge/api";
+import { createKnowledgePage } from "@/modules/notion/api";
 import { buildWorkspaceQuickAccessItems } from "@/modules/workspace/api";
 import { useAuth } from "@/app/providers/auth-provider";
 import {
@@ -80844,156 +79837,65 @@ export function DashboardSidebar({
 }
 ````
 
-## File: app/(shell)/_components/nav-preferences-data.ts
+## File: app/(shell)/_components/header-controls.tsx
 ````typescript
+"use client";
+
 /**
- * nav-preferences-data.ts
- * Owns: NavPreferences type, nav-item catalogs, default values,
- *   validation helpers, and localStorage read/write utilities.
- * Constraints: No React imports. No UI imports. Pure data / serialization.
+ * Module: header-controls.tsx
+ * Purpose: compose shell header utility controls.
+ * Responsibilities: language switch, theme toggle, and notification entry.
+ * Constraints: presentation-only, no domain orchestration.
  */
 
-import {
-  WORKSPACE_NAV_ITEMS,
-  normalizeWorkspaceOrder,
-} from "@/modules/workspace/api";
+import { Moon, Sun } from "lucide-react";
+import { useEffect, useState } from "react";
 
-// Re-export so existing consumers of this file (customize-navigation-dialog
-// via nav-preferences-data) keep working during the transition.
-export { WORKSPACE_NAV_ITEMS, normalizeWorkspaceOrder };
+import { useAuth } from "@/app/providers/auth-provider";
+import { NotificationBell } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { TranslationSwitcher } from "./translation-switcher";
 
-// ── Types ──────────────────────────────────────────────────────────────────
+const THEME_KEY = "xuanwu_theme";
 
-export interface NavPreferences {
-  /** IDs of personal nav items that are pinned */
-  pinnedPersonal: string[];
-  /** IDs of workspace org-management items that are pinned */
-  pinnedWorkspace: string[];
-  /** Whether to show a limited number of workspaces */
-  showLimitedWorkspaces: boolean;
-  /** Max number of workspaces to show (when showLimitedWorkspaces = true) */
-  maxWorkspaces: number;
-  /** Explicit display order of workspace items for sidebar and customize dialog */
-  workspaceOrder: string[];
-}
+export function HeaderControls() {
+  const { state: authState } = useAuth();
+  const [theme, setTheme] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "light";
+    const storedTheme = window.localStorage.getItem(THEME_KEY);
+    if (storedTheme === "light" || storedTheme === "dark") return storedTheme;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  });
 
-export interface SidebarLocaleBundle {
-  workspace?: {
-    groups?: Record<string, string>;
-    tabLabels?: Record<string, string>;
-  };
-}
+  const recipientId = authState.user?.id ?? "";
 
-const STORAGE_KEY = "xuanwu:nav-preferences";
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    window.localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
 
-// ── Personal nav items ─────────────────────────────────────────────────────
-
-export const PERSONAL_ITEMS: { id: string; labelKey: "recentWorkspaces" }[] = [
-  { id: "recent-workspaces", labelKey: "recentWorkspaces" },
-];
-
-// ── Workspace / org-management items ──────────────────────────────────────
-// WORKSPACE_NAV_ITEMS is owned by modules/workspace/api (workspace BC).
-// It is re-exported above for backward-compatible consumers of this file.
-
-export const ORGANIZATION_NAV_ITEMS: { id: string; zhLabel: string; enLabel: string }[] = [
-  { id: "teams", zhLabel: "團隊", enLabel: "Teams" },
-  { id: "permissions", zhLabel: "權限", enLabel: "Permissions" },
-  { id: "workspaces", zhLabel: "工作區", enLabel: "Workspaces" },
-];
-
-export const DIALOG_TEXT = {
-  zh: {
-    title: "Customize navigation",
-    description:
-      "已勾選項目會固定顯示於側欄。此設定僅影響你自己的介面，不會影響其他成員。",
-    sectionPersonal: "個人",
-    sectionWorkspace: "工作區",
-    sectionOrganization: "組織管理",
-    sectionDisplay: "顯示設定",
-    limitedLabel: "側欄僅顯示固定數量的最近工作區",
-    limitedInputLabel: "工作區數量",
-    done: "完成",
-    recentWorkspaces: "最近工作區",
-  },
-  en: {
-    title: "Customize navigation",
-    description:
-      "Checked items stay visible in your sidebar. This setting is personal and does not affect other members.",
-    sectionPersonal: "Personal",
-    sectionWorkspace: "Workspace",
-    sectionOrganization: "Organization",
-    sectionDisplay: "Display",
-    limitedLabel: "Show a limited number of recent workspaces in sidebar",
-    limitedInputLabel: "Number of workspaces",
-    done: "Done",
-    recentWorkspaces: "Recent workspaces",
-  },
-} as const;
-
-// ── Defaults + validation ──────────────────────────────────────────────────
-
-export const DEFAULT_PREFS: NavPreferences = {
-  pinnedPersonal: ["recent-workspaces"],
-  pinnedWorkspace: [
-    ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-    ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-  ],
-  showLimitedWorkspaces: true,
-  maxWorkspaces: 10,
-  workspaceOrder: WORKSPACE_NAV_ITEMS.map((item) => item.id),
-};
-
-const VALID_PERSONAL_ITEM_IDS = new Set(PERSONAL_ITEMS.map((item) => item.id));
-const VALID_WORKSPACE_ITEM_IDS = new Set([
-  ...WORKSPACE_NAV_ITEMS.map((item) => item.id),
-  ...ORGANIZATION_NAV_ITEMS.map((item) => item.id),
-]);
-// normalizeWorkspaceOrder is owned by modules/workspace/api (workspace BC).
-// It is re-exported above.
-
-function normalizePinnedIds(ids: unknown, validSet: Set<string>, fallback: string[]): string[] {
-  if (!Array.isArray(ids)) return fallback;
-  const normalized = ids
-    .filter((id): id is string => typeof id === "string")
-    .filter((id) => validSet.has(id));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : fallback;
-}
-
-// ── localStorage helpers ───────────────────────────────────────────────────
-
-export function readNavPreferences(): NavPreferences {
-  if (typeof window === "undefined") return DEFAULT_PREFS;
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_PREFS;
-    const parsed = JSON.parse(raw) as Partial<NavPreferences>;
-    return {
-      pinnedPersonal: normalizePinnedIds(
-        parsed.pinnedPersonal,
-        VALID_PERSONAL_ITEM_IDS,
-        DEFAULT_PREFS.pinnedPersonal,
-      ),
-      pinnedWorkspace: normalizePinnedIds(
-        parsed.pinnedWorkspace,
-        VALID_WORKSPACE_ITEM_IDS,
-        DEFAULT_PREFS.pinnedWorkspace,
-      ),
-      showLimitedWorkspaces: parsed.showLimitedWorkspaces ?? DEFAULT_PREFS.showLimitedWorkspaces,
-      maxWorkspaces:
-        typeof parsed.maxWorkspaces === "number"
-          ? parsed.maxWorkspaces
-          : DEFAULT_PREFS.maxWorkspaces,
-      workspaceOrder: normalizeWorkspaceOrder(parsed.workspaceOrder),
-    };
-  } catch {
-    return DEFAULT_PREFS;
+  function toggleTheme() {
+    setTheme((current) => (current === "light" ? "dark" : "light"));
   }
-}
 
-export function writeNavPreferences(prefs: NavPreferences): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(prefs));
+  return (
+    <div className="flex items-center gap-2">
+      <TranslationSwitcher />
+
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        onClick={toggleTheme}
+        aria-label="Toggle theme"
+        className="text-muted-foreground"
+      >
+        {theme === "light" ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+      </Button>
+
+      <NotificationBell recipientId={recipientId} />
+    </div>
+  );
 }
 ````
 
@@ -81051,1321 +79953,2102 @@ export function ShellGuard({ children }: ShellGuardProps) {
 }
 ````
 
-## File: app/(shell)/_components/use-recent-workspaces.ts
-````typescript
-export {
-  MAX_VISIBLE_RECENT_WORKSPACES,
-  getWorkspaceIdFromPath,
-  useRecentWorkspaces,
-} from "@/modules/workspace/api";
-````
-
-## File: app/(shell)/_components/workspace-sidebar-section.tsx
-````typescript
-"use client";
-
-import { WorkspaceSidebarSection as ModuleWorkspaceSidebarSection } from "@/modules/workspace/api";
-
-import type { SidebarLocaleBundle } from "./use-sidebar-locale";
-import type { NavPreferences } from "./customize-navigation-dialog";
-import { sidebarItemClass } from "./sidebar-nav-data";
-
-// ── Tab link item shape ────────────────────────────────────────────────────────
-
-// ── Props ─────────────────────────────────────────────────────────────────────
-
-interface WorkspaceSidebarSectionProps {
-  workspacePathId: string;
-  navPrefs: NavPreferences;
-  localeBundle: SidebarLocaleBundle | null;
-}
-
-// ── Component ─────────────────────────────────────────────────────────────────
-
-export function WorkspaceSidebarSection({
-  workspacePathId,
-  navPrefs,
-  localeBundle,
-}: WorkspaceSidebarSectionProps) {
-  return (
-    <ModuleWorkspaceSidebarSection
-      workspacePathId={workspacePathId}
-      navPrefs={navPrefs}
-      localeBundle={localeBundle}
-      getItemClassName={sidebarItemClass}
-    />
-  );
-}
-````
-
-## File: app/(shell)/ai-chat/page.tsx
+## File: app/(shell)/layout.tsx
 ````typescript
 "use client";
 
 /**
- * Module: ai-chat page
- * Purpose: AI assistant chat hub — wired to generateNotebookResponse server action.
- * Thread persistence: Firestore via saveThread/loadThread (survives page reload).
- * Multi-turn context: previous messages injected as system prompt.
+ * Module: shell layout
+ * Purpose: compose authenticated shell frame with sidebar, header, and content area.
+ * Responsibilities: account switching, route guards, and shell-level UI composition.
+ * Constraints: keep business logic in modules and providers, not layout rendering.
  */
 
 import Link from "next/link";
-import { Bot, BookOpen, Brain, FileText, Lightbulb, Loader2, Plus, SendHorizonal } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { v7 as uuid } from "@lib-uuid";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { PanelLeftOpen, Search } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { resolveWorkspaceFromMap, WorkspaceContextCard } from "@/modules/workspace/api";
-import { sendChatMessage, saveThread, loadThread } from "./_actions";
-import { cn } from "@shared-utils";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import {
-  type ChatMessage,
-  STORAGE_KEY,
-  buildContextPrompt,
-  generateMsgId,
-  threadFromMessages,
-} from "./ai-chat-helpers";
+import type { AccountEntity } from "@/modules/platform/api";
+import { AccountSwitcher } from "./_components/account-switcher";
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs";
+import { AppRail } from "./_components/app-rail";
+import { DashboardSidebar } from "./_components/dashboard-sidebar";
+import { GlobalSearchDialog, useGlobalSearch } from "./_components/global-search-dialog";
+import { HeaderControls } from "./_components/header-controls";
+import { HeaderUserAvatar } from "./_components/header-user-avatar";
+import { ShellGuard } from "./_components/shell-guard";
 
-export default function AiChatPage() {
-  const searchParams = useSearchParams();
-  const { state: { workspaces } } = useApp();
-  const { state: authState } = useAuth();
-  const accountId = authState.user?.id ?? "";
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState("");
-  const [isPending, setIsPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [threadId, setThreadId] = useState<string | null>(null);
-  const [threadCreatedAt, setThreadCreatedAt] = useState<string>(new Date().toISOString());
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const currentWorkspace = resolveWorkspaceFromMap(workspaces ?? {}, requestedWorkspaceId);
-  const workspaceName = currentWorkspace?.name ?? null;
-  const workspaceQuery = currentWorkspace ? `?workspaceId=${encodeURIComponent(currentWorkspace.id)}` : "";
-  const latestUserPrompt = [...messages].reverse().find((message) => message.role === "user")?.content ?? null;
+const routeTitles: Record<string, string> = {
+  "/organization": "組織治理",
+  "/organization/daily": "Account · 每日",
+  "/organization/schedule": "Account · 排程",
+  "/organization/schedule/dispatcher": "Account · 調度台",
+  "/organization/audit": "Account · 稽核",
+  "/workspace": "工作區中心",
+  "/knowledge": "Knowledge Hub",
+  "/knowledge/pages": "Knowledge · 頁面",
+  "/knowledge/block-editor": "Knowledge · 區塊編輯器",
+  "/knowledge-base/articles": "Knowledge Base · 文章",
+  "/knowledge-database/databases": "Knowledge Database · 資料庫",
+  "/source/documents": "Source · 文件來源",
+  "/source/libraries": "Source · Libraries",
+  "/notebook/rag-query": "Notebook · Ask / Cite",
+  "/ai-chat": "AI Chat",
+  "/dev-tools": "開發工具",
+};
 
-  // Load persisted thread on mount
-  useEffect(() => {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    const storedId = localStorage.getItem(storageKey);
-    if (!storedId) return;
-    setThreadId(storedId);
-    void loadThread(accountId, storedId).then((thread) => {
-      if (!thread || thread.messages.length === 0) return;
-      setThreadCreatedAt(thread.createdAt);
-      setMessages(
-        thread.messages
-          .filter((m) => m.role === "user" || m.role === "assistant")
-          .map((m) => ({ id: m.id, role: m.role as "user" | "assistant", content: m.content })),
-      );
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accountId]);
-  const summaryItems = useMemo(() => {
-    if (messages.length === 0) {
-      return [
-        "先整理來源文件與工作區脈絡，再開始對話。",
-        "需要帶引用的回答時，可搭配 Ask / Cite 使用。",
-      ];
-    }
+/** Used only by the mobile header nav strip (md:hidden). Desktop nav is in AppRail. */
+const mobileNavItems = [
+  { href: "/workspace", label: "工作區" },
+];
 
-    return [
-      `目前已有 ${messages.length} 則訊息，包含 ${messages.filter((message) => message.role === "assistant").length} 次模型回覆。`,
-      latestUserPrompt ? `最近一次提問：${latestUserPrompt}` : "最近一次提問尚未建立。",
-    ];
-  }, [latestUserPrompt, messages]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const text = input.trim();
-    if (!text || isPending) return;
-
-    const userMsg: ChatMessage = { id: generateMsgId(), role: "user", content: text };
-    const nextMessages = [...messages, userMsg];
-    setMessages(nextMessages);
-    setInput("");
-    setError(null);
-    setIsPending(true);
-
-    // Build multi-turn context from history (exclude the new user message)
-    const contextPrompt = buildContextPrompt(messages);
-
-    try {
-      const result = await sendChatMessage({
-        prompt: text,
-        ...(contextPrompt ? { system: contextPrompt } : {}),
-      });
-      if (result.ok) {
-        const assistantMsg: ChatMessage = {
-          id: generateMsgId(),
-          role: "assistant",
-          content: result.data.text,
-        };
-        const finalMessages = [...nextMessages, assistantMsg];
-        setMessages(finalMessages);
-
-        // Persist thread to Firestore
-        if (accountId) {
-          const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-          let currentThreadId = threadId;
-          if (!currentThreadId) {
-            currentThreadId = uuid();
-            setThreadId(currentThreadId);
-            localStorage.setItem(storageKey, currentThreadId);
-          }
-          const thread = threadFromMessages(currentThreadId, finalMessages, threadCreatedAt);
-          void saveThread(accountId, thread);
-        }
-      } else {
-        setError(result.error.message);
-      }
-    } catch {
-      setError("無法連接至 AI 服務，請稍後再試。");
-    } finally {
-      setIsPending(false);
-      // Defer scroll to allow React to flush the new message into the DOM first.
-      requestAnimationFrame(() => bottomRef.current?.scrollIntoView({ behavior: "smooth" }));
-    }
-  }
-
-  function handleNewThread() {
-    if (!accountId) return;
-    const storageKey = STORAGE_KEY(accountId, requestedWorkspaceId);
-    localStorage.removeItem(storageKey);
-    setThreadId(null);
-    setMessages([]);
-    setThreadCreatedAt(new Date().toISOString());
-    setError(null);
-  }
-
-  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      void handleSubmit(e as unknown as React.FormEvent);
-    }
-  }
-
-  return (
-    <div className="grid h-full min-h-0 lg:grid-cols-[320px_minmax(0,1fr)]">
-      <aside className="border-b border-border/60 bg-muted/20 p-4 lg:border-b-0 lg:border-r">
-        <div className="space-y-4">
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="size-4 text-primary" />
-                Notebook / AI
-              </CardTitle>
-              <CardDescription>
-                將工作區知識、知識頁面與查詢消費層收斂成單一 workspace-scoped notebook 介面，而不是獨立聊天產品。
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <WorkspaceContextCard workspace={currentWorkspace} />
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <BookOpen className="size-4 text-primary" />
-                Source context
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <Link href={`/source/documents${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <FileText className="size-3.5" />
-                文件來源 / Documents
-              </Link>
-              <Link href={`/knowledge/pages${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <BookOpen className="size-3.5" />
-                知識頁面 / Pages
-              </Link>
-              <Link href={`/notebook/rag-query${workspaceQuery}`} className="flex items-center gap-2 rounded-md border border-border/50 px-3 py-2 transition hover:bg-muted">
-                <Bot className="size-3.5" />
-                Ask / Cite / RAG Query
-              </Link>
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Summary snapshot</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              {summaryItems.map((item) => (
-                <p key={item} className="rounded-md border border-border/50 px-3 py-2">
-                  {item}
-                </p>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Card className="border-border/60">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-sm">
-                <Lightbulb className="size-4 text-primary" />
-                Insight board
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-xs text-muted-foreground">
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                目前仍是 Notebook shell，摘要、洞察、引用整理會在後續 phase 持續補齊。
-              </p>
-              <p className="rounded-md border border-border/50 px-3 py-2">
-                若你需要可追溯回答，優先改從 Ask / Cite 取得引用，再回到這裡整理觀點。
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </aside>
-
-      <section className="flex min-h-0 flex-col">
-        <div className="flex shrink-0 items-center gap-3 border-b border-border/60 px-4 py-3">
-          <div className="flex size-8 items-center justify-center rounded-xl bg-primary/10">
-            <Bot className="size-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold leading-none">Notebook / AI</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">工作區問答 · 摘要草稿 · 洞察整理</p>
-          </div>
-          <div className="ml-auto flex items-center gap-2">
-            {threadId && (
-              <span className="text-[10px] text-muted-foreground/60">
-                Thread · {messages.length} 則
-              </span>
-            )}
-            <Button size="sm" variant="ghost" onClick={handleNewThread} disabled={messages.length === 0}>
-              <Plus className="mr-1 size-3.5" />
-              新對話
-            </Button>
-          </div>
-        </div>
-
-        {workspaceName && (
-          <div className="shrink-0 border-b border-border/40 bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
-            目前從工作區 <span className="font-medium text-foreground">{workspaceName}</span> 進入；Notebook 會把這裡視為主要知識上下文。
-          </div>
-        )}
-
-        <div className="flex-1 overflow-y-auto px-4 py-4">
-          {messages.length === 0 && !isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <div className="flex size-12 items-center justify-center rounded-2xl bg-primary/10">
-                <Bot className="size-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-foreground">開始你的 notebook conversation</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
-                  先問工作區背景、文件摘要、會議筆記整理或知識問答，再逐步累積 summary 與 insight。
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="mx-auto max-w-2xl space-y-4">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-foreground",
-                  )}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {isPending && (
-              <div className="flex justify-start">
-                <div className="rounded-2xl bg-muted px-4 py-2.5">
-                  <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                </div>
-              </div>
-            )}
-
-            {error && (
-              <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-2.5 text-xs text-destructive">
-                {error}
-              </div>
-            )}
-
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        <form
-          onSubmit={(e) => void handleSubmit(e)}
-          className="shrink-0 border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur"
-        >
-          <div className="mx-auto flex max-w-2xl items-end gap-2">
-            <textarea
-              rows={1}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="輸入你的 notebook 問題… (Enter 送出，Shift+Enter 換行)"
-              disabled={isPending}
-              className="flex-1 resize-none rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground/60 focus:border-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
-              style={{ maxHeight: "120px" }}
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={isPending || !input.trim()}
-              className="shrink-0 gap-1.5"
-            >
-              {isPending ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <SendHorizonal className="size-4" />
-              )}
-              <span className="hidden sm:inline">送出</span>
-            </Button>
-          </div>
-        </form>
-      </section>
-    </div>
-  );
-}
-````
-
-## File: app/(shell)/knowledge/page.tsx
-````typescript
-"use client";
-
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BookOpen, Brain, Building2, Database, FileText, FolderKanban, MessageSquare } from "lucide-react";
-
-import { useApp } from "@/app/providers/app-provider";
-import { useAuth } from "@/app/providers/auth-provider";
-import { buildWikiContentTree } from "@/modules/workspace/api";
-import type { WikiAccountContentNode, WikiAccountSeed } from "@/modules/workspace/api";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
-import { Skeleton } from "@ui-shadcn/ui/skeleton";
-
-const QUICK_ACCESS = [
-  {
-    href: "/knowledge/pages?scope=account",
-    title: "Pages",
-    description: "顯式 account summary 的頁面樹檢視與維運工具；日常建立與整理請從工作區進入。",
-    icon: FileText,
-  },
-  {
-    href: "/source/libraries",
-    title: "Libraries",
-    description: "維持 schema / table 型知識資產。",
-    icon: Database,
-  },
-  {
-    href: "/source/documents",
-    title: "Documents",
-    description: "來源文件、upload 與 ingest 狀態檢視。",
-    icon: BookOpen,
-  },
-  {
-    href: "/knowledge-base/articles",
-    title: "Articles",
-    description: "組織知識庫 SOP 文章、驗證管治與分類樹。",
-    icon: FolderKanban,
-  },
-  {
-    href: "/knowledge-database/databases",
-    title: "Databases",
-    description: "結構化資料庫、多視圖（表格、看板、日曆）管理。",
-    icon: Brain,
-  },
-  {
-    href: "/notebook/rag-query",
-    title: "Ask / Cite",
-    description: "查詢、引用與回答檢視。",
-    icon: MessageSquare,
-  },
+const orgPrimaryItems = [
+  { label: "成員", href: "/organization/members" },
+  { label: "團隊", href: "/organization/teams" },
+  { label: "權限", href: "/organization/permissions" },
+  { label: "工作區", href: "/organization/workspaces" },
 ] as const;
 
-export default function KnowledgeHubPage() {
-  const { state: appState } = useApp();
-  const { state: authState } = useAuth();
-  const [contentTree, setContentTree] = useState<WikiAccountContentNode[]>([]);
-  const [loading, setLoading] = useState(true);
+const orgSecondaryItems = [
+  { label: "排程", href: "/organization/schedule" },
+  { label: "每日", href: "/organization/daily" },
+  { label: "稽核", href: "/organization/audit" },
+] as const;
 
-  const accountSeeds = useMemo<WikiAccountSeed[]>(() => {
-    const personalUser = authState.user;
-    const activeAccountId = appState.activeAccount?.id;
-    const seeds: WikiAccountSeed[] = [];
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
+  return (
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
+  );
+}
 
-    if (personalUser) {
-      seeds.push({
-        accountId: personalUser.id,
-        accountName: personalUser.name,
-        accountType: "personal",
-        isActive: activeAccountId === personalUser.id,
-      });
+function resolveShellRouteForAccount(
+  pathname: string,
+  nextAccount: AccountEntity | ReturnType<typeof useAuth>["state"]["user"],
+) {
+  const nextAccountIsOrganization =
+    nextAccount != null && "accountType" in nextAccount && nextAccount.accountType === "organization";
+
+  if (pathname === "/organization" && !nextAccountIsOrganization) {
+    return "/workspace";
+  }
+
+  return null;
+}
+
+export default function ShellLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { state: authState, logout } = useAuth();
+  const { state: appState, dispatch } = useApp();
+  const [logoutError, setLogoutError] = useState<string | null>(null);
+  const { open: searchOpen, setOpen: setSearchOpen } = useGlobalSearch();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("xuanwu:sidebar-collapsed") === "true";
+  });
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem("xuanwu:sidebar-collapsed", String(next));
+      }
+      return next;
+    });
+  }
+
+  const pageTitle = routeTitles[pathname] ?? "工作區";
+  const organizationAccounts = Object.values(appState.accounts ?? {});
+  const accountWorkspaces = Object.values(appState.workspaces ?? {});
+  const showAccountManagement = isOrganizationAccount(appState.activeAccount);
+
+  function isActiveRoute(href: string) {
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function handleSelectOrganization(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    const nextRoute = resolveShellRouteForAccount(pathname, account);
+    if (nextRoute) {
+      router.replace(nextRoute);
     }
+  }
 
-    const organizations = Object.values(appState.accounts);
-    for (const organization of organizations) {
-      seeds.push({
-        accountId: organization.id,
-        accountName: organization.name,
-        accountType: "organization",
-        isActive: activeAccountId === organization.id,
-      });
+  function handleSelectPersonal() {
+    if (!authState.user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: authState.user });
+    const nextRoute = resolveShellRouteForAccount(pathname, authState.user);
+    if (nextRoute) {
+      router.replace(nextRoute);
     }
+  }
 
-    return seeds;
-  }, [appState.accounts, appState.activeAccount?.id, authState.user]);
+  function handleOrganizationCreated(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+  }
+
+  function handleSelectWorkspace(workspaceId: string | null) {
+    dispatch({ type: "SET_ACTIVE_WORKSPACE", payload: workspaceId });
+  }
 
   useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const result = await buildWikiContentTree(accountSeeds);
-        if (!disposed) {
-          setContentTree(result);
-        }
-      } catch {
-        if (!disposed) {
-          setContentTree([]);
-        }
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
+    if (!appState.accountsHydrated || !appState.activeAccount) {
+      return;
     }
 
-    void load();
+    const nextRoute = resolveShellRouteForAccount(pathname, appState.activeAccount);
+    if (nextRoute && nextRoute !== pathname) {
+      router.replace(nextRoute);
+    }
+  }, [appState.accountsHydrated, appState.activeAccount, pathname, router]);
 
-    return () => {
-      disposed = true;
-    };
-  }, [accountSeeds]);
-
-  const activeAccount = contentTree.find((node) => node.isActive);
-  const highlightedWorkspace =
-    activeAccount?.workspaces.find((workspace) => workspace.workspaceId === appState.activeWorkspaceId) ??
-    activeAccount?.workspaces[0];
+  async function handleLogout() {
+    setLogoutError(null);
+    try {
+      await logout();
+    } catch {
+      setLogoutError("登出失敗，請稍後再試。");
+    }
+  }
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Knowledge Hub</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">Knowledge Hub</h1>
-        <p className="text-sm text-muted-foreground">
-          從這裡進入 Knowledge、Knowledge Base、Knowledge Database、Source 與 Notebook 各模組。
-        </p>
-      </header>
+    <ShellGuard>
+      <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
+      <div className="flex h-screen overflow-hidden bg-background">
+        <AppRail
+          pathname={pathname}
+          user={authState.user}
+          activeAccount={appState.activeAccount}
+          organizationAccounts={organizationAccounts}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          isOrganizationAccount={showAccountManagement}
+          onSelectPersonal={handleSelectPersonal}
+          onSelectOrganization={handleSelectOrganization}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          onSelectWorkspace={handleSelectWorkspace}
+          onOrganizationCreated={handleOrganizationCreated}
+          onSignOut={() => {
+            void handleLogout();
+          }}
+        />
+        <DashboardSidebar
+          pathname={pathname}
+          activeAccount={appState.activeAccount}
+          workspaces={accountWorkspaces}
+          workspacesHydrated={appState.workspacesHydrated}
+          activeWorkspaceId={appState.activeWorkspaceId}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          onSelectWorkspace={handleSelectWorkspace}
+        />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Workspace-first entry</CardTitle>
-          <CardDescription>先鎖定 active account，再選擇要進入的工作區，最後才分流到 Knowledge、知識頁面、Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {loading ? (
-            <Skeleton className="h-6 w-48" />
-          ) : activeAccount ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Active Account</p>
-                <div className="mt-2 flex items-center gap-2 text-sm">
-                  <Building2 className="size-4 text-primary" />
-                  <Badge variant="outline">{activeAccount.accountType === "personal" ? "個人" : "組織"}</Badge>
-                  <span className="font-medium text-foreground">{activeAccount.accountName}</span>
-                </div>
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="shrink-0 border-b border-border/50 bg-background/80 px-4 backdrop-blur md:px-6">
+            <div className="flex h-12 items-center justify-between gap-4">
+              <div className="min-w-0 flex items-center gap-3">
+                {sidebarCollapsed && (
+                  <button
+                    type="button"
+                    onClick={toggleSidebar}
+                    aria-label="展開側欄"
+                    title="展開側欄"
+                    className="hidden size-7 items-center justify-center rounded text-muted-foreground transition hover:bg-muted hover:text-foreground md:flex"
+                  >
+                    <PanelLeftOpen className="size-4" />
+                  </button>
+                )}
+                <p className="truncate text-sm font-semibold tracking-tight">{pageTitle}</p>
+                <AppBreadcrumbs />
+                {/* Global search */}
+                <button
+                  type="button"
+                  aria-label="全域搜尋"
+                  className="hidden items-center gap-1.5 rounded-md border border-border/50 bg-background/50 px-2.5 py-1 text-xs text-muted-foreground transition hover:border-border hover:bg-muted sm:flex"
+                  onClick={() => setSearchOpen(true)}
+                >
+                  <Search className="size-3 shrink-0" />
+                  <span>搜尋…</span>
+                  <kbd className="ml-1 rounded bg-muted px-1 text-[10px] text-muted-foreground/60">⌘K</kbd>
+                </button>
               </div>
-              <div className="rounded-xl border border-border/60 px-4 py-3">
-                <p className="text-xs text-muted-foreground">Workspace Coverage</p>
-                <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                  <FolderKanban className="size-4 text-primary" />
-                  <span>{activeAccount.workspaces.length} 個工作區可直接進入各自的知識頁面</span>
-                </div>
+
+              <div className="ml-auto flex items-center gap-3">
+                <HeaderControls />
+                <HeaderUserAvatar
+                  name={authState.user?.name ?? "Dimension Member"}
+                  email={authState.user?.email ?? "—"}
+                  onSignOut={() => {
+                    void handleLogout();
+                  }}
+                />
               </div>
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">尚未取得 account context。</p>
+
+            <div className="space-y-3 pb-3 md:hidden">
+              <AccountSwitcher
+                personalAccount={authState.user}
+                organizationAccounts={organizationAccounts}
+                activeAccountId={appState.activeAccount?.id ?? null}
+                onSelectPersonal={handleSelectPersonal}
+                onSelectOrganization={handleSelectOrganization}
+                onOrganizationCreated={handleOrganizationCreated}
+              />
+            </div>
+
+            {showAccountManagement && (
+              <>
+                <nav aria-label="Organization primary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgPrimaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+                <nav aria-label="Organization secondary navigation" className="flex gap-2 overflow-auto pb-2 md:hidden">
+                  {orgSecondaryItems.map((item) => {
+                    const isActive = isActiveRoute(item.href);
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? "page" : undefined}
+                        className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "border border-border/60 text-muted-foreground hover:bg-muted"
+                        }`}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </nav>
+              </>
+            )}
+            <nav aria-label="Main navigation" className="flex gap-2 overflow-auto pb-3 md:hidden">
+              {mobileNavItems.map((item) => {
+                const isActive = isActiveRoute(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "border border-border/60 text-muted-foreground hover:bg-muted"
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
+
+          {logoutError && (
+            <div className="shrink-0 px-4 pt-3 text-xs text-destructive md:px-6">{logoutError}</div>
           )}
 
-          {highlightedWorkspace && (
-            <div className="grid gap-3 lg:grid-cols-[1fr_1.1fr]">
-              <div className="rounded-xl border border-border/60 px-4 py-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-primary">Highlighted workspace</p>
-                <p className="mt-2 text-sm font-semibold text-foreground">{highlightedWorkspace.workspaceName}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  先把這個工作區當成知識主樞紐，再從裡面打開知識頁面與 Notebook / AI。
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button asChild size="sm">
-                    <Link href={`/workspace/${highlightedWorkspace.workspaceId}`}>進入工作區</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>知識頁面</Link>
-                  </Button>
-                  <Button asChild size="sm" variant="outline">
-                    <Link href={`/ai-chat?workspaceId=${encodeURIComponent(highlightedWorkspace.workspaceId)}`}>
-                      Notebook / AI
-                    </Link>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Knowledge</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    先整理文件來源、Libraries 與 upload / ingest。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">知識頁面</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    再用頁面樹與內容脈絡整理知識結構。
-                  </p>
-                </div>
-                <div className="rounded-xl border border-border/60 px-4 py-4">
-                  <p className="text-sm font-semibold text-foreground">Notebook / AI</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    最後才消費這些知識做問答、摘要與洞察。
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {QUICK_ACCESS.map((item) => (
-              <Link key={item.href} href={item.href} className="group">
-                <Card className="h-full transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex size-8 items-center justify-center rounded-md bg-primary/10 text-primary">
-                        <item.icon className="size-4" />
-                      </div>
-                      <CardTitle className="text-sm">{item.title}</CardTitle>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <CardDescription className="text-xs leading-relaxed">{item.description}</CardDescription>
-                  </CardContent>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Workspace Snapshot</CardTitle>
-          <CardDescription>以下工作區皆屬於目前 active account；請優先從工作區進入，再分流到 Knowledge、知識頁面與 Notebook / AI。</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-              <Skeleton className="h-20" />
-            </div>
-          ) : !activeAccount || activeAccount.workspaces.length === 0 ? (
-            <p className="text-sm text-muted-foreground">目前帳號下沒有工作區。</p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {activeAccount.workspaces.map((workspace) => (
-                <Card key={workspace.workspaceId} className="transition-colors hover:border-primary/40 hover:shadow-sm">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">{workspace.workspaceName}</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-1">
-                      {workspace.contentBaseItems
-                        .filter((item) => item.enabled)
-                        .map((item) => (
-                          <Badge key={item.key} variant="secondary" className="text-[10px]">
-                            {item.label}
-                          </Badge>
-                        ))}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/workspace/${workspace.workspaceId}`}>Workspace</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/knowledge/pages?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>知識頁面</Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/source/documents?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          Knowledge
-                        </Link>
-                      </Button>
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/ai-chat?workspaceId=${encodeURIComponent(workspace.workspaceId)}`}>
-                          <Brain className="mr-1 size-3.5" />
-                          Notebook
-                        </Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+          <main className="flex-1 overflow-auto p-6">{children}</main>
+        </div>
+      </div>
+    </ShellGuard>
   );
 }
 ````
 
-## File: app/(shell)/notebook/rag-query/page.tsx
+## File: app/(shell)/organization/_utils.ts
 ````typescript
-"use client";
+import type { AccountEntity } from "@/modules/platform/api";
+import type { ActiveAccount } from "@/app/providers/app-context";
 
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
-import { RagQueryView } from "@/modules/search/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
-  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
-
+export function isOrganizationAccount(
+  activeAccount: ActiveAccount | null,
+): activeAccount is AccountEntity & { accountType: "organization" } {
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
-
-      <RagQueryView workspaceId={workspaceId} />
-    </div>
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
   );
+}
+
+export function formatDateTime(value: string | Date | null | undefined): string {
+  if (!value) return "—";
+  try {
+    return new Intl.DateTimeFormat("zh-TW", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(value instanceof Date ? value : new Date(value));
+  } catch {
+    return value instanceof Date ? value.toISOString() : String(value);
+  }
 }
 ````
 
-## File: app/(shell)/organization/workspaces/page.tsx
+## File: app/(shell)/organization/members/page.tsx
 ````typescript
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { useApp } from "@/app/providers/app-provider";
-import { OrganizationWorkspacesScreen } from "@/modules/workspace/api";
+import { dismissMember, getOrganizationMembers, inviteMember } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
 import { isOrganizationAccount } from "../_utils";
 
-export default function OrganizationWorkspacesPage() {
+type MemberRole = "Admin" | "Member" | "Guest";
+
+export default function OrganizationMembersPage() {
   const { state: appState } = useApp();
   const { activeAccount } = appState;
   const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-  return <OrganizationWorkspacesScreen accountId={activeOrganizationId} />;
-}
-````
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof getOrganizationMembers>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
 
-## File: app/(shell)/source/documents/page.tsx
-````typescript
-"use client";
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<MemberRole>("Member");
+  const [inviteSubmitting, setInviteSubmitting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
-import { useSearchParams } from "next/navigation";
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
-import { useApp } from "@/app/providers/app-provider";
-import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
-import { SourceDocumentsView } from "@/modules/source/api";
+  async function loadMembers(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationMembers(organizationId);
+      setMembers(data);
+      setLoadState("loaded");
+    } catch {
+      setMembers([]);
+      setLoadState("error");
+    }
+  }
 
-export default function SourceDocumentsPage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { workspaces, activeWorkspaceId },
-  } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const resolvedWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
-  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId ?? undefined;
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationMembers(organizationId);
+        if (!cancelled) {
+          setMembers(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setMembers([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleInvite() {
+    if (!activeOrganizationId || !inviteEmail.trim()) return;
+    setInviteSubmitting(true);
+    setInviteError(null);
+    const result = await inviteMember({
+      organizationId: activeOrganizationId,
+      email: inviteEmail.trim(),
+      teamId: "",
+      role: inviteRole,
+      protocol: "email",
+    });
+    setInviteSubmitting(false);
+    if (result.success) {
+      setInviteOpen(false);
+      setInviteEmail("");
+      setInviteRole("Member");
+      await loadMembers(activeOrganizationId);
+    } else {
+      setInviteError(result.error.message);
+    }
+  }
+
+  async function handleDismiss(memberId: string) {
+    if (!activeOrganizationId) return;
+    setRemovingId(memberId);
+    await dismissMember(activeOrganizationId, memberId);
+    setRemovingId(null);
+    await loadMembers(activeOrganizationId);
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
-      </header>
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">成員</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織成員清單與目前角色。</p>
+        </div>
+        <Button onClick={() => setInviteOpen(true)}>邀請成員</Button>
+      </div>
 
-      <SourceDocumentsView workspaceId={workspaceId} />
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Members</CardTitle>
+          <CardDescription>組織成員清單與目前角色。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入成員資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取成員資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && members.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的成員資料。</p>
+          )}
+          {loadState === "loaded" &&
+            members.map((member) => (
+              <div
+                key={member.id}
+                className="flex items-center justify-between rounded-lg border border-border/40 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium">{member.name}</p>
+                  <p className="text-xs text-muted-foreground">{member.email}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">{member.role}</Badge>
+                  <Badge variant="secondary">{member.presence}</Badge>
+                  {member.role !== "Owner" && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={removingId === member.id}
+                      onClick={() => handleDismiss(member.id)}
+                    >
+                      移除
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>邀請成員</DialogTitle>
+            <DialogDescription>輸入電子信箱以邀請新成員加入組織。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="invite-email">電子信箱</Label>
+              <Input
+                id="invite-email"
+                type="email"
+                placeholder="member@example.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="invite-role">角色</Label>
+              <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as MemberRole)}>
+                <SelectTrigger id="invite-role">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                  <SelectItem value="Member">Member</SelectItem>
+                  <SelectItem value="Guest">Guest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {inviteError && <p className="text-sm text-destructive">{inviteError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setInviteOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleInvite} disabled={inviteSubmitting || !inviteEmail.trim()}>
+              {inviteSubmitting ? "邀請中…" : "送出邀請"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 ````
 
-## File: app/(shell)/workspace/[workspaceId]/page.tsx
+## File: app/(shell)/organization/page.tsx
 ````typescript
 "use client";
 
-import { useParams, useSearchParams } from "next/navigation";
+/**
+ * Organization Overview Page — /organization
+ * Lists organizations visible to the current user and allows switching
+ * to an organization account context.
+ * Section pages live under /organization/[section].
+ */
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceDetailRouteScreen } from "@/modules/workspace/api";
+import { useAuth } from "@/app/providers/auth-provider";
+import type { AccountEntity } from "@/modules/platform/api";
+import { Button } from "@ui-shadcn/ui/button";
+import { Card, CardDescription, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 
-export default function WorkspaceDetailPage() {
-  const params = useParams<{ workspaceId: string }>();
-  const searchParams = useSearchParams();
-  const workspaceId = typeof params.workspaceId === "string" ? params.workspaceId : "";
-  const initialTab = searchParams.get("tab") ?? undefined;
-  const initialOverviewPanel = searchParams.get("panel") ?? undefined;
-  const {
-    state: { activeAccount, accountsHydrated },
-  } = useApp();
-
+function isOrganizationAccount(
+  activeAccount: ReturnType<typeof useApp>["state"]["activeAccount"],
+): activeAccount is AccountEntity & { accountType: "organization" } {
   return (
-    <WorkspaceDetailRouteScreen
-      workspaceId={workspaceId}
-      accountId={activeAccount?.id}
-      accountsHydrated={accountsHydrated}
-      initialTab={initialTab}
-      initialOverviewPanel={initialOverviewPanel}
-    />
+    activeAccount != null &&
+    "accountType" in activeAccount &&
+    activeAccount.accountType === "organization"
   );
 }
-````
 
-## File: app/(shell)/workspace/page.tsx
-````typescript
-"use client";
+export default function OrganizationPage() {
+  const router = useRouter();
+  const { state: appState, dispatch } = useApp();
+  const { state: authState } = useAuth();
+  const { user } = authState;
+  const { accounts, activeAccount, accountsHydrated, bootstrapPhase } = appState;
 
-import { useSearchParams } from "next/navigation";
+  const orgList = Object.values(accounts);
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
 
-import type { ActiveAccount } from "@/app/providers/app-context";
-import { useApp } from "@/app/providers/app-provider";
-import { WorkspaceHubScreen } from "@/modules/workspace/api";
+  function handleSwitch(account: AccountEntity) {
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: account });
+    router.replace("/workspace");
+  }
 
-function isOrganizationAccount(activeAccount: ActiveAccount | null): activeAccount is ActiveAccount & { accountType: "organization" } {
-  return Boolean(activeAccount && "accountType" in activeAccount && activeAccount.accountType === "organization");
-}
-
-function getActiveAccountType(activeAccount: ActiveAccount | null) {
-  return isOrganizationAccount(activeAccount) ? "organization" : "user";
-}
-
-export default function WorkspacePage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { activeAccount, accountsHydrated, bootstrapPhase },
-  } = useApp();
-  const context = searchParams.get("context");
+  function handleSwitchToPersonal() {
+    if (!user) return;
+    dispatch({ type: "SET_ACTIVE_ACCOUNT", payload: user });
+    router.replace("/workspace");
+  }
 
   return (
-    <div className="space-y-4">
-      {context === "unavailable" && (
+    <div className="space-y-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Account Context Switcher</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          先選擇個人或組織帳號情境，再回到 workspace-first 主流程。
+        </p>
+      </div>
+
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="text-base font-semibold">Recommended flow</h2>
+        <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li>
+            <span className="font-medium text-foreground">1. Identity</span>：登入後確認你目前要操作的個人／組織帳號。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">2. Organization</span>：在這裡切換 active account。
+          </li>
+          <li>
+            <span className="font-medium text-foreground">3. Workspace</span>：回到工作區，再進入 Knowledge、知識頁面、Notebook / AI。
+          </li>
+        </ol>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button asChild size="sm">
+            <Link href="/workspace">回到 Workspace Hub</Link>
+          </Button>
+          {activeOrganizationId && (
+            <Button asChild size="sm" variant="outline">
+              <Link href="/organization/members">組織治理模組</Link>
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Quick-access dashboard — visible only when an org context is active */}
+      {activeOrganizationId && (
+        <section className="space-y-3">
+          <h2 className="text-base font-semibold">組織功能</h2>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+            {[
+              { href: "/organization/members", title: "成員管理", desc: "邀請與管理組織成員" },
+              { href: "/organization/teams", title: "團隊管理", desc: "建立與編輯團隊" },
+              { href: "/organization/permissions", title: "權限政策", desc: "設定存取規則" },
+              { href: "/organization/workspaces", title: "工作區", desc: "組織下的工作區清單" },
+              { href: "/organization/schedule", title: "工作需求排程", desc: "排程與容量總覽" },
+              { href: "/organization/audit", title: "稽核記錄", desc: "操作歷史追蹤" },
+              { href: "/organization/daily", title: "動態牆", desc: "組織工作區動態" },
+            ].map((item) => (
+              <Link key={item.href} href={item.href} className="group">
+                <Card className="h-full transition-colors group-hover:border-primary/50 group-hover:bg-accent/40">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle className="text-sm">{item.title}</CardTitle>
+                    <CardDescription className="text-xs">{item.desc}</CardDescription>
+                  </CardHeader>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!accountsHydrated && (
         <div className="rounded-xl border border-border/40 px-4 py-3 text-sm text-muted-foreground">
-          目前帳戶無法存取該工作區，已返回工作區清單。
+          {bootstrapPhase === "seeded"
+            ? "正在同步你的組織清單，完成後就能切換到對應的組織上下文。"
+            : "正在載入組織資料…"}
         </div>
       )}
 
-      <WorkspaceHubScreen
-        accountId={activeAccount?.id}
-        accountName={activeAccount?.name}
-        accountType={getActiveAccountType(activeAccount)}
-        accountsHydrated={accountsHydrated}
-        isBootstrapSeeded={bootstrapPhase === "seeded"}
-      />
+      {/* Personal account */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">Personal Account</h2>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-medium">{user?.name ?? "—"}</p>
+            <p className="text-xs text-muted-foreground">{user?.email}</p>
+          </div>
+          {activeAccount?.id === user?.id ? (
+            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              Active
+            </span>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleSwitchToPersonal}
+            >
+              Switch
+            </Button>
+          )}
+        </div>
+      </section>
+
+      {/* Organizations */}
+      <section className="rounded-2xl border border-border/50 bg-card p-6 shadow-sm">
+        <h2 className="mb-4 text-base font-semibold">
+          Organizations
+          <span className="ml-2 text-xs font-normal text-muted-foreground">
+            ({orgList.length})
+          </span>
+        </h2>
+
+        {orgList.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You are not a member of any organization yet.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {orgList.map((org) => (
+              <li
+                key={org.id}
+                className="flex items-center justify-between rounded-xl border border-border/40 px-4 py-3"
+              >
+                <div>
+                  <p className="font-medium">{org.name}</p>
+                  {org.description && (
+                    <p className="text-xs text-muted-foreground">{org.description}</p>
+                  )}
+                </div>
+                {activeAccount?.id === org.id ? (
+                  <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                    Active
+                  </span>
+                ) : (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleSwitch(org)}
+                  >
+                    Switch
+                  </Button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {activeOrganizationId && (
+        <p className="text-sm text-muted-foreground">
+          已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
+        </p>
+      )}
     </div>
   );
 }
 ````
 
-## File: docs/README.md
+## File: app/(shell)/organization/permissions/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createOrgPolicy, getOrgPolicies } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+type PolicyScope = "workspace" | "member" | "global";
+
+export default function OrganizationPermissionsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [policies, setPolicies] = useState<Awaited<ReturnType<typeof getOrgPolicies>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newScope, setNewScope] = useState<PolicyScope>("member");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadPolicies(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrgPolicies(organizationId);
+      setPolicies(data);
+      setLoadState("loaded");
+    } catch {
+      setPolicies([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrgPolicies(organizationId);
+        if (!cancelled) {
+          setPolicies(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setPolicies([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createOrgPolicy({
+      orgId: activeOrganizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      rules: [],
+      scope: newScope,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewScope("member");
+      await loadPolicies(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">權限</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織層級政策規則與 scope。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>新增政策</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Permissions</CardTitle>
+          <CardDescription>組織層級政策規則與 scope。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入政策資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取政策資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && policies.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的政策資料。</p>
+          )}
+          {loadState === "loaded" &&
+            policies.map((policy) => (
+              <div key={policy.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{policy.name}</p>
+                  <Badge variant="outline">{policy.scope}</Badge>
+                  <Badge variant={policy.isActive ? "default" : "secondary"}>
+                    {policy.isActive ? "active" : "inactive"}
+                  </Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{policy.description}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Rules: {policy.rules.length}</p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>新增政策</DialogTitle>
+            <DialogDescription>建立組織層級存取控制政策。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="policy-name">名稱</Label>
+              <Input
+                id="policy-name"
+                placeholder="政策名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-description">描述</Label>
+              <Input
+                id="policy-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="policy-scope">Scope</Label>
+              <Select value={newScope} onValueChange={(v) => setNewScope(v as PolicyScope)}>
+                <SelectTrigger id="policy-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="member">Member（成員）</SelectItem>
+                  <SelectItem value="workspace">Workspace（工作區）</SelectItem>
+                  <SelectItem value="global">Global（全域）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/organization/teams/page.tsx
+````typescript
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { useApp } from "@/app/providers/app-provider";
+import { createTeam, getOrganizationTeams } from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@ui-shadcn/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@ui-shadcn/ui/dialog";
+import { Input } from "@ui-shadcn/ui/input";
+import { Label } from "@ui-shadcn/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@ui-shadcn/ui/select";
+import { isOrganizationAccount } from "../_utils";
+
+export default function OrganizationTeamsPage() {
+  const { state: appState } = useApp();
+  const { activeAccount } = appState;
+  const activeOrganizationId = isOrganizationAccount(activeAccount) ? activeAccount.id : null;
+
+  const [teams, setTeams] = useState<Awaited<ReturnType<typeof getOrganizationTeams>>>([]);
+  const [loadState, setLoadState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
+  const [newType, setNewType] = useState<"internal" | "external">("internal");
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  async function loadTeams(organizationId: string) {
+    setLoadState("loading");
+    try {
+      const data = await getOrganizationTeams(organizationId);
+      setTeams(data);
+      setLoadState("loaded");
+    } catch {
+      setTeams([]);
+      setLoadState("error");
+    }
+  }
+
+  useEffect(() => {
+    if (!activeOrganizationId) return;
+    const organizationId: string = activeOrganizationId;
+    let cancelled = false;
+
+    async function load() {
+      setLoadState("loading");
+      try {
+        const data = await getOrganizationTeams(organizationId);
+        if (!cancelled) {
+          setTeams(data);
+          setLoadState("loaded");
+        }
+      } catch {
+        if (!cancelled) {
+          setTeams([]);
+          setLoadState("error");
+        }
+      }
+    }
+    void load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeOrganizationId]);
+
+  async function handleCreate() {
+    if (!activeOrganizationId || !newName.trim()) return;
+    setCreateSubmitting(true);
+    setCreateError(null);
+    const result = await createTeam({
+      organizationId: activeOrganizationId,
+      name: newName.trim(),
+      description: newDescription.trim(),
+      type: newType,
+    });
+    setCreateSubmitting(false);
+    if (result.success) {
+      setCreateOpen(false);
+      setNewName("");
+      setNewDescription("");
+      setNewType("internal");
+      await loadTeams(activeOrganizationId);
+    } else {
+      setCreateError(result.error.message);
+    }
+  }
+
+  if (!activeOrganizationId) {
+    return (
+      <div className="">
+        <p className="text-sm text-muted-foreground">請先切換到組織帳戶。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">團隊</h1>
+          <p className="mt-1 text-sm text-muted-foreground">組織團隊與成員關聯。</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>建立團隊</Button>
+      </div>
+
+      <Card className="border-border/50">
+        <CardHeader>
+          <CardTitle>Teams</CardTitle>
+          <CardDescription>組織團隊與成員關聯。</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {loadState === "loading" && (
+            <p className="text-sm text-muted-foreground">載入團隊資料中…</p>
+          )}
+          {loadState === "error" && (
+            <p className="text-sm text-destructive">讀取團隊資料失敗，請稍後重新整理頁面。</p>
+          )}
+          {loadState === "loaded" && teams.length === 0 && (
+            <p className="text-sm text-muted-foreground">目前沒有可顯示的團隊資料。</p>
+          )}
+          {loadState === "loaded" &&
+            teams.map((team) => (
+              <div key={team.id} className="rounded-lg border border-border/40 px-3 py-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium">{team.name}</p>
+                  <Badge variant="outline">{team.type}</Badge>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{team.description || "—"}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Members: {team.memberIds.length}
+                </p>
+              </div>
+            ))}
+        </CardContent>
+      </Card>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>建立團隊</DialogTitle>
+            <DialogDescription>填寫團隊名稱與類型以建立新團隊。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1">
+              <Label htmlFor="team-name">名稱</Label>
+              <Input
+                id="team-name"
+                placeholder="團隊名稱"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-description">描述</Label>
+              <Input
+                id="team-description"
+                placeholder="選填"
+                value={newDescription}
+                onChange={(e) => setNewDescription(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="team-type">類型</Label>
+              <Select
+                value={newType}
+                onValueChange={(v) => setNewType(v as "internal" | "external")}
+              >
+                <SelectTrigger id="team-type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal（內部）</SelectItem>
+                  <SelectItem value="external">External（外部）</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {createError && <p className="text-sm text-destructive">{createError}</p>}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>
+              取消
+            </Button>
+            <Button onClick={handleCreate} disabled={createSubmitting || !newName.trim()}>
+              {createSubmitting ? "建立中…" : "建立"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+````
+
+## File: modules/knowledge-collaboration/interfaces/_actions/comment.actions.ts
+````typescript
+"use server";
+
+/**
+ * Module: knowledge-collaboration
+ * Layer: interfaces/_actions
+ * Purpose: Comment Aggregate Server Actions — create, update, resolve, delete.
+ * Version actions: see version.actions.ts
+ * Permission actions: see permission.actions.ts
+ */
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { dispatchNotification } from "@/modules/platform/api";
+import {
+  CreateCommentUseCase,
+  UpdateCommentUseCase,
+  ResolveCommentUseCase,
+  DeleteCommentUseCase,
+} from "../../application/use-cases/comment.use-cases";
+import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
+import type {
+  CreateCommentDto,
+  UpdateCommentDto,
+  ResolveCommentDto,
+  DeleteCommentDto,
+} from "../../application/dto/knowledge-collaboration.dto";
+
+function makeCommentRepo() { return new FirebaseCommentRepository(); }
+
+export async function createComment(input: CreateCommentDto): Promise<CommandResult> {
+  try {
+    const result = await new CreateCommentUseCase(makeCommentRepo()).execute(input);
+    if (result.success && input.mentionedUserIds && input.mentionedUserIds.length > 0) {
+      await Promise.allSettled(
+        input.mentionedUserIds.map((recipientId) =>
+          dispatchNotification({
+            recipientId,
+            title: "有人提及了你",
+            message: input.body.slice(0, 100),
+            type: "info",
+            sourceEventType: "comment.mention",
+            metadata: { authorId: input.authorId, contentId: input.contentId, contentType: input.contentType },
+          }),
+        ),
+      );
+    }
+    return result;
+  } catch (err) {
+    return commandFailureFrom("COMMENT_CREATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function updateComment(input: UpdateCommentDto): Promise<CommandResult> {
+  try {
+    return await new UpdateCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_UPDATE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function resolveComment(input: ResolveCommentDto): Promise<CommandResult> {
+  try {
+    return await new ResolveCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_RESOLVE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+
+export async function deleteComment(input: DeleteCommentDto): Promise<CommandResult> {
+  try {
+    return await new DeleteCommentUseCase(makeCommentRepo()).execute(input);
+  } catch (err) {
+    return commandFailureFrom("COMMENT_DELETE_FAILED", err instanceof Error ? err.message : "Unexpected error");
+  }
+}
+````
+
+## File: modules/notion/core/domain/events/NotionDomainEvent.ts
+````typescript
+/**
+ * Module: notion/core
+ * Layer: domain/events
+ * Purpose: Base interface for all Notion domain events.
+ */
+
+export interface NotionDomainEvent {
+  readonly eventId: string;
+  readonly occurredAt: string; // ISO 8601 string
+  readonly type: string;
+  readonly payload: object;
+}
+````
+
+## File: modules/notion/subdomains/knowledge/api/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: api (public boundary)
+ * Purpose: Exposes only what external consumers need.
+ *          All cross-module access must go through this file only.
+ */
+
+// ── Types (read-only snapshots – no aggregate class refs) ─────────────────────
+export type { KnowledgePageSnapshot } from "../domain/aggregates/KnowledgePage";
+/** @alias KnowledgePageSnapshot — provided for backward-compatibility */
+export type { KnowledgePageSnapshot as KnowledgePage } from "../domain/aggregates/KnowledgePage";
+export type { ContentBlockSnapshot } from "../domain/aggregates/ContentBlock";
+export type { KnowledgeCollectionSnapshot } from "../domain/aggregates/KnowledgeCollection";
+
+// ── Server action DTOs ────────────────────────────────────────────────────────
+export type { CreateKnowledgePageDto, RenameKnowledgePageDto, MoveKnowledgePageDto, ArchiveKnowledgePageDto, ReorderKnowledgePageBlocksDto } from "../application/dto/KnowledgePageDto";
+export type { AddKnowledgeBlockDto, UpdateKnowledgeBlockDto, DeleteKnowledgeBlockDto } from "../application/dto/ContentBlockDto";
+export type { CreateKnowledgeCollectionDto } from "../application/dto/KnowledgeCollectionDto";
+
+// ── Query functions (server-side reads) ───────────────────────────────────────
+export {
+  getKnowledgePage,
+  getKnowledgePages,
+  getKnowledgePagesByWorkspace,
+  getKnowledgePageTree,
+  getKnowledgePageTreeByWorkspace,
+  getKnowledgeBlocks,
+  getKnowledgeCollection,
+  getKnowledgeCollections,
+} from "../interfaces/queries";
+
+// ── Server actions (drives: app router, Server Components) ────────────────────
+export {
+  createKnowledgePage,
+  renameKnowledgePage,
+  moveKnowledgePage,
+  archiveKnowledgePage,
+  reorderKnowledgePageBlocks,
+  publishKnowledgeVersion,
+  approveKnowledgePage,
+  verifyKnowledgePage,
+  requestKnowledgePageReview,
+  assignKnowledgePageOwner,
+  updateKnowledgePageIcon,
+  updateKnowledgePageCover,
+  addKnowledgeBlock,
+  updateKnowledgeBlock,
+  deleteKnowledgeBlock,
+  createKnowledgeCollection,
+  renameKnowledgeCollection,
+  addPageToCollection,
+  removePageFromCollection,
+  archiveKnowledgeCollection,
+} from "../interfaces/_actions";
+
+// ── UI Components ─────────────────────────────────────────────────────────────
+export { PageTreeView } from "../interfaces/components/PageTreeView";
+export type { PageTreeViewProps } from "../interfaces/components/PageTreeView";
+export { PageDialog } from "../interfaces/components/PageDialog";
+export { BlockEditorView } from "../interfaces/components/BlockEditorView";
+export { PageEditorView } from "../interfaces/components/PageEditorView";
+export type { PageEditorViewProps } from "../interfaces/components/PageEditorView";
+
+// ── Store ─────────────────────────────────────────────────────────────────────
+export { useBlockEditorStore } from "../interfaces/store/block-editor.store";
+export type { EditorBlock } from "../interfaces/store/block-editor.store";
+
+// ── Tree node type (needed by app/ pages) ─────────────────────────────────────
+export type { KnowledgePageTreeNode } from "../domain/aggregates/KnowledgePage";
+````
+
+## File: modules/notion/subdomains/knowledge/application/use-cases/KnowledgePageReviewUseCases.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: application/use-cases
+ * Purpose: Page review/wiki use cases — approve, verify, request review, assign owner.
+ */
+
+import { commandFailureFrom, commandSuccess, type CommandResult } from "@shared-types";
+import { v7 as generateId } from "@lib-uuid";
+
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+import {
+  PublishDomainEventUseCase,
+  type IEventStoreRepository,
+  type IEventBusRepository,
+} from "@/modules/shared/api";
+import {
+  ApproveKnowledgePageSchema,
+  type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
+  VerifyKnowledgePageSchema,
+  type VerifyKnowledgePageDto,
+  RequestPageReviewSchema,
+  type RequestPageReviewDto,
+  AssignPageOwnerSchema,
+  type AssignPageOwnerDto,
+} from "../dto/KnowledgeWikiDto";
+
+export class ApproveKnowledgePageUseCase {
+  constructor(
+    private readonly repo: IKnowledgePageRepository,
+    private readonly eventStore: IEventStoreRepository,
+    private readonly eventBus: IEventBusRepository,
+  ) {}
+
+  async execute(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+    const parsed = ApproveKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const {
+      accountId,
+      pageId,
+      actorId,
+      causationId: inputCausationId,
+      extractedTasks,
+      extractedInvoices,
+      correlationId: inputCorrelationId,
+      workspaceId,
+    } = parsed.data;
+
+    const causationId = inputCausationId ?? generateId();
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    if (page.status === "archived") return commandFailureFrom("CONTENT_PAGE_ARCHIVED", "Cannot approve an archived page.");
+    if (page.approvalState === "approved") return commandFailureFrom("CONTENT_PAGE_ALREADY_APPROVED", "Page is already approved.");
+
+    const nowISO = new Date().toISOString();
+    page.approve(actorId, nowISO);
+    await this.repo.save(page);
+
+    const correlationId = inputCorrelationId ?? generateId();
+    await new PublishDomainEventUseCase(this.eventStore, this.eventBus).execute({
+      id: generateId(),
+      eventName: "knowledge.page_approved",
+      aggregateType: "KnowledgePage",
+      aggregateId: pageId,
+      payload: {
+        pageId,
+        accountId,
+        workspaceId: workspaceId ?? page.workspaceId,
+        extractedTasks,
+        extractedInvoices,
+        actorId,
+        causationId: inputCausationId,
+        correlationId,
+      },
+      metadata: { actorId, causationId, correlationId, workspaceId: workspaceId ?? page.workspaceId },
+    });
+
+    return commandSuccess(pageId, Date.now());
+  }
+}
+
+export class VerifyKnowledgePageUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+    const parsed = VerifyKnowledgePageSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, verifiedByUserId, verificationExpiresAtISO } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.verify(verifiedByUserId, verificationExpiresAtISO);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class RequestPageReviewUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: RequestPageReviewDto): Promise<CommandResult> {
+    const parsed = RequestPageReviewSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, requestedByUserId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.requestReview(requestedByUserId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+
+export class AssignPageOwnerUseCase {
+  constructor(private readonly repo: IKnowledgePageRepository) {}
+
+  async execute(input: AssignPageOwnerDto): Promise<CommandResult> {
+    const parsed = AssignPageOwnerSchema.safeParse(input);
+    if (!parsed.success) return commandFailureFrom("CONTENT_PAGE_INVALID_INPUT", parsed.error.message);
+
+    const { accountId, pageId, ownerId } = parsed.data;
+    const page = await this.repo.findById(accountId, pageId);
+    if (!page) return commandFailureFrom("CONTENT_PAGE_NOT_FOUND", "Page not found.");
+    page.assignOwner(ownerId);
+    await this.repo.save(page);
+    return commandSuccess(page.id, Date.now());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IKnowledgePageRepository.
+ * Firestore path: accounts/{accountId}/contentPages/{pageId}
+ */
+
+import {
+  collection, doc, getDoc, getDocs, getFirestore,
+  orderBy, query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import { KnowledgePage } from "../../domain/aggregates/KnowledgePage";
+import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
+import type { IKnowledgePageRepository } from "../../domain/repositories/IKnowledgePageRepository";
+
+function pagesCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentPages");
+}
+function pageDoc(db: ReturnType<typeof getFirestore>, accountId: string, pageId: string) {
+  return doc(db, "accounts", accountId, "contentPages", pageId);
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): KnowledgePageSnapshot {
+  return {
+    id,
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    workspaceId: typeof d.workspaceId === "string" ? d.workspaceId : undefined,
+    title: typeof d.title === "string" ? d.title : "",
+    slug: typeof d.slug === "string" ? d.slug : "",
+    parentPageId: typeof d.parentPageId === "string" ? d.parentPageId : null,
+    order: typeof d.order === "number" ? d.order : 0,
+    blockIds: Array.isArray(d.blockIds) ? (d.blockIds as string[]) : [],
+    status: d.status === "archived" ? "archived" : "active",
+    approvalState: d.approvalState === "approved" ? "approved" : d.approvalState === "pending" ? "pending" : undefined,
+    approvedAtISO: typeof d.approvedAtISO === "string" ? d.approvedAtISO : undefined,
+    approvedByUserId: typeof d.approvedByUserId === "string" ? d.approvedByUserId : undefined,
+    verificationState: d.verificationState === "verified" ? "verified" : d.verificationState === "needs_review" ? "needs_review" : undefined,
+    ownerId: typeof d.ownerId === "string" ? d.ownerId : undefined,
+    verifiedByUserId: typeof d.verifiedByUserId === "string" ? d.verifiedByUserId : undefined,
+    verifiedAtISO: typeof d.verifiedAtISO === "string" ? d.verifiedAtISO : undefined,
+    verificationExpiresAtISO: typeof d.verificationExpiresAtISO === "string" ? d.verificationExpiresAtISO : undefined,
+    iconUrl: typeof d.iconUrl === "string" ? d.iconUrl : undefined,
+    coverUrl: typeof d.coverUrl === "string" ? d.coverUrl : undefined,
+    createdByUserId: typeof d.createdByUserId === "string" ? d.createdByUserId : "",
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseKnowledgePageRepository implements IKnowledgePageRepository {
+  private get db() { return getFirestore(firebaseClientApp); }
+
+  async save(page: KnowledgePage): Promise<void> {
+    const snap = page.getSnapshot();
+    const ref = pageDoc(this.db, snap.accountId, snap.id);
+    const existing = await getDoc(ref);
+    const data: Record<string, unknown> = {
+      ...snap,
+      blockIds: [...snap.blockIds],
+      updatedAt: serverTimestamp(),
+    };
+    if (!existing.exists()) {
+      data.createdAt = serverTimestamp();
+      await setDoc(ref, data);
+    } else {
+      await updateDoc(ref, data);
+    }
+  }
+
+  async findById(accountId: string, pageId: string): Promise<KnowledgePage | null> {
+    const snap = await getDoc(pageDoc(this.db, accountId, pageId));
+    if (!snap.exists()) return null;
+    return KnowledgePage.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+  }
+
+  async listByAccountId(accountId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(pagesCol(this.db, accountId), where("status", "==", "active"), orderBy("order", "asc")),
+    );
+    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async listByWorkspaceId(accountId: string, workspaceId: string): Promise<KnowledgePage[]> {
+    const snaps = await getDocs(
+      query(pagesCol(this.db, accountId), where("workspaceId", "==", workspaceId), where("status", "==", "active"), orderBy("order", "asc")),
+    );
+    return snaps.docs.map((d) => KnowledgePage.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async countByParent(accountId: string, parentPageId: string | null): Promise<number> {
+    const snaps = await getDocs(
+      query(pagesCol(this.db, accountId), where("parentPageId", "==", parentPageId ?? null)),
+    );
+    return snaps.size;
+  }
+
+  async findSnapshotById(accountId: string, pageId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot | null> {
+    const page = await this.findById(accountId, pageId);
+    return page ? page.getSnapshot() : null;
+  }
+
+  async listSnapshotsByAccountId(accountId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot[]> {
+    const pages = await this.listByAccountId(accountId);
+    return pages.map((p) => p.getSnapshot());
+  }
+
+  async listSnapshotsByWorkspaceId(accountId: string, workspaceId: string): Promise<import("../../domain/aggregates/KnowledgePage").KnowledgePageSnapshot[]> {
+    const pages = await this.listByWorkspaceId(accountId, workspaceId);
+    return pages.map((p) => p.getSnapshot());
+  }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-block.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import {
+  AddContentBlockUseCase,
+  UpdateContentBlockUseCase,
+  DeleteContentBlockUseCase,
+} from "../../application/use-cases/ContentBlockUseCases";
+import type { AddKnowledgeBlockDto as AddContentBlockDto, UpdateKnowledgeBlockDto as UpdateContentBlockDto, DeleteKnowledgeBlockDto as DeleteContentBlockDto } from "../../application/dto/ContentBlockDto";
+
+const makeBlockRepo = () => new FirebaseContentBlockRepository();
+
+export async function addKnowledgeBlock(input: AddContentBlockDto): Promise<CommandResult> {
+  try { return await new AddContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_ADD_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgeBlock(input: UpdateContentBlockDto): Promise<CommandResult> {
+  try { return await new UpdateContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function deleteKnowledgeBlock(input: DeleteContentBlockDto): Promise<CommandResult> {
+  try { return await new DeleteContentBlockUseCase(makeBlockRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("BLOCK_DELETE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/_actions/knowledge-page.actions.ts
+````typescript
+"use server";
+
+import { commandFailureFrom, type CommandResult } from "@shared-types";
+import type { IEventStoreRepository, IEventBusRepository } from "@/modules/shared/api";
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import {
+  CreateKnowledgePageUseCase,
+  RenameKnowledgePageUseCase,
+  MoveKnowledgePageUseCase,
+  ArchiveKnowledgePageUseCase,
+  ReorderKnowledgePageBlocksUseCase,
+} from "../../application/use-cases/KnowledgePageUseCases";
+import {
+  ApproveKnowledgePageUseCase,
+  VerifyKnowledgePageUseCase,
+  RequestPageReviewUseCase,
+  AssignPageOwnerUseCase,
+} from "../../application/use-cases/KnowledgePageReviewUseCases";
+import {
+  UpdatePageIconUseCase,
+  UpdatePageCoverUseCase,
+} from "../../application/use-cases/KnowledgePageAppearanceUseCases";
+import { PublishKnowledgeVersionUseCase } from "../../application/use-cases/KnowledgeVersionUseCases";
+import type {
+  CreateKnowledgePageDto,
+  RenameKnowledgePageDto,
+  MoveKnowledgePageDto,
+  ArchiveKnowledgePageDto,
+  ReorderKnowledgePageBlocksDto,
+  ApproveKnowledgePageDto,
+} from "../../application/dto/KnowledgePageDto";
+import type { VerifyKnowledgePageDto, RequestPageReviewDto, AssignPageOwnerDto, UpdatePageIconDto, UpdatePageCoverDto } from "../../application/dto/KnowledgeWikiDto";
+
+const makePageRepo = () => new FirebaseKnowledgePageRepository();
+
+/** Stub event store — persists nothing. Replace with a real impl once infrastructure is wired. */
+const makeEventStore = (): IEventStoreRepository => ({
+  save: async () => {},
+  findById: async () => null,
+  findByAggregate: async () => [],
+  findUndispatched: async () => [],
+  markDispatched: async () => {},
+});
+
+/** Stub event bus — publishes nothing. Replace with QStash/Firestore publish once infrastructure is wired. */
+const makeEventBus = (): IEventBusRepository => ({
+  publish: async () => {},
+});
+
+export async function createKnowledgePage(input: CreateKnowledgePageDto): Promise<CommandResult> {
+  try { return await new CreateKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_CREATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function renameKnowledgePage(input: RenameKnowledgePageDto): Promise<CommandResult> {
+  try { return await new RenameKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_RENAME_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function moveKnowledgePage(input: MoveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new MoveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_MOVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function archiveKnowledgePage(input: ArchiveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new ArchiveKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_ARCHIVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function reorderKnowledgePageBlocks(input: ReorderKnowledgePageBlocksDto): Promise<CommandResult> {
+  try { return await new ReorderKnowledgePageBlocksUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_REORDER_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function publishKnowledgeVersion(input: { accountId: string; pageId: string; createdByUserId: string }): Promise<CommandResult> {
+  try { return await new PublishKnowledgeVersionUseCase().execute(input); }
+  catch (e) { return commandFailureFrom("VERSION_PUBLISH_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function approveKnowledgePage(input: ApproveKnowledgePageDto): Promise<CommandResult> {
+  try { return await new ApproveKnowledgePageUseCase(makePageRepo(), makeEventStore(), makeEventBus()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_APPROVE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function verifyKnowledgePage(input: VerifyKnowledgePageDto): Promise<CommandResult> {
+  try { return await new VerifyKnowledgePageUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_VERIFY_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function requestKnowledgePageReview(input: RequestPageReviewDto): Promise<CommandResult> {
+  try { return await new RequestPageReviewUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_REVIEW_REQUEST_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function assignKnowledgePageOwner(input: AssignPageOwnerDto): Promise<CommandResult> {
+  try { return await new AssignPageOwnerUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_OWNER_ASSIGN_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgePageIcon(input: UpdatePageIconDto): Promise<CommandResult> {
+  try { return await new UpdatePageIconUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_ICON_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+
+export async function updateKnowledgePageCover(input: UpdatePageCoverDto): Promise<CommandResult> {
+  try { return await new UpdatePageCoverUseCase(makePageRepo()).execute(input); }
+  catch (e) { return commandFailureFrom("PAGE_COVER_UPDATE_FAILED", (e as Error)?.message ?? "Unknown"); }
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/components/BlockEditorView.tsx
+````typescript
+"use client";
+
+import { useEffect, useRef, useCallback } from "react";
+import { useBlockEditorStore } from "../store/block-editor.store";
+import { richTextToPlainText } from "../../../../core/domain/value-objects/BlockContent";
+
+/**
+ * Notion knowledge subdomain — minimal block editor.
+ * Full drag-and-drop and rich block types are in the extensions/ layer.
+ */
+export function BlockEditorView() {
+  const { blocks, addBlock, updateBlock, deleteBlock } = useBlockEditorStore();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLDivElement>, blockId: string) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      addBlock(blockId);
+    }
+    if (e.key === "Backspace") {
+      const target = e.currentTarget;
+      if (target.textContent === "") {
+        e.preventDefault();
+        deleteBlock(blockId);
+      }
+    }
+  }
+
+  function handleInput(e: React.FormEvent<HTMLDivElement>, blockId: string) {
+    const text = (e.currentTarget as HTMLDivElement).textContent ?? "";
+    updateBlock(blockId, { type: "text", richText: [{ type: "text", plainText: text }] });
+  }
+
+  if (!blocks.length) {
+    return (
+      <div className="flex min-h-[200px] flex-col gap-1 rounded-lg border border-dashed p-4">
+        <div
+          contentEditable
+          suppressContentEditableWarning
+          className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); addBlock(null); }
+          }}
+          data-placeholder="開始輸入…"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div ref={containerRef} className="flex flex-col gap-0.5">
+      {blocks.map((block) => {
+        const text = richTextToPlainText(block.content.richText);
+        return (
+          <div
+            key={block.id}
+            contentEditable
+            suppressContentEditableWarning
+            className="min-h-[32px] w-full rounded px-2 py-1 text-sm outline-none focus:bg-muted/30"
+            onKeyDown={(e) => handleKeyDown(e, block.id)}
+            onInput={(e) => handleInput(e, block.id)}
+            dangerouslySetInnerHTML={{ __html: text }}
+          />
+        );
+      })}
+    </div>
+  );
+}
+````
+
+## File: modules/notion/subdomains/knowledge/interfaces/queries/index.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: interfaces/queries
+ * Purpose: Server-side read helpers for the knowledge subdomain.
+ */
+
+import { FirebaseKnowledgePageRepository } from "../../infrastructure/firebase/FirebaseKnowledgePageRepository";
+import { FirebaseContentBlockRepository } from "../../infrastructure/firebase/FirebaseContentBlockRepository";
+import { FirebaseKnowledgeCollectionRepository } from "../../infrastructure/firebase/FirebaseKnowledgeCollectionRepository";
+import {
+  GetKnowledgePageUseCase,
+  ListKnowledgePagesUseCase,
+  ListKnowledgePagesByWorkspaceUseCase,
+  GetKnowledgePageTreeUseCase,
+  GetKnowledgePageTreeByWorkspaceUseCase,
+} from "../../application/use-cases/KnowledgePageUseCases";
+import { ListContentBlocksUseCase } from "../../application/use-cases/ContentBlockUseCases";
+import {
+  GetKnowledgeCollectionUseCase,
+  ListKnowledgeCollectionsUseCase,
+} from "../../application/use-cases/KnowledgeCollectionUseCases";
+import type { KnowledgePageSnapshot } from "../../domain/aggregates/KnowledgePage";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { KnowledgeCollectionSnapshot } from "../../domain/aggregates/KnowledgeCollection";
+
+const makePageRepo = () => new FirebaseKnowledgePageRepository();
+const makeBlockRepo = () => new FirebaseContentBlockRepository();
+const makeCollRepo = () => new FirebaseKnowledgeCollectionRepository();
+
+export async function getKnowledgePage(accountId: string, pageId: string): Promise<KnowledgePageSnapshot | null> {
+  return new GetKnowledgePageUseCase(makePageRepo()).execute(accountId, pageId);
+}
+
+export async function getKnowledgePages(accountId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesUseCase(makePageRepo()).execute(accountId);
+}
+
+export async function getKnowledgePagesByWorkspace(accountId: string, workspaceId: string): Promise<KnowledgePageSnapshot[]> {
+  return new ListKnowledgePagesByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
+
+export async function getKnowledgePageTree(accountId: string) {
+  return new GetKnowledgePageTreeUseCase(makePageRepo()).execute(accountId);
+}
+
+export async function getKnowledgePageTreeByWorkspace(accountId: string, workspaceId: string) {
+  return new GetKnowledgePageTreeByWorkspaceUseCase(makePageRepo()).execute(accountId, workspaceId);
+}
+
+export async function getKnowledgeBlocks(accountId: string, pageId: string): Promise<ContentBlockSnapshot[]> {
+  return new ListContentBlocksUseCase(makeBlockRepo()).execute(accountId, pageId);
+}
+
+export async function getKnowledgeCollection(accountId: string, collectionId: string): Promise<KnowledgeCollectionSnapshot | null> {
+  return new GetKnowledgeCollectionUseCase(makeCollRepo()).execute(accountId, collectionId);
+}
+
+export async function getKnowledgeCollections(accountId: string): Promise<KnowledgeCollectionSnapshot[]> {
+  return new ListKnowledgeCollectionsUseCase(makeCollRepo()).execute(accountId);
+}
+````
+
+## File: modules/platform/AGENT.md
 ````markdown
-# Xuanwu Strategic Architecture Docs
+# AGENT.md — platform blueprint
 
-## Purpose
+> **強制開發規範**
+> 本 BC 領域開發必須優先確認平台邊界、通用語言與 Hexagonal + DDD 分層。
+> 若需外部官方文件驗證，先使用 Context7；若只更新 `domain/`、`application/`、`ports/` 或本地架構文件，則不讓 UI / Next.js 技能反向主導平台邊界。
 
-This folder is the strategic documentation set for **Hexagonal Architecture with Domain-Driven Design**.
+## 模組定位
 
-## Reading Guide
+`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務，是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
 
-```mermaid
-flowchart TD
-  A[README] --> B[architecture-overview.md]
-  B --> C[subdomains.md]
-  C --> D[bounded-contexts.md]
-  D --> E[context-map.md]
-  E --> F[ubiquitous-language.md]
-  F --> G[strategic-patterns.md]
-  G --> H[integration-guidelines.md]
-  D --> I[contexts/_template.md]
-  I --> J[contexts/*.md]
-  E --> K[decisions/README.md]
-```
+## 計畫吸收模組（Migration-Pending Modules）
 
-## Rules
+以下四個獨立模組**計畫重構進 platform**。代理人在這些子域工作時，應把 platform blueprint 的語言定義視為目標規範，獨立模組的現有實作視為前身實作。
 
-1. Update `bounded-contexts.md` and `context-map.md` together when boundaries change.
-2. Update `ubiquitous-language.md` before introducing new domain terms.
-3. Keep cross-context collaboration API-first and explicit.
-4. Record strategic changes as ADRs under `decisions/`.
-````
+| 獨立模組 | 目標子域 | 術語映射重點 |
+|---|---|---|
+| `modules/identity/` | `identity` | `Identity` → `AuthenticatedSubject`；`uid` → `SubjectId`；`TokenRefreshSignal` → `IdentitySignal` |
+| `modules/account/` | `account` + `account-profile` | `Account` 保持同名；`AccountPolicy.PolicyRule` 須對齊 `PolicyCatalog.PolicyRule`；`customClaims` → `Entitlement` |
+| `modules/organization/` | `organization` | `Organization` 保持同名；`MemberReference` → `MembershipBoundary` 的值；`OrganizationRole` 對齊 `RoleAssignment` |
+| `modules/notification/` | `notification` | `NotificationEntity` → `NotificationDispatch`；`recipientId` → `NotificationRoute` 的對象 |
 
-## File: eslint.config.mjs
-````javascript
-import { defineConfig, globalIgnores } from "eslint/config";
-import tseslint from "@typescript-eslint/eslint-plugin";
-import boundaries from "eslint-plugin-boundaries";
-import nextVitals from "eslint-config-next/core-web-vitals";
-import nextTs from "eslint-config-next/typescript";
-import jsdoc from "eslint-plugin-jsdoc";
-import jsxA11y from "eslint-plugin-jsx-a11y";
+**合并優先序：** `identity` → `account` → `organization` → `notification`
 
-// ─── Globs ───────────────────────────────────────────────────────────────────
-const srcGlobs = ["**/*.{js,jsx,mjs,cjs,ts,tsx}"];
-const tsGlobs  = ["**/*.{ts,tsx}"];
-const modGlobs = ["modules/**/*.{ts,tsx}"];
+**代理人注意事項：**
+- 合并前不要把獨立模組的術語直接搬進 platform domain；先確認與 platform 語言的映射
+- 合并完成後，獨立模組的 `api/index.ts` 應重新 export 自 `modules/platform/api`，模組本身標記 deprecated
+- 若跨獨立模組與 platform 之間有協作需求，仍須透過 `modules/platform/api` 公開邊界，不得直接依賴對方 domain/application 層
 
-// ─── Module boundary helpers ─────────────────────────────────────────────────
-const WARN = "warn";
+## Canonical Subdomain Inventory
 
-const moduleElements = ["domain","application","infrastructure","interfaces"].flatMap((layer) => [
-  { type: `module-${layer}`, pattern: `modules/*/${layer}/**/*`, capture: ["module"] },
-]);
-moduleElements.unshift(
-  { type: "module-root",           pattern: "modules/*/index.ts",               capture: ["module"] },
-  { type: "module-api",            pattern: "modules/*/api/**/*",                capture: ["module"] },
-  { type: "module-interfaces-api", pattern: "modules/*/interfaces/api/**/*",    capture: ["module"] },
-  { type: "module-interfaces-web", pattern: "modules/*/interfaces/web/**/*",    capture: ["module"] },
-);
+platform 的正式子域清單已固定為：
 
-const layers = ["module-domain","module-application","module-infrastructure","module-interfaces"];
-const sameModule = (type) => ({ to: { type, captured: { module: "{{from.captured.module}}" } } });
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
 
-const layerAllows = {
-  "module-domain":         ["module-domain"],
-  "module-application":    ["module-application","module-domain"],
-  "module-infrastructure": ["module-infrastructure","module-application","module-domain"],
-  "module-interfaces":     ["module-interfaces","module-application","module-infrastructure","module-domain"],
-};
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
 
-const moduleDependencyRules = [
-  // cross-module → must go through api, interfaces/api, or interfaces/web
-  ...layers.map((type) => ({ from: { type }, allow: [{ to: { type: "module-api" } }, { to: { type: "module-interfaces-api" } }, { to: { type: "module-interfaces-web" } }] })),
-  // same-module root barrel allowed
-  ...layers.map((type) => ({ from: { type }, allow: [sameModule("module-root")] })),
-  // api layer owns same-module layers
-  { from: { type: "module-api" }, allow: ["module-api",...layers].map(sameModule) },
-  // interfaces/api and interfaces/web as same-module public adapter layers
-  { from: { type: "module-interfaces-api" }, allow: ["module-interfaces-api","module-interfaces-web","module-api",...layers].map(sameModule) },
-  { from: { type: "module-interfaces-web" }, allow: ["module-interfaces-web","module-interfaces-api","module-api",...layers].map(sameModule) },
-  // same-module layer purity
-  ...layers.map((type) => ({ from: { type }, allow: layerAllows[type].map(sameModule) })),
-];
+## 代理人工作契約
 
-// ─── Restricted import patterns ───────────────────────────────────────────────
-const apiEntrypoint   = { regex: "^@/modules/(?!system$)[^/]+$",                          message: "Use @/modules/<module>/api only." };
-const nonApiSubpath   = { regex: "^@/modules/(?!system(?:/|$))[^/]+/(?!api(?:/|$)|interfaces/(?:api|web)(?:/|$)).+", message: "Cross-module deps must use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web." };
-const explicitIndex   = { group: ["**/index","**/index.ts","**/index.tsx"],                message: "Import the target file directly, not an index path." };
-const internalLayer   = { group: ["domain","application","infrastructure"].flatMap((l) => [`@/modules/*/${l}/**`]), message: "Use @/modules/<module>/api, @/modules/<module>/interfaces/api, or @/modules/<module>/interfaces/web — not internal layer paths." };
+任何在 `modules/platform/` 的變更，都應遵守以下順序：
 
-const legacyAliases = [
-  { group: ["@/shared/*"],        message: "Use @shared-types / @shared-utils / … instead." },
-  { group: ["@/infrastructure/*"],message: "Use @integration-firebase / @integration-upstash / … instead." },
-  { group: ["@/libs/*"],          message: "Use the corresponding @lib-* or @integration-* alias." },
-  { group: ["@/ui/shadcn/*"],     message: "Use @ui-shadcn/* instead." },
-  { group: ["@/ui/vis","@/ui/vis/*"], message: "Use @ui-vis instead." },
-  { group: ["@/interfaces/*"],    message: "Use @api-contracts instead." },
-];
+1. 先確認變更屬於哪一個平台子域
+2. 再確認它是 domain rule、application orchestration、port contract、public boundary projection，還是 adapter concern
+3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
 
-const restrictedImports = (patterns) => ["no-restricted-imports", [WARN, { patterns }]];
+## 必須維持的 Hexagonal + DDD 規則
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-export default defineConfig([
-  ...nextVitals,
-  ...nextTs,
+- domain 只擁有模型、規則與事件語言，不直接呼叫外部系統
+- application 只協調 use cases，不定義 persistence 或 transport 細節
+- input ports 定義進入系統的請求語言
+- output ports 定義離開系統的依賴語言
+- adapters 只翻譯或實作 ports，不改寫業務語意
+- `api/` 是 platform 對外的 public boundary；它只做投影與 re-export
+- `index.ts` 不是邊界設計來源，不得被當成 public API 規格替代品
+- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
+- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
+- domain events 需由 application 在持久化成功後發布
 
-  // JSDoc
-  {
-    files: srcGlobs,
-    plugins: { jsdoc },
-    settings: { jsdoc: { mode: "typescript" } },
-    rules: {
-      "jsdoc/check-alignment": WARN,
-      "jsdoc/check-syntax":    WARN,
-      "jsdoc/check-tag-names": WARN,
-      "jsdoc/no-blank-blocks": WARN,
-    },
-  },
+## Layer Mapping
 
-  // TypeScript naming + type imports + unused vars
-  {
-    files: tsGlobs,
-    plugins: { "@typescript-eslint": tseslint },
-    rules: {
-      "@typescript-eslint/naming-convention": [WARN,
-        { selector: "typeLike",     format: ["PascalCase"] },
-        { selector: "typeParameter",format: ["PascalCase"] },
-        { selector: "variable",     modifiers: ["destructured"], format: null },
-        { selector: "function",     format: ["camelCase","PascalCase"], leadingUnderscore: "allow" },
-        { selector: "variable",     format: ["camelCase","PascalCase","UPPER_CASE"], leadingUnderscore: "allow", trailingUnderscore: "allow" },
-        { selector: "parameter",    modifiers: ["destructured"], format: null },
-        { selector: "parameter",    format: ["camelCase"], leadingUnderscore: "allow" },
-        { selector: "enumMember",   format: ["PascalCase","UPPER_CASE"] },
-      ],
-      "@typescript-eslint/consistent-type-imports": [WARN, { prefer: "type-imports", fixStyle: "inline-type-imports" }],
-      "@typescript-eslint/no-unused-vars":          [WARN, { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" }],
-    },
-  },
+| 概念 | platform 位置 |
+|---|---|
+| Public boundary | `api/` |
+| Driving adapters | `adapters/` |
+| Application | `application/` |
+| Domain core | `domain/` |
+| Input ports | `ports/input/` |
+| Output ports | `ports/output/` |
+| Driven adapters | `infrastructure/` |
 
-  // React + a11y
-  {
-    files: ["**/*.{jsx,tsx}"],
-    rules: {
-      "react/react-in-jsx-scope":       "off",
-      "react/prop-types":               "off",
-      "react/self-closing-comp":        WARN,
-      "react/jsx-no-useless-fragment":  [WARN, { allowExpressions: true }],
-      "react-hooks/rules-of-hooks":     "error",
-      "react-hooks/exhaustive-deps":    WARN,
-      ...Object.fromEntries(
-        Object.entries(jsxA11y.flatConfigs.recommended.rules ?? {}).map(([rule, cfg]) => {
-          if (Array.isArray(cfg)) {
-            const [sev, ...rest] = cfg;
-            const w = sev === "error" || sev === 2 ? WARN : sev;
-            return [rule, rest.length ? [w, ...rest] : w];
-          }
-          return [rule, cfg === "error" || cfg === 2 ? WARN : cfg];
-        }),
-      ),
-    },
-  },
+## 通用語言守則
 
-  // Module boundaries (eslint-plugin-boundaries)
-  {
-    files: modGlobs,
-    plugins: { boundaries },
-    settings: { "boundaries/include": modGlobs, "boundaries/elements": moduleElements },
-    rules: {
-      "boundaries/dependencies": [WARN, { default: "disallow", rules: moduleDependencyRules }],
-    },
-  },
+在 platform 文件與未來實作中，應優先使用這些詞：
 
-  // File-size guardrails per MDDD layer
-  { files: ["modules/*/interfaces/**/*.{ts,tsx}"],    rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
-  { files: ["modules/*/application/**/*.{ts,tsx}"],   rules: { "max-lines": [WARN, { max: 300, skipBlankLines: true, skipComments: true }] } },
-  { files: ["modules/*/infrastructure/**/*.{ts,tsx}"],rules: { "max-lines": [WARN, { max: 400, skipBlankLines: true, skipComments: true }] } },
+- `PlatformContext`
+- `PolicyCatalog`
+- `IntegrationContract`
+- `SubscriptionAgreement`
+- `PlatformCapability`
+- `PermissionDecision`
+- `WorkflowTrigger`
+- `NotificationDispatch`
+- `AuditSignal`
+- `ObservabilitySignal`
+- `PublicBoundary`
+- `UseCaseHandler`
 
-  // Legacy alias migration
-  { rules: { [restrictedImports(legacyAliases)[0]]: restrictedImports(legacyAliases)[1] } },
+不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
 
-  // app / providers / debug → only module api entrypoints
-  {
-    files: ["app/**/*.{ts,tsx,js,jsx}","providers/**/*.{ts,tsx,js,jsx}","debug/**/*.{ts,tsx,js,jsx}"],
-    rules: { [restrictedImports([apiEntrypoint, nonApiSubpath])[0]]: restrictedImports([apiEntrypoint, nonApiSubpath])[1] },
-  },
+## 允許的修改
 
-  // modules → strict entrypoint + internal layer enforcement
-  {
-    files: modGlobs,
-    rules: { [restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[0]]: restrictedImports([explicitIndex, apiEntrypoint, nonApiSubpath, internalLayer])[1] },
-  },
+- 新增或細化 platform 子域的語言與責任
+- 新增 input ports / output ports 以描述新的 I/O 邊界
+- 新增 application services 以表達新的 use case handlers
+- 新增 aggregates、值物件或 domain services 以承載純業務規則
+- 新增 adapters 或 infrastructure implementations 來實作既有 output ports
 
-  globalIgnores([".agents/**","modules/platform/**",".next/**","out/**","build/**","next-env.d.ts"]),
-]);
-````
+## 禁止的修改
 
-## File: modules/account/application/use-cases/account-policy.use-cases.ts
-````typescript
-/**
- * Account Policy Use Cases — pure business workflows.
- * Per [S6]: account policy changes trigger CUSTOM_CLAIMS refresh (via TOKEN_REFRESH_SIGNAL).
- * No React, no Firebase, no UI framework.
- */
+- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
+- 在 adapter 中定義平台政策或聚合不變數
+- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
+- 讓事件名稱承載命令語氣，例如 `please_send_notification`
+- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
+- 用 `api/` 或 barrel 檔取代 `application/`、`domain/` 的契約來源
 
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { AccountPolicyRepository } from "../../domain/repositories/AccountPolicyRepository";
-import type { CreatePolicyInput, UpdatePolicyInput } from "../../domain/entities/AccountPolicy";
-import { identityApi } from "@/modules/platform/api";
+## 文件更新規則
 
-// ─── Create Account Policy ────────────────────────────────────────────────────
+若變更影響聚合、語言或邊界，至少同步更新以下文件：
 
-export class CreateAccountPolicyUseCase {
-  constructor(
-    private readonly policyRepo: AccountPolicyRepository,
-  ) {}
+- 變更聚合或值物件：同步更新 `docs/aggregates.md` 與 `docs/ubiquitous-language.md`
+- 變更 use case handler：同步更新 `docs/application-services.md`
+- 變更 repository/output port：同步更新 `docs/repositories.md`
+- 變更 input port、support port 或 decision object：同步更新 `docs/application-services.md`、`docs/repositories.md` 與 `docs/ubiquitous-language.md`
+- 變更事件名稱或 payload：同步更新 `docs/domain-events.md`
+- 變更子域責任：同步更新 `docs/subdomains.md` 與 `docs/context-map.md`
+- 變更 platform 邊界：同步更新 `docs/bounded-context.md` 與 `README.md`
 
-  async execute(input: CreatePolicyInput): Promise<CommandResult> {
-    try {
-      const policy = await this.policyRepo.create(input);
-      // [S6] Emit token refresh signal after policy change so frontend refreshes claims.
-      await identityApi.emitTokenRefreshSignal({
-        accountId: input.accountId,
-        reason: "policy:changed",
-        ...(input.traceId ? { traceId: input.traceId } : {}),
-      });
-      return commandSuccess(policy.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_ACCOUNT_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to create account policy",
-      );
-    }
-  }
-}
+## 文件分解對照
 
-// ─── Update Account Policy ────────────────────────────────────────────────────
+`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
 
-export class UpdateAccountPolicyUseCase {
-  constructor(
-    private readonly policyRepo: AccountPolicyRepository,
-  ) {}
+- 聚合與不變數：`docs/aggregates.md`
+- use case handlers：`docs/application-services.md`
+- 邊界責任：`docs/bounded-context.md`
+- 子域協作：`docs/context-map.md`
+- 事件語言：`docs/domain-events.md`
+- 純領域規則：`docs/domain-services.md`
+- repositories 與 ports：`docs/repositories.md`
+- 子域清單：`docs/subdomains.md`
+- 術語治理：`docs/ubiquitous-language.md`
 
-  async execute(
-    policyId: string,
-    accountId: string,
-    data: UpdatePolicyInput,
-  ): Promise<CommandResult> {
-    try {
-      const existing = await this.policyRepo.findById(policyId);
-      if (!existing) {
-        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
-      }
-      await this.policyRepo.update(policyId, data);
-      // [S6] Emit refresh signal after policy change.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "policy:changed",
-      });
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_ACCOUNT_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to update account policy",
-      );
-    }
-  }
-}
+## 代理人交付標準
 
-// ─── Delete Account Policy ────────────────────────────────────────────────────
+- 優先維持語言一致性，而不是追求一次塞入所有能力
+- 優先讓 ports 穩定，再讓 adapters 成長
+- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
+- 任何新術語都應能在 `docs/ubiquitous-language.md` 落地
 
-export class DeleteAccountPolicyUseCase {
-  constructor(
-    private readonly policyRepo: AccountPolicyRepository,
-  ) {}
+## 最終檢查
 
-  async execute(policyId: string, accountId: string): Promise<CommandResult> {
-    try {
-      const existing = await this.policyRepo.findById(policyId);
-      if (!existing) {
-        return commandFailureFrom("ACCOUNT_POLICY_NOT_FOUND", `Policy ${policyId} not found`);
-      }
-      await this.policyRepo.delete(policyId);
-      // [S6] Emit refresh signal after policy deletion.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "policy:changed",
-      });
-      return commandSuccess(policyId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "DELETE_ACCOUNT_POLICY_FAILED",
-        err instanceof Error ? err.message : "Failed to delete account policy",
-      );
-    }
-  }
-}
-````
+在交付前，代理人至少自問六件事：
 
-## File: modules/account/application/use-cases/account.use-cases.ts
-````typescript
-/**
- * Account Use Cases — pure business workflows.
- * No React, no Firebase, no UI framework.
- */
-
-import { commandSuccess, commandFailureFrom, type CommandResult } from "@shared-types";
-import type { AccountRepository } from "../../domain/repositories/AccountRepository";
-import type { UpdateProfileInput, OrganizationRole } from "../../domain/entities/Account";
-import { identityApi } from "@/modules/platform/api";
-
-// ─── Create Account ───────────────────────────────────────────────────────────
-
-export class CreateUserAccountUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(userId: string, name: string, email: string): Promise<CommandResult> {
-    try {
-      await this.accountRepo.save({
-        id: userId,
-        name,
-        email,
-        accountType: "user",
-      });
-      return commandSuccess(userId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "CREATE_USER_ACCOUNT_FAILED",
-        err instanceof Error ? err.message : "Failed to create user account",
-      );
-    }
-  }
-}
-
-// ─── Update Profile ───────────────────────────────────────────────────────────
-
-export class UpdateUserProfileUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(userId: string, data: UpdateProfileInput): Promise<CommandResult> {
-    try {
-      await this.accountRepo.updateProfile(userId, data);
-      return commandSuccess(userId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "UPDATE_USER_PROFILE_FAILED",
-        err instanceof Error ? err.message : "Failed to update user profile",
-      );
-    }
-  }
-}
-
-// ─── Credit Wallet ────────────────────────────────────────────────────────────
-
-export class CreditWalletUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Credit amount must be positive");
-      }
-      const tx = await this.accountRepo.creditWallet(accountId, amount, description);
-      return commandSuccess(tx.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WALLET_CREDIT_FAILED",
-        err instanceof Error ? err.message : "Failed to credit wallet",
-      );
-    }
-  }
-}
-
-// ─── Debit Wallet ─────────────────────────────────────────────────────────────
-
-export class DebitWalletUseCase {
-  constructor(private readonly accountRepo: AccountRepository) {}
-
-  async execute(
-    accountId: string,
-    amount: number,
-    description: string,
-  ): Promise<CommandResult> {
-    try {
-      if (amount <= 0) {
-        return commandFailureFrom("WALLET_INVALID_AMOUNT", "Debit amount must be positive");
-      }
-      const balance = await this.accountRepo.getWalletBalance(accountId);
-      if (balance < amount) {
-        return commandFailureFrom("WALLET_INSUFFICIENT_FUNDS", "Insufficient wallet balance");
-      }
-      const tx = await this.accountRepo.debitWallet(accountId, amount, description);
-      return commandSuccess(tx.id, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "WALLET_DEBIT_FAILED",
-        err instanceof Error ? err.message : "Failed to debit wallet",
-      );
-    }
-  }
-}
-
-// ─── Assign Role ──────────────────────────────────────────────────────────────
-
-export class AssignAccountRoleUseCase {
-  constructor(
-    private readonly accountRepo: AccountRepository,
-  ) {}
-
-  async execute(
-    accountId: string,
-    role: OrganizationRole,
-    grantedBy: string,
-    traceId?: string,
-  ): Promise<CommandResult> {
-    try {
-      const record = await this.accountRepo.assignRole(accountId, role, grantedBy);
-      // [S6] Emit TOKEN_REFRESH_SIGNAL so frontend force-refreshes Custom Claims.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "role:changed",
-        ...(traceId ? { traceId } : {}),
-      });
-      return commandSuccess(record.accountId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "ASSIGN_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to assign role",
-      );
-    }
-  }
-}
-
-// ─── Revoke Role ──────────────────────────────────────────────────────────────
-
-export class RevokeAccountRoleUseCase {
-  constructor(
-    private readonly accountRepo: AccountRepository,
-  ) {}
-
-  async execute(accountId: string): Promise<CommandResult> {
-    try {
-      await this.accountRepo.revokeRole(accountId);
-      // [S6] Emit TOKEN_REFRESH_SIGNAL after role revocation.
-      await identityApi.emitTokenRefreshSignal({
-        accountId,
-        reason: "role:changed",
-      });
-      return commandSuccess(accountId, Date.now());
-    } catch (err) {
-      return commandFailureFrom(
-        "REVOKE_ROLE_FAILED",
-        err instanceof Error ? err.message : "Failed to revoke role",
-      );
-    }
-  }
-}
-````
-
-## File: modules/platform/api/contracts.ts
-````typescript
-/**
- * platform API contracts boundary.
- *
- * Keep the source of truth in application/domain and re-export here for API consumers.
- */
-
-export * from "../application/dtos";
-export type {
-	PlatformContextView,
-	PolicyCatalogView,
-	SubscriptionEntitlementsView,
-	WorkflowPolicyView,
-} from "../ports/output";
-export * from "../domain/events";
+1. 這個變更有沒有把 platform policy 泄漏到 adapter？
+2. 這個 I/O 邊界是否已經先表達成 port？
+3. 事件名稱是否描述事實而非命令？
+4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
+5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
+6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
 ````
 
 ## File: modules/platform/api/index.ts
@@ -82377,123 +82060,9 @@ export * from "../domain/events";
 export * from "./contracts";
 export * from "./facade";
 export * from "../subdomains/identity";
-````
-
-## File: modules/platform/application/dtos/index.ts
-````typescript
-/**
- * platform application contracts and DTOs.
- */
-
-export type PlatformCommandName =
-	| "registerPlatformContext"
-	| "publishPolicyCatalog"
-	| "applyConfigurationProfile"
-	| "registerIntegrationContract"
-	| "activateSubscriptionAgreement"
-	| "fireWorkflowTrigger"
-	| "requestNotificationDispatch"
-	| "recordAuditSignal"
-	| "emitObservabilitySignal";
-
-export type PlatformQueryName =
-	| "getPlatformContextView"
-	| "listEnabledCapabilities"
-	| "getPolicyCatalogView"
-	| "getSubscriptionEntitlements"
-	| "getWorkflowPolicyView";
-
-export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
-}
-
-export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
-}
-
-export interface PlatformCommandResult {
-	ok: boolean;
-	code?: string;
-	message?: string;
-	metadata?: Record<string, unknown>;
-}
-
-export interface RegisterPlatformContextInput {
-	contextId: string;
-	subjectScope: string;
-}
-
-export interface PublishPolicyCatalogInput {
-	contextId: string;
-	revision: number;
-}
-
-export interface ApplyConfigurationProfileInput {
-	contextId: string;
-	profileRef: string;
-}
-
-export interface RegisterIntegrationContractInput {
-	contextId: string;
-	integrationContractId: string;
-	endpointRef: string;
-	protocol: "http" | "webhook" | "queue" | "topic" | "file";
-}
-
-export interface ActivateSubscriptionAgreementInput {
-	contextId: string;
-	subscriptionAgreementId: string;
-	planCode: string;
-}
-
-export interface FireWorkflowTriggerInput {
-	contextId: string;
-	triggerKey: string;
-	triggeredBy: string;
-}
-
-export interface RequestNotificationDispatchInput {
-	contextId: string;
-	channel: string;
-	recipientRef: string;
-	templateKey: string;
-}
-
-export interface RecordAuditSignalInput {
-	contextId: string;
-	signalType: string;
-	severity: string;
-}
-
-export interface EmitObservabilitySignalInput {
-	contextId: string;
-	signalName: string;
-	signalLevel: string;
-	sourceRef: string;
-}
-
-export interface GetPlatformContextViewInput {
-	contextId: string;
-}
-
-export interface ListEnabledCapabilitiesInput {
-	contextId: string;
-}
-
-export interface GetPolicyCatalogViewInput {
-	contextId: string;
-}
-
-export interface GetSubscriptionEntitlementsInput {
-	contextId: string;
-}
-
-export interface GetWorkflowPolicyViewInput {
-	contextId: string;
-	triggerKey: string;
-}
+export * from "../subdomains/account";
+export * from "../subdomains/notification";
+export * from "../subdomains/organization";
 ````
 
 ## File: modules/platform/docs/aggregates.md
@@ -83790,641 +83359,392 @@ platform 事件推薦使用：
 - 若一個詞其實是 boundary 角色，應明確區分 `PublicBoundary`、`InputPort`、`OutputPort` 與 `Adapter`
 ````
 
-## File: modules/platform/domain/events/index.ts
+## File: modules/platform/README.md
+````markdown
+# platform
+
+`platform` 是平台基礎能力的 Hexagonal Architecture with Domain-Driven Design 藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標，是穩定語言與邊界，而不是集中所有跨領域業務邏輯。
+
+## 邊界定位
+
+- 維持 `driving adapters -> application -> domain <- driven adapters` 的依賴方向
+- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
+- 所有外部輸入先表達成 `ports/input`
+- 所有外部依賴先表達成 `ports/output`，再由 `infrastructure/` 實作
+- `api/` 是對外 public boundary，只做投影與 re-export
+- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
+- `index.ts` 只是模組匯出便利入口，不是邊界規格來源
+
+## Hexagonal Mapping
+
+| Hexagonal concept | platform 位置 | 說明 |
+|---|---|---|
+| Public boundary | `api/` | 跨模組公開契約投影 |
+| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端 |
+| Application | `application/` | use case orchestration、DTO、command/query 處理 |
+| Domain core | `domain/` | 聚合、值物件、domain services、domain events |
+| Input ports | `ports/input/` | 進入 application 的穩定契約 |
+| Output ports | `ports/output/` | repositories、stores、gateways、sinks |
+| Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
+| Published language | `domain/events/`, `application/dtos/` | 事件與穩定 application contracts |
+
+## 模組骨架
+
+```text
+modules/platform/
+    api/
+    adapters/
+    application/
+    domain/
+    infrastructure/
+    ports/
+    docs/
+    subdomains/
+    AGENT.md
+```
+
+## Canonical Subdomain Inventory (23)
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
+
+## 計畫吸收模組
+
+以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
+
+| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
+| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
+| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
+| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`
+
+合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
+
+詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
+
+## 文件導覽
+
+- [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑
+- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任、public boundary 與封板規則
+- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
+- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
+- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
+- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
+- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
+- [docs/application-services.md](./docs/application-services.md): use case orchestration
+- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
+- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
+
+## 變更準則
+
+1. 先映射到既有子域
+2. 再決定是 language、aggregate、use case、port、adapter 或 public boundary 變更
+3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
+
+## 文件閉環驗證
+
+提交前建議最少執行一次文件閉環檢查：
+
+1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
+2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
+3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
+4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
+5. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色是否仍然清楚
+````
+
+## File: modules/platform/subdomains/account-profile/adapters/create-legacy-account-profile-application.adapter.ts
+````typescript
+import { getUserProfile, subscribeToUserProfile } from "../../account";
+import type { LegacyAccountProfileApplicationPort } from "../application";
+
+export function createLegacyAccountProfileApplicationAdapter(): LegacyAccountProfileApplicationPort {
+	return {
+		getUserProfile,
+		subscribeToUserProfile,
+	};
+}
+````
+
+## File: modules/platform/subdomains/account-profile/application/legacy-account-profile-application.port.ts
+````typescript
+import { getUserProfile, subscribeToUserProfile } from "../../account";
+
+/**
+ * Temporary compatibility port during migration from account profile concerns.
+ */
+export interface LegacyAccountProfileApplicationPort {
+	getUserProfile: typeof getUserProfile;
+	subscribeToUserProfile: typeof subscribeToUserProfile;
+}
+````
+
+## File: modules/platform/subdomains/account/adapters/index.ts
+````typescript
+export { accountService, createClientAccountUseCases } from "./account-service";
+
+export {
+  getUserProfile,
+  subscribeToUserProfile,
+  getWalletBalance,
+  subscribeToWalletBalance,
+  subscribeToWalletTransactions,
+  getAccountRole,
+  subscribeToAccountRoles,
+  subscribeToAccountsForUser,
+  getAccountPolicies,
+  getActiveAccountPolicies,
+} from "./queries/account.queries";
+
+export {
+  createUserAccount,
+  updateUserProfile,
+  creditWallet,
+  debitWallet,
+  assignAccountRole,
+  revokeAccountRole,
+} from "./server-actions/account.actions";
+
+export {
+  createAccountPolicy,
+  updateAccountPolicy,
+  deleteAccountPolicy,
+} from "./server-actions/account-policy.actions";
+````
+
+## File: modules/platform/subdomains/account/adapters/queries/account.queries.ts
 ````typescript
 /**
- * platform domain event language.
- *
- * Single source of truth for all platform event type constants.
- * events/contracts re-exports from here; do not define event types elsewhere.
+ * Account Read Queries — thin wrappers over the AccountQueryRepository port.
+ * NOT Server Actions — callable from React components/hooks directly.
  */
 
-export interface PlatformDomainEvent<TPayload = Record<string, unknown>> {
-	type: string;
-	aggregateType: string;
-	aggregateId: string;
-	contextId: string;
-	occurredAt: string;
-	version: number;
-	correlationId?: string;
-	causationId?: string;
-	actorId?: string;
-	payload: TPayload;
+import { FirebaseAccountQueryRepository } from "../firebase/FirebaseAccountQueryRepository";
+import type { AccountEntity, WalletTransaction, AccountRoleRecord } from "../domain/entities/Account";
+import type { WalletBalanceSnapshot, Unsubscribe } from "../domain/repositories/AccountQueryRepository";
+import type { AccountPolicy } from "../domain/entities/AccountPolicy";
+
+const accountQueryRepo = new FirebaseAccountQueryRepository();
+
+export async function getUserProfile(userId: string): Promise<AccountEntity | null> {
+  return accountQueryRepo.getUserProfile(userId);
 }
 
-// ─── PlatformContext aggregate events ────────────────────────────────────────
-export const PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE = "platform.context_registered" as const;
-export const PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE = "platform.capability_enabled" as const;
-export const PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE = "platform.capability_disabled" as const;
+export function subscribeToUserProfile(
+  userId: string,
+  onUpdate: (profile: AccountEntity | null) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToUserProfile(userId, onUpdate);
+}
 
-// ─── PolicyCatalog aggregate events ──────────────────────────────────────────
-export const POLICY_CATALOG_PUBLISHED_EVENT_TYPE = "policy.catalog_published" as const;
+export async function getWalletBalance(accountId: string): Promise<WalletBalanceSnapshot> {
+  return accountQueryRepo.getWalletBalance(accountId);
+}
 
-// ─── Configuration events (PlatformContext orchestration) ────────────────────
-export const CONFIG_PROFILE_APPLIED_EVENT_TYPE = "config.profile_applied" as const;
+export function subscribeToWalletBalance(
+  accountId: string,
+  onUpdate: (snapshot: WalletBalanceSnapshot) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToWalletBalance(accountId, onUpdate);
+}
 
-// ─── Permission domain service events ────────────────────────────────────────
-export const PERMISSION_DECISION_RECORDED_EVENT_TYPE = "permission.decision_recorded" as const;
+export function subscribeToWalletTransactions(
+  accountId: string,
+  maxCount: number,
+  onUpdate: (txs: WalletTransaction[]) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToWalletTransactions(accountId, maxCount, onUpdate);
+}
 
-// ─── IntegrationContract aggregate events ────────────────────────────────────
-export const INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE = "integration.contract_registered" as const;
-export const INTEGRATION_DELIVERY_FAILED_EVENT_TYPE = "integration.delivery_failed" as const;
+export async function getAccountRole(accountId: string): Promise<AccountRoleRecord | null> {
+  return accountQueryRepo.getAccountRole(accountId);
+}
 
-// ─── SubscriptionAgreement aggregate events ───────────────────────────────────
-export const SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE = "subscription.agreement_activated" as const;
+export function subscribeToAccountRoles(
+  accountId: string,
+  onUpdate: (record: AccountRoleRecord | null) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountRoles(accountId, onUpdate);
+}
 
-// ─── Application-layer owned events ──────────────────────────────────────────
-export const ONBOARDING_FLOW_COMPLETED_EVENT_TYPE = "onboarding.flow_completed" as const;
-export const COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE = "compliance.policy_verified" as const;
-export const REFERRAL_REWARD_RECORDED_EVENT_TYPE = "referral.reward_recorded" as const;
-export const WORKFLOW_TRIGGER_FIRED_EVENT_TYPE = "workflow.trigger_fired" as const;
-export const BACKGROUND_JOB_ENQUEUED_EVENT_TYPE = "background-job.enqueued" as const;
-export const CONTENT_ASSET_PUBLISHED_EVENT_TYPE = "content.asset_published" as const;
-export const SEARCH_QUERY_EXECUTED_EVENT_TYPE = "search.query_executed" as const;
-export const NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE = "notification.dispatch_requested" as const;
-export const AUDIT_SIGNAL_RECORDED_EVENT_TYPE = "audit.signal_recorded" as const;
-export const OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE = "observability.signal_emitted" as const;
-export const ANALYTICS_EVENT_RECORDED_EVENT_TYPE = "analytics.event_recorded" as const;
-export const SUPPORT_TICKET_OPENED_EVENT_TYPE = "support.ticket_opened" as const;
+export function subscribeToAccountsForUser(
+  userId: string,
+  onUpdate: (accounts: Record<string, AccountEntity>) => void,
+): Unsubscribe {
+  return accountQueryRepo.subscribeToAccountsForUser(userId, onUpdate);
+}
 
-// ─── All-events catalogue ─────────────────────────────────────────────────────
-export const PLATFORM_DOMAIN_EVENT_TYPES = [
-	PLATFORM_CONTEXT_REGISTERED_EVENT_TYPE,
-	PLATFORM_CAPABILITY_ENABLED_EVENT_TYPE,
-	PLATFORM_CAPABILITY_DISABLED_EVENT_TYPE,
-	POLICY_CATALOG_PUBLISHED_EVENT_TYPE,
-	CONFIG_PROFILE_APPLIED_EVENT_TYPE,
-	PERMISSION_DECISION_RECORDED_EVENT_TYPE,
-	INTEGRATION_CONTRACT_REGISTERED_EVENT_TYPE,
-	INTEGRATION_DELIVERY_FAILED_EVENT_TYPE,
-	SUBSCRIPTION_AGREEMENT_ACTIVATED_EVENT_TYPE,
-	ONBOARDING_FLOW_COMPLETED_EVENT_TYPE,
-	COMPLIANCE_POLICY_VERIFIED_EVENT_TYPE,
-	REFERRAL_REWARD_RECORDED_EVENT_TYPE,
-	WORKFLOW_TRIGGER_FIRED_EVENT_TYPE,
-	BACKGROUND_JOB_ENQUEUED_EVENT_TYPE,
-	CONTENT_ASSET_PUBLISHED_EVENT_TYPE,
-	SEARCH_QUERY_EXECUTED_EVENT_TYPE,
-	NOTIFICATION_DISPATCH_REQUESTED_EVENT_TYPE,
-	AUDIT_SIGNAL_RECORDED_EVENT_TYPE,
-	OBSERVABILITY_SIGNAL_EMITTED_EVENT_TYPE,
-	ANALYTICS_EVENT_RECORDED_EVENT_TYPE,
-	SUPPORT_TICKET_OPENED_EVENT_TYPE,
-] as const;
+export async function getAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  // Policy reads are server-side only; keep client bundles free of policy repo deps.
+  return [];
+}
 
-export type PlatformDomainEventType = (typeof PLATFORM_DOMAIN_EVENT_TYPES)[number];
+export async function getActiveAccountPolicies(_accountId: string): Promise<AccountPolicy[]> {
+  return [];
+}
 ````
 
-## File: modules/platform/ports/input/index.ts
+## File: modules/platform/subdomains/account/application/index.ts
+````typescript
+export {
+  CreateUserAccountUseCase,
+  UpdateUserProfileUseCase,
+  CreditWalletUseCase,
+  DebitWalletUseCase,
+  AssignAccountRoleUseCase,
+  RevokeAccountRoleUseCase,
+} from "./use-cases/account.use-cases";
+
+export {
+  CreateAccountPolicyUseCase,
+  UpdateAccountPolicyUseCase,
+  DeleteAccountPolicyUseCase,
+} from "./use-cases/account-policy.use-cases";
+````
+
+## File: modules/platform/subdomains/notification/adapters/index.ts
+````typescript
+export { notificationService } from "./notification-service";
+export { getNotificationsForRecipient } from "./queries/notification.queries";
+export {
+  dispatchNotification,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "./server-actions/notification.actions";
+````
+
+## File: modules/platform/subdomains/notification/adapters/queries/notification.queries.ts
 ````typescript
 /**
- * platform input ports.
+ * Notification Queries — direct repo reads for client-side data.
  */
 
-import type { PlatformDomainEvent } from "../../domain/events";
+import { FirebaseNotificationRepository } from "../firebase/FirebaseNotificationRepository";
+import type { NotificationEntity } from "../domain/entities/Notification";
 
-export type PlatformCommandName =
-	| "registerPlatformContext"
-	| "publishPolicyCatalog"
-	| "applyConfigurationProfile"
-	| "registerIntegrationContract"
-	| "activateSubscriptionAgreement"
-	| "fireWorkflowTrigger"
-	| "requestNotificationDispatch"
-	| "recordAuditSignal"
-	| "emitObservabilitySignal";
+const notificationRepo = new FirebaseNotificationRepository();
 
-export type PlatformQueryName =
-	| "getPlatformContextView"
-	| "listEnabledCapabilities"
-	| "getPolicyCatalogView"
-	| "getSubscriptionEntitlements"
-	| "getWorkflowPolicyView";
-
-export interface PlatformCommand<TName extends PlatformCommandName = PlatformCommandName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
-}
-
-export interface PlatformQuery<TName extends PlatformQueryName = PlatformQueryName, TPayload = unknown> {
-	name: TName;
-	payload: TPayload;
-}
-
-export interface PlatformCommandResult {
-	ok: boolean;
-	code?: string;
-	message?: string;
-	metadata?: Record<string, unknown>;
-}
-
-export interface PlatformCommandPort {
-	executeCommand<TCommand extends PlatformCommand>(command: TCommand): Promise<PlatformCommandResult>;
-}
-
-export interface PlatformQueryPort {
-	executeQuery<TResult, TQuery extends PlatformQuery>(query: TQuery): Promise<TResult>;
-}
-
-export interface PlatformEventIngressPort {
-	ingestEvent(event: PlatformDomainEvent): Promise<void>;
+export async function getNotificationsForRecipient(recipientId: string, maxCount?: number): Promise<NotificationEntity[]> {
+  return notificationRepo.findByRecipient(recipientId, maxCount);
 }
 ````
 
-## File: modules/platform/ports/output/index.ts
+## File: modules/platform/subdomains/notification/application/index.ts
+````typescript
+export {
+  DispatchNotificationUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "./use-cases/notification.use-cases";
+````
+
+## File: modules/platform/subdomains/organization/adapters/index.ts
+````typescript
+export { organizationService } from "./organization-service";
+export { getOrganizationMembers, getOrganizationTeams, getOrgPolicies } from "./queries/organization.queries";
+export {
+  createOrganization,
+  createOrganizationWithTeam,
+  updateOrganizationSettings,
+  deleteOrganization,
+  inviteMember,
+  recruitMember,
+  dismissMember,
+  updateMemberRole,
+  createTeam,
+  deleteTeam,
+  updateTeamMembers,
+  createPartnerGroup,
+  sendPartnerInvite,
+  dismissPartnerMember,
+} from "./server-actions/organization.actions";
+export { createOrgPolicy, updateOrgPolicy, deleteOrgPolicy } from "./server-actions/organization-policy.actions";
+````
+
+## File: modules/platform/subdomains/organization/adapters/queries/organization.queries.ts
 ````typescript
 /**
- * platform output ports.
+ * Organization Queries — direct repo reads for client-side data.
  */
 
-import type { PlatformCommandResult } from "../input";
-import type { PlatformDomainEvent } from "../../domain/events";
+import { FirebaseOrganizationRepository } from "../firebase/FirebaseOrganizationRepository";
+import { FirebaseOrgPolicyRepository } from "../firebase/FirebaseOrgPolicyRepository";
+import type { MemberReference, Team, OrgPolicy } from "../domain/entities/Organization";
 
-export interface PlatformContextRepository {
-	findById(contextId: string): Promise<unknown | null>;
-	save(context: unknown): Promise<void>;
+const orgRepo = new FirebaseOrganizationRepository();
+const policyRepo = new FirebaseOrgPolicyRepository();
+
+export function getOrganizationMembers(organizationId: string): Promise<MemberReference[]> {
+  return orgRepo.getMembers(organizationId);
 }
 
-export interface PolicyCatalogRepository {
-	findActiveByContextId(contextId: string): Promise<unknown | null>;
-	saveRevision(catalog: unknown): Promise<void>;
+export function getOrganizationTeams(organizationId: string): Promise<Team[]> {
+  return orgRepo.getTeams(organizationId);
 }
 
-export interface IntegrationContractRepository {
-	findById(integrationContractId: string): Promise<unknown | null>;
-	save(contract: unknown): Promise<void>;
-}
-
-export interface SubscriptionAgreementRepository {
-	findEffectiveByContextId(contextId: string): Promise<unknown | null>;
-	save(agreement: unknown): Promise<void>;
-}
-
-export interface AccountRepository {
-	findById(accountId: string): Promise<unknown | null>;
-}
-
-export interface OnboardingRepository {
-	findById(onboardingId: string): Promise<unknown | null>;
-}
-
-export interface CompliancePolicyStore {
-	getPolicy(policyRef: string): Promise<unknown | null>;
-}
-
-export interface ReferralRepository {
-	findById(referralId: string): Promise<unknown | null>;
-}
-
-export interface ContentRepository {
-	findById(contentId: string): Promise<unknown | null>;
-}
-
-export interface SupportRepository {
-	findById(ticketId: string): Promise<unknown | null>;
-}
-
-export interface PlatformContextView {
-	contextId: string;
-	lifecycleState: string;
-	capabilityKeys: string[];
-}
-
-export interface PolicyCatalogView {
-	contextId: string;
-	revision: number;
-	permissionRuleCount: number;
-	workflowRuleCount: number;
-	notificationRuleCount: number;
-	auditRuleCount: number;
-}
-
-export interface SubscriptionEntitlementsView {
-	contextId: string;
-	planCode: string;
-	entitlements: string[];
-	usageLimits: string[];
-}
-
-export interface WorkflowPolicyView {
-	contextId: string;
-	triggerKey: string;
-	enabled: boolean;
-}
-
-export interface PlatformContextViewRepository {
-	getView(contextId: string): Promise<PlatformContextView | null>;
-}
-
-export interface PolicyCatalogViewRepository {
-	getView(contextId: string): Promise<PolicyCatalogView | null>;
-}
-
-export interface UsageMeterRepository {
-	getEntitlementsView(contextId: string): Promise<SubscriptionEntitlementsView | null>;
-}
-
-export interface DeliveryHistoryRepository {
-	listByContext(contextId: string): Promise<readonly unknown[]>;
-}
-
-export interface WorkflowPolicyRepository {
-	getView(contextId: string, triggerKey: string): Promise<WorkflowPolicyView | null>;
-}
-
-export interface ConfigurationProfileStore {
-	getProfile(profileRef: string): Promise<unknown | null>;
-}
-
-export interface SubjectDirectory {
-	getSubject(subjectId: string): Promise<unknown | null>;
-}
-
-export interface SecretReferenceResolver {
-	resolve(secretRef: string): Promise<string>;
-}
-
-export interface DomainEventPublisher {
-	publish(events: readonly PlatformDomainEvent[]): Promise<void>;
-}
-
-export interface WorkflowDispatcherPort {
-	dispatch(triggerKey: string, payload: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface NotificationGateway {
-	dispatch(request: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface AuditSignalStore {
-	write(signal: Record<string, unknown>): Promise<void>;
-}
-
-export interface ObservabilitySink {
-	emit(signal: Record<string, unknown>): Promise<void>;
-}
-
-export interface AnalyticsSink {
-	record(event: Record<string, unknown>): Promise<void>;
-}
-
-export interface ExternalSystemGateway {
-	call(request: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface JobQueuePort {
-	enqueue(job: Record<string, unknown>): Promise<PlatformCommandResult>;
-}
-
-export interface SearchIndexPort {
-	index(document: Record<string, unknown>): Promise<void>;
+export function getOrgPolicies(orgId: string): Promise<OrgPolicy[]> {
+  return policyRepo.getPolicies(orgId);
 }
 ````
 
-## File: modules/platform/subdomains/account-profile/index.ts
+## File: modules/platform/subdomains/organization/application/index.ts
 ````typescript
-export * from "./application";
-export * from "./adapters";
-export { getUserProfile, subscribeToUserProfile } from "@/modules/account/api";
-````
+export {
+  CreateOrganizationUseCase,
+  CreateOrganizationWithTeamUseCase,
+  UpdateOrganizationSettingsUseCase,
+  DeleteOrganizationUseCase,
+} from "./use-cases/organization-lifecycle.use-cases";
 
-## File: modules/platform/subdomains/account/index.ts
-````typescript
-export * from "./application";
-export * from "./adapters";
-export * from "@/modules/account/api";
-````
+export {
+  InviteMemberUseCase,
+  RecruitMemberUseCase,
+  RemoveMemberUseCase,
+  UpdateMemberRoleUseCase,
+} from "./use-cases/organization-member.use-cases";
 
-## File: modules/platform/subdomains/notification/index.ts
-````typescript
-export * from "./application";
-export * from "./adapters";
-export * from "@/modules/notification/api";
-````
+export {
+  CreateTeamUseCase,
+  DeleteTeamUseCase,
+  UpdateTeamMembersUseCase,
+} from "./use-cases/organization-team.use-cases";
 
-## File: modules/platform/subdomains/organization/index.ts
-````typescript
-export * from "./application";
-export * from "./adapters";
-export * from "@/modules/organization/api";
-````
+export {
+  CreatePartnerGroupUseCase,
+  SendPartnerInviteUseCase,
+  DismissPartnerMemberUseCase,
+} from "./use-cases/organization-partner.use-cases";
 
-## File: modules/source/interfaces/components/WorkspaceFilesTab.tsx
-````typescript
-"use client";
-
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { getWorkspaceFiles } from "../queries/file.queries";
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import { uploadCompleteFile, uploadInitFile } from "../_actions/file.actions";
-import { FileProcessingDialog } from "./FileProcessingDialog";
-import { Badge } from "@ui-shadcn/ui/badge";
-import { Button } from "@ui-shadcn/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@ui-shadcn/ui/card";
-import { Input } from "@ui-shadcn/ui/input";
-import { Label } from "@ui-shadcn/ui/label";
-import { getFirebaseStorage } from "@integration-firebase";
-
-interface WorkspaceFilesTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-interface PendingUploadProcessing {
-  readonly sourceFileId: string;
-  readonly filename: string;
-  readonly gcsUri: string;
-  readonly mimeType: string;
-  readonly sizeBytes: number;
-}
-
-export function WorkspaceFilesTab({ workspace }: WorkspaceFilesTabProps) {
-  const [assets, setAssets] = useState<WorkspaceFileListItemDto[]>([]);
-  const [loadState, setLoadState] = useState<"loading" | "loaded" | "error">("loading");
-  const [uploadState, setUploadState] = useState<"idle" | "uploading" | "success" | "error">("idle");
-  const [uploadMessage, setUploadMessage] = useState<string | null>(null);
-  const [pendingUploadProcessing, setPendingUploadProcessing] = useState<PendingUploadProcessing | null>(null);
-
-  const reloadFiles = useCallback(async () => {
-    setLoadState("loading");
-
-    try {
-      const nextAssets = await getWorkspaceFiles(workspace);
-      setAssets(nextAssets);
-      setLoadState("loaded");
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn(
-          "[WorkspaceFilesTab] Failed to load file metadata:",
-          error instanceof Error ? error.message : "unknown error",
-        );
-      }
-
-      setAssets([]);
-      setLoadState("error");
-    }
-  }, [workspace]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadFiles() {
-      await reloadFiles();
-      if (cancelled) {
-        return;
-      }
-    }
-
-    void loadFiles();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [reloadFiles]);
-
-  async function handleUploadFile(file: File) {
-    const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-    setUploadState("uploading");
-    setUploadMessage(null);
-
-    try {
-      const initResult = await uploadInitFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileName: file.name,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      if (!initResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload initialization failed: ${initResult.error.message}`);
-        return;
-      }
-
-      const storage = getFirebaseStorage();
-      const storageRef = ref(storage, initResult.data.uploadPath);
-      await uploadBytes(storageRef, file, {
-        contentType: file.type || "application/octet-stream",
-      });
-      await getDownloadURL(storageRef);
-
-      const completeResult = await uploadCompleteFile({
-        workspaceId: workspace.id,
-        organizationId,
-        actorAccountId: workspace.accountId,
-        fileId: initResult.data.fileId,
-        versionId: initResult.data.versionId,
-      });
-
-      if (!completeResult.ok) {
-        setUploadState("error");
-        setUploadMessage(`Upload completion failed: ${completeResult.error.message}`);
-        return;
-      }
-
-      setUploadState("success");
-      setUploadMessage(
-        `Uploaded ${file.name}; 接下來可由使用者決定是否解析、建立 RAG，或保留為單純檔案。`,
-      );
-      setPendingUploadProcessing({
-        sourceFileId: initResult.data.fileId,
-        filename: file.name,
-        gcsUri: `gs://${storageRef.bucket}/${storageRef.fullPath}`,
-        mimeType: file.type || "application/octet-stream",
-        sizeBytes: file.size,
-      });
-
-      await reloadFiles();
-    } catch (error) {
-      if (process.env.NODE_ENV !== "production") {
-        console.warn("[WorkspaceFilesTab] Upload flow failed:", error);
-      }
-      setUploadState("error");
-      setUploadMessage(
-        error instanceof Error
-          ? `Storage upload failed: ${error.message}`
-          : "Storage upload failed unexpectedly.",
-      );
-    }
-  }
-
-  const availableCount = useMemo(
-    () => assets.filter((asset) => asset.status === "active").length,
-    [assets],
-  );
-
-  return (
-    <Card className="border border-border/50">
-      <CardHeader>
-        <CardTitle>Files</CardTitle>
-        <CardDescription>
-          盤點目前已註冊或可立即導出的工作區資產，並提供 upload → storage → firestore 的完整流程入口。
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="rounded-xl border border-border/40 px-4 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="space-y-1">
-              <Label htmlFor="workspace-file-upload" className="text-sm font-semibold text-foreground">
-                Upload file
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                This triggers upload-init, uploads binary to Storage, then writes completion + RAG registration to Firestore.
-              </p>
-            </div>
-            <Input
-              id="workspace-file-upload"
-              type="file"
-              className="max-w-xs"
-              disabled={uploadState === "uploading"}
-              onChange={(event) => {
-                const nextFile = event.target.files?.[0];
-                if (!nextFile) {
-                  return;
-                }
-
-                void handleUploadFile(nextFile);
-                event.currentTarget.value = "";
-              }}
-            />
-          </div>
-          {uploadMessage && (
-            <p
-              className={`mt-3 text-xs ${
-                uploadState === "error" ? "text-destructive" : "text-emerald-600"
-              }`}
-            >
-              {uploadMessage}
-            </p>
-          )}
-          {uploadState === "uploading" && (
-            <p className="mt-3 text-xs text-muted-foreground">Uploading and persisting metadata…</p>
-          )}
-        </div>
-
-        {loadState === "loading" && (
-          <p className="text-sm text-muted-foreground">Loading file metadata…</p>
-        )}
-
-        {loadState === "error" && (
-          <p className="text-sm text-destructive">
-            無法載入已持久化的檔案資料，請稍後再試。
-          </p>
-        )}
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Registered assets</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Directly available</p>
-            <p className="mt-1 text-xl font-semibold">{availableCount}</p>
-          </div>
-          <div className="rounded-xl border border-border/40 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Derived manifests</p>
-            <p className="mt-1 text-xl font-semibold">{assets.length - availableCount}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          {loadState === "loaded" && assets.length === 0 && (
-            <div className="rounded-xl border border-dashed border-border/40 px-4 py-6 text-sm text-muted-foreground">
-              尚未有持久化的檔案紀錄，後續 upload-init 流程會先在此建立 metadata。
-            </div>
-          )}
-
-          {assets.map((asset) => (
-            <div key={asset.id} className="rounded-xl border border-border/40 px-4 py-4">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground">{asset.name}</p>
-                    <Badge variant={asset.status === "active" ? "secondary" : "outline"}>
-                      {asset.status}
-                    </Badge>
-                    <Badge variant="outline">{asset.kind}</Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{asset.detail}</p>
-                </div>
-                <div className="text-xs text-muted-foreground sm:text-right">
-                  <p>Source: {asset.source}</p>
-                  {asset.href && (
-                    <Button asChild variant="link" className="mt-1 inline-flex h-auto p-0 text-xs">
-                      <a href={asset.href} target="_blank" rel="noreferrer">
-                        Open asset
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-
-      {pendingUploadProcessing && (
-        <FileProcessingDialog
-          open
-          onClose={() => setPendingUploadProcessing(null)}
-          accountId={workspace.accountId}
-          workspaceId={workspace.id}
-          sourceFileId={pendingUploadProcessing.sourceFileId}
-          filename={pendingUploadProcessing.filename}
-          gcsUri={pendingUploadProcessing.gcsUri}
-          mimeType={pendingUploadProcessing.mimeType}
-          sizeBytes={pendingUploadProcessing.sizeBytes}
-        />
-      )}
-    </Card>
-  );
-}
-````
-
-## File: modules/source/interfaces/queries/file.queries.ts
-````typescript
-import type { WorkspaceEntity } from "@/modules/workspace/api";
-
-import { resolveFileOrganizationId } from "../../domain/services/resolve-file-organization-id";
-import type { WorkspaceFileListItemDto } from "../../application/dto/file.dto";
-import { ListWorkspaceFilesUseCase } from "../../application/use-cases/list-workspace-files.use-case";
-import { FirebaseFileRepository } from "../../infrastructure/firebase/FirebaseFileRepository";
-import { FirebaseRagDocumentRepository } from "../../infrastructure/firebase/FirebaseRagDocumentRepository";
-import type { RagDocumentRecord } from "../../domain/repositories/RagDocumentRepository";
-
-export async function getWorkspaceFiles(workspace: WorkspaceEntity): Promise<WorkspaceFileListItemDto[]> {
-  const listWorkspaceFilesUseCase = new ListWorkspaceFilesUseCase(new FirebaseFileRepository());
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-
-  return listWorkspaceFilesUseCase.execute({
-    workspaceId: workspace.id,
-    organizationId,
-    actorAccountId: workspace.accountId,
-  });
-}
-
-export async function getWorkspaceRagDocuments(
-  workspace: WorkspaceEntity,
-): Promise<readonly RagDocumentRecord[]> {
-  const organizationId = resolveFileOrganizationId(workspace.accountType, workspace.accountId);
-  const repo = new FirebaseRagDocumentRepository();
-
-  return repo.findByWorkspace({
-    organizationId,
-    workspaceId: workspace.id,
-  });
-}
+export {
+  CreateOrgPolicyUseCase,
+  UpdateOrgPolicyUseCase,
+  DeleteOrgPolicyUseCase,
+} from "./use-cases/organization-policy.use-cases";
 ````
 
 ## File: modules/workspace/application-services.md
@@ -84535,264 +83855,6 @@ It is not:
 - internal folder layering (`domain`, `application`, `ports`, `interfaces`, `infrastructure`)
 - UI tab composition
 - read projection shape design details
-````
-
-## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
-````typescript
-import type {
-  WorkspaceMemberAccessChannel,
-  WorkspaceMemberPresence,
-  WorkspaceMemberView,
-} from "../../domain/entities/WorkspaceMemberView";
-import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
-import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
-import {
-  organizationApi,
-  type OrganizationMemberDTO,
-  type OrganizationTeamDTO,
-} from "@/modules/platform/subdomains/organization";
-import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
-import { firebaseClientApp } from "@integration-firebase/client";
-import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
-
-const personnelLabels = {
-  managerId: "Manager",
-  supervisorId: "Supervisor",
-  safetyOfficerId: "Safety officer",
-} as const;
-
-const personnelLabelEntries = Object.entries(personnelLabels) as Array<
-  [keyof typeof personnelLabels, string]
->;
-
-function toPresence(value: OrganizationMemberDTO["presence"] | undefined): WorkspaceMemberPresence {
-  if (value === "active" || value === "away" || value === "offline") {
-    return value;
-  }
-
-  return "unknown";
-}
-
-function createFallbackMember(id: string): WorkspaceMemberView {
-  return {
-    id,
-    displayName: id,
-    presence: "unknown",
-    isExternal: false,
-    accessChannels: [],
-  };
-}
-
-export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
-  private get db() {
-    return getFirestore(firebaseClientApp);
-  }
-
-  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
-
-  subscribeToWorkspacesForAccount(
-    accountId: string,
-    onUpdate: (workspaces: WorkspaceEntity[]) => void,
-  ) {
-    const normalizedAccountId = accountId.trim();
-    if (!normalizedAccountId) {
-      onUpdate([]);
-      return () => {};
-    }
-
-    const q = query(
-      collection(this.db, "workspaces"),
-      where("accountId", "==", normalizedAccountId),
-    );
-
-    return onSnapshot(q, (snap) => {
-      const workspaces = snap.docs.map((docSnap) =>
-        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
-      );
-      onUpdate(workspaces);
-    });
-  }
-
-  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
-    const workspace = await this.workspaceRepo.findById(workspaceId);
-    if (!workspace) {
-      return [];
-    }
-
-    const members = new Map<string, WorkspaceMemberView>();
-    const memberChannelKeys = new Map<string, Set<string>>();
-
-    const mergeMember = (
-      memberId: string,
-      channel: WorkspaceMemberAccessChannel,
-      orgMember?: OrganizationMemberDTO,
-    ) => {
-      const current = members.get(memberId) ?? createFallbackMember(memberId);
-      const channelKey = [
-        channel.source,
-        channel.label,
-        channel.role ?? "",
-        channel.protocol ?? "",
-        channel.teamId ?? "",
-      ].join("::");
-      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
-      memberChannelKeys.set(memberId, knownChannelKeys);
-      const hasSameChannel = knownChannelKeys.has(channelKey);
-      if (!hasSameChannel) {
-        knownChannelKeys.add(channelKey);
-      }
-
-      members.set(memberId, {
-        id: memberId,
-        displayName: orgMember?.name || current.displayName,
-        email: orgMember?.email ?? current.email,
-        organizationRole: orgMember?.role ?? current.organizationRole,
-        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
-        isExternal: orgMember?.isExternal ?? current.isExternal,
-        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
-      });
-    };
-
-    if (workspace.accountType === "organization") {
-      const [organizationMembers, teams] = await Promise.all([
-        organizationApi.getMembers(workspace.accountId),
-        organizationApi.getTeams(workspace.accountId),
-      ]);
-
-      const organizationMemberMap = new Map(organizationMembers.map((member) => [member.id, member]));
-      const teamMap = new Map(teams.map((team) => [team.id, team]));
-
-      const mergeTeam = (team: OrganizationTeamDTO, role?: string, protocol?: string) => {
-        const label = team.name || team.id;
-        team.memberIds.forEach((memberId) => {
-          mergeMember(
-            memberId,
-            {
-              source: "team",
-              label,
-              role,
-              protocol,
-              teamId: team.id,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        });
-      };
-
-      workspace.teamIds.forEach((teamId) => {
-        const team = teamMap.get(teamId);
-        if (team) {
-          mergeTeam(team);
-        }
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(
-            grant.userId,
-            {
-              source: "direct",
-              label: "Direct access",
-              role: grant.role,
-              protocol: grant.protocol,
-            },
-            organizationMemberMap.get(grant.userId),
-          );
-        }
-
-        if (grant.teamId) {
-          const team = teamMap.get(grant.teamId);
-          if (team) {
-            mergeTeam(team, grant.role, grant.protocol);
-          }
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(
-            memberId,
-            {
-              source: "personnel",
-              label,
-            },
-            organizationMemberMap.get(memberId),
-          );
-        }
-      });
-    } else {
-      mergeMember(workspace.accountId, {
-        source: "owner",
-        label: "Workspace owner",
-      });
-
-      workspace.grants.forEach((grant) => {
-        if (grant.userId) {
-          mergeMember(grant.userId, {
-            source: "direct",
-            label: "Direct access",
-            role: grant.role,
-            protocol: grant.protocol,
-          });
-        }
-      });
-
-      personnelLabelEntries.forEach(([field, label]) => {
-        const memberId = workspace.personnel?.[field];
-        if (memberId) {
-          mergeMember(memberId, {
-            source: "personnel",
-            label,
-          });
-        }
-      });
-    }
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.displayName.localeCompare(right.displayName),
-    );
-  }
-}
-````
-
-## File: modules/workspace/interfaces/api/index.ts
-````typescript
-/**
- * workspace interfaces/api aggregate export.
- *
- * Public API boundary for contracts, facades, queries, actions, and runtime.
- * App-layer and cross-module consumers should import from this path for
- * domain contracts, facades, and server-side query/command surfaces.
- *
- * For web UI components, hooks, and navigation helpers, use
- * modules/workspace/interfaces/web instead.
- */
-
-export * from "./contracts";
-export * from "./facades";
-````
-
-## File: modules/workspace/interfaces/web/components/tabs/WorkspaceDailyTab.tsx
-````typescript
-"use client";
-
-import type { WorkspaceEntity } from "../../../api/contracts";
-import { WorkspaceFeedWorkspaceView } from "@/modules/workspace/api";
-
-interface WorkspaceDailyTabProps {
-  readonly workspace: WorkspaceEntity;
-}
-
-export function WorkspaceDailyTab({ workspace }: WorkspaceDailyTabProps) {
-  return (
-    <WorkspaceFeedWorkspaceView
-      accountId={workspace.accountId}
-      workspaceId={workspace.id}
-      workspaceName={workspace.name}
-    />
-  );
-}
 ````
 
 ## File: modules/workspace/repositories.md
@@ -84936,377 +83998,235 @@ export { WorkspaceFeedWorkspaceView } from "../interfaces/components/WorkspaceFe
 export { WorkspaceFeedAccountView } from "../interfaces/components/WorkspaceFeedAccountView";
 ````
 
-## File: .github/instructions/architecture-mddd.instructions.md
+## File: .github/copilot-instructions.md
 ````markdown
 ---
-description: 'MDDD architecture rules for layer ownership and dependency direction.'
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
+
+## Purpose
+
+- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
+
+## Authoritative Sources
+
+Read these in order before making non-trivial decisions:
+
+1. [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) for canonical terminology routing.
+2. [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for module isolation and cross-context collaboration boundaries.
+3. `modules/<context>/context-map.md` for context relationships, upstream/downstream contracts, and anti-corruption decisions.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for repository-wide architecture rules and module boundaries.
+5. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
+
+## DDD Reference Authority
+
+Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+
+| Query | Canonical Document |
+|-------|-------------------|
+| Strategic subdomain classification | [`docs/subdomains.md`](../docs/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/bounded-contexts.md`](../docs/bounded-contexts.md) |
+| Context terminology | `modules/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
+| Context domain events | `modules/<context>/domain-events.md` |
+| Context map | `modules/<context>/context-map.md` |
+| Context repositories | `modules/<context>/repositories.md` |
+| Context application services | `modules/<context>/application-services.md` |
+| Context domain services | `modules/<context>/domain-services.md` |
+
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/subdomains.md` + `docs/bounded-contexts.md` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+
+## Hexagonal DDD Canonical Triad
+
+- **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `modules/<context>/ubiquitous-language.md`
+- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `docs/bounded-contexts.md`
+- **Context Map**: `modules/<context>/context-map.md`
+
+Any architecture/design update must stay consistent across this triad.
+
+## Workspace-Wide Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
+
+## Architecture Guardrails
+
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+
+## Copilot Customization Design Rules
+
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+
+## Serena MCP
+
+Serena MCP is **mandatory for every session**. There are no exceptions.
+
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
+
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
+
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Claude Compatibility Layer
+
+`.claude/` is a supported Claude Code compatibility surface.
+
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
+
+## Skill And Agent Routing
+
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) when applying Hexagonal Architecture with DDD to module boundaries, ports/adapters, and cross-module API contracts.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
+
+## Validation
+
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
+
+## Terminology
+
+- Terminology routing is governed by [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
+````
+
+## File: .github/instructions/bounded-context-rules.instructions.md
+````markdown
+---
+description: '限界上下文邊界與模組依賴方向規範，遵循 Vaughn Vernon IDDD 戰略設計原則。'
 applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
 ---
 
-# Architecture MDDD
+# 限界上下文規則 (Bounded Context Rules)
 
-## Layer Direction
+## 核心原則
 
-- `interfaces -> application -> domain <- infrastructure`
-- Keep `domain/` framework-free.
+每個 `modules/<context>/` 是一個**獨立的限界上下文**，擁有自己的通用語言與領域模型。同一術語在不同限界上下文中可能有不同含義，須以各自的模型為準。
 
-## Layer Constraints
+## 邊界規則
 
-- `domain/` must not import Firebase SDK, React, HTTP clients, or runtime-specific adapters.
-- `application/` orchestrates use cases and coordinates domain abstractions.
-- `infrastructure/` implements domain ports and repository interfaces.
-- `interfaces/` handles UI, route handlers, API transport, and server action wiring.
+1. **跨模組存取**只能透過目標模組的 `modules/<context>/api` 公開邊界進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
+2. **限界上下文間的通訊**只能透過以下方式：
+   - 發布與訂閱**領域事件** (Domain Events)
+   - 呼叫目標模組 `api/` 公開邊界的 Facade 或合約
+3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
 
-## Layer Ownership
+## 依賴方向
 
-- `domain/`: entities, value objects, domain services, repository interfaces.
-- `application/`: use cases and DTO orchestration.
-- `infrastructure/`: adapters and external implementations.
-- `interfaces/`: UI, transport, and action wiring.
-- Module `api/` public entry is the only cross-module boundary.
+```
+interfaces/ → application/ → domain/ ← infrastructure/
+```
 
-## Dependency Guardrails
+- `domain/` 必須保持框架無關（不能匯入 Firebase SDK、React、HTTP 客戶端等）。
+- `infrastructure/` 實作 `domain/` 定義的 Repository 介面，只向下依賴。
+- `application/` 協調 Use Cases，只依賴 `domain/` 的抽象。
+- `interfaces/` 處理 UI、路由處理器、API 傳輸與 Server Action 接線。
 
-- Keep module dependency flow acyclic unless an explicit event contract documents the exception.
-- Do not reverse dependency direction for convenience during refactors.
+## 上下文地圖 (Context Map)
+
+完整模組地圖請查閱：**[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md)**
+
+> 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
+
+## 防腐層 (Anti-Corruption Layer)
+
+- 整合外部系統（Firebase、Genkit、Upstash）時，必須在 `infrastructure/` 層建立適配器。
+- 防止外部概念與命名污染領域模型的類別與介面。
+- 在適配器中負責翻譯外部模型與領域模型之間的概念差異。
+
+## 禁止模式
+
+- ❌ `import { X } from '@/modules/other-context/domain/...'`
+- ❌ `import { X } from '@/modules/other-context/application/...'`
+- ❌ `import { X } from '@/modules/other-context/infrastructure/...'`
+- ✅ `import { X } from '@/modules/other-context/api'`
 
 Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 #use skill modules-mddd-api-surface
 #use skill hexagonal-ddd
-````
-
-## File: .github/instructions/architecture-modules.instructions.md
-````markdown
----
-description: 'Module structure, naming, and refactor workflow rules for bounded contexts.'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# Architecture Modules
-
-## Required Shape
-
-- `api/`, `domain/`, `application/`, `infrastructure/`, `interfaces/`, `README.md`, `index.ts`.
-- Public boundary should be exposed by `api/`; `index.ts` remains aggregate export only.
-
-## Naming
-
-- Module folder: kebab-case bounded context.
-- Use case file: `verb-noun.use-case.ts`.
-- Repository interface: `PascalCaseRepository`.
-- Repository implementation: `TechnologyPascalCaseRepository`.
-- Public facade type: `PascalCaseFacade`; instance: `camelCaseFacade`.
-- Domain event discriminant: `module-name.action`.
-
-## Refactor Checklist
-
-1. Confirm ownership.
-2. Map API consumers.
-3. Preserve boundaries during split/merge/delete.
-4. Update docs and imports in the same change.
-5. Migrate public API and event contracts before removing old paths.
-
-## Module Lifecycle Notes
-
-- New module: establish a public contract immediately (via `api/`) and document inventory updates.
-- Split/merge: map source-to-target ownership and classify internal vs public surfaces.
-- Delete: remove consumers first, then delete module, then update docs and dependency references.
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill hexagonal-ddd
-````
-
-## File: app/(public)/page.tsx
-````typescript
-"use client";
-
-/**
- * app/(public)/page.tsx
- * Public landing page with top-right auth entry and inline auth panel.
- * Uses identity module use cases directly on the client so Firebase auth state
- * actually updates AuthProvider via onAuthStateChanged.
- */
-
-import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
-import { Loader2, ShieldCheck } from "lucide-react";
-
-import { useAuth } from "@/app/providers/auth-provider";
-import { createClientAuthUseCases } from "@/modules/platform/api";
-import { createClientAccountUseCases } from "@/modules/account/api";
-import {
-  createDevDemoUser,
-  isDevDemoCredential,
-  isLocalDevDemoAllowed,
-  writeDevDemoSession,
-} from "@/app/providers/dev-demo-auth";
-
-type Tab = "login" | "register";
-
-export default function PublicPage() {
-  const { state, dispatch } = useAuth();
-  const router = useRouter();
-
-  const [tab, setTab] = useState<Tab>("login");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [resetSent, setResetSent] = useState(false);
-  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
-
-  const {
-    signInUseCase,
-    signInAnonymouslyUseCase,
-    registerUseCase,
-    sendPasswordResetEmailUseCase,
-    createUserAccountUseCase,
-  } =
-    useMemo(() => ({
-      ...createClientAuthUseCases(),
-      ...createClientAccountUseCases(),
-    }), []);
-
-  useEffect(() => {
-    if (state.status === "authenticated") {
-      router.replace("/dashboard");
-    }
-  }, [state.status, router]);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setIsLoading(true);
-    try {
-      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
-        writeDevDemoSession(createDevDemoUser());
-        window.location.assign("/dashboard");
-        return;
-      }
-
-      const result =
-        tab === "login"
-          ? await signInUseCase.execute({ email, password })
-          : await registerUseCase.execute({ email, password, name });
-
-      if (!result.success) {
-        setError(result.error.message);
-        return;
-      }
-
-      if (tab === "register") {
-        const accountResult = await createUserAccountUseCase.execute(
-          result.aggregateId,
-          name,
-          email,
-        );
-        if (!accountResult.success) {
-          setError(accountResult.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handleGuestAccess() {
-    setError(null);
-    setIsLoading(true);
-    try {
-      const result = await signInAnonymouslyUseCase.execute();
-      if (!result.success) {
-        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
-        // blocked in sandboxes), create a local guest session so the shell can be tested.
-        if (isLocalDevDemoAllowed()) {
-          const guestUser = createDevDemoUser();
-          writeDevDemoSession(guestUser);
-          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
-        } else {
-          setError(result.error.message);
-        }
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function handlePasswordReset() {
-    if (!email) {
-      setError("Enter your email address first.");
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const result = await sendPasswordResetEmailUseCase.execute(email);
-      if (result.success) {
-        setResetSent(true);
-        setError(null);
-      } else {
-        setError(result.error.message);
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  if (state.status === "initializing") {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  return (
-    <main className="min-h-screen bg-background">
-      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
-        <button
-          type="button"
-          onClick={() => {
-            setError(null);
-            setResetSent(false);
-            setIsAuthPanelOpen((prev) => !prev);
-          }}
-          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-        >
-          {isAuthPanelOpen ? "Close" : "Sign In"}
-        </button>
-      </header>
-
-      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
-        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
-          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
-            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
-            Use the top-right sign in button to access your dashboard.
-          </p>
-        </div>
-
-        {isAuthPanelOpen && (
-          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
-            <div className="flex flex-col items-center pb-4 pt-8">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
-                <ShieldCheck className="h-7 w-7 text-primary/90" />
-              </div>
-            </div>
-
-            <div className="px-6">
-              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
-                {(["login", "register"] as Tab[]).map((t) => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => {
-                      setTab(t);
-                      setError(null);
-                    }}
-                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
-                      tab === t
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {t === "login" ? "Sign In" : "Register"}
-                  </button>
-                ))}
-              </div>
-
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                {tab === "register" && (
-                  <div className="flex flex-col gap-1">
-                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
-                    <input
-                      id="register-name"
-                      type="text"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="Your display name"
-                      required
-                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    />
-                  </div>
-                )}
-
-                <div className="flex flex-col gap-1">
-                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
-                  <input
-                    id="auth-email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="email@example.com"
-                    autoComplete="email"
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
-                    {tab === "login" && (
-                      <button
-                        type="button"
-                        onClick={handlePasswordReset}
-                        className="text-xs text-primary/70 hover:text-primary"
-                      >
-                        {resetSent ? "Email sent!" : "Forgot password?"}
-                      </button>
-                    )}
-                  </div>
-                  <input
-                    id="auth-password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    autoComplete={tab === "login" ? "current-password" : "new-password"}
-                    required
-                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-                  />
-                </div>
-
-                {error && (
-                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                    {error}
-                  </p>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : tab === "login" ? (
-                    "Enter Dimension"
-                  ) : (
-                    "Create Account"
-                  )}
-                </button>
-              </form>
-            </div>
-
-            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
-              <button
-                type="button"
-                onClick={handleGuestAccess}
-                disabled={isLoading}
-                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
-              </button>
-            </div>
-          </div>
-        )}
-      </section>
-    </main>
-  );
-}
 ````
 
 ## File: app/(shell)/_components/app-rail.tsx
@@ -85339,7 +84259,7 @@ import { useRouter } from "next/navigation";
 
 import type { AuthUser } from "@/app/providers/auth-context";
 import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { AccountEntity } from "@/modules/platform/api";
 import { type WorkspaceEntity } from "@/modules/workspace/api";
 import {
   DropdownMenu,
@@ -85688,7 +84608,7 @@ import {
 import Link from "next/link";
 
 import type { ActiveAccount } from "@/app/providers/app-context";
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { AccountEntity } from "@/modules/platform/api";
 import {
   type WorkspaceEntity,
 } from "@/modules/workspace/api";
@@ -85842,7 +84762,7 @@ export function SimpleNavLinks({
 
 import { createContext, type Dispatch } from "react";
 
-import type { AccountEntity } from "@/modules/platform/subdomains/account";
+import type { AccountEntity } from "@/modules/platform/api";
 import type { WorkspaceEntity } from "@/modules/workspace/api";
 import type { AuthUser } from "./auth-context";
 
@@ -85897,6 +84817,819 @@ export interface AppContextValue {
 export const AppContext = createContext<AppContextValue | null>(null);
 ````
 
+## File: modules/notion/subdomains/knowledge/infrastructure/firebase/FirebaseContentBlockRepository.ts
+````typescript
+/**
+ * Module: notion/subdomains/knowledge
+ * Layer: infrastructure/firebase
+ * Purpose: Firebase adapter implementing IContentBlockRepository.
+ * Firestore path: accounts/{accountId}/contentBlocks/{blockId}
+ */
+
+import {
+  collection, deleteDoc, doc, getDoc, getDocs, getFirestore,
+  query, serverTimestamp, setDoc, updateDoc, where,
+} from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { v7 as generateId } from "@lib-uuid";
+import { ContentBlock } from "../../domain/aggregates/ContentBlock";
+import type { ContentBlockSnapshot } from "../../domain/aggregates/ContentBlock";
+import type { IContentBlockRepository } from "../../domain/repositories/IContentBlockRepository";
+import type { BlockContent } from "../../../../core/domain/value-objects/BlockContent";
+import { BLOCK_TYPES } from "../../../../core/domain/value-objects/BlockContent";
+
+const VALID_TYPES = new Set<string>(BLOCK_TYPES);
+
+function blocksCol(db: ReturnType<typeof getFirestore>, accountId: string) {
+  return collection(db, "accounts", accountId, "contentBlocks");
+}
+function blockDoc(db: ReturnType<typeof getFirestore>, accountId: string, blockId: string) {
+  return doc(db, "accounts", accountId, "contentBlocks", blockId);
+}
+
+function toBlockContent(raw: unknown): BlockContent {
+  if (typeof raw !== "object" || raw === null) return { type: "text", richText: [] };
+  const obj = raw as Record<string, unknown>;
+  const type = typeof obj.type === "string" && VALID_TYPES.has(obj.type) ? (obj.type as BlockContent["type"]) : "text";
+  return {
+    type,
+    richText: Array.isArray(obj.richText) ? (obj.richText as BlockContent["richText"]) : [],
+    properties: typeof obj.properties === "object" && obj.properties !== null ? (obj.properties as Record<string, unknown>) : undefined,
+  };
+}
+
+function toSnapshot(id: string, d: Record<string, unknown>): ContentBlockSnapshot {
+  return {
+    id,
+    pageId: typeof d.pageId === "string" ? d.pageId : "",
+    accountId: typeof d.accountId === "string" ? d.accountId : "",
+    content: toBlockContent(d.content),
+    order: typeof d.order === "number" ? d.order : 0,
+    parentBlockId: typeof d.parentBlockId === "string" ? d.parentBlockId : null,
+    childBlockIds: Array.isArray(d.childBlockIds) ? (d.childBlockIds as string[]) : [],
+    createdAtISO: typeof d.createdAtISO === "string" ? d.createdAtISO : "",
+    updatedAtISO: typeof d.updatedAtISO === "string" ? d.updatedAtISO : "",
+  };
+}
+
+export class FirebaseContentBlockRepository implements IContentBlockRepository {
+  private get db() { return getFirestore(firebaseClientApp); }
+
+  async save(block: ContentBlock): Promise<void> {
+    const snap = block.getSnapshot();
+    const ref = blockDoc(this.db, snap.accountId, snap.id);
+    const existing = await getDoc(ref);
+    const data: Record<string, unknown> = { ...snap, updatedAt: serverTimestamp() };
+    if (!existing.exists()) {
+      data.createdAt = serverTimestamp();
+      await setDoc(ref, data);
+    } else {
+      await updateDoc(ref, data);
+    }
+  }
+
+  async findById(accountId: string, blockId: string): Promise<ContentBlock | null> {
+    const snap = await getDoc(blockDoc(this.db, accountId, blockId));
+    if (!snap.exists()) return null;
+    return ContentBlock.reconstitute(toSnapshot(snap.id, snap.data() as Record<string, unknown>));
+  }
+
+  async listByPageId(accountId: string, pageId: string): Promise<ContentBlock[]> {
+    const snaps = await getDocs(
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
+    );
+    return snaps.docs.map((d) => ContentBlock.reconstitute(toSnapshot(d.id, d.data() as Record<string, unknown>)));
+  }
+
+  async delete(accountId: string, blockId: string): Promise<void> {
+    await deleteDoc(blockDoc(this.db, accountId, blockId));
+  }
+
+  async nextOrder(accountId: string, pageId: string): Promise<number> {
+    const snaps = await getDocs(
+      query(blocksCol(this.db, accountId), where("pageId", "==", pageId)),
+    );
+    return snaps.size;
+  }
+
+  async countByPageId(accountId: string, pageId: string): Promise<number> {
+    const snaps = await getDocs(query(blocksCol(this.db, accountId), where("pageId", "==", pageId)));
+    return snaps.size;
+  }
+}
+````
+
+## File: modules/platform/subdomains/account-profile/index.ts
+````typescript
+export * from "./application";
+export * from "./adapters";
+export { getUserProfile, subscribeToUserProfile } from "../account";
+````
+
+## File: modules/platform/subdomains/account/index.ts
+````typescript
+export * from "./application";
+export * from "./adapters";
+export type {
+  AccountEntity,
+  AccountType,
+  OrganizationRole,
+  AccountRoleRecord,
+  UpdateProfileInput,
+  WalletTransaction,
+  ThemeConfig,
+  Wallet,
+} from "./domain/entities/Account";
+export type {
+  AccountPolicy,
+  PolicyRule,
+  PolicyEffect,
+  CreatePolicyInput,
+  UpdatePolicyInput,
+} from "./domain/entities/AccountPolicy";
+export type { WalletBalanceSnapshot, Unsubscribe } from "./domain/repositories/AccountQueryRepository";
+````
+
+## File: modules/platform/subdomains/identity/adapters/index.ts
+````typescript
+export { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
+export { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
+export {
+	register,
+	sendPasswordResetEmail,
+	signIn,
+	signInAnonymously,
+	signOut,
+} from "./server-actions/identity.actions";
+export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
+export type { EmitTokenRefreshSignalInput } from "./identity-service";
+export { createClientAuthUseCases, identityApi } from "./identity-service";
+````
+
+## File: modules/platform/subdomains/identity/application/index.ts
+````typescript
+export { toIdentityErrorMessage } from "./identity-error-message";
+export {
+	RegisterUseCase,
+	SendPasswordResetEmailUseCase,
+	SignInAnonymouslyUseCase,
+	SignInUseCase,
+	SignOutUseCase,
+} from "./use-cases/identity.use-cases";
+export { EmitTokenRefreshSignalUseCase } from "./use-cases/token-refresh.use-cases";
+````
+
+## File: modules/platform/subdomains/identity/index.ts
+````typescript
+export * from "./application";
+export * from "./adapters";
+export * from "./domain";
+````
+
+## File: modules/platform/subdomains/notification/index.ts
+````typescript
+export * from "./application";
+export * from "./adapters";
+export type {
+  NotificationEntity,
+  NotificationType,
+  DispatchNotificationInput,
+} from "./domain/entities/Notification";
+export { NotificationBell } from "./interfaces/components/NotificationBell";
+````
+
+## File: modules/platform/subdomains/organization/index.ts
+````typescript
+export * from "./domain";
+export * from "./application";
+export * from "./adapters";
+````
+
+## File: modules/workspace/AGENT.md
+````markdown
+# AGENT.md — workspace bounded context
+
+`workspace` is a **Generic Subdomain** bounded context that provides collaboration-scope language and stable boundaries for downstream modules.
+
+## Mandatory workflow
+
+```text
+serena
+activate_project
+list_memories
+read_memory
+#use skill context7
+```
+
+## Strategic position
+
+- **Domain**: Xuanwu knowledge platform.
+- **Subdomain**: workspace collaboration container (generic, not differentiating core).
+- **Bounded Context**: `modules/workspace/`.
+
+## Current hexagonal shape (authoritative in this module)
+
+```text
+modules/workspace/
+├── api/                # Public boundary for app/ and other modules
+├── application/        # Use cases, app services, DTO orchestration
+├── domain/             # Aggregates, entities, value objects, events, services
+├── docs/               # Module-local design and reference notes
+├── infrastructure/     # Driven adapters (Firebase/events)
+├── interfaces/         # Driving adapters (api/cli/web)
+├── ports/              # input/ and output/ contracts
+└── subdomains/         # workspace-centered subdomain views
+```
+
+## Boundary and dependency rules
+
+- Cross-module access must go through `@/modules/workspace/api`.
+- Keep dependency direction: `interfaces -> application -> domain <- infrastructure`.
+- Keep `domain/` framework-free.
+- Keep ports as contracts; do not leak adapter internals through public APIs.
+
+## Canonical language anchors
+
+- Aggregate Root: `Workspace`
+- Lifecycle: `preparatory | active | stopped`
+- Visibility: `visible | hidden`
+- Event discriminants:
+  - `workspace.created`
+  - `workspace.lifecycle_transitioned`
+  - `workspace.visibility_changed`
+
+## Read model vs write model
+
+- Write-side truth: `Workspace` aggregate and domain objects in `domain/`.
+- Query/read projections:
+  - `WorkspaceMemberView`
+  - `WikiAccountContentNode`
+  - `WikiWorkspaceContentNode`
+  - `WikiContentItemNode`
+
+These projection types are not aggregate roots.
+
+## Context7 grounding used for this module documentation
+
+Based on `/sairyss/domain-driven-hexagon`:
+
+- Hexagonal architecture emphasizes clear ports/adapters boundaries.
+- Domain layer should not depend on API/database layers.
+- Repository abstractions belong to ports; infrastructure implements them.
+- Keep solutions pragmatic and avoid overengineering.
+
+## Related module docs
+
+- [README.md](./README.md)
+- [subdomain.md](./subdomain.md)
+- [bounded-context.md](./bounded-context.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [aggregates.md](./aggregates.md)
+- [application-services.md](./application-services.md)
+- [domain-services.md](./domain-services.md)
+- [repositories.md](./repositories.md)
+- [domain-events.md](./domain-events.md)
+````
+
+## File: modules/workspace/bounded-context.md
+````markdown
+# Bounded Context — workspace
+
+`modules/workspace/` is the bounded context that owns workspace collaboration-scope language.
+
+## Owned language
+
+- `Workspace`
+- `workspaceId`
+- `WorkspaceLifecycleState`
+- `WorkspaceVisibility`
+- workspace domain events and related contracts
+
+## Not owned here
+
+- organization membership/team truth
+- knowledge content semantics
+- platform-level event infrastructure ownership
+
+## Internal hexagonal composition
+
+| Area | Role |
+|---|---|
+| `domain/` | business core |
+| `application/` | use-case orchestration |
+| `ports/input` | driving contracts |
+| `ports/output` | driven contracts |
+| `interfaces/*` | driving adapters |
+| `infrastructure/*` | driven adapters |
+| `api/` | stable public boundary |
+
+## Dependency direction
+
+`interfaces -> application -> domain <- infrastructure`
+
+Ports remain the seam between core and adapters.
+
+## Driver examples
+
+- web UI flows
+- route handlers/server actions
+- cli/cron entrypoints
+- other modules consuming `@/modules/workspace/api`
+
+## Read model note
+
+`WorkspaceMemberView` and `Wiki*Node` types are query projections, not aggregate ownership.
+````
+
+## File: modules/workspace/infrastructure/firebase/FirebaseWorkspaceQueryRepository.ts
+````typescript
+import type {
+  WorkspaceMemberAccessChannel,
+  WorkspaceMemberPresence,
+  WorkspaceMemberView,
+} from "../../domain/entities/WorkspaceMemberView";
+import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
+import type { WorkspaceEntity } from "../../domain/aggregates/Workspace";
+import {
+  getOrganizationMembers,
+  getOrganizationTeams,
+  type MemberReference,
+  type Team,
+} from "@/modules/platform/api";
+import { collection, getFirestore, onSnapshot, query, where } from "firebase/firestore";
+import { firebaseClientApp } from "@integration-firebase/client";
+import { FirebaseWorkspaceRepository, toWorkspaceEntity } from "./FirebaseWorkspaceRepository";
+
+const personnelLabels = {
+  managerId: "Manager",
+  supervisorId: "Supervisor",
+  safetyOfficerId: "Safety officer",
+} as const;
+
+const personnelLabelEntries = Object.entries(personnelLabels) as Array<
+  [keyof typeof personnelLabels, string]
+>;
+
+function toPresence(value: MemberReference["presence"] | undefined): WorkspaceMemberPresence {
+  if (value === "active" || value === "away" || value === "offline") {
+    return value;
+  }
+
+  return "unknown";
+}
+
+function createFallbackMember(id: string): WorkspaceMemberView {
+  return {
+    id,
+    displayName: id,
+    presence: "unknown",
+    isExternal: false,
+    accessChannels: [],
+  };
+}
+
+export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepository {
+  private get db() {
+    return getFirestore(firebaseClientApp);
+  }
+
+  private readonly workspaceRepo = new FirebaseWorkspaceRepository();
+
+  subscribeToWorkspacesForAccount(
+    accountId: string,
+    onUpdate: (workspaces: WorkspaceEntity[]) => void,
+  ) {
+    const normalizedAccountId = accountId.trim();
+    if (!normalizedAccountId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    const q = query(
+      collection(this.db, "workspaces"),
+      where("accountId", "==", normalizedAccountId),
+    );
+
+    return onSnapshot(q, (snap) => {
+      const workspaces = snap.docs.map((docSnap) =>
+        toWorkspaceEntity(docSnap.id, docSnap.data() as Record<string, unknown>),
+      );
+      onUpdate(workspaces);
+    });
+  }
+
+  async getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
+    const workspace = await this.workspaceRepo.findById(workspaceId);
+    if (!workspace) {
+      return [];
+    }
+
+    const members = new Map<string, WorkspaceMemberView>();
+    const memberChannelKeys = new Map<string, Set<string>>();
+
+    const mergeMember = (
+      memberId: string,
+      channel: WorkspaceMemberAccessChannel,
+      orgMember?: MemberReference,
+    ) => {
+      const current = members.get(memberId) ?? createFallbackMember(memberId);
+      const channelKey = [
+        channel.source,
+        channel.label,
+        channel.role ?? "",
+        channel.protocol ?? "",
+        channel.teamId ?? "",
+      ].join("::");
+      const knownChannelKeys = memberChannelKeys.get(memberId) ?? new Set<string>();
+      memberChannelKeys.set(memberId, knownChannelKeys);
+      const hasSameChannel = knownChannelKeys.has(channelKey);
+      if (!hasSameChannel) {
+        knownChannelKeys.add(channelKey);
+      }
+
+      members.set(memberId, {
+        id: memberId,
+        displayName: orgMember?.name || current.displayName,
+        email: orgMember?.email ?? current.email,
+        organizationRole: orgMember?.role ?? current.organizationRole,
+        presence: orgMember ? toPresence(orgMember.presence) : current.presence,
+        isExternal: orgMember?.isExternal ?? current.isExternal,
+        accessChannels: hasSameChannel ? current.accessChannels : [...current.accessChannels, channel],
+      });
+    };
+
+    if (workspace.accountType === "organization") {
+      const [organizationMembers, teams] = await Promise.all([
+        getOrganizationMembers(workspace.accountId),
+        getOrganizationTeams(workspace.accountId),
+      ]);
+
+      const organizationMemberMap = new Map(organizationMembers.map((member: MemberReference) => [member.id, member]));
+      const teamMap = new Map(teams.map((team: Team) => [team.id, team]));
+
+      const mergeTeam = (team: Team, role?: string, protocol?: string) => {
+        const label = team.name || team.id;
+        team.memberIds.forEach((memberId: string) => {
+          mergeMember(
+            memberId,
+            {
+              source: "team",
+              label,
+              role,
+              protocol,
+              teamId: team.id,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        });
+      };
+
+      workspace.teamIds.forEach((teamId) => {
+        const team = teamMap.get(teamId);
+        if (team) {
+          mergeTeam(team);
+        }
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(
+            grant.userId,
+            {
+              source: "direct",
+              label: "Direct access",
+              role: grant.role,
+              protocol: grant.protocol,
+            },
+            organizationMemberMap.get(grant.userId),
+          );
+        }
+
+        if (grant.teamId) {
+          const team = teamMap.get(grant.teamId);
+          if (team) {
+            mergeTeam(team, grant.role, grant.protocol);
+          }
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(
+            memberId,
+            {
+              source: "personnel",
+              label,
+            },
+            organizationMemberMap.get(memberId),
+          );
+        }
+      });
+    } else {
+      mergeMember(workspace.accountId, {
+        source: "owner",
+        label: "Workspace owner",
+      });
+
+      workspace.grants.forEach((grant) => {
+        if (grant.userId) {
+          mergeMember(grant.userId, {
+            source: "direct",
+            label: "Direct access",
+            role: grant.role,
+            protocol: grant.protocol,
+          });
+        }
+      });
+
+      personnelLabelEntries.forEach(([field, label]) => {
+        const memberId = workspace.personnel?.[field];
+        if (memberId) {
+          mergeMember(memberId, {
+            source: "personnel",
+            label,
+          });
+        }
+      });
+    }
+
+    return Array.from(members.values()).sort((left, right) =>
+      left.displayName.localeCompare(right.displayName),
+    );
+  }
+}
+````
+
+## File: modules/workspace/README.md
+````markdown
+# workspace
+
+`workspace` is the bounded context that defines collaboration scope through `workspaceId`, lifecycle, and visibility language.
+
+> Domain Type: **Generic Subdomain**
+
+## Why this context exists
+
+This context gives the rest of the system a stable collaboration container:
+
+- scope identity (`workspaceId`)
+- lifecycle semantics (`preparatory | active | stopped`)
+- visibility semantics (`visible | hidden`)
+- public contracts via `modules/workspace/api`
+
+## Current structure (matches code)
+
+```text
+modules/workspace/
+├── api/
+├── application/
+│   ├── dtos/
+│   ├── services/
+│   └── use-cases/
+├── domain/
+│   ├── aggregates/
+│   ├── entities/
+│   ├── events/
+│   ├── factories/
+│   ├── services/
+│   └── value-objects/
+├── docs/
+├── infrastructure/
+│   ├── events/
+│   └── firebase/
+├── interfaces/
+│   ├── api/
+│   ├── cli/
+│   └── web/
+├── ports/
+│   ├── input/
+│   └── output/
+└── subdomains/
+```
+
+## Hexagonal mapping
+
+| Hexagonal part | workspace implementation |
+|---|---|
+| Domain core | `domain/` |
+| Application ring | `application/` |
+| Driving adapters | `interfaces/api`, `interfaces/cli`, `interfaces/web` |
+| Driving ports | `ports/input` |
+| Driven ports | `ports/output` |
+| Driven adapters | `infrastructure/firebase`, `infrastructure/events` |
+| Public boundary | `api/` |
+
+## Tactical summary
+
+- Aggregate Root: `Workspace`
+- Domain Events:
+  - `WorkspaceCreatedEvent`
+  - `WorkspaceLifecycleTransitionedEvent`
+  - `WorkspaceVisibilityChangedEvent`
+- Output port for event publishing:
+  - `WorkspaceDomainEventPublisher`
+- Read projections:
+  - `WorkspaceMemberView`
+  - `WikiAccountContentNode`
+  - `WikiWorkspaceContentNode`
+  - `WikiContentItemNode`
+
+## Scope guardrails
+
+- This context does not own organization truth (members/teams governance).
+- This context does not own knowledge-content semantics.
+- UI tab composition is interface composition, not context-map ownership.
+
+## Documentation index
+
+- [AGENT.md](./AGENT.md)
+- [subdomain.md](./subdomain.md)
+- [bounded-context.md](./bounded-context.md)
+- [context-map.md](./context-map.md)
+- [ubiquitous-language.md](./ubiquitous-language.md)
+- [aggregates.md](./aggregates.md)
+- [application-services.md](./application-services.md)
+- [domain-services.md](./domain-services.md)
+- [repositories.md](./repositories.md)
+- [domain-events.md](./domain-events.md)
+````
+
+## File: app/(shell)/settings/notifications/page.tsx
+````typescript
+/**
+ * Route: /settings/notifications
+ * Purpose: Full-page notification center showing all notifications for the
+ *          authenticated user with read/unread filtering and bulk actions.
+ */
+"use client";
+
+import { Bell, CheckCheck, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import {
+  markAllNotificationsRead,
+  markNotificationRead,
+  getNotificationsForRecipient,
+  type NotificationEntity,
+} from "@/modules/platform/api";
+import { Badge } from "@ui-shadcn/ui/badge";
+import { Button } from "@ui-shadcn/ui/button";
+import { Skeleton } from "@ui-shadcn/ui/skeleton";
+
+type Filter = "all" | "unread";
+
+const TYPE_BADGE: Record<string, string> = {
+  info: "bg-blue-100 text-blue-800",
+  alert: "bg-red-100 text-red-800",
+  success: "bg-green-100 text-green-800",
+  warning: "bg-yellow-100 text-yellow-800",
+};
+
+function formatTime(ts: number) {
+  return new Intl.DateTimeFormat("zh-TW", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(ts));
+}
+
+export default function NotificationCenterPage() {
+  const { state: authState } = useAuth();
+  const recipientId = authState.user?.id ?? "";
+
+  const [notifications, setNotifications] = useState<NotificationEntity[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [isPending, startTransition] = useTransition();
+
+  const load = useCallback(async () => {
+    if (!recipientId) { setIsLoading(false); return; }
+    setIsLoading(true);
+    try {
+      const data = await getNotificationsForRecipient(recipientId, 100);
+      setNotifications(data);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [recipientId]);
+
+  useEffect(() => { void load(); }, [load]);
+
+  const displayed = useMemo(
+    () => filter === "unread" ? notifications.filter((n) => !n.read) : notifications,
+    [notifications, filter],
+  );
+
+  const unreadCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications],
+  );
+
+  function handleMarkOne(id: string) {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
+      await markNotificationRead(id, recipientId);
+    });
+  }
+
+  function handleMarkAll() {
+    startTransition(async () => {
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      await markAllNotificationsRead(recipientId);
+    });
+  }
+
+  return (
+    <div className="mx-auto max-w-2xl px-4 py-6">
+      {/* Header */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bell className="h-5 w-5 text-muted-foreground" />
+          <h1 className="text-xl font-semibold">?銝剖?</h1>
+          {unreadCount > 0 && (
+            <Badge variant="secondary" className="ml-1">{unreadCount} ?芾?</Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setFilter((f) => f === "all" ? "unread" : "all")}
+            className="text-xs"
+          >
+            {filter === "all" ? "?芰??芾?" : "憿舐內?券"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPending || unreadCount === 0}
+            onClick={handleMarkAll}
+            className="text-xs gap-1"
+          >
+            <CheckCheck className="h-3.5 w-3.5" />
+            ?券璅撌脰?
+          </Button>
+        </div>
+      </div>
+
+      {/* Body */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-16 w-full rounded-lg" />
+          ))}
+        </div>
+      ) : displayed.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16 text-muted-foreground">
+          <Bell className="h-10 w-10 opacity-30" />
+          <p className="text-sm">{filter === "unread" ? "瘝??芾??" : "?桀?瘝??"}</p>
+        </div>
+      ) : (
+        <ul className="divide-y divide-border rounded-lg border">
+          {displayed.map((n) => (
+            <li
+              key={n.id}
+              className={`flex items-start gap-3 px-4 py-3 transition-colors hover:bg-muted/40 ${n.read ? "opacity-60" : ""}`}
+            >
+              {!n.read && (
+                <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-primary" />
+              )}
+              {n.read && <span className="mt-2 h-2 w-2 shrink-0" />}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-medium">{n.title}</p>
+                  <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${TYPE_BADGE[n.type] ?? ""}`}>
+                    {n.type}
+                  </span>
+                </div>
+                <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{n.message}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{formatTime(n.timestamp)}</p>
+              </div>
+              {!n.read && (
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  disabled={isPending}
+                  onClick={() => handleMarkOne(n.id)}
+                  title="璅撌脰?"
+                  className="shrink-0 text-muted-foreground hover:text-foreground"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+````
+
 ## File: app/providers/app-provider.tsx
 ````typescript
 "use client";
@@ -85919,7 +85652,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/platform/subdomains/account";
+import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/platform/api";
 import { subscribeToWorkspacesForAccount } from "@/modules/workspace/api";
 import {
   getWorkspaceStorageKey,
@@ -85930,7 +85663,7 @@ import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";
 import { useAuth } from "./auth-provider";
 
-// ─── Initial State ────────────────────────────────────────────────────────────
+// -- Initial State -----------------------------------------------------------
 
 const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
 
@@ -85944,7 +85677,7 @@ const initialState: AppState = {
   workspacesHydrated: false,
 };
 
-// ─── Reducer ──────────────────────────────────────────────────────────────────
+// -- Reducer -----------------------------------------------------------------
 
 function resolveActiveAccount(
   state: AppState,
@@ -86028,7 +85761,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// -- Provider ----------------------------------------------------------------
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { state: authState } = useAuth();
@@ -86133,828 +85866,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// -- Hook --------------------------------------------------------------------
 
 export function useApp() {
   const ctx = useContext(AppContext);
   if (!ctx) throw new Error("useApp must be used within AppProvider");
   return ctx;
 }
-````
-
-## File: modules/platform/AGENT.md
-````markdown
-# AGENT.md — platform blueprint
-
-> **強制開發規範**
-> 本 BC 領域開發必須優先確認平台邊界、通用語言與 Hexagonal + DDD 分層。
-> 若需外部官方文件驗證，先使用 Context7；若只更新 `domain/`、`application/`、`ports/` 或本地架構文件，則不讓 UI / Next.js 技能反向主導平台邊界。
-
-## 模組定位
-
-`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務，是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
-
-## 計畫吸收模組（Migration-Pending Modules）
-
-以下四個獨立模組**計畫重構進 platform**。代理人在這些子域工作時，應把 platform blueprint 的語言定義視為目標規範，獨立模組的現有實作視為前身實作。
-
-| 獨立模組 | 目標子域 | 術語映射重點 |
-|---|---|---|
-| `modules/identity/` | `identity` | `Identity` → `AuthenticatedSubject`；`uid` → `SubjectId`；`TokenRefreshSignal` → `IdentitySignal` |
-| `modules/account/` | `account` + `account-profile` | `Account` 保持同名；`AccountPolicy.PolicyRule` 須對齊 `PolicyCatalog.PolicyRule`；`customClaims` → `Entitlement` |
-| `modules/organization/` | `organization` | `Organization` 保持同名；`MemberReference` → `MembershipBoundary` 的值；`OrganizationRole` 對齊 `RoleAssignment` |
-| `modules/notification/` | `notification` | `NotificationEntity` → `NotificationDispatch`；`recipientId` → `NotificationRoute` 的對象 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`
-
-**代理人注意事項：**
-- 合并前不要把獨立模組的術語直接搬進 platform domain；先確認與 platform 語言的映射
-- 合并完成後，獨立模組的 `api/index.ts` 應重新 export 自 `modules/platform/api`，模組本身標記 deprecated
-- 若跨獨立模組與 platform 之間有協作需求，仍須透過 `modules/platform/api` 公開邊界，不得直接依賴對方 domain/application 層
-
-## Canonical Subdomain Inventory
-
-platform 的正式子域清單已固定為：
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-- `billing`
-- `subscription`
-- `referral`
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-- `content`
-- `search`
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
-
-## 代理人工作契約
-
-任何在 `modules/platform/` 的變更，都應遵守以下順序：
-
-1. 先確認變更屬於哪一個平台子域
-2. 再確認它是 domain rule、application orchestration、port contract、public boundary projection，還是 adapter concern
-3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
-
-## 必須維持的 Hexagonal + DDD 規則
-
-- domain 只擁有模型、規則與事件語言，不直接呼叫外部系統
-- application 只協調 use cases，不定義 persistence 或 transport 細節
-- input ports 定義進入系統的請求語言
-- output ports 定義離開系統的依賴語言
-- adapters 只翻譯或實作 ports，不改寫業務語意
-- `api/` 是 platform 對外的 public boundary；它只做投影與 re-export
-- `index.ts` 不是邊界設計來源，不得被當成 public API 規格替代品
-- ports 只可依賴 `application/` 與 `domain/`，不得依賴 `api/`
-- 事件語言單一來源在 `domain/events`；`events/contracts` 僅可 re-export
-- domain events 需由 application 在持久化成功後發布
-
-## Layer Mapping
-
-| 概念 | platform 位置 |
-|---|---|
-| Public boundary | `api/` |
-| Driving adapters | `adapters/` |
-| Application | `application/` |
-| Domain core | `domain/` |
-| Input ports | `ports/input/` |
-| Output ports | `ports/output/` |
-| Driven adapters | `infrastructure/` |
-
-## 通用語言守則
-
-在 platform 文件與未來實作中，應優先使用這些詞：
-
-- `PlatformContext`
-- `PolicyCatalog`
-- `IntegrationContract`
-- `SubscriptionAgreement`
-- `PlatformCapability`
-- `PermissionDecision`
-- `WorkflowTrigger`
-- `NotificationDispatch`
-- `AuditSignal`
-- `ObservabilitySignal`
-- `PublicBoundary`
-- `UseCaseHandler`
-
-不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
-
-## 允許的修改
-
-- 新增或細化 platform 子域的語言與責任
-- 新增 input ports / output ports 以描述新的 I/O 邊界
-- 新增 application services 以表達新的 use case handlers
-- 新增 aggregates、值物件或 domain services 以承載純業務規則
-- 新增 adapters 或 infrastructure implementations 來實作既有 output ports
-
-## 禁止的修改
-
-- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
-- 在 adapter 中定義平台政策或聚合不變數
-- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
-- 讓事件名稱承載命令語氣，例如 `please_send_notification`
-- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
-- 用 `api/` 或 barrel 檔取代 `application/`、`domain/` 的契約來源
-
-## 文件更新規則
-
-若變更影響聚合、語言或邊界，至少同步更新以下文件：
-
-- 變更聚合或值物件：同步更新 `docs/aggregates.md` 與 `docs/ubiquitous-language.md`
-- 變更 use case handler：同步更新 `docs/application-services.md`
-- 變更 repository/output port：同步更新 `docs/repositories.md`
-- 變更 input port、support port 或 decision object：同步更新 `docs/application-services.md`、`docs/repositories.md` 與 `docs/ubiquitous-language.md`
-- 變更事件名稱或 payload：同步更新 `docs/domain-events.md`
-- 變更子域責任：同步更新 `docs/subdomains.md` 與 `docs/context-map.md`
-- 變更 platform 邊界：同步更新 `docs/bounded-context.md` 與 `README.md`
-
-## 文件分解對照
-
-`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
-
-- 聚合與不變數：`docs/aggregates.md`
-- use case handlers：`docs/application-services.md`
-- 邊界責任：`docs/bounded-context.md`
-- 子域協作：`docs/context-map.md`
-- 事件語言：`docs/domain-events.md`
-- 純領域規則：`docs/domain-services.md`
-- repositories 與 ports：`docs/repositories.md`
-- 子域清單：`docs/subdomains.md`
-- 術語治理：`docs/ubiquitous-language.md`
-
-## 代理人交付標準
-
-- 優先維持語言一致性，而不是追求一次塞入所有能力
-- 優先讓 ports 穩定，再讓 adapters 成長
-- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
-- 任何新術語都應能在 `docs/ubiquitous-language.md` 落地
-
-## 最終檢查
-
-在交付前，代理人至少自問六件事：
-
-1. 這個變更有沒有把 platform policy 泄漏到 adapter？
-2. 這個 I/O 邊界是否已經先表達成 port？
-3. 事件名稱是否描述事實而非命令？
-4. `api/` 是否仍只是 public boundary，而不是核心契約來源？
-5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
-6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
-````
-
-## File: modules/platform/README.md
-````markdown
-# platform
-
-`platform` 是平台基礎能力的 Hexagonal Architecture with Domain-Driven Design 藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標，是穩定語言與邊界，而不是集中所有跨領域業務邏輯。
-
-## 邊界定位
-
-- 維持 `driving adapters -> application -> domain <- driven adapters` 的依賴方向
-- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
-- 所有外部輸入先表達成 `ports/input`
-- 所有外部依賴先表達成 `ports/output`，再由 `infrastructure/` 實作
-- `api/` 是對外 public boundary，只做投影與 re-export
-- `ports/` 只依賴 `application/` 與 `domain/` 契約，不依賴 `api/`
-- `index.ts` 只是模組匯出便利入口，不是邊界規格來源
-
-## Hexagonal Mapping
-
-| Hexagonal concept | platform 位置 | 說明 |
-|---|---|---|
-| Public boundary | `api/` | 跨模組公開契約投影 |
-| Driving adapters | `adapters/` | CLI、web、external ingress 等輸入端 |
-| Application | `application/` | use case orchestration、DTO、command/query 處理 |
-| Domain core | `domain/` | 聚合、值物件、domain services、domain events |
-| Input ports | `ports/input/` | 進入 application 的穩定契約 |
-| Output ports | `ports/output/` | repositories、stores、gateways、sinks |
-| Driven adapters | `infrastructure/` | 對 output ports 的具體實作 |
-| Published language | `domain/events/`, `application/dtos/` | 事件與穩定 application contracts |
-
-## 模組骨架
-
-```text
-modules/platform/
-    api/
-    adapters/
-    application/
-    domain/
-    infrastructure/
-    ports/
-    docs/
-    subdomains/
-    AGENT.md
-```
-
-## Canonical Subdomain Inventory (23)
-
-- `identity`
-- `account`
-- `account-profile`
-- `organization`
-- `access-control`
-- `security-policy`
-- `platform-config`
-- `feature-flag`
-- `onboarding`
-- `compliance`
-- `billing`
-- `subscription`
-- `referral`
-- `integration`
-- `workflow`
-- `notification`
-- `background-job`
-- `content`
-- `search`
-- `audit-log`
-- `observability`
-- `analytics`
-- `support`
-
-此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
-
-## 計畫吸收模組
-
-以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
-
-| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
-|---|---|---|---|
-| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
-| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
-| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
-| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
-
-**合并優先序：** `identity` → `account` → `organization` → `notification`
-
-合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
-
-詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
-
-## 文件導覽
-
-- [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑
-- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任、public boundary 與封板規則
-- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
-- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
-- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
-- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
-- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
-- [docs/application-services.md](./docs/application-services.md): use case orchestration
-- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
-- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
-
-## 變更準則
-
-1. 先映射到既有子域
-2. 再決定是 language、aggregate、use case、port、adapter 或 public boundary 變更
-3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
-
-## 文件閉環驗證
-
-提交前建議最少執行一次文件閉環檢查：
-
-1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
-2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
-3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
-4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
-5. `api/`、`ports/`、`adapters/`、`infrastructure/` 的角色是否仍然清楚
-````
-
-## File: modules/platform/subdomains/identity/adapters/index.ts
-````typescript
-export { FirebaseIdentityRepository } from "./firebase/FirebaseIdentityRepository";
-export { FirebaseTokenRefreshRepository } from "./firebase/FirebaseTokenRefreshRepository";
-export {
-	register,
-	sendPasswordResetEmail,
-	signIn,
-	signInAnonymously,
-	signOut,
-} from "./server-actions/identity.actions";
-export { useTokenRefreshListener } from "./hooks/useTokenRefreshListener";
-export type { EmitTokenRefreshSignalInput } from "./identity-service";
-export { createClientAuthUseCases, identityApi } from "./identity-service";
-````
-
-## File: modules/platform/subdomains/identity/application/index.ts
-````typescript
-export { toIdentityErrorMessage } from "./identity-error-message";
-export {
-	RegisterUseCase,
-	SendPasswordResetEmailUseCase,
-	SignInAnonymouslyUseCase,
-	SignInUseCase,
-	SignOutUseCase,
-} from "./use-cases/identity.use-cases";
-export { EmitTokenRefreshSignalUseCase } from "./use-cases/token-refresh.use-cases";
-````
-
-## File: modules/platform/subdomains/identity/index.ts
-````typescript
-export * from "./application";
-export * from "./adapters";
-export * from "./domain";
-````
-
-## File: modules/workspace/AGENT.md
-````markdown
-# AGENT.md — workspace bounded context
-
-`workspace` is a **Generic Subdomain** bounded context that provides collaboration-scope language and stable boundaries for downstream modules.
-
-## Mandatory workflow
-
-```text
-serena
-activate_project
-list_memories
-read_memory
-#use skill context7
-```
-
-## Strategic position
-
-- **Domain**: Xuanwu knowledge platform.
-- **Subdomain**: workspace collaboration container (generic, not differentiating core).
-- **Bounded Context**: `modules/workspace/`.
-
-## Current hexagonal shape (authoritative in this module)
-
-```text
-modules/workspace/
-├── api/                # Public boundary for app/ and other modules
-├── application/        # Use cases, app services, DTO orchestration
-├── domain/             # Aggregates, entities, value objects, events, services
-├── docs/               # Module-local design and reference notes
-├── infrastructure/     # Driven adapters (Firebase/events)
-├── interfaces/         # Driving adapters (api/cli/web)
-├── ports/              # input/ and output/ contracts
-└── subdomains/         # workspace-centered subdomain views
-```
-
-## Boundary and dependency rules
-
-- Cross-module access must go through `@/modules/workspace/api`.
-- Keep dependency direction: `interfaces -> application -> domain <- infrastructure`.
-- Keep `domain/` framework-free.
-- Keep ports as contracts; do not leak adapter internals through public APIs.
-
-## Canonical language anchors
-
-- Aggregate Root: `Workspace`
-- Lifecycle: `preparatory | active | stopped`
-- Visibility: `visible | hidden`
-- Event discriminants:
-  - `workspace.created`
-  - `workspace.lifecycle_transitioned`
-  - `workspace.visibility_changed`
-
-## Read model vs write model
-
-- Write-side truth: `Workspace` aggregate and domain objects in `domain/`.
-- Query/read projections:
-  - `WorkspaceMemberView`
-  - `WikiAccountContentNode`
-  - `WikiWorkspaceContentNode`
-  - `WikiContentItemNode`
-
-These projection types are not aggregate roots.
-
-## Context7 grounding used for this module documentation
-
-Based on `/sairyss/domain-driven-hexagon`:
-
-- Hexagonal architecture emphasizes clear ports/adapters boundaries.
-- Domain layer should not depend on API/database layers.
-- Repository abstractions belong to ports; infrastructure implements them.
-- Keep solutions pragmatic and avoid overengineering.
-
-## Related module docs
-
-- [README.md](./README.md)
-- [subdomain.md](./subdomain.md)
-- [bounded-context.md](./bounded-context.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [aggregates.md](./aggregates.md)
-- [application-services.md](./application-services.md)
-- [domain-services.md](./domain-services.md)
-- [repositories.md](./repositories.md)
-- [domain-events.md](./domain-events.md)
-````
-
-## File: modules/workspace/api/index.ts
-````typescript
-/**
- * workspace api/index.ts
- *
- * Canonical public boundary for the workspace bounded context.
- *
- * Cross-module consumers (app/, other modules) MUST import from this path:
- *   import { ... } from "@/modules/workspace/api"
- *
- * Direct imports into domain/, application/, infrastructure/, interfaces/, or
- * ports/ sub-directories from outside this bounded context are forbidden.
- *
- * Surface breakdown:
- *  - contracts.ts  → types, value-object helpers, domain event contracts
- *  - facade.ts     → commands and queries (Server Actions / query functions)
- *  - ui.ts         → web UI components, hooks, navigation, state utilities
- */
-
-export * from "./contracts";
-export * from "./facade";
-export * from "./ui";
-````
-
-## File: modules/workspace/bounded-context.md
-````markdown
-# Bounded Context — workspace
-
-`modules/workspace/` is the bounded context that owns workspace collaboration-scope language.
-
-## Owned language
-
-- `Workspace`
-- `workspaceId`
-- `WorkspaceLifecycleState`
-- `WorkspaceVisibility`
-- workspace domain events and related contracts
-
-## Not owned here
-
-- organization membership/team truth
-- knowledge content semantics
-- platform-level event infrastructure ownership
-
-## Internal hexagonal composition
-
-| Area | Role |
-|---|---|
-| `domain/` | business core |
-| `application/` | use-case orchestration |
-| `ports/input` | driving contracts |
-| `ports/output` | driven contracts |
-| `interfaces/*` | driving adapters |
-| `infrastructure/*` | driven adapters |
-| `api/` | stable public boundary |
-
-## Dependency direction
-
-`interfaces -> application -> domain <- infrastructure`
-
-Ports remain the seam between core and adapters.
-
-## Driver examples
-
-- web UI flows
-- route handlers/server actions
-- cli/cron entrypoints
-- other modules consuming `@/modules/workspace/api`
-
-## Read model note
-
-`WorkspaceMemberView` and `Wiki*Node` types are query projections, not aggregate ownership.
-````
-
-## File: modules/workspace/README.md
-````markdown
-# workspace
-
-`workspace` is the bounded context that defines collaboration scope through `workspaceId`, lifecycle, and visibility language.
-
-> Domain Type: **Generic Subdomain**
-
-## Why this context exists
-
-This context gives the rest of the system a stable collaboration container:
-
-- scope identity (`workspaceId`)
-- lifecycle semantics (`preparatory | active | stopped`)
-- visibility semantics (`visible | hidden`)
-- public contracts via `modules/workspace/api`
-
-## Current structure (matches code)
-
-```text
-modules/workspace/
-├── api/
-├── application/
-│   ├── dtos/
-│   ├── services/
-│   └── use-cases/
-├── domain/
-│   ├── aggregates/
-│   ├── entities/
-│   ├── events/
-│   ├── factories/
-│   ├── services/
-│   └── value-objects/
-├── docs/
-├── infrastructure/
-│   ├── events/
-│   └── firebase/
-├── interfaces/
-│   ├── api/
-│   ├── cli/
-│   └── web/
-├── ports/
-│   ├── input/
-│   └── output/
-└── subdomains/
-```
-
-## Hexagonal mapping
-
-| Hexagonal part | workspace implementation |
-|---|---|
-| Domain core | `domain/` |
-| Application ring | `application/` |
-| Driving adapters | `interfaces/api`, `interfaces/cli`, `interfaces/web` |
-| Driving ports | `ports/input` |
-| Driven ports | `ports/output` |
-| Driven adapters | `infrastructure/firebase`, `infrastructure/events` |
-| Public boundary | `api/` |
-
-## Tactical summary
-
-- Aggregate Root: `Workspace`
-- Domain Events:
-  - `WorkspaceCreatedEvent`
-  - `WorkspaceLifecycleTransitionedEvent`
-  - `WorkspaceVisibilityChangedEvent`
-- Output port for event publishing:
-  - `WorkspaceDomainEventPublisher`
-- Read projections:
-  - `WorkspaceMemberView`
-  - `WikiAccountContentNode`
-  - `WikiWorkspaceContentNode`
-  - `WikiContentItemNode`
-
-## Scope guardrails
-
-- This context does not own organization truth (members/teams governance).
-- This context does not own knowledge-content semantics.
-- UI tab composition is interface composition, not context-map ownership.
-
-## Documentation index
-
-- [AGENT.md](./AGENT.md)
-- [subdomain.md](./subdomain.md)
-- [bounded-context.md](./bounded-context.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [aggregates.md](./aggregates.md)
-- [application-services.md](./application-services.md)
-- [domain-services.md](./domain-services.md)
-- [repositories.md](./repositories.md)
-- [domain-events.md](./domain-events.md)
-````
-
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
-
-## Purpose
-
-- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
-
-## Non-Negotiable Session Contract
-
-- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
-- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
-- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
-- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
-
-## Authoritative Sources
-
-Read these in order before making non-trivial decisions:
-
-1. [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md) for canonical terminology routing.
-2. [instructions/bounded-context-rules.instructions.md](./instructions/bounded-context-rules.instructions.md) for module isolation and cross-context collaboration boundaries.
-3. `modules/<context>/context-map.md` for context relationships, upstream/downstream contracts, and anti-corruption decisions.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for repository-wide architecture rules and module boundaries.
-5. [agents/commands.md](./agents/commands.md) for validation commands, build, lint, test, and deployment workflows.
-
-## DDD Reference Authority
-
-Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
-
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/subdomains.md`](../docs/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/bounded-contexts.md`](../docs/bounded-contexts.md) |
-| Context terminology | `modules/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
-| Context domain events | `modules/<context>/domain-events.md` |
-| Context map | `modules/<context>/context-map.md` |
-| Context repositories | `modules/<context>/repositories.md` |
-| Context application services | `modules/<context>/application-services.md` |
-| Context domain services | `modules/<context>/domain-services.md` |
-
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/subdomains.md` + `docs/bounded-contexts.md` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
-
-## Hexagonal DDD Canonical Triad
-
-- **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `modules/<context>/ubiquitous-language.md`
-- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `docs/bounded-contexts.md`
-- **Context Map**: `modules/<context>/context-map.md`
-
-Any architecture/design update must stay consistent across this triad.
-
-## Workspace-Wide Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
-
-## Architecture Guardrails
-
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-
-## Copilot Customization Design Rules
-
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
-
-## Serena MCP
-
-Serena MCP is **mandatory for every session**. There are no exceptions.
-
-Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
-
-### Session-Start Protocol (Required)
-
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
-
-### Session-End Protocol (Required)
-
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
-
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
-
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
-
-### Hard Prohibitions
-
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
-
-## Context7 Documentation Query
-
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
-
-### Trigger Conditions
-
-Any of the following require a context7 lookup before proceeding:
-
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
-
-### Required Steps
-
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
-
-### Guardrails
-
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
-
-## Claude Compatibility Layer
-
-`.claude/` is a supported Claude Code compatibility surface.
-
-- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
-- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
-- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
-- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
-
-## Skill And Agent Routing
-
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use [skills/hexagonal-ddd/SKILL.md](skills/hexagonal-ddd/SKILL.md) when applying Hexagonal Architecture with DDD to module boundaries, ports/adapters, and cross-module API contracts.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
-
-## Validation
-
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
-
-## Terminology
-
-- Terminology routing is governed by [instructions/ubiquitous-language.instructions.md](./instructions/ubiquitous-language.instructions.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
-## File: .github/instructions/bounded-context-rules.instructions.md
-````markdown
----
-description: '限界上下文邊界與模組依賴方向規範，遵循 Vaughn Vernon IDDD 戰略設計原則。'
-applyTo: 'modules/**/*.{ts,tsx,js,jsx,md}'
----
-
-# 限界上下文規則 (Bounded Context Rules)
-
-## 核心原則
-
-每個 `modules/<context>/` 是一個**獨立的限界上下文**，擁有自己的通用語言與領域模型。同一術語在不同限界上下文中可能有不同含義，須以各自的模型為準。
-
-## 邊界規則
-
-1. **跨模組存取**只能透過目標模組的 `modules/<context>/api` 公開邊界進行。嚴禁直接匯入其他模組的 `domain/`、`application/`、`infrastructure/` 或 `interfaces/` 內部程式碼。
-2. **限界上下文間的通訊**只能透過以下方式：
-   - 發布與訂閱**領域事件** (Domain Events)
-   - 呼叫目標模組 `api/` 公開邊界的 Facade 或合約
-3. **基礎設施直接呼叫**（如 Firebase Admin、Upstash）必須封裝在各自模組的 `infrastructure/` 層，不得跨模組共用。
-
-## 依賴方向
-
-```
-interfaces/ → application/ → domain/ ← infrastructure/
-```
-
-- `domain/` 必須保持框架無關（不能匯入 Firebase SDK、React、HTTP 客戶端等）。
-- `infrastructure/` 實作 `domain/` 定義的 Repository 介面，只向下依賴。
-- `application/` 協調 Use Cases，只依賴 `domain/` 的抽象。
-- `interfaces/` 處理 UI、路由處理器、API 傳輸與 Server Action 接線。
-
-## 上下文地圖 (Context Map)
-
-完整模組地圖請查閱：**[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md)**
-
-> 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
-
-## 防腐層 (Anti-Corruption Layer)
-
-- 整合外部系統（Firebase、Genkit、Upstash）時，必須在 `infrastructure/` 層建立適配器。
-- 防止外部概念與命名污染領域模型的類別與介面。
-- 在適配器中負責翻譯外部模型與領域模型之間的概念差異。
-
-## 禁止模式
-
-- ❌ `import { X } from '@/modules/other-context/domain/...'`
-- ❌ `import { X } from '@/modules/other-context/application/...'`
-- ❌ `import { X } from '@/modules/other-context/infrastructure/...'`
-- ✅ `import { X } from '@/modules/other-context/api'`
-
-Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
-#use skill modules-mddd-api-surface
-#use skill hexagonal-ddd
 ````
 
 ## File: modules/workspace/interfaces/web/components/screens/WorkspaceDetailScreen.tsx
@@ -87200,6 +86118,298 @@ export function WorkspaceDetailScreen({
         onSubmit={(event) => void handleSave(event, settingsDraft)}
       />
     </div>
+  );
+}
+````
+
+## File: app/(public)/page.tsx
+````typescript
+"use client";
+
+/**
+ * app/(public)/page.tsx
+ * Public landing page with top-right auth entry and inline auth panel.
+ * Uses identity module use cases directly on the client so Firebase auth state
+ * actually updates AuthProvider via onAuthStateChanged.
+ */
+
+import { useState, useEffect, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Loader2, ShieldCheck } from "lucide-react";
+
+import { useAuth } from "@/app/providers/auth-provider";
+import { createClientAuthUseCases } from "@/modules/platform/api";
+import { createClientAccountUseCases } from "@/modules/platform/api";
+import {
+  createDevDemoUser,
+  isDevDemoCredential,
+  isLocalDevDemoAllowed,
+  writeDevDemoSession,
+} from "@/app/providers/dev-demo-auth";
+
+type Tab = "login" | "register";
+
+export default function PublicPage() {
+  const { state, dispatch } = useAuth();
+  const router = useRouter();
+
+  const [tab, setTab] = useState<Tab>("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [resetSent, setResetSent] = useState(false);
+  const [isAuthPanelOpen, setIsAuthPanelOpen] = useState(false);
+
+  const {
+    signInUseCase,
+    signInAnonymouslyUseCase,
+    registerUseCase,
+    sendPasswordResetEmailUseCase,
+    createUserAccountUseCase,
+  } =
+    useMemo(() => ({
+      ...createClientAuthUseCases(),
+      ...createClientAccountUseCases(),
+    }), []);
+
+  useEffect(() => {
+    if (state.status === "authenticated") {
+      router.replace("/dashboard");
+    }
+  }, [state.status, router]);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setIsLoading(true);
+    try {
+      if (isLocalDevDemoAllowed() && tab === "login" && isDevDemoCredential(email, password)) {
+        writeDevDemoSession(createDevDemoUser());
+        window.location.assign("/dashboard");
+        return;
+      }
+
+      const result =
+        tab === "login"
+          ? await signInUseCase.execute({ email, password })
+          : await registerUseCase.execute({ email, password, name });
+
+      if (!result.success) {
+        setError(result.error.message);
+        return;
+      }
+
+      if (tab === "register") {
+        const accountResult = await createUserAccountUseCase.execute(
+          result.aggregateId,
+          name,
+          email,
+        );
+        if (!accountResult.success) {
+          setError(accountResult.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleGuestAccess() {
+    setError(null);
+    setIsLoading(true);
+    try {
+      const result = await signInAnonymouslyUseCase.execute();
+      if (!result.success) {
+        // Dev-mode fallback: when Firebase anonymous auth is unavailable (e.g. network
+        // blocked in sandboxes), create a local guest session so the shell can be tested.
+        if (isLocalDevDemoAllowed()) {
+          const guestUser = createDevDemoUser();
+          writeDevDemoSession(guestUser);
+          dispatch({ type: "SET_AUTH_STATE", payload: { user: guestUser, status: "authenticated" } });
+        } else {
+          setError(result.error.message);
+        }
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handlePasswordReset() {
+    if (!email) {
+      setError("Enter your email address first.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await sendPasswordResetEmailUseCase.execute(email);
+      if (result.success) {
+        setResetSent(true);
+        setError(null);
+      } else {
+        setError(result.error.message);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  if (state.status === "initializing") {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <main className="min-h-screen bg-background">
+      <header className="mx-auto flex w-full max-w-6xl items-center justify-end px-6 py-5">
+        <button
+          type="button"
+          onClick={() => {
+            setError(null);
+            setResetSent(false);
+            setIsAuthPanelOpen((prev) => !prev);
+          }}
+          className="rounded-lg border border-border/60 px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
+        >
+          {isAuthPanelOpen ? "Close" : "Sign In"}
+        </button>
+      </header>
+
+      <section className="mx-auto grid w-full max-w-6xl gap-8 px-6 pb-10 pt-4 md:grid-cols-[1fr_420px] md:items-start">
+        <div className="rounded-2xl border border-border/40 bg-card/40 p-8 shadow-sm">
+          <h1 className="text-3xl font-bold tracking-tight md:text-4xl">Xuanwu App</h1>
+          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground md:text-base">
+            Unified MDDD/Hexagonal workspace for identity, account, and organization modules.
+            Use the top-right sign in button to access your dashboard.
+          </p>
+        </div>
+
+        {isAuthPanelOpen && (
+          <div className="w-full rounded-2xl border border-border/50 bg-card shadow-xl ring-1 ring-border/30">
+            <div className="flex flex-col items-center pb-4 pt-8">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 ring-1 ring-primary/20">
+                <ShieldCheck className="h-7 w-7 text-primary/90" />
+              </div>
+            </div>
+
+            <div className="px-6">
+              <div className="mb-6 grid h-10 grid-cols-2 rounded-lg border border-border/40 bg-muted/30 p-1">
+                {(["login", "register"] as Tab[]).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => {
+                      setTab(t);
+                      setError(null);
+                    }}
+                    className={`rounded-md text-xs font-semibold capitalize tracking-tight transition-all ${
+                      tab === t
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {t === "login" ? "Sign In" : "Register"}
+                  </button>
+                ))}
+              </div>
+
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {tab === "register" && (
+                  <div className="flex flex-col gap-1">
+                    <label htmlFor="register-name" className="text-xs font-semibold text-muted-foreground">Name</label>
+                    <input
+                      id="register-name"
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="Your display name"
+                      required
+                      className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    />
+                  </div>
+                )}
+
+                <div className="flex flex-col gap-1">
+                  <label htmlFor="auth-email" className="text-xs font-semibold text-muted-foreground">Email</label>
+                  <input
+                    id="auth-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    autoComplete="email"
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <label htmlFor="auth-password" className="text-xs font-semibold text-muted-foreground">Password</label>
+                    {tab === "login" && (
+                      <button
+                        type="button"
+                        onClick={handlePasswordReset}
+                        className="text-xs text-primary/70 hover:text-primary"
+                      >
+                        {resetSent ? "Email sent!" : "Forgot password?"}
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    id="auth-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete={tab === "login" ? "current-password" : "new-password"}
+                    required
+                    className="h-10 rounded-lg border border-border/50 bg-background/70 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  />
+                </div>
+
+                {error && (
+                  <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                    {error}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="mt-1 flex h-11 w-full items-center justify-center rounded-xl bg-primary text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/20 transition-all hover:brightness-105 disabled:opacity-60"
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : tab === "login" ? (
+                    "Enter Dimension"
+                  ) : (
+                    "Create Account"
+                  )}
+                </button>
+              </form>
+            </div>
+
+            <div className="mt-6 border-t border-border/40 bg-muted/10 px-6 pb-7 pt-5">
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                disabled={isLoading}
+                className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border/55 text-xs font-semibold text-muted-foreground transition-all hover:border-primary/35 hover:bg-primary/5 hover:text-primary disabled:opacity-60"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Continue as Guest"}
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
+    </main>
   );
 }
 ````
