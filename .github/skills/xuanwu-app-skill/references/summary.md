@@ -38,17 +38,17 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1757 files | 80,031 lines
+1531 files | 72,352 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 952 | 37,904 |
-| Markdown | 278 | 11,083 |
-| No Extension | 261 | 345 |
-| TypeScript (TSX) | 189 | 25,493 |
+| TypeScript | 874 | 32,176 |
+| Markdown | 228 | 11,933 |
+| No Extension | 179 | 263 |
+| TypeScript (TSX) | 173 | 22,783 |
 | Python | 61 | 3,823 |
 | JSON | 7 | 821 |
-| Text | 3 | 116 |
+| Text | 3 | 107 |
 | JavaScript (ESM) | 2 | 167 |
 | RULES | 2 | 18 |
 | CSS | 1 | 197 |
@@ -62,6 +62,6 @@ This skill contains the following reference files:
 - `app/(shell)/_components/app-rail.tsx` (360 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `app/(shell)/ai-chat/page.tsx` (337 lines)
-- `modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts` (332 lines)
 - `app/(shell)/layout.tsx` (321 lines)
 - `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)
+- `modules/workspace/domain/aggregates/Workspace.ts` (299 lines)
