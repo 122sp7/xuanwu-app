@@ -1360,6 +1360,174 @@ Tags: #use skill context7 #use skill serena-mcp #use skill xuanwu-app-skill
 
 ````
 
+## File: .github/copilot-instructions.md
+````markdown
+---
+applyTo: **
+description: Xuanwu Copilot Workspace Instructions
+name: Xuanwu Copilot Workspace Instructions
+---
+
+# Xuanwu Copilot Workspace Instructions
+
+Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
+
+## Purpose
+
+- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
+- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
+- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
+- Prefer references to canonical docs over repeated policy text.
+
+## Non-Negotiable Session Contract
+
+- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
+- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
+- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
+- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
+
+## Authoritative Sources
+
+Read these in order before making non-trivial decisions:
+
+1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
+2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
+3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
+4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
+5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
+6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
+
+## DDD Reference Authority
+
+DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+
+| Query | Canonical Document |
+|-------|-------------------|
+| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
+| Context terminology | `modules/<context>/ubiquitous-language.md` |
+| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
+| Context domain events | `modules/<context>/domain-events.md` |
+| Context map | `modules/<context>/context-map.md` |
+| Context repositories | `modules/<context>/repositories.md` |
+| Context application services | `modules/<context>/application-services.md` |
+| Context domain services | `modules/<context>/domain-services.md` |
+
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+
+## Workspace-Wide Operating Rules
+
+- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
+- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
+- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
+- Keep changes minimal, local, and boundary-safe.
+
+## Architecture Guardrails
+
+- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
+- Cross-module access must go through the target module's `api/` boundary only.
+- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
+- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
+- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
+- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
+
+## Copilot Customization Design Rules
+
+- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
+- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
+- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
+- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
+- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
+
+## Serena MCP
+
+Serena MCP is **mandatory for every session**. There are no exceptions.
+
+Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
+
+### Session-Start Protocol (Required)
+
+1. Bootstrap Serena MCP server if tools are not available:
+   ```bash
+   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
+   ```
+2. Activate the `xuanwu-app` project before any read or write operation.
+3. List and read relevant memories before starting any non-trivial task.
+
+### Session-End Protocol (Required)
+
+After every meaningful phase (plan → impl → review → qa) and before any handoff:
+
+1. Write a phase-end memory update using Serena memory tools.
+2. Trigger an index update if files were added, renamed, or removed.
+
+See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
+
+### Hard Prohibitions
+
+- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
+- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
+- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
+- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
+- Index and memory changes are only valid when made through Serena tools.
+
+## Context7 Documentation Query
+
+When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
+
+### Trigger Conditions
+
+Any of the following require a context7 lookup before proceeding:
+
+- API signature, parameter name, or return type is uncertain.
+- Version-specific behavior or breaking-change risk exists.
+- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
+- A library was recently updated and you are unsure of the current behavior.
+
+### Required Steps
+
+1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
+2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
+3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
+
+### Guardrails
+
+- Do not skip the lookup by assuming training data is current — default to querying.
+- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
+- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
+- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
+
+## Claude Compatibility Layer
+
+`.claude/` is a supported Claude Code compatibility surface.
+
+- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
+- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
+- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
+- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
+
+## Skill And Agent Routing
+
+- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
+- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
+- Use [skills/alistair-cockburn/SKILL.md](skills/alistair-cockburn/SKILL.md) when designing module boundaries, writing use cases, evaluating methodology fit, or applying hexagonal architecture and Heart of Agile principles.
+- Use boundary or contract skills only when the task actually crosses those concerns.
+- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
+
+## Validation
+
+- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
+- Do not close work until required lint, build, test, and documentation updates are complete.
+
+## Terminology
+
+- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
+- Treat glossary terminology as canonical naming and vocabulary authority.
+- Do not introduce new terms if an equivalent glossary term already exists.
+- When multiple names exist, normalize to the glossary term before implementation.
+- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
+````
+
 ## File: .github/instructions/app/app-router-parallel-routes.instructions.md
 ````markdown
 ---
@@ -8163,6 +8331,52 @@ Tutorials are learning-oriented and guide a user from zero to a working outcome.
 - Deep conceptual essays
 ````
 
+## File: features/README.md
+````markdown
+---
+name: features-layer
+description: Feature（Use Case）層設計規範，負責跨 Bounded Context 的協調與流程編排
+---
+
+# 📦 Features Layer（Use Case Orchestration）
+
+## 🎯 目的
+
+`features/` 是系統的 **Use Case 層（應用層）**，負責：
+
+- 將多個 `modules/（Bounded Context）` 串接成「一個完整功能」
+- 作為 **唯一的功能入口（Single Entry Point）**
+- 控制流程（Flow orchestration）
+- 隔離 UI 與 Domain 的耦合
+
+---
+
+## 🧠 核心概念
+
+| 概念 | 說明 |
+|------|------|
+| Feature | 使用者可感知的功能（Use Case） |
+| Orchestration | 跨多個 modules 的流程編排 |
+| Application Layer | 不包含業務規則，只負責調度 |
+| Stateless | 不持有狀態，僅控制流程 |
+
+---
+
+## 📁 結構設計
+
+```bash
+/features
+  /<feature-name>
+    usecase.ts        # 核心流程（唯一入口）
+    route.ts          # API / Server Action（Next.js）
+    schema.ts         # input/output validation（zod）
+    dto.ts            # 資料轉換（可選）
+    ui/               # UI（shadcn）
+      *.tsx
+    hooks/            # React hooks（可選）
+    state/            # client state（可選）
+````
+
 ## File: modules/account/AGENT.md
 ````markdown
 # AGENT.md — account BC
@@ -9704,6 +9918,137 @@ npm run build
 ```
 ````
 
+## File: modules/knowledge/aggregates.md
+````markdown
+# Aggregates — knowledge
+
+## 聚合根：KnowledgePage
+
+### 職責
+核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 頁面主鍵 |
+| `title` | `string` | 頁面標題 |
+| `slug` | `string` | URL-safe 識別符 |
+| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
+| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區；workspace-first 頁面必須帶值，僅顯式 summary / legacy migration 情境可為空 |
+| `status` | `KnowledgePageStatus` | `active \| archived` |
+| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
+| `approvedByUserId` | `string?` | 審批者 ID |
+| `approvedAtISO` | `string?` | 審批時間 |
+| `createdByUserId` | `string` | 建立者 ID |
+| `createdAtISO` | `string` | ISO 8601 建立時間 |
+| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+
+### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
+| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
+| `verifiedByUserId` | `string?` | 最後驗證者 ID |
+| `verifiedAtISO` | `string?` | 最後驗證時間 |
+| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+
+### KnowledgePageStatus 與 UI 標籤對照
+
+| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
+|--------------|------|----------------|------|
+| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
+| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
+| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+
+> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+
+### 不變數
+
+- `slug` 在同一 accountId 下必須唯一
+- 頁面樹與日常建立流程預設以 workspaceId 為邊界；account 層級只能做顯式 summary，不可作為隱含預設
+- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；若需 account-level summary，應以獨立 summary flow 實作，而不是沿用一般建立流程
+- archived 頁面不可新增 ContentBlock
+- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
+- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+
+---
+
+## 實體：ContentBlock（KnowledgeBlock）
+
+### 職責
+頁面內的原子內容單元，有序排列形成頁面內容。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 區塊主鍵 |
+| `pageId` | `string` | 所屬頁面 ID |
+| `accountId` | `string` | 所屬帳戶 |
+| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
+| `order` | `number` | 排列順序 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
+> 代碼位置：`domain/value-objects/block-content.ts`
+
+---
+
+## 實體：ContentVersion（KnowledgeVersion）
+
+### 職責
+頁面的歷史版本快照，append-only。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 版本主鍵 |
+| `pageId` | `string` | 所屬頁面 |
+| `accountId` | `string` | 所屬帳戶 |
+| `label` | `string` | 版本標籤（人類可讀描述） |
+| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
+| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
+| `createdByUserId` | `string` | 建立者帳戶 ID |
+| `createdAtISO` | `string` | ISO 8601 |
+
+---
+
+## 聚合根：KnowledgeCollection（Database / Wiki Space）
+
+### 職責
+Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
+- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
+- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `id` | `string` | 集合主鍵 |
+| `accountId` | `string` | 所屬帳戶 |
+| `workspaceId` | `string?` | 所屬工作區；wiki 與日常集合操作預設為 workspace-first |
+| `name` | `string` | 集合名稱 |
+| `description` | `string?` | 說明文字 |
+| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
+| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
+| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
+| `status` | `CollectionStatus` | `active \| archived` |
+| `createdByUserId` | `string` | 建立者 |
+| `createdAtISO` | `string` | ISO 8601 |
+| `updatedAtISO` | `string` | ISO 8601 |
+
+---
+
+## Repository Interfaces
+
+| 介面 | 主要方法 |
+|------|---------|
+| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
+| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
+| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+````
+
 ## File: modules/knowledge/application-services.md
 ````markdown
 # knowledge — Application Services
@@ -9764,6 +10109,77 @@ Application layer 只負責：
 - 模組 README：`../../../modules/knowledge/README.md`
 - 模組 AGENT：`../../../modules/knowledge/AGENT.md`
 - 與 application layer 有關的模組內就地文件：`../../../modules/knowledge/application-services.md`
+````
+
+## File: modules/knowledge/context-map.md
+````markdown
+# Context Map — knowledge
+
+## 上游（依賴）
+
+### identity → knowledge（Customer/Supplier）
+- 頁面操作驗證 `createdByUserId`
+
+### workspace → knowledge（Customer/Supplier）
+- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
+- `workspace` 供應 active workspace context；若要看 account / organization 跨工作區總覽，必須進入顯式 summary mode，而不是省略 workspaceId
+
+---
+
+## 下游（被依賴）
+
+### knowledge → workspace-flow（Published Language / Customer-Supplier）
+
+**這是平台最重要的跨 BC 整合點。**
+
+- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
+- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
+- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
+
+```
+knowledge ─── knowledge.page_approved ───► workspace-flow
+                                          (KnowledgeToWorkflowMaterializer)
+```
+
+### knowledge → ai（Customer/Supplier）
+
+- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
+- RAG 攝入管線的起點
+
+### knowledge → knowledge-database（Open Host Service / D1）
+
+- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
+- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
+- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
+
+```
+knowledge ──(KnowledgeCollection.id)──► knowledge-database
+                                        (Database / Record / View 管理)
+```
+
+### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
+
+- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
+- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
+- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
+
+```
+knowledge ─── knowledge.page_promoted ───► knowledge-base
+                                           (Article 建立，Promote 協議完成)
+```
+
+---
+
+## IDDD 整合模式總結
+
+| 關係 | 上游 | 下游 | 模式 |
+|------|------|------|------|
+| identity → knowledge | identity | knowledge | Customer/Supplier |
+| workspace → knowledge | workspace | knowledge | Customer/Supplier |
+| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
+| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
+| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
+| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
 ````
 
 ## File: modules/knowledge/domain-events.md
@@ -9899,6 +10315,58 @@ interface KnowledgePagePromotedEvent {
 - `../../../modules/knowledge/aggregates.md`
 ````
 
+## File: modules/knowledge/README.md
+````markdown
+# knowledge — 知識內容上下文
+
+> **Domain Type:** **Core Domain**（核心域）  
+> **模組路徑:** `modules/knowledge/`  
+> **開發狀態:** 🚧 Developing — 積極開發中
+
+## 在 Knowledge Platform / Second Brain 中的角色
+
+`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
+
+## 主要職責
+
+| 能力 | 說明 |
+|---|---|
+| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
+| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
+| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
+| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
+| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
+
+## Scope 原則
+
+- `knowledge` 的日常頁面建立、整理與樹狀導覽以 workspace-first 為預設。
+- account / organization 層級只能作為顯式 summary mode，用於跨工作區總覽，不應默默取代工作區視角。
+- 若畫面或查詢沒有明確指定 summary mode，則必須帶入 activeWorkspaceId 來限制知識頁面範圍。
+- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；account summary mode 不提供一般頁面建立入口。
+
+## 與其他 Bounded Context 協作
+
+- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
+- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
+- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
+
+## 核心聚合 / 核心概念
+
+- **`KnowledgePage`**
+- **`ContentBlock`**
+- **`ContentVersion`**
+- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
+
+## 詳細文件
+
+| 文件 | 說明 |
+|---|---|
+| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
+| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
+| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
+| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+````
+
 ## File: modules/knowledge/repositories.md
 ````markdown
 # knowledge — Repositories
@@ -9952,6 +10420,85 @@ interface KnowledgePagePromotedEvent {
 
 - `../../../modules/knowledge/repositories.md`
 - `../../../modules/knowledge/aggregates.md`
+````
+
+## File: modules/knowledge/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — knowledge
+
+> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+
+## 術語定義
+
+| 術語 | 英文 | 定義 | 代碼位置 |
+|------|------|------|---------|
+| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
+| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
+| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
+| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
+| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
+| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
+| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
+| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
+| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
+| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
+| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
+| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
+| 工作區預設視角 | Workspace-first Scope | 日常頁面樹、建立與整理流程預設綁定 active workspace 的規則 | `app/(shell)/knowledge/pages/page.tsx` |
+| 帳戶總覽模式 | Account Summary Mode | 顯式跨工作區總覽模式，只用於 summary，不作為隱含預設建立入口 | `app/(shell)/knowledge/pages/page.tsx` |
+| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
+| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
+| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+
+## 頁面生命周期操作（Page Lifecycle Actions）
+
+以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+
+| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
+|------|--------------|----------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
+| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
+| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
+| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
+| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+
+> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+
+## 頁面操作選單（PageContextMenu）
+
+`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+
+| 選單項目 | 對應 Use Case | UI 互動 |
+|------------|--------------|----------|
+| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
+| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
+| 移動到 | `moveKnowledgePage` | 待實作 |
+| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+
+## 頁面樹狀視圖（PageTreeView）
+
+`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+
+| 概念 | 說明 |
+|------|------|
+| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
+| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
+| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
+| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+
+## 禁止替換術語
+
+| 正確 | 禁止 |
+|------|------|
+| `KnowledgePage` | `Page`, `Document`, `Note` |
+| `ContentBlock` | `Block`, `Node`, `Element` |
+| `ContentVersion` | `History`, `Snapshot`, `Revision` |
+| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
+| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
+| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+
+> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
+> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
 ````
 
 ## File: modules/notebook/AGENT.md
@@ -13724,291 +14271,6 @@ This repository does not currently keep a standalone long-form spec workflow gui
 If the team revives a dedicated spec workflow document, update this file to point to that canonical source.
 ````
 
-## File: .github/copilot-instructions.md
-````markdown
----
-applyTo: **
-description: Xuanwu Copilot Workspace Instructions
-name: Xuanwu Copilot Workspace Instructions
----
-
-# Xuanwu Copilot Workspace Instructions
-
-Always-on workspace guidance for Copilot. Keep this file short, stable, and repository-wide. Put file-type, framework, or task-specific rules in [.github/instructions](./instructions), reusable workflows in prompts, and tool- or role-specific behavior in skills.
-
-## Purpose
-
-- Xuanwu is a personal- and organization-oriented Knowledge Platform built as a modular monolith with MDDD boundaries.
-- Align Copilot with Xuanwu architecture, validation flow, and delivery boundaries.
-- Keep always-on instructions low-noise so scoped `.instructions.md` files can do the detailed work.
-- Prefer references to canonical docs over repeated policy text.
-
-## Non-Negotiable Session Contract
-
-- Start every conversation with Serena MCP. If Serena tools are unavailable, bootstrap Serena first, then continue.
-- Serena owns orchestration. Serena understands the request, gathers targeted context, decides whether subagents are needed, and remains responsible for final synthesis.
-- If confidence in any library API, framework behavior, or config schema detail is below 99.99%, query Context7 before writing, generating, or suggesting code.
-- Repository orchestration memory and index updates belong to Serena. Use Serena tools for project memory/index work; do not treat direct edits under `.serena/` or non-Serena project-memory paths as authoritative replacements.
-
-## Authoritative Sources
-
-Read these in order before making non-trivial decisions:
-
-1. [terminology-glossary.md](./terminology-glossary.md) for canonical terminology routing.
-2. [AGENTS.md](../AGENTS.md) for repository-wide rules and validation commands.
-3. [CLAUDE.md](../CLAUDE.md) for cross-agent compatibility.
-4. [agents/knowledge-base.md](./agents/knowledge-base.md) for module ownership, aliases, and MDDD boundaries.
-5. [agents/commands.md](./agents/commands.md) for build, lint, test, and deployment commands.
-6. [CONTRIBUTING.md](../CONTRIBUTING.md) for review scope and evidence expectations.
-
-## DDD Reference Authority
-
-DDD root maps are owned by `docs/ddd/`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
-
-| Query | Canonical Document |
-|-------|-------------------|
-| Strategic subdomain classification | [`docs/ddd/subdomains.md`](../docs/ddd/subdomains.md) |
-| Bounded Context boundaries / module map | [`docs/ddd/bounded-contexts.md`](../docs/ddd/bounded-contexts.md) |
-| Context terminology | `modules/<context>/ubiquitous-language.md` |
-| Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
-| Context domain events | `modules/<context>/domain-events.md` |
-| Context map | `modules/<context>/context-map.md` |
-| Context repositories | `modules/<context>/repositories.md` |
-| Context application services | `modules/<context>/application-services.md` |
-| Context domain services | `modules/<context>/domain-services.md` |
-
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/ddd/` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
-
-## Workspace-Wide Operating Rules
-
-- Plan first for cross-module, cross-runtime, schema, or contract-governed changes.
-- Treat the approved plan as the execution contract; stay within scope and update docs when boundaries or public APIs change.
-- Search and read before editing. Prefer existing instructions, prompts, and skills over ad hoc restatement.
-- Keep changes minimal, local, and boundary-safe.
-
-## Architecture Guardrails
-
-- Follow Module-Driven Domain Design: each `modules/<context>/` directory is an isolated bounded context.
-- Cross-module access must go through the target module's `api/` boundary only.
-- Keep dependency direction explicit: `interfaces/` -> `application/` -> `domain/` <- `infrastructure/`.
-- Keep business logic in `domain/` and `application/`; keep UI, transport, and composition in `interfaces/` and `app/`.
-- Use package aliases such as `@shared-*`, `@ui-*`, `@lib-*`, and `@integration-*`; do not introduce legacy `@/shared/*`, `@/libs/*`, or similar paths.
-- Preserve the runtime split: Next.js owns browser-facing UX, auth/session, orchestration, and streaming; `py_fn/` owns ingestion, parsing, chunking, embedding, and worker jobs.
-
-## Copilot Customization Design Rules
-
-- Keep this file concise and self-contained; prefer short directive statements over long tutorial prose.
-- Put scoped guidance in focused `.instructions.md` files with narrow `applyTo` patterns.
-- Reuse canonical references instead of duplicating the same rules across instructions, prompts, agents, and skills.
-- Do not turn temporary implementation details, current module counts, or migration mappings into permanent global rules.
-- When customizations appear ignored, verify them with Chat customization diagnostics before changing the file structure.
-
-## Serena MCP
-
-Serena MCP is **mandatory for every session**. There are no exceptions.
-
-Serena is the orchestration lead for every conversation. Start with Serena to understand the request, gather only the needed context, and decide whether focused subagents are required. Subagents assist with exploration or execution, but Serena remains responsible for task framing, delegation, and final synthesis.
-
-### Session-Start Protocol (Required)
-
-1. Bootstrap Serena MCP server if tools are not available:
-   ```bash
-   uvx --from git+https://github.com/oraios/serena serena start-mcp-server
-   ```
-2. Activate the `xuanwu-app` project before any read or write operation.
-3. List and read relevant memories before starting any non-trivial task.
-
-### Session-End Protocol (Required)
-
-After every meaningful phase (plan → impl → review → qa) and before any handoff:
-
-1. Write a phase-end memory update using Serena memory tools.
-2. Trigger an index update if files were added, renamed, or removed.
-
-See the phase-end template in [skills/serena-mcp/SKILL.md](skills/serena-mcp/SKILL.md).
-
-### Hard Prohibitions
-
-- **NEVER** edit any file inside `.serena/` directly with file tools (`create`, `edit`, `write`, etc.).
-- **NEVER** delete or rename `.serena/` entries outside of Serena tooling.
-- **NEVER** use non-Serena file edits as a substitute for Serena project memory or index updates.
-- If the Serena write tool is unavailable, report blocked and halt — do **not** bypass with direct file writes.
-- Index and memory changes are only valid when made through Serena tools.
-
-## Context7 Documentation Query
-
-When confidence in any library API, framework behavior, or config schema detail is **below 99.99%**, you **must** query official documentation through upstash/context7 before writing, generating, or suggesting code.
-
-### Trigger Conditions
-
-Any of the following require a context7 lookup before proceeding:
-
-- API signature, parameter name, or return type is uncertain.
-- Version-specific behavior or breaking-change risk exists.
-- Config schema details (Next.js, Firebase, Zod, XState, etc.) are not fully recalled.
-- A library was recently updated and you are unsure of the current behavior.
-
-### Required Steps
-
-1. Call `resolve-library-id` with the library name to get a Context7-compatible ID.
-2. Call `get-library-docs` with that ID and a focused `topic` to retrieve official docs.
-3. Use the retrieved docs as the authoritative source; do **not** rely on training-time recall alone.
-
-### Guardrails
-
-- Do not skip the lookup by assuming training data is current — default to querying.
-- Do not pass arbitrary strings as the library ID; always resolve it first via `resolve-library-id`.
-- Keep queries focused: one `topic` per call rather than fetching the entire doc set.
-- See [skills/context7/SKILL.md](skills/context7/SKILL.md) for the full workflow.
-
-## Claude Compatibility Layer
-
-`.claude/` is a supported Claude Code compatibility surface.
-
-- Use `.claude/settings.json` when you need Claude hook lifecycle, permissions, or project MCP behavior.
-- Use `.claude/rules/tech-strategy.md` when you need Claude-side technology-policy context.
-- Use `.claude/hooks/*` when a task touches Claude-specific guards, validation, or session automation.
-- Keep `.github/*` as the primary Copilot governance surface; use `.claude/` to preserve or understand Claude compatibility, not as a parallel source of repository-wide truth.
-
-## Skill And Agent Routing
-
-- Use [skills/xuanwu-app-skill/SKILL.md](skills/xuanwu-app-skill/SKILL.md) when repository structure or implementation location matters.
-- Use [skills/xuanwu-app-markdown-skill/SKILL.md](skills/xuanwu-app-markdown-skill/SKILL.md) when markdown documentation structure or wording matters.
-- Use [skills/alistair-cockburn/SKILL.md](skills/alistair-cockburn/SKILL.md) when designing module boundaries, writing use cases, evaluating methodology fit, or applying hexagonal architecture and Heart of Agile principles.
-- Use boundary or contract skills only when the task actually crosses those concerns.
-- Keep prompts, instructions, agents, and skills complementary. Do not duplicate the same policy in multiple layers unless the scope is different.
-
-## Validation
-
-- Run the matching validation for changed files by using [agents/commands.md](./agents/commands.md).
-- Do not close work until required lint, build, test, and documentation updates are complete.
-
-## Terminology
-
-- Terminology routing is governed by [terminology-glossary.md](./terminology-glossary.md).
-- Treat glossary terminology as canonical naming and vocabulary authority.
-- Do not introduce new terms if an equivalent glossary term already exists.
-- When multiple names exist, normalize to the glossary term before implementation.
-- Use glossary-aligned wording for prompts, instructions, agents, skills, and DDD docs.
-````
-
-## File: features/README.md
-````markdown
----
-name: features-layer
-description: Feature（Use Case）層設計規範，負責跨 Bounded Context 的協調與流程編排
----
-
-# 📦 Features Layer（Use Case Orchestration）
-
-## 🎯 目的
-
-`features/` 是系統的 **Use Case 層（應用層）**，負責：
-
-- 將多個 `modules/（Bounded Context）` 串接成「一個完整功能」
-- 作為 **唯一的功能入口（Single Entry Point）**
-- 控制流程（Flow orchestration）
-- 隔離 UI 與 Domain 的耦合
-
----
-
-## 🧠 核心概念
-
-| 概念 | 說明 |
-|------|------|
-| Feature | 使用者可感知的功能（Use Case） |
-| Orchestration | 跨多個 modules 的流程編排 |
-| Application Layer | 不包含業務規則，只負責調度 |
-| Stateless | 不持有狀態，僅控制流程 |
-
----
-
-## 📁 結構設計
-
-```bash
-/features
-  /<feature-name>
-    usecase.ts        # 核心流程（唯一入口）
-    route.ts          # API / Server Action（Next.js）
-    schema.ts         # input/output validation（zod）
-    dto.ts            # 資料轉換（可選）
-    ui/               # UI（shadcn）
-      *.tsx
-    hooks/            # React hooks（可選）
-    state/            # client state（可選）
-````
-
-## File: modules/knowledge/context-map.md
-````markdown
-# Context Map — knowledge
-
-## 上游（依賴）
-
-### identity → knowledge（Customer/Supplier）
-- 頁面操作驗證 `createdByUserId`
-
-### workspace → knowledge（Customer/Supplier）
-- 頁面隸屬於 `workspaceId`，需驗證工作區歸屬
-- `workspace` 供應 active workspace context；若要看 account / organization 跨工作區總覽，必須進入顯式 summary mode，而不是省略 workspaceId
-
----
-
-## 下游（被依賴）
-
-### knowledge → workspace-flow（Published Language / Customer-Supplier）
-
-**這是平台最重要的跨 BC 整合點。**
-
-- 整合方式：`knowledge.page_approved` 領域事件（Published Language）
-- `workspace-flow` 的 `KnowledgeToWorkflowMaterializer` Process Manager 訂閱此事件
-- 從 `extractedTasks[]` 建立 Task，從 `extractedInvoices[]` 建立 Invoice
-
-```
-knowledge ─── knowledge.page_approved ───► workspace-flow
-                                          (KnowledgeToWorkflowMaterializer)
-```
-
-### knowledge → ai（Customer/Supplier）
-
-- `knowledge.page_approved` 觸發 `ai` 域的 IngestionJob
-- RAG 攝入管線的起點
-
-### knowledge → knowledge-database（Open Host Service / D1）
-
-- `knowledge-database` 擁有 `spaceType="database"` 的完整 Schema + Record + View 能力
-- `knowledge` 透過 `KnowledgeCollection.id` 作為 opaque reference，不擁有 database 結構化欄位
-- 整合方式：`knowledge-database` 以 OHS 開放 DatabaseId API
-
-```
-knowledge ──(KnowledgeCollection.id)──► knowledge-database
-                                        (Database / Record / View 管理)
-```
-
-### knowledge → knowledge-base（Customer/Supplier / D3 Promote）
-
-- Promote 協議：使用者可將 `KnowledgePage` 提升為 `Article`（跨 BC 操作）
-- `knowledge-base` 擁有 Promote 協議的業務規則（決定是否可提升、建立 Article）
-- `knowledge` 發出 `knowledge.page_promoted` 事件，`knowledge-base` 訂閱後建立 Article
-
-```
-knowledge ─── knowledge.page_promoted ───► knowledge-base
-                                           (Article 建立，Promote 協議完成)
-```
-
----
-
-## IDDD 整合模式總結
-
-| 關係 | 上游 | 下游 | 模式 |
-|------|------|------|------|
-| identity → knowledge | identity | knowledge | Customer/Supplier |
-| workspace → knowledge | workspace | knowledge | Customer/Supplier |
-| knowledge → workspace-flow | knowledge | workspace-flow | Published Language (Events) |
-| knowledge → ai | knowledge | ai | Customer/Supplier（Events） |
-| knowledge → knowledge-database | knowledge | knowledge-database | Open Host Service |
-| knowledge → knowledge-base | knowledge | knowledge-base | Customer/Supplier（Promote Events） |
-````
-
 ## File: modules/knowledge/subdomains/knowledge-ai/README.md
 ````markdown
 
@@ -14069,193 +14331,215 @@ knowledge ─── knowledge.page_promoted ───► knowledge-base
 
 ````
 
-## File: modules/knowledge/ubiquitous-language.md
+## File: modules/platform/docs/aggregates.md
 ````markdown
-# Ubiquitous Language — knowledge
+# Aggregates — platform
 
-> **範圍：** 僅限 `modules/knowledge/` 有界上下文內
+本文件定義 platform blueprint 中的核心聚合、值物件與不變數。這些聚合的目的，是把平台層的核心決策留在 domain，而把 persistence、delivery 與 transport 留給 adapters。
 
-## 術語定義
+## 聚合根：PlatformContext
 
-| 術語 | 英文 | 定義 | 代碼位置 |
-|------|------|------|---------|
-| 知識頁面 | KnowledgePage | 核心知識單元，含 title、parentPageId、blockIds | `domain/entities/knowledge-page.entity.ts` |
-| 內容區塊 | ContentBlock | 頁面內的原子內容單元（id、pageId、blockType、content、order） | `domain/entities/content-block.entity.ts` |
-| 區塊類型 | BlockType | `text \| heading-1 \| heading-2 \| image \| code \| bullet-list \| ...` | `domain/entities/block.ts` |
-| 版本快照 | ContentVersion | 頁面的歷史快照（snapshotBlocks、editSummary、authorId） | `domain/entities/content-version.entity.ts` |
-| 頁面審批 | PageApproval | 使用者核准 AI 生成草稿的動作，觸發 `knowledge.page_approved` | — |
-| 抽取任務 | ExtractedTask | 從頁面內容提取的任務定義（title、dueDate、description） | `domain/events/knowledge.events.ts` |
-| 抽取發票 | ExtractedInvoice | 從頁面內容提取的發票定義（amount、description、currency） | `domain/events/knowledge.events.ts` |
-| 知識資料庫 | KnowledgeCollection (database) | spaceType="database" 的集合，帶欄位 Schema，對應 Notion Database | `domain/entities/knowledge-collection.entity.ts` |
-| 知識庫（Wiki Space） | WikiSpace / KnowledgeCollection (wiki) | spaceType="wiki" 的集合，啟用頁面驗證與所有權，對應 Notion Wiki | `domain/entities/knowledge-collection.entity.ts` |
-| 集合空間類型 | CollectionSpaceType | `"database" \| "wiki"` — 區分資料庫與知識庫空間 | `domain/entities/knowledge-collection.entity.ts` |
-| 頁面驗證狀態 | PageVerificationState | `"verified" \| "needs_review"` — 頁面在 Wiki Space 中的內容準確性狀態 | `domain/entities/knowledge-page.entity.ts` |
-| 頁面負責人 | PageOwner (`ownerId`) | 負責確保頁面內容準確與更新的指定使用者 | `domain/entities/knowledge-page.entity.ts` |
-| 工作區預設視角 | Workspace-first Scope | 日常頁面樹、建立與整理流程預設綁定 active workspace 的規則 | `app/(shell)/knowledge/pages/page.tsx` |
-| 帳戶總覽模式 | Account Summary Mode | 顯式跨工作區總覽模式，只用於 summary，不作為隱含預設建立入口 | `app/(shell)/knowledge/pages/page.tsx` |
-| 已驗證 | verified | `verificationState="verified"` — 頁面內容已確認準確 | — |
-| 待審閱 | needs_review | `verificationState="needs_review"` — 頁面內容需要檢視與確認 | — |
-| 頁面提升 | Promote（Page → Article） | 將 `KnowledgePage` 提升為 `Article` 的跨 BC 協議；`knowledge` 執行驗證並發出 `knowledge.page_promoted`，`knowledge-base` 負責業務規則與 Article 建立 | — |
+### 職責
 
-## 頁面生命周期操作（Page Lifecycle Actions）
+`PlatformContext` 代表單一平台範圍中的能力啟用狀態、主體邊界與治理基準。它回答的是：「這個平台範圍目前允許哪些能力，並以什麼政策與配置運作？」
 
-以下為 `KnowledgePage` 允許的使用者操作。**預期使用的 Server Action** 與 **UI 顯示標籤**必須對齊。
+### 關鍵屬性
 
-| 操作 | Server Action | UI 標籤（中文） | 觸發事件 |
-|------|--------------|----------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` | 在內部新增頁面 | `knowledge.page_created` |
-| 重新命名 | `renameKnowledgePage` | 重新命名 | `knowledge.page_renamed` |
-| 移動到 | `moveKnowledgePage` | 移動到 | `knowledge.page_moved` |
-| 歸檔（移至垃圾桶） | `archiveKnowledgePage` | 移至垃圾桶 | `knowledge.page_archived` |
-| 提升為文章 | `promoteKnowledgePage` | 提升為文章（→ knowledge-base Article） | `knowledge.page_promoted` |
+| 屬性 | 型別 | 說明 |
+|---|---|---|
+| `contextId` | `PlatformContextId` | 平台範圍識別值 |
+| `subjectScope` | `SubjectScope` | 此範圍允許的 actor / account / organization 邊界 |
+| `capabilities` | `PlatformCapability[]` | 已註冊的能力集合 |
+| `policyCatalogId` | `PolicyCatalogId` | 生效中的政策集合 |
+| `configurationProfileRef` | `ConfigurationProfileRef` | 生效中的配置輪廓參照 |
+| `subscriptionAgreementId` | `SubscriptionAgreementId` | 生效中的訂閱協議 |
+| `lifecycleState` | `PlatformLifecycleState` | `draft | active | suspended | retired` |
 
-> **術語對齊規則：** Domain 用 `archive`（歸檔）；UI 標籤為「移至垃圾桶」。兩者指同一操作（`status = "archived"`），不得在 domain 層使用 `trash`。
+### 不變數
 
-## 頁面操作選單（PageContextMenu）
+- `active` 狀態的 context 必須指向一份有效的 `SubscriptionAgreement`
+- capability 只有在 entitlement 允許時才能被啟用
+- `suspended` 或 `retired` 的 context 不得再發出新的 workflow 或 integration delivery 命令
 
-`PageTreeView` 內每個頁面行 hover 時出現的 `…` 操作選單。此為 「頁面樹狀視圖」的 UI 互動模式。
+---
 
-| 選單項目 | 對應 Use Case | UI 互動 |
-|------------|--------------|----------|
-| 在內部新增頁面 | `createKnowledgePage` (parentPageId = 目前頁) | 應即修改名稱輸入框 |
-| 重新命名 | `renameKnowledgePage` | 行內 inline 輸入框，Enter 確認 |
-| 移動到 | `moveKnowledgePage` | 待實作 |
-| 移至垃圾桶 | `archiveKnowledgePage` | 二次確認，成功後移除樹狀視圖該頁 |
+## 聚合根：PolicyCatalog
 
-## 頁面樹狀視圖（PageTreeView）
+### 職責
 
-`modules/knowledge/interfaces/components/PageTreeView.tsx` 的 UI 層概念諍。
+`PolicyCatalog` 擁有平台範圍內用來評估權限、通知、工作流與稽核規則的版本化政策集合。
 
-| 概念 | 說明 |
-|------|------|
-| 頁面樹狀視圖 | 對應 `KnowledgePage` 父子層級的可視化展示，層級通過 `parentPageId` 樹 |
-| 層級展開 / 折疊 | 頁面節點 idle 狀態，預設展開層數 < 2 |
-| hover 操作列 | 每行 hover 展現 `…`（操作選單）與 `+`（在內部新增頁面）按鈕 |
-| inline rename | hover 選單內點後直接展現行內輸入框，不開 dialog |
+### 關鍵屬性
 
-## 禁止替換術語
+| 屬性 | 型別 | 說明 |
+|---|---|---|
+| `policyCatalogId` | `PolicyCatalogId` | 政策集合識別值 |
+| `contextId` | `PlatformContextId` | 所屬平台範圍 |
+| `permissionRules` | `PolicyRule[]` | 存取控制與授權規則 |
+| `workflowRules` | `PolicyRule[]` | 觸發條件與步驟規則 |
+| `notificationRules` | `PolicyRule[]` | 通知路由與抑制規則 |
+| `auditRules` | `PolicyRule[]` | 必須記錄的決策與行為規則 |
+| `revision` | `number` | 單調遞增的版本號 |
 
-| 正確 | 禁止 |
-|------|------|
-| `KnowledgePage` | `Page`, `Document`, `Note` |
-| `ContentBlock` | `Block`, `Node`, `Element` |
-| `ContentVersion` | `History`, `Snapshot`, `Revision` |
-| `KnowledgeCollection` | `Database`, `Collection`, `Table`（不應直接暴露在 API 外） |
-| `WikiSpace` | `KB`, `KnowledgeBase`（直接稱呼） |
-| archive (在 UI 中) | `trash`, `delete`（在 domain 層不得使用 trash/delete 命名） |
+### 不變數
 
-> `WikiPage` 為 `wiki` BC 術語，不屬於 `knowledge` BC 通用語言。
-> `WikiSpace` 在 `knowledge` BC 代表 `spaceType="wiki"` 的 `KnowledgeCollection`，與 `wiki` 模組（圖譜引擎）完全不同。
+- 同一個 `contextId` 在同一時間只能有一份生效中的 catalog revision
+- 每一條規則都必須有明確的 `subject`, `condition`, `effect`
+- permission、workflow、notification、audit 的規則不得互相覆蓋成不可判定狀態
+
+---
+
+## 聚合根：IntegrationContract
+
+### 職責
+
+`IntegrationContract` 管理平台與外部系統互動時所需的 endpoint、通訊協議、認證參照與 delivery policy。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|---|---|---|
+| `integrationContractId` | `IntegrationContractId` | 整合契約識別值 |
+| `contextId` | `PlatformContextId` | 所屬平台範圍 |
+| `endpointRef` | `EndpointRef` | 外部端點參照 |
+| `protocol` | `IntegrationProtocol` | `http | webhook | queue | topic | file` |
+| `authenticationRef` | `SecretReference` | 認證資料參照 |
+| `subscribedSignals` | `SignalSubscription[]` | 外部系統需要的訊號清單 |
+| `deliveryPolicy` | `DeliveryPolicy` | 重試、超時與冪等策略 |
+| `contractState` | `ContractState` | `draft | active | paused | revoked` |
+
+### 不變數
+
+- `active` 的 integration contract 必須有 endpoint 與 authentication reference
+- 非同步 delivery 必須定義 retry / timeout policy
+- 訂閱的 signals 必須對應到 platform published language 中存在的事件名稱
+
+---
+
+## 聚合根：SubscriptionAgreement
+
+### 職責
+
+`SubscriptionAgreement` 代表一個平台範圍目前採用的方案、權益與限制。它是 capability enablement 與 usage governance 的商業邊界。
+
+### 關鍵屬性
+
+| 屬性 | 型別 | 說明 |
+|---|---|---|
+| `subscriptionAgreementId` | `SubscriptionAgreementId` | 訂閱協議識別值 |
+| `contextId` | `PlatformContextId` | 所屬平台範圍 |
+| `planCode` | `PlanCode` | 方案代碼 |
+| `entitlements` | `Entitlement[]` | 可使用能力與配額 |
+| `usageLimits` | `UsageLimit[]` | 量化限制 |
+| `billingState` | `BillingState` | `pending | active | delinquent | expired | cancelled` |
+| `validPeriod` | `EffectivePeriod` | 生效區間 |
+
+### 不變數
+
+- 權益只能由 `planCode` 推導，不得任意脫離方案定義
+- `expired` 或 `cancelled` 的 agreement 不能讓新 capability 生效
+- usage limit 超量時，平台必須回傳明確的治理結果，而不是無聲失敗
+
+---
+
+## 主要值物件
+
+| 值物件 | 用途 |
+|---|---|
+| `PlatformCapability` | 能力名稱、狀態、對應 entitlement 與生命週期 |
+| `SubjectScope` | actor、account、organization 等主體邊界 |
+| `PolicyRule` | `subject`, `condition`, `effect`, `priority` 的規則表達 |
+| `ConfigurationProfileRef` | 生效配置輪廓的參照 |
+| `Entitlement` | 某方案允許的 capability 與額度 |
+| `UsageLimit` | 用量限制與超限策略 |
+| `SignalSubscription` | integration contract 所需接收的事件集合 |
+| `DeliveryPolicy` | timeout、retry、idempotency、backoff 設定 |
+| `NotificationRoute` | 通知通道與對象語言 |
+| `ObservabilitySignal` | 指標、追蹤、告警語言的統一封裝 |
+
+## 主要識別值與狀態值
+
+| 型別 | 用途 |
+|---|---|
+| `PlatformContextId` | `PlatformContext` 的識別值 |
+| `PolicyCatalogId` | `PolicyCatalog` 的識別值 |
+| `IntegrationContractId` | `IntegrationContract` 的識別值 |
+| `SubscriptionAgreementId` | `SubscriptionAgreement` 的識別值 |
+| `PlatformLifecycleState` | `draft | active | suspended | retired` |
+| `ContractState` | `draft | active | paused | revoked` |
+| `BillingState` | `pending | active | delinquent | expired | cancelled` |
+| `EffectivePeriod` | 生效起訖區間 |
+| `EndpointRef` | 外部端點參照 |
+| `SecretReference` | 認證資料參照 |
+
+## 聚合邊界規則
+
+- `PlatformContext` 負責 capability enablement，不直接儲存外部 integration 細節
+- `PolicyCatalog` 負責規則版本化，不直接執行通知或外呼
+- `IntegrationContract` 負責外部交付契約，不直接決定權限或訂閱方案
+- `SubscriptionAgreement` 負責 entitlement 與限制，不直接承載通知或 workflow 規則
+
+跨聚合規則若無法收斂到單一聚合，應交由 domain services 處理。
 ````
 
-## File: modules/platform/AGENT.md
+## File: modules/platform/subdomains/analytics/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'analytics'. -->
 ````
 
-## File: modules/platform/aggregates.md
+## File: modules/platform/subdomains/audit-log/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'audit-log'. -->
 ````
 
-## File: modules/platform/application-services.md
+## File: modules/platform/subdomains/background-job/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'background-job'. -->
 ````
 
-## File: modules/platform/bounded-context.md
+## File: modules/platform/subdomains/compliance/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'compliance'. -->
 ````
 
-## File: modules/platform/context-map.md
+## File: modules/platform/subdomains/content/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'content'. -->
 ````
 
-## File: modules/platform/domain-events.md
+## File: modules/platform/subdomains/feature-flag/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'feature-flag'. -->
 ````
 
-## File: modules/platform/domain-services.md
+## File: modules/platform/subdomains/onboarding/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'onboarding'. -->
 ````
 
-## File: modules/platform/README.md
+## File: modules/platform/subdomains/platform-config/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'platform-config'. -->
 ````
 
-## File: modules/platform/repositories.md
+## File: modules/platform/subdomains/referral/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'referral'. -->
 ````
 
-## File: modules/platform/subdomains.md
+## File: modules/platform/subdomains/search/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'search'. -->
 ````
 
-## File: modules/platform/subdomains/account/README.md
+## File: modules/platform/subdomains/security-policy/README.md
 ````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'security-policy'. -->
 ````
 
-## File: modules/platform/subdomains/audit/README.md
+## File: modules/platform/subdomains/support/README.md
 ````markdown
-
-````
-
-## File: modules/platform/subdomains/config/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/identity/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/integration/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/notification/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/observability/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/organization/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/permission/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/subscription/README.md
-````markdown
-
-````
-
-## File: modules/platform/subdomains/workflow/README.md
-````markdown
-
-````
-
-## File: modules/platform/ubiquitous-language.md
-````markdown
-
+<!-- Purpose: Subdomain scaffold overview for platform 'support'. -->
 ````
 
 ## File: modules/workspace/application/use-cases/AGENT.md
@@ -14653,187 +14937,83 @@ infrastructure/firebase
 
 ````
 
-## File: modules/knowledge/aggregates.md
+## File: modules/platform/docs/application-services.md
 ````markdown
-# Aggregates — knowledge
+# platform — Application Services
 
-## 聚合根：KnowledgePage
+platform 的 application layer 是輸入介面與 domain model 之間的協調層。application services 的工作是接收由 driving adapters 翻譯過的請求，協調聚合與 output ports，並回傳穩定結果。
 
-### 職責
-核心知識單元的聚合根。管理頁面標題、父子層級關係（parentPageId）、區塊引用列表（blockIds）及審批狀態。
+## Application Layer 職責
 
-### 關鍵屬性
+- 接住來自 API、webhook、scheduler、queue consumer 的輸入請求
+- 將輸入模型轉成 domain 需要的 command / query
+- 呼叫聚合行為與 domain services
+- 透過 repositories 與其他 output ports 完成持久化、事件發佈與外部 side effects
+- 組裝回傳結果或查詢投影
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 頁面主鍵 |
-| `title` | `string` | 頁面標題 |
-| `slug` | `string` | URL-safe 識別符 |
-| `parentPageId` | `string \| null` | 父頁面 ID（樹狀層級） |
-| `blockIds` | `string[]` | 關聯的 ContentBlock ID 列表 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區；workspace-first 頁面必須帶值，僅顯式 summary / legacy migration 情境可為空 |
-| `status` | `KnowledgePageStatus` | `active \| archived` |
-| `approvalState` | `KnowledgePageApprovalState?` | `pending \| approved`（AI 生成草稿使用） |
-| `approvedByUserId` | `string?` | 審批者 ID |
-| `approvedAtISO` | `string?` | 審批時間 |
-| `createdByUserId` | `string` | 建立者 ID |
-| `createdAtISO` | `string` | ISO 8601 建立時間 |
-| `updatedAtISO` | `string` | ISO 8601 更新時間 |
+## Input Port Inventory
 
-### Wiki/Knowledge Base 驗證屬性（spaceType="wiki" 可用）
+| Input Port | 用途 | 主要對應的 Driving Adapters |
+|---|---|---|
+| `PlatformCommandPort` | 接收命令型請求並執行狀態變更 | API controllers, CLI commands, scheduler, webhook handlers |
+| `PlatformQueryPort` | 提供唯讀查詢與投影 | API queries, UI read adapters, reporting adapters |
+| `PlatformEventIngressPort` | 吸收外部或相鄰子域的事實訊號 | event consumers, queue consumers, callback handlers |
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `verificationState` | `PageVerificationState?` | `verified \| needs_review`（undefined = 非 wiki 模式） |
-| `ownerId` | `string?` | 頁面負責人（保持內容準確的使用者） |
-| `verifiedByUserId` | `string?` | 最後驗證者 ID |
-| `verifiedAtISO` | `string?` | 最後驗證時間 |
-| `verificationExpiresAtISO` | `string?` | 驗證到期時間（到期後自動轉為 `needs_review`） |
+## Command-oriented Services
 
-### KnowledgePageStatus 與 UI 標籤對照
+| Application Service | 主要用途 | 典型輸入 | 依賴的 Output Ports |
+|---|---|---|---|
+| `RegisterPlatformContextService` | 建立或啟用平台範圍 | `RegisterPlatformContext` | `PlatformContextRepository`, `SubscriptionAgreementRepository`, `DomainEventPublisher` |
+| `PublishPolicyCatalogService` | 發佈新的規則版本 | `PublishPolicyCatalog` | `PolicyCatalogRepository`, `DomainEventPublisher` |
+| `ApplyConfigurationProfileService` | 套用配置輪廓與 capability toggles | `ApplyConfigurationProfile` | `PlatformContextRepository`, `ConfigurationProfileStore`, `DomainEventPublisher` |
+| `RegisterIntegrationContractService` | 建立或更新外部整合契約 | `RegisterIntegrationContract` | `IntegrationContractRepository`, `SecretReferenceResolver`, `DomainEventPublisher` |
+| `ActivateSubscriptionAgreementService` | 啟用、續約或停用訂閱協議 | `ActivateSubscriptionAgreement` | `SubscriptionAgreementRepository`, `PlatformContextRepository`, `DomainEventPublisher` |
+| `FireWorkflowTriggerService` | 發出 workflow trigger 並交給下游 adapter 執行 | `FireWorkflowTrigger` | `WorkflowPolicyRepository`, `WorkflowDispatcherPort`, `DomainEventPublisher` |
+| `RequestNotificationDispatchService` | 建立通知派送請求 | `RequestNotificationDispatch` | `NotificationGateway`, `PolicyCatalogRepository`, `AuditSignalStore` |
+| `RecordAuditSignalService` | 將決策或行為寫成稽核訊號 | `RecordAuditSignal` | `AuditSignalStore`, `DomainEventPublisher` |
+| `EmitObservabilitySignalService` | 發出 metrics / trace / alert 訊號 | `EmitObservabilitySignal` | `ObservabilitySink`, `AuditSignalStore` |
 
-| `status` 屬性專 | 字狀詞 | UI 顯示標籤 | 說明 |
-|--------------|------|----------------|------|
-| `"active"` | 活蹍 | （正常顯示） | 預設狀態 |
-| `"archived"` | 已歸檔 | 移至垃圾桶（已歸檔） | 由 `archiveKnowledgePage` 觸發，UI 標籤為「移至垃圾桶」 |
-| `"active"` → 提升 | 提升為文章 | — | 由 `promoteKnowledgePage` 觸發（D3 Promote 協議）；頁面保持 `active`，`knowledge-base` 建立對應 Article |
+## Query-oriented Services
 
-> **警告：** 不得新增 `"trash"` 狀態。`archived` 即為對應 Notion "Move to Trash" 的 domain 實作。若需確認軟刪除，由 ADR 決裁再修改此文件。
+| Application Service | 主要用途 | 典型輸入 | 依賴的 Query Ports |
+|---|---|---|---|
+| `GetPlatformContextViewService` | 查詢 platform 範圍總覽 | `GetPlatformContextView` | `PlatformContextViewRepository` |
+| `ListEnabledCapabilitiesService` | 列出當前可用能力 | `ListEnabledCapabilities` | `PlatformContextViewRepository`, `SubscriptionAgreementRepository` |
+| `GetPolicyCatalogViewService` | 查詢政策版本與規則摘要 | `GetPolicyCatalogView` | `PolicyCatalogViewRepository` |
+| `GetSubscriptionEntitlementsService` | 查詢方案權益與限制 | `GetSubscriptionEntitlements` | `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `GetWorkflowPolicyViewService` | 查詢 trigger 對應的 workflow policy | `GetWorkflowPolicyView` | `WorkflowPolicyRepository`, `PolicyCatalogViewRepository` |
 
-### 不變數
+## Orchestration Rules
 
-- `slug` 在同一 accountId 下必須唯一
-- 頁面樹與日常建立流程預設以 workspaceId 為邊界；account 層級只能做顯式 summary，不可作為隱含預設
-- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；若需 account-level summary，應以獨立 summary flow 實作，而不是沿用一般建立流程
-- archived 頁面不可新增 ContentBlock
-- archived 頁面於 `PageTreeView` 不顯示（展示層過濾 `status === "active"`）
-- **歸檔級聯（D2）**：歸檔父頁面時，所有子頁面同步歸檔（`childPageIds` 一併記入 `knowledge.page_archived`）；歸檔操作可恢復（`status` 回設為 `"active"`），子頁面同步恢復。
+- application services 可以協調多個 aggregates，但不應把跨聚合規則硬塞進 handler 本身
+- 所有 persistence 與 side effects 都必須透過 output ports，不直接寫在 service 裡
+- 所有 transport concern 都由 driving adapters 處理，application services 不理解 HTTP status、queue headers 或 webhook signature
+- input validation 可以在 driving adapters 與 application layer 邊界做，但 domain invariants 仍由 aggregates 與 domain services 守護
 
----
+## 與 docs/README 的分工
 
-## 實體：ContentBlock（KnowledgeBlock）
+- 本文件只定義 use case handlers、input ports 與 orchestration 規則
+- 聚合不變數請見 `aggregates.md`
+- 純規則決策請見 `domain-services.md`
+- output ports 與 repositories 請見 `repositories.md`
 
-### 職責
-頁面內的原子內容單元，有序排列形成頁面內容。
+## Input Ports 與 Use Case Handlers
 
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 區塊主鍵 |
-| `pageId` | `string` | 所屬頁面 ID |
-| `accountId` | `string` | 所屬帳戶 |
-| `content` | `BlockContent` | 型別化內容（含 `type: BlockType` 欄位） |
-| `order` | `number` | 排列順序 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
+輸入請求應先表達成 input ports 定義的語言，再交由 application services 實作。這讓 API controller、message consumer、CLI 或 scheduler 都能共用同一個 use case handler，而不必把業務邏輯寫進 adapter。若新增新的 handler，但沒有對應 input port 語言，表示藍圖仍有缺口。
 
-> `BlockContent.type` 為 `BlockType`（`text \| heading-1 \| heading-2 \| heading-3 \| image \| code \| bullet-list \| numbered-list \| divider \| quote`）。
-> 代碼位置：`domain/value-objects/block-content.ts`
+## 輸出結果
 
----
+application services 應回傳兩種結果之一：
 
-## 實體：ContentVersion（KnowledgeVersion）
+- command result：描述是否成功、主體識別值與版本資訊
+- query projection：為查詢或 UI 組裝的唯讀模型
 
-### 職責
-頁面的歷史版本快照，append-only。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 版本主鍵 |
-| `pageId` | `string` | 所屬頁面 |
-| `accountId` | `string` | 所屬帳戶 |
-| `label` | `string` | 版本標籤（人類可讀描述） |
-| `titleSnapshot` | `string` | 版本建立時的頁面標題快照 |
-| `blocks` | `KnowledgeVersionBlock[]` | 版本時間點的區塊快照列表 |
-| `createdByUserId` | `string` | 建立者帳戶 ID |
-| `createdAtISO` | `string` | ISO 8601 |
-
----
-
-## 聚合根：KnowledgeCollection（Database / Wiki Space）
-
-### 職責
-Notion-like 的集合空間，依 `spaceType` 分為兩種模式：
-- **`spaceType="database"`**：Notion Database — 結構化資料容器（欄位 Schema + Records + Views）。**此模式由 `knowledge-database` BC 獨立擁有**（D1 決策）；`knowledge` 僅保留集合識別與 Wiki Space 能力。
-- **`spaceType="wiki"`**：Notion Wiki / Knowledge Base — 帶頁面驗證與所有權的知識庫空間，由 `knowledge` BC 管理。
-
-| 屬性 | 型別 | 說明 |
-|------|------|------|
-| `id` | `string` | 集合主鍵 |
-| `accountId` | `string` | 所屬帳戶 |
-| `workspaceId` | `string?` | 所屬工作區；wiki 與日常集合操作預設為 workspace-first |
-| `name` | `string` | 集合名稱 |
-| `description` | `string?` | 說明文字 |
-| `spaceType` | `CollectionSpaceType` | `"database" \| "wiki"` |
-| `columns` | `CollectionColumn[]` | 欄位定義（database 模式使用） |
-| `pageIds` | `string[]` | 關聯的 KnowledgePage ID 列表 |
-| `status` | `CollectionStatus` | `active \| archived` |
-| `createdByUserId` | `string` | 建立者 |
-| `createdAtISO` | `string` | ISO 8601 |
-| `updatedAtISO` | `string` | ISO 8601 |
-
----
-
-## Repository Interfaces
-
-| 介面 | 主要方法 |
-|------|---------|
-| `KnowledgePageRepository` | `create()`, `rename()`, `move()`, `archive()`, `approve()`, `verify()`, `requestReview()`, `assignOwner()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
-| `KnowledgeBlockRepository` | `add()`, `update()`, `delete()`, `findById()`, `listByPageId()` |
-| `KnowledgeVersionRepository` | `create()`, `findById()`, `listByPageId()` |
-| `KnowledgeCollectionRepository` | `create()`, `rename()`, `addPage()`, `removePage()`, `addColumn()`, `archive()`, `findById()`, `listByAccountId()`, `listByWorkspaceId()` |
+無論哪一種，application services 都不應回傳 adapter-specific payload。
 ````
 
-## File: modules/knowledge/README.md
+## File: modules/platform/subdomains/billing/README.md
 ````markdown
-# knowledge — 知識內容上下文
-
-> **Domain Type:** **Core Domain**（核心域）  
-> **模組路徑:** `modules/knowledge/`  
-> **開發狀態:** 🚧 Developing — 積極開發中
-
-## 在 Knowledge Platform / Second Brain 中的角色
-
-`knowledge` 是 Xuanwu 的 Notion-like 核心內容層，負責知識頁面、內容區塊、版本與審批生命週期。它是整個 Knowledge Platform / Second Brain 的中心，決定知識如何被建立、保存、演進與交付給下游協作。
-
-## 主要職責
-
-| 能力 | 說明 |
-|---|---|
-| Knowledge Page 生命週期 | 建立、編輯、版本化、歸檔與審批知識頁面 |
-| 內容區塊管理 | 維護文字、標題、媒體、列表等內容區塊結構 |
-| Database（知識資料庫） | KnowledgeCollection with spaceType="database"（僅持有 opaque ID）；完整 Schema / Record / View 生命週期由 `knowledge-database` BC 擁有（**D1 決策**） |
-| Wiki / Knowledge Base（知識庫） | KnowledgeCollection with spaceType="wiki"，支援頁面驗證狀態、頁面所有權與定期審閱（對時 Notion Wiki） |
-| 審批後協作啟動 | 發出 `knowledge.page_approved` 等事件，驅動後續工作流程與知識流轉 |
-
-## Scope 原則
-
-- `knowledge` 的日常頁面建立、整理與樹狀導覽以 workspace-first 為預設。
-- account / organization 層級只能作為顯式 summary mode，用於跨工作區總覽，不應默默取代工作區視角。
-- 若畫面或查詢沒有明確指定 summary mode，則必須帶入 activeWorkspaceId 來限制知識頁面範圍。
-- `createKnowledgePage` 的 write-side contract 必須帶 `workspaceId`；account summary mode 不提供一般頁面建立入口。
-
-## 與其他 Bounded Context 協作
-
-- `workspace` 提供知識內容的歸屬容器；`source` 提供外部文件入口。
-- `knowledge-base` 承接被提升為文章的組織級知識資產；`workspace-flow` 以審批事件物化任務與發票。
-- `search` 與 `notebook` 消費知識內容做檢索、摘要與問答。
-
-## 核心聚合 / 核心概念
-
-- **`KnowledgePage`**
-- **`ContentBlock`**
-- **`ContentVersion`**
-- **`KnowledgeCollection`**（spaceType: "database" | "wiki"）
-
-## 詳細文件
-
-| 文件 | 說明 |
-|---|---|
-| [ubiquitous-language.md](./ubiquitous-language.md) | 此 BC 通用語言 |
-| [aggregates.md](./aggregates.md) | 聚合根與核心概念 |
-| [domain-events.md](./domain-events.md) | 領域事件與整合語言 |
-| [context-map.md](./context-map.md) | 與其他 BC 的關係與整合方式 |
+<!-- Purpose: Subdomain scaffold overview for platform 'billing'. -->
 ````
 
 ## File: modules/workspace/application/dtos/AGENT.md
@@ -15246,6 +15426,565 @@ ports/output → domain/（只取型別，e.g., WorkspaceDomainEvent）
 - `WorkspaceDomainEventPublisher`
 ````
 
+## File: modules/platform/docs/bounded-context.md
+````markdown
+# Bounded Context — platform
+
+本文件定義 `platform` 這份本地藍圖的邊界。platform 的任務是把平台級的主體、治理、商業限制、交付與診斷能力收斂成一套清楚的六邊形邊界，而不是讓這些能力散落成日後才補名的共享雜物間。
+
+## Context Purpose
+
+platform 這個 bounded context 負責回答五類問題：
+
+- 誰是平台可治理的主體
+- 主體在什麼條件下可以做什麼
+- 哪些能力在當前方案、設定與安全政策下可用
+- 平台如何把事實轉成流程、外部交付與通知
+- 平台如何留下證據並暴露診斷訊號
+
+## Canonical Capability Groups
+
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## 邊界包含什麼
+
+platform 包含：
+
+- 可被 platform 主體語言描述的決策
+- 可被 platform policy 語言描述的治理規則
+- 可被 platform ports 表達的交付與持久化依賴
+- 可被平台診斷與稽核需求追蹤的訊號
+
+## 邊界刻意不包含什麼
+
+- 產品內容本身的建立、編排與發布
+- 檢索、推理、內容相關性或知識生成
+- 任何 UI 呈現細節本身
+- 以「暫時先開個資料夾」為名的未定義能力
+
+## 六邊形分工
+
+### Domain
+
+- 聚合、值物件、domain services、domain events
+
+### Application
+
+- use case handlers、command/query orchestration、projection 組裝
+
+### Ports
+
+- input ports：命令、查詢、事件匯入入口
+- output ports：repository、support store、gateway、sink
+
+### Adapters / Infrastructure
+
+- driving adapters：API、CLI、scheduler、webhook、consumer
+- driven adapters：repository、event publisher、gateway、observability exporter
+
+## Closed Inventory Boundary Rule
+
+這個 bounded context 以 23 個子域作為封閉 inventory。任何新需求預設都應被視為既有子域的責任延伸，而不是新增第 24 個子域。只有在既有 23 個子域無法吸收時，才允許重新打開 inventory。
+
+## 邊界測試問題
+
+1. 這個變更屬於哪個既有子域
+2. 它需要的是新語言、還是既有語言的細化
+3. 它需要的是新 port、還是既有 port 的新 adapter
+4. 它是否會破壞 closed inventory
+
+若第 1 題答不出來，表示 platform 邊界尚未被正確理解。
+
+## 與 docs/README 的分工
+
+- 本文件只負責邊界、責任與封板規則
+- 子域定義請見 `subdomains.md`
+- 協作關係請見 `context-map.md`
+````
+
+## File: modules/platform/docs/domain-events.md
+````markdown
+# Domain Events — platform
+
+platform blueprint 將 domain event 視為已發生事實的 published language。事件 schema 由 domain 擁有，transport 與 delivery 由 event publisher adapter 實作。
+
+## Event Envelope
+
+platform 事件應至少包含以下欄位：
+
+| 欄位 | 用途 |
+|---|---|
+| `type` | 事件名稱，格式採用 `<subdomain>.<fact>` |
+| `aggregateType` | 事件所屬聚合型別 |
+| `aggregateId` | 聚合識別值 |
+| `contextId` | 平台範圍識別值 |
+| `occurredAt` | 事件發生時間，使用 ISO 8601 |
+| `version` | 聚合版本或事件版本 |
+| `correlationId` | 關聯整串工作流程 |
+| `causationId` | 指出直接觸發來源 |
+| `actorId` | 觸發此事實的主體 |
+| `payload` | 事件特定資料 |
+
+## 發出事件
+
+| 事件 | 何時發出 | 核心 payload |
+|---|---|---|
+| `platform.context_registered` | 平台範圍建立完成 | `subjectScope`, `lifecycleState` |
+| `platform.capability_enabled` | 某項 capability 被啟用 | `capabilityKey`, `entitlementRef` |
+| `platform.capability_disabled` | 某項 capability 被停用 | `capabilityKey`, `reason` |
+| `policy.catalog_published` | 新的政策版本生效 | `policyCatalogId`, `revision` |
+| `config.profile_applied` | 配置輪廓完成套用 | `configurationProfileRef`, `changedKeys` |
+| `permission.decision_recorded` | 完成一次可追蹤授權決策 | `decision`, `subjectRef`, `resourceRef` |
+| `integration.contract_registered` | 整合契約生效或更新 | `integrationContractId`, `protocol`, `endpointRef` |
+| `integration.delivery_failed` | 外部交付失敗 | `integrationContractId`, `deliveryAttempt`, `failureCode` |
+| `subscription.agreement_activated` | 訂閱協議進入生效狀態 | `subscriptionAgreementId`, `planCode`, `validUntil` |
+| `onboarding.flow_completed` | 新主體完成 onboarding 主要流程 | `onboardingId`, `subjectRef`, `completedSteps` |
+| `compliance.policy_verified` | 合規政策檢核通過或更新 | `policyRef`, `verificationResult`, `effectivePeriod` |
+| `referral.reward_recorded` | 推薦獎勵被核算並記錄 | `referralId`, `rewardType`, `rewardAmount` |
+| `workflow.trigger_fired` | workflow trigger 被成功發出 | `triggerKey`, `triggeredBy`, `triggeredAt` |
+| `background-job.enqueued` | 背景作業被提交到佇列 | `jobId`, `jobType`, `scheduleAt` |
+| `content.asset_published` | 內容資產進入發布狀態 | `assetId`, `publicationState`, `publishedAt` |
+| `search.query_executed` | 搜尋查詢完成並產生結果 | `queryId`, `queryText`, `resultCount` |
+| `notification.dispatch_requested` | 建立通知派送請求 | `channel`, `recipientRef`, `templateKey` |
+| `audit.signal_recorded` | 寫入一條不可變 audit signal | `signalType`, `severity`, `subjectRef` |
+| `observability.signal_emitted` | 發出指標、追蹤或告警訊號 | `signalName`, `signalLevel`, `sourceRef` |
+| `analytics.event_recorded` | 分析事件被記錄與聚合 | `eventName`, `metricRef`, `subjectRef` |
+| `support.ticket_opened` | 支援工單被建立 | `ticketId`, `priority`, `requesterRef` |
+
+## 事件擁有者
+
+| 事件 | 主要擁有者 |
+|---|---|
+| `platform.context_registered` / `platform.capability_*` | `PlatformContext` |
+| `policy.catalog_published` | `PolicyCatalog` |
+| `integration.contract_registered` / `integration.delivery_failed` | `IntegrationContract` |
+| `subscription.agreement_activated` | `SubscriptionAgreement` |
+| `onboarding.flow_completed` | application layer 在 onboarding 決策完成後發出 |
+| `compliance.policy_verified` | application layer 在合規檢核完成後發出 |
+| `referral.reward_recorded` | application layer 在推薦獎勵核算後發出 |
+| `workflow.trigger_fired` | application layer 在 domain rule 通過後發出 |
+| `background-job.enqueued` | application layer 在工作流轉交背景作業後發出 |
+| `content.asset_published` | application layer 在內容發布決策完成後發出 |
+| `search.query_executed` | application layer 在搜尋執行完成後發出 |
+| `notification.dispatch_requested` | application layer 在 delivery request 建立後發出 |
+| `audit.signal_recorded` | application layer 在 evidence sink 接受記錄後發出 |
+| `observability.signal_emitted` | application layer 在 observability sink 接受訊號後發出 |
+| `analytics.event_recorded` | application layer 在分析匯流接收事件後發出 |
+| `support.ticket_opened` | application layer 在支援案件建立後發出 |
+
+## 訂閱事件
+
+platform 也會透過 input ports 接收外部或相鄰子域傳入的事件型訊號。這些訊號通常會被轉成 application commands，再由 use case handlers 處理。
+
+| 輸入訊號 | 用途 |
+|---|---|
+| `identity.subject_authenticated` | 建立或更新主體上下文 |
+| `account.profile_amended` | 更新帳戶輪廓相關治理判斷 |
+| `organization.membership_changed` | 更新組織邊界與角色映射 |
+| `subscription.entitlement_changed` | 調整 capability enablement 與限制 |
+| `integration.callback_received` | 接收外部系統回呼結果 |
+| `workflow.execution_completed` | 接收工作流執行結果以觸發後續通知、稽核與觀測 |
+
+## 事件設計規則
+
+- 事件名稱必須描述事實，而不是請求
+- domain event 只描述業務語意，不攜帶 adapter-specific metadata
+- event publisher 是 output port，不能被聚合直接取代
+- 事件 payload 應足以讓下游 adapter 或 handler 理解事實，但不應把整個聚合序列化出去
+- 若事件來自 application orchestration 而不是單一 aggregate，必須在文件中標示其擁有位置，避免假裝它來自不存在的 aggregate
+
+## 事件命名規則
+
+推薦格式：
+
+```text
+<subdomain>.<fact>
+```
+
+例如：
+
+- `policy.catalog_published`
+- `workflow.trigger_fired`
+- `notification.dispatch_requested`
+- `audit.signal_recorded`
+
+這種命名能讓事件在 transport 層之外仍保持可讀性與一致性。
+
+## 與 docs/README 的分工
+
+- 本文件只描述事件命名、事件擁有者與事件收發清單
+- 聚合不變數請見 `aggregates.md`
+- 跨聚合規則請見 `domain-services.md`
+````
+
+## File: modules/platform/docs/domain-services.md
+````markdown
+# platform — Domain Services
+
+platform 的 domain services 承載那些無法只靠單一 aggregate 完成、但仍屬於純平台規則的決策。它們不做 persistence、不直接發送事件，也不接觸 transport 或 SDK。
+
+## Domain Services 清單
+
+| Domain Service | 處理的問題 | 主要輸入 |
+|---|---|---|
+| `CapabilityEntitlementPolicy` | capability 是否可因 entitlement 生效 | `PlatformCapability`, `SubscriptionAgreement` |
+| `PermissionResolutionService` | 如何根據主體、資源與政策做授權決策 | `SubjectScope`, `PolicyCatalog`, `ResourceDescriptor` |
+| `ConfigurationCompositionService` | 多層配置如何組裝成單一有效視圖 | `ConfigurationProfile`, `PolicyCatalog`, `SubscriptionAgreement` |
+| `IntegrationCompatibilityService` | 外部契約是否與 policy、plan、protocol 相容 | `IntegrationContract`, `SubscriptionAgreement`, `PolicyCatalog` |
+| `WorkflowDispatchPolicy` | 某個 trigger 是否該被允許、延遲、抑制或升級 | `WorkflowTrigger`, `PolicyCatalog`, `PermissionDecision` |
+| `NotificationRoutingPolicy` | 某條通知該走哪個通道、是否應被抑制 | `NotificationDispatch`, `PolicyCatalog`, `SubjectPreference` |
+| `AuditClassificationService` | 什麼樣的行為需要記錄、記成何種等級 | `AuditSignal`, `PolicyCatalog` |
+| `ObservabilityCorrelationService` | 如何把 workflow、integration、notification、audit 連成可追蹤鏈 | `ObservabilitySignal`, `CorrelationContext` |
+
+## 何時該抽成 Domain Service
+
+以下情況適合使用 domain service：
+
+- 規則跨越兩個以上 aggregates
+- 規則本身不需要持有狀態
+- 規則對 adapters 完全不感興趣，但對平台語意很重要
+
+以下情況不該抽成 domain service：
+
+- 只是某個 aggregate 自己的不變數
+- 只是資料庫查詢方便性的封裝
+- 只是 HTTP、queue、webhook 的轉譯邏輯
+
+## 與 Application Layer 的關係
+
+- application services 可以呼叫 domain services
+- domain services 不應反向知道 application service 的存在
+- 若規則需要 I/O，應拆成 domain service + output port，而不是把 I/O 留在 domain service 裡
+
+## 設計原則
+
+- domain services 應優先回傳明確的 decision object，而不是鬆散布林值
+- 錯誤應描述治理語意，例如 `entitlement_denied`, `policy_conflict`, `delivery_not_allowed`
+- 每個 service 都應可在不啟動任何 adapter 的情況下被測試
+
+## 主要 Decision Objects
+
+| Decision Object | 用途 |
+|---|---|
+| `PermissionDecision` | 表達允許、拒絕、條件允許或需要升級 |
+| `DispatchOutcome` | 表達通知或外部交付的結果 |
+| `AuditClassification` | 表達此事實需要何種稽核等級 |
+| `PlanConstraint` | 表達 subscription 對 capability 或 delivery 的限制 |
+| `DeliveryAllowance` | 表達整合或通知在當前條件下是否允許交付 |
+
+## 與平台子域的對應
+
+- `identity`, `account`, `organization` 主要提供主體與邊界輸入
+- `access-control`, `platform-config`, `subscription` 提供治理輸入
+- `integration`, `workflow`, `notification` 提供執行輸入
+- `audit-log`, `observability` 將決策轉成可追蹤訊號
+
+## 與 docs/README 的分工
+
+- 本文件只描述跨聚合純規則與 decision objects
+- 聚合結構與不變數請見 `aggregates.md`
+- 事件命名與事件擁有者請見 `domain-events.md`
+````
+
+## File: modules/platform/docs/repositories.md
+````markdown
+# platform — Repositories
+
+在這份 blueprint 中，repository 是 output ports 的一部分，專門負責聚合狀態的載入與保存。不是所有 output ports 都是 repository，但所有 repository 都必須以 port 的形式由 domain / application 依賴，再由 adapters 實作。
+
+## Aggregate Repository Ports
+
+| Repository Port | 服務的聚合 | 核心職責 |
+|---|---|---|
+| `PlatformContextRepository` | `PlatformContext` | `findById`, `save`, `findBySubjectScope` |
+| `PolicyCatalogRepository` | `PolicyCatalog` | `findActiveByContextId`, `saveRevision`, `findByRevision` |
+| `IntegrationContractRepository` | `IntegrationContract` | `findById`, `save`, `findActiveByContextId` |
+| `SubscriptionAgreementRepository` | `SubscriptionAgreement` | `findEffectiveByContextId`, `save`, `findByPlanCode` |
+
+## Subdomain Repository / Store Ports
+
+下列 ports 在 `subdomains.md` 與 `application-services.md` 已被使用，需在 repository 契約層明確列出，避免文件引用缺口。
+
+| Port | 子域 | 用途 |
+|---|---|---|
+| `AccountRepository` | `account` | 載入與保存帳號聚合與生命週期狀態 |
+| `OnboardingRepository` | `onboarding` | 載入與保存 onboarding flow / setup progress |
+| `CompliancePolicyStore` | `compliance` | 查詢與保存合規規則、保留策略、審查結果 |
+| `ReferralRepository` | `referral` | 載入與保存推薦關係、獎勵狀態與結算參照 |
+| `ContentRepository` | `content` | 載入與保存內容資產與發布狀態 |
+| `SupportRepository` | `support` | 載入與保存支援工單與知識關聯狀態 |
+
+## Query / Read-model Ports
+
+某些查詢模型不需要完整 aggregate，可透過專門的 query ports 提供：
+
+| Query Port | 用途 |
+|---|---|
+| `PlatformContextViewRepository` | 提供平台範圍總覽 |
+| `PolicyCatalogViewRepository` | 提供規則摘要與 revision history |
+| `UsageMeterRepository` | 提供 entitlement / quota 的使用情況 |
+| `DeliveryHistoryRepository` | 提供 integration / notification 的交付紀錄查詢 |
+| `WorkflowPolicyRepository` | 提供 trigger 與 workflow policy 的讀取介面 |
+
+## Supporting State / Lookup Ports
+
+這些 ports 不直接保存聚合，但會為 application services 與 domain services 提供必要支援資料：
+
+| Support Port | 用途 |
+|---|---|
+| `ConfigurationProfileStore` | 提供可套用的 configuration profile |
+| `SubjectDirectory` | 提供主體輪廓、偏好與角色對照 |
+| `SecretReferenceResolver` | 解析整合契約所需的認證參照 |
+
+## 非 Repository 的 Output Ports
+
+Context7 範例顯示，事件發佈與外部交付不該混入 repository 介面。platform blueprint 因此區分以下非持久化 ports：
+
+| Output Port | 用途 |
+|---|---|
+| `DomainEventPublisher` | 發佈 domain events 到 event bus 或 topic |
+| `WorkflowDispatcherPort` | 把 workflow trigger 交給執行引擎 |
+| `NotificationGateway` | 派送 email、SMS、push、chat 等通知 |
+| `AuditSignalStore` | 寫入不可變的 audit trail |
+| `ObservabilitySink` | 發送 metrics、trace、alert |
+| `AnalyticsSink` | 發送 analytics 事件與行為指標 |
+| `ExternalSystemGateway` | 呼叫外部 API、webhook 或 queue |
+| `JobQueuePort` | 提交與追蹤背景作業 |
+| `SearchIndexPort` | 寫入搜尋索引與查詢搜尋結果 |
+| `SecretReferenceResolver` | 解析整合契約所需的密鑰或憑證參照 |
+
+## Adapter 實作原則
+
+- repository adapter 只處理資料映射與永續化，不重寫 platform policy
+- event publisher adapter 只處理 transport 與 delivery，不擁有事件語言
+- 外部系統 gateway 應以 integration contract 為依據，不直接從 UI 或 controller 讀設定
+
+## Persistence 與 Delivery 的切分
+
+推薦把平台層的 driven adapters 至少切成三類：
+
+- state adapters：資料庫、KV、文件儲存等 repository implementations
+- messaging adapters：event publisher、queue producer、topic publisher
+- external delivery adapters：HTTP client、webhook sender、notification provider、telemetry exporter
+
+## Repository 設計規則
+
+- repository 方法名稱應描述聚合語意，不描述資料庫語意
+- application layer 只能依賴 ports，不直接依賴 adapter class
+- repository 回傳 domain model 或 read model，不回傳 adapter 原生型別
+- 若某個依賴沒有聚合狀態可載入，優先考慮把它建模成一般 output port，而不是硬塞成 repository
+- 若 application-services.md 引用了某個 repository 或 support port，該名稱必須在本文件出現，否則表示文件之間仍然有缺口
+
+## 與 docs/README 的分工
+
+- 本文件專注於 repository / support / delivery ports 的契約面
+- 協作流程與 handlers 請見 `application-services.md`
+- 通用命名請見 `ubiquitous-language.md`
+````
+
+## File: modules/platform/docs/ubiquitous-language.md
+````markdown
+# Ubiquitous Language — platform
+
+本文件定義 platform blueprint 的穩定術語。這些詞用來讓 domain、application、ports、adapters 與子域文件保持一致，避免平台層隨著需求變動而出現多套互不相容的說法。
+
+## 核心術語
+
+| 術語 | 英文 | 定義 |
+|---|---|---|
+| 平台範圍 | PlatformContext | 一個受治理的 platform scope，擁有能力、政策、配置與訂閱邊界 |
+| 驗證主體 | AuthenticatedSubject | 已完成身份驗證、可被映射成 platform subject scope 的主體 |
+| 身份訊號 | IdentitySignal | 與主體登入、刷新、失效有關的事實訊號 |
+| 平台能力 | PlatformCapability | 可被啟用、停用、限流或受 entitlement 約束的能力 |
+| 能力開關 | CapabilityToggle | 某個 capability 在特定範圍中的生效狀態 |
+| 主體邊界 | SubjectScope | actor、account、organization 的治理範圍 |
+| 帳戶輪廓 | AccountProfile | 主體可被治理的屬性視圖 |
+| 主體偏好 | SubjectPreference | 主體在通知、體驗或交付上的偏好 |
+| 成員邊界 | MembershipBoundary | 主體在群組或組織中的歸屬邊界 |
+| 角色指派 | RoleAssignment | 主體在某個範圍內被授予的角色 |
+| 政策目錄 | PolicyCatalog | 權限、工作流、通知與稽核規則的版本化集合 |
+| 規則 | PolicyRule | 以 `subject`, `condition`, `effect` 表達的政策條目 |
+| 存取政策 | AccessPolicy | 用來推導 `PermissionDecision` 的政策集合或視圖 |
+| 配置輪廓 | ConfigurationProfile | 一組可被套用的設定與策略值 |
+| 配置輪廓參照 | ConfigurationProfileRef | 指向某份生效配置輪廓的參照 |
+| 整合契約 | IntegrationContract | 與外部系統互動所需的 endpoint、協議與 delivery policy |
+| 端點參照 | EndpointRef | 指向外部 endpoint 的穩定參照 |
+| 憑證參照 | SecretReference | 指向秘密、憑證或 token 的穩定參照 |
+| 派送政策 | DeliveryPolicy | timeout、retry、backoff、idempotency 的組合 |
+| 方案限制 | PlanConstraint | 訂閱方案對能力、流程或交付所施加的限制 |
+| 交付許可 | DeliveryAllowance | 在當前條件下某個交付是否被允許 |
+| 權限決策 | PermissionDecision | 對某主體是否可執行某動作的明確判斷 |
+| 訂閱協議 | SubscriptionAgreement | 方案、權益、限制與有效期間的商業邊界 |
+| 權益 | Entitlement | 某方案允許使用的 capability 或額度 |
+| 用量限制 | UsageLimit | 對使用量、頻率或配額的限制 |
+| 推薦連結 | ReferralLink | 推薦關係的識別與追蹤語言 |
+| 推薦獎勵 | ReferralReward | 推薦成功後可被核算與發放的獎勵語言 |
+| 生效區間 | EffectivePeriod | 某份協議、設定或規則的有效期間 |
+| 平台生命週期狀態 | PlatformLifecycleState | `draft | active | suspended | retired` |
+| 契約狀態 | ContractState | `draft | active | paused | revoked` |
+| 計費狀態 | BillingState | `pending | active | delinquent | expired | cancelled` |
+| 工作流觸發器 | WorkflowTrigger | 把某個平台事實轉成流程啟動點的語言 |
+| 工作流政策 | WorkflowPolicy | 用來規定 trigger 何時啟動、延後、抑制或升級的規則 |
+| 作業排程 | JobSchedule | 背景任務何時執行與重試策略的語言 |
+| 作業執行 | JobExecution | 背景任務一次執行結果與狀態的語言 |
+| 通知派送 | NotificationDispatch | 一次待交付的通知請求 |
+| 通知路由 | NotificationRoute | 通知應走的通道與對象語言 |
+| 派送結果 | DispatchOutcome | 一次交付成功、失敗、跳過或延後的結果 |
+| 內容資產 | ContentAsset | 可被治理、發布與檢索的內容單位語言 |
+| 發布狀態 | PublicationState | 內容在草稿、審核、發布等狀態中的語言 |
+| 搜尋結果 | SearchResult | 對 `SearchQuery` 的可消費回應語言 |
+| 稽核訊號 | AuditSignal | 必須被永久記錄的決策或行為事實 |
+| 稽核分類 | AuditClassification | 用來決定 audit signal 嚴重度與保留要求的分類 |
+| 可觀測性訊號 | ObservabilitySignal | metrics、trace、alert 等診斷輸入的統一語言 |
+| 健康指標 | HealthIndicator | 用來表達系統健康、退化或告警狀態的指標語言 |
+| 分析事件 | AnalyticsEvent | 可被聚合與分析的行為訊號語言 |
+| 支援工單 | SupportTicket | 客服互動與追蹤案件的語言 |
+| 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
+| 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
+| 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
+| 輸入介面 | InputPort | 進入 application layer 的穩定契約 |
+| 輸出介面 | OutputPort | 離開 domain / application 的依賴契約 |
+| 適配器 | Adapter | 對 ports 的具體實作 |
+| 發佈語言 | PublishedLanguage | 跨邊界共享的事件與契約語言 |
+| 藍圖 | Blueprint | 對目標結構與語言的設計說明，而非既有實作聲明 |
+
+## Port Vocabulary
+
+| 術語 | 英文 | 定義 |
+|---|---|---|
+| 平台命令介面 | PlatformCommandPort | 接收命令型請求的 input port |
+| 平台查詢介面 | PlatformQueryPort | 接收查詢型請求的 input port |
+| 平台事件匯入介面 | PlatformEventIngressPort | 吸收外部或相鄰子域訊號的 input port |
+| 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
+| 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
+| 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
+| 帳戶倉儲 | AccountRepository | 提供 account 聚合狀態存取的 repository port |
+| 啟用引導倉儲 | OnboardingRepository | 提供 onboarding 流程狀態存取的 repository port |
+| 合規政策儲存介面 | CompliancePolicyStore | 提供 compliance 規則與保留策略的 support port |
+| 推薦倉儲 | ReferralRepository | 提供推薦關係與獎勵狀態存取的 repository port |
+| 工作流政策倉儲 | WorkflowPolicyRepository | 提供 workflow policy 的 query/support port |
+| 工作流派送介面 | WorkflowDispatcherPort | 將 trigger 交給執行引擎的 output port |
+| 通知閘道 | NotificationGateway | 對外派送通知的 output port |
+| 作業佇列介面 | JobQueuePort | 提交與追蹤背景作業的 output port |
+| 內容倉儲 | ContentRepository | 提供 content 資產狀態存取的 repository port |
+| 搜尋索引介面 | SearchIndexPort | 提供索引寫入與搜尋查詢的 output/query port |
+| 稽核訊號儲存介面 | AuditSignalStore | 寫入不可變稽核紀錄的 output port |
+| 可觀測性匯流介面 | ObservabilitySink | 發送 metrics、trace、alert 的 output port |
+| 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
+| 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
+| 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
+
+## 事件語言
+
+platform 事件推薦使用：
+
+```text
+<subdomain>.<fact>
+```
+
+例如：
+
+- `platform.context_registered`
+- `policy.catalog_published`
+- `workflow.trigger_fired`
+- `notification.dispatch_requested`
+- `audit.signal_recorded`
+
+## 禁止替換術語
+
+| 正確 | 不建議替換成 |
+|---|---|
+| `PlatformContext` | Tenant, Workspace, Environment |
+| `PlatformCapability` | Feature, Switch, Module |
+| `PolicyCatalog` | Settings Bag, Rule Dump |
+| `IntegrationContract` | Webhook Config, Endpoint Settings |
+| `SubscriptionAgreement` | Plan, Billing Row |
+| `PermissionDecision` | Auth Result, Check Flag |
+| `WorkflowTrigger` | background-job, Task Hook |
+| `NotificationDispatch` | Message Send, Push Action |
+| `AuditSignal` | Log Line, History Row |
+| `ObservabilitySignal` | Error Message, Console Output |
+| `InputPort` | Controller Method |
+| `OutputPort` | SDK Call |
+
+## 語言使用規則
+
+- 若一個詞描述的是業務決策，應優先用 domain 語言，而不是 transport 語言
+- 若一個詞描述的是跨邊界共享契約，應優先保持簡短、穩定且可序列化
+- 若一個詞只在單一 adapter 有意義，不應升格成 platform 通用語言
+- 若新詞與既有詞重疊，先擴充定義，再考慮新增術語
+
+## 術語治理
+
+任何新的 aggregate、port、event 或子域命名，都應先檢查是否已能被本文件的術語覆蓋。若不能覆蓋，再更新本文件，而不是先在實作或其他文件中發明第二套說法。
+
+## 與 docs/README 的分工
+
+- 本文件只維護命名與詞彙定義
+- 子域職責請見 `subdomains.md`
+- 邊界規則請見 `bounded-context.md`
+````
+
+## File: modules/platform/subdomains/account-profile/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account-profile'. -->
+````
+
+## File: modules/platform/subdomains/account/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'account'. -->
+````
+
+## File: modules/platform/subdomains/notification/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'notification'. -->
+````
+
+## File: modules/platform/subdomains/organization/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'organization'. -->
+````
+
 ## File: modules/workspace/domain/aggregates/AGENT.md
 ````markdown
 # domain/aggregates — Aggregate Roots（聚合根）
@@ -15312,6 +16051,483 @@ domain/aggregates → domain/services（呼叫 domain service，如有需要）
 ```
 
 `domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+````
+
+## File: modules/platform/docs/context-map.md
+````markdown
+# Context Map — platform
+
+本文件描述 platform 的 23 個子域如何在本地 bounded context 內協作。這是一張 local platform map，不是全系統上下文圖。
+
+## Local Platform Map
+
+以下是核心協作關係圖。新增到 canonical inventory 的子域（例如 `onboarding`、`compliance`、`content`、`search`、`analytics`、`support`、`background-job`、`referral`）在不同實作階段可先以最小路徑接入，待對應 port 穩定後再擴展協作邊。
+
+```text
+identity -> account -> account-profile -> access-control
+identity -> audit-log
+
+organization -> access-control
+organization -> audit-log
+
+security-policy -> access-control
+security-policy -> compliance
+security-policy -> workflow
+security-policy -> audit-log
+
+platform-config -> feature-flag
+platform-config -> access-control
+platform-config -> integration
+platform-config -> workflow
+platform-config -> notification
+platform-config -> observability
+
+onboarding -> account-profile
+onboarding -> notification
+
+subscription -> billing
+subscription -> feature-flag
+subscription -> access-control
+subscription -> integration
+subscription -> workflow
+
+referral -> account
+referral -> billing
+referral -> analytics
+
+access-control -> integration
+access-control -> workflow
+access-control -> audit-log
+
+workflow -> notification
+workflow -> background-job
+workflow -> audit-log
+workflow -> observability
+
+integration -> audit-log
+integration -> observability
+
+notification -> audit-log
+notification -> observability
+
+billing -> audit-log
+billing -> observability
+
+content -> search
+content -> audit-log
+
+search -> analytics
+search -> observability
+
+background-job -> observability
+background-job -> audit-log
+
+compliance -> audit-log
+compliance -> observability
+
+support -> analytics
+support -> audit-log
+
+audit-log -> observability
+audit-log -> analytics
+
+analytics -> observability
+```
+
+## 協作關係
+
+| Source | Target | 共享語言 | 為何需要這個關係 |
+|---|---|---|---|
+| `identity` | `account` | `AuthenticatedSubject`, `AccountLifecycle` | 驗證後主體需映射到可治理帳戶 |
+| `identity` | `account-profile` | `AuthenticatedSubject`, `SubjectScope` | 驗證過的主體需要被映射成可治理輪廓 |
+| `account-profile` | `access-control` | `AccountProfile`, `SubjectPreference` | 授權決策需要主體屬性與偏好 |
+| `organization` | `access-control` | `MembershipBoundary`, `RoleAssignment` | 存取控制需要群組與角色資訊 |
+| `onboarding` | `account-profile` | `OnboardingFlow`, `SetupProgress` | 初始設定結果要轉成可治理輪廓 |
+| `security-policy` | `access-control` | `PolicyCatalog`, `AccessPolicy` | 授權判斷要遵守安全政策 |
+| `security-policy` | `compliance` | `PolicyCatalog`, `CompliancePolicy` | 合規檢查需套用統一政策版本 |
+| `platform-config` | `feature-flag` | `ConfigurationProfile`, `CapabilityToggle` | 能力開關需要設定輪廓與 rollout 參數 |
+| `platform-config` | `workflow` | `ConfigurationProfile` | 流程啟動依賴設定化規則與參數 |
+| `subscription` | `feature-flag` | `Entitlement`, `UsageLimit` | feature rollout 必須受方案權益約束 |
+| `subscription` | `integration` | `PlanConstraint`, `DeliveryAllowance` | 某些整合只在特定方案與配額下可用 |
+| `subscription` | `billing` | `SubscriptionAgreement`, `BillingState` | 訂閱生命週期與計費狀態互相影響 |
+| `referral` | `billing` | `ReferralReward`, `BillingState` | 推薦回饋會影響帳務處理 |
+| `access-control` | `workflow` | `PermissionDecision` | 流程觸發前要先通過授權 |
+| `workflow` | `notification` | `WorkflowTrigger`, `NotificationDispatch` | 流程結果常需轉成通知請求 |
+| `workflow` | `background-job` | `WorkflowTrigger`, `JobSchedule` | 長時程任務由背景排程承接 |
+| `workflow` | `audit-log` | `AuditSignal`, `CorrelationContext` | 重要流程節點需要留下證據 |
+| `integration` | `audit-log` | `AuditSignal`, `DispatchOutcome` | 外部交付結果屬治理軌跡 |
+| `notification` | `audit-log` | `DispatchOutcome`, `AuditSignal` | 派送成功或失敗都要記錄 |
+| `content` | `search` | `ContentAsset`, `SearchQuery` | 內容發布需可被檢索索引與查詢 |
+| `support` | `analytics` | `SupportTicket`, `BehaviorMetric` | 支援流程輸出服務品質指標 |
+| `audit-log` | `observability` | `AuditClassification`, `ObservabilitySignal` | 稽核分類可轉為運維診斷訊號 |
+| `analytics` | `observability` | `BehaviorMetric`, `ObservabilitySignal` | 分析結果需進入告警與健康視圖 |
+| `billing` | `observability` | `BillingState`, `ObservabilitySignal` | 計費異常需要被量測與告警 |
+
+## Context Map Rule
+
+若某個新需求無法被這張 map 中的既有節點與共享語言吸收，先調整 map 與 `subdomains.md`，而不是直接再加新資料夾。
+````
+
+## File: modules/platform/docs/README.md
+````markdown
+# platform docs
+
+`platform/docs/` 是平台藍圖的文件索引入口。本資料夾採「單一主題、單一文件」拆分，避免把邊界、語言、聚合、事件與存取契約混在同一份 README。
+
+## 文件分工
+
+| 文件 | 主題 |
+|---|---|
+| `aggregates.md` | 核心聚合、值物件與不變數 |
+| `application-services.md` | use case handlers、命令/查詢協調與 input ports 對應 |
+| `bounded-context.md` | platform 邊界、責任範圍與 closed inventory 規則 |
+| `context-map.md` | 23 個子域間協作方向與共享語言 |
+| `domain-events.md` | 事件命名、事件擁有者、發出/訂閱清單 |
+| `domain-services.md` | 跨聚合純規則與 decision objects |
+| `repositories.md` | repositories、support ports、delivery ports |
+| `subdomains.md` | 正式 23 子域 inventory 與責任對照 |
+| `ubiquitous-language.md` | platform 通用語言與 port 詞彙 |
+
+## 讀取順序
+
+1. 先讀 `bounded-context.md` 確認邊界與封板規則
+2. 讀 `subdomains.md` 與 `context-map.md` 確認責任與協作
+3. 讀 `ubiquitous-language.md` 鎖定命名
+4. 最後讀 `aggregates.md`、`domain-services.md`、`application-services.md`、`repositories.md`、`domain-events.md` 進入設計細節
+
+## 變更同步規則
+
+- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
+- 變更 use case handlers 或 input ports：同步更新 `application-services.md`
+- 變更 output ports 或 repository：同步更新 `repositories.md`
+- 變更事件名稱或 payload：同步更新 `domain-events.md`
+- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
+- 變更平台邊界：同步更新 `bounded-context.md` 與 `../AGENT.md`
+
+## 文件閉環檢查清單
+
+每次調整 platform 文件後，至少確認以下四點：
+
+1. 單一文件只承載單一主題（邊界、術語、聚合、事件、ports 不混寫）
+2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
+3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
+4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突
+````
+
+## File: modules/platform/docs/subdomains.md
+````markdown
+# Subdomains — platform
+
+本文件是 platform 的正式子域 inventory。這份清單是 closed by default 的：後續開發必須先把能力映射到既有子域，而不是再新增新的子域名稱。
+
+## Canonical Inventory
+
+| 子域 | 核心問題 | 主要語言 | Port 焦點 |
+|---|---|---|---|
+| `identity` | 誰是已驗證主體 | `AuthenticatedSubject`, `IdentitySignal` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `account` | 帳號聚合根與生命週期狀態 | `Account`, `AccountLifecycle` | `PlatformCommandPort`, `AccountRepository` |
+| `account-profile` | 主體有哪些可治理屬性與偏好 | `AccountProfile`, `SubjectPreference` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `organization` | 主體處於哪些組織與角色邊界 | `MembershipBoundary`, `RoleAssignment` | `PlatformEventIngressPort`, `SubjectDirectory` |
+| `access-control` | 主體現在能做什麼 | `PermissionDecision`, `AccessPolicy` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `security-policy` | 平台安全規則如何被定義與發佈 | `PolicyCatalog`, `PolicyRule` | `PlatformCommandPort`, `PolicyCatalogRepository` |
+| `platform-config` | 平台以何種設定輪廓運作 | `ConfigurationProfile`, `ConfigurationProfileRef` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `feature-flag` | 哪些能力在哪種條件下被打開 | `PlatformCapability`, `CapabilityToggle` | `PlatformCommandPort`, `ConfigurationProfileStore` |
+| `onboarding` | 新主體如何被引導完成初始設定 | `OnboardingFlow`, `SetupProgress` | `PlatformCommandPort`, `OnboardingRepository` |
+| `compliance` | 資料保留、隱私與法規要求如何被執行 | `CompliancePolicy`, `DataRetentionRule` | `PlatformCommandPort`, `CompliancePolicyStore` |
+| `billing` | 計費狀態、收費結果與財務證據如何被管理 | `BillingState`, `DispatchOutcome` | `PlatformCommandPort`, `DeliveryHistoryRepository`, `AuditSignalStore` |
+| `subscription` | 方案、權益、配額與有效期間如何被管理 | `SubscriptionAgreement`, `Entitlement`, `UsageLimit` | `PlatformCommandPort`, `SubscriptionAgreementRepository`, `UsageMeterRepository` |
+| `referral` | 推薦關係與獎勵如何被追蹤 | `ReferralLink`, `ReferralReward` | `PlatformCommandPort`, `ReferralRepository` |
+| `integration` | 平台如何與外部系統安全協作 | `IntegrationContract`, `DeliveryPolicy` | `PlatformCommandPort`, `IntegrationContractRepository`, `ExternalSystemGateway` |
+| `workflow` | 哪些事實要被轉成可執行流程 | `WorkflowTrigger`, `WorkflowPolicy` | `PlatformCommandPort`, `WorkflowPolicyRepository`, `WorkflowDispatcherPort` |
+| `notification` | 哪些對象應收到什麼訊息 | `NotificationDispatch`, `NotificationRoute` | `PlatformCommandPort`, `NotificationGateway`, `DeliveryHistoryRepository` |
+| `background-job` | 長時程或排程任務如何被提交與監控 | `JobSchedule`, `JobExecution` | `PlatformCommandPort`, `JobQueuePort` |
+| `content` | 內容資產如何被管理與發布 | `ContentAsset`, `PublicationState` | `PlatformCommandPort`, `ContentRepository` |
+| `search` | 跨域搜尋請求如何被路由與執行 | `SearchQuery`, `SearchResult` | `PlatformCommandPort`, `SearchIndexPort` |
+| `audit-log` | 什麼事必須被永久追蹤 | `AuditSignal`, `AuditClassification` | `PlatformCommandPort`, `AuditSignalStore` |
+| `observability` | 如何量測健康、追蹤與告警 | `ObservabilitySignal`, `HealthIndicator` | `PlatformCommandPort`, `ObservabilitySink` |
+| `analytics` | 使用行為如何被量測與分析 | `AnalyticsEvent`, `BehaviorMetric` | `PlatformCommandPort`, `AnalyticsSink` |
+| `support` | 客服工單與支援知識如何被管理 | `SupportTicket`, `KnowledgeArticle` | `PlatformCommandPort`, `SupportRepository` |
+
+
+## Capability Groups
+
+
+### 主體與名錄
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+
+### 治理與安全
+
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+
+### 商業與權益
+
+- `billing`
+- `subscription`
+- `referral`
+
+### 流程與交付
+
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+
+### 內容與檢索
+
+- `content`
+- `search`
+
+### 證據與診斷
+
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+## Inventory Freeze Rule
+
+後續若有人想新增 platform 子域，必須先證明以下三件事都成立：
+
+1. 既有 23 個子域沒有任何一個能吸收該能力
+2. 新能力需要獨立的語言、port 焦點與責任邊界
+3. `README.md`、`bounded-context.md`、`context-map.md`、本文件都已先被更新
+
+若無法同時滿足這三件事，預設不允許新增子域。
+
+## Retired Alias Folders
+
+歷史上曾有一些舊別名資料夾，現已收斂至這 23 個正式子域。若未來需要查舊文件或舊分支，應以當前 23 子域為準。
+````
+
+## File: modules/platform/subdomains/access-control/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'access-control'. -->
+````
+
+## File: modules/platform/subdomains/identity/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'identity'. -->
+````
+
+## File: modules/platform/subdomains/integration/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'integration'. -->
+````
+
+## File: modules/platform/subdomains/observability/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'observability'. -->
+````
+
+## File: modules/platform/subdomains/subscription/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'subscription'. -->
+````
+
+## File: modules/platform/subdomains/workflow/README.md
+````markdown
+<!-- Purpose: Subdomain scaffold overview for platform 'workflow'. -->
+````
+
+## File: modules/workspace/domain-events.md
+````markdown
+# Domain Events — workspace
+
+本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
+
+在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
+
+從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
+
+從六邊形架構角度看，事件型別與工廠屬於內核語言；`ports/output/WorkspaceDomainEventPublisher` 是發布抽象，event bus / event store 與實際發布機制屬於 `infrastructure/events/` adapter 協作。
+
+## Event-Driven Architecture Position
+
+- `workspace` 可以作為一個 hexagonal system 發出 outgoing events，也可能在未來接收 incoming events
+- 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
+- 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
+
+## Ports, Adapters, Drivers, and Projections
+
+- Drivers 先透過 `interfaces/* -> ports/input -> application/use-cases` 觸發狀態改變，再由 application / adapter 協調發布事件
+- `WorkspaceDomainEventPublisher` 是 output port；實際 bus / store connector 是 adapter
+- 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
+- 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
+
+## Event Publishing Path
+
+```txt
+interfaces/*
+	-> ports/input
+	-> application/use-cases
+	-> domain/aggregates + domain/services
+	-> ports/output/WorkspaceDomainEventPublisher
+	-> infrastructure/events/*
+```
+
+### 說明
+
+1. Event 由 domain language 定義。
+2. 發布動作由 application layer 在持久化成功後觸發。
+3. 發布介面放在 `ports/output/`。
+4. 實際 dispatcher / bus / store connector 放在 `infrastructure/events/`。
+
+## Event Base Contract
+
+workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
+
+- `eventId`
+- `type`
+- `aggregateId`
+- `occurredAt`
+
+`aggregateId` 在 workspace 事件中一律對應 `workspaceId`。
+
+## Canonical Events
+
+| 事件物件 | Discriminant | 觸發條件 | 關鍵欄位 |
+|---|---|---|---|
+| `WorkspaceCreatedEvent` | `workspace.created` | 工作區建立完成後 | `workspaceId`, `accountId`, `accountType`, `name` |
+| `WorkspaceLifecycleTransitionedEvent` | `workspace.lifecycle_transitioned` | `lifecycleState` 發生改變後 | `workspaceId`, `accountId`, `fromState`, `toState` |
+| `WorkspaceVisibilityChangedEvent` | `workspace.visibility_changed` | `visibility` 發生改變後 | `workspaceId`, `accountId`, `fromVisibility`, `toVisibility` |
+
+## Event Factories
+
+workspace module 應提供明確工廠函式來建立事件訊息物件，例如：
+
+- `createWorkspaceCreatedEvent(...)`
+- `createWorkspaceLifecycleTransitionedEvent(...)`
+- `createWorkspaceVisibilityChangedEvent(...)`
+
+這些工廠屬於 domain event language，不是 React helper，也不應放在 page / component 內。
+
+## Publishing Rules
+
+- 先成功持久化 aggregate，再發布事件
+- 事件 payload 只包含下游所需的最小資訊
+- 不把 React state、router path、UI label 放進事件語言
+- application layer 可以組裝 event publisher，但事件物件本身屬於 domain language
+- `infrastructure/events/` 只做 adapter 實作，不寫 domain 規則
+
+## 明確排除的事件
+
+| 不再作為 workspace 事件的名稱 | 原因 |
+|---|---|
+| `workspace.archived` | 此 bounded context 的生命週期語言是 `stopped`，不是 `archived` |
+| `workspace.member_joined` | 工作區成員清單目前是 read projection；成員真相來源屬於 organization / access language |
+| `workspace.member_removed` | 同上 |
+
+## 目前落地策略
+
+- 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
+- event publishing 透過 `ports/output/WorkspaceDomainEventPublisher` 接到 event store / event bus adapters
+- 在事件完全接線前，文件仍以此處為 canonical published language
+
+## 明確不是目前策略的內容
+
+- 目前 workspace repository 不是 event-sourced repository；aggregate 不是從 event store replay reconstitute
+- 目前沒有專屬的 event pipeline / filter chain 作為主要處理模型
+- 目前沒有 `workspace` 專屬的 long-running process executive 或 tracker aggregate
+````
+
+## File: modules/workspace/domain-services.md
+````markdown
+# workspace — Domain Services
+
+> **Canonical bounded context:** `workspace`
+> **模組路徑:** `modules/workspace/`
+> **Domain Type:** Generic Subdomain
+
+目前 workspace 已建立 `domain/services/` 目錄，並以該目錄作為純業務規則的正式位置。即使目前具體 service 檔案仍少，文件上已將此處定義為未來代碼必須遵守的邊界。
+
+在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
+
+從六邊形架構看，Domain Service 位於 domain model 內核，而不是 `interfaces/` 或 `infrastructure/` adapter。它可以被 application layer 協作呼叫，但不應反向依賴外部技術。
+
+從 strategic design 看，Domain Service 服務的是 `workspace` 這個 bounded context 的語言，不是跨整個 Xuanwu domain 的共用雜項工具。
+
+它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
+
+## Domain Service = 邏輯
+
+`domain/services/` 的核心原則只有一個：**Domain Service = 邏輯**。
+
+也就是說，這裡只放：
+
+- 業務規則
+- invariant 補助規則
+- guard / policy / rule objects
+- 不自然屬於單一 aggregate 的純 domain 計算
+
+這裡不放：
+
+- 流程協調
+- 多 use case orchestration
+- React / Route Handler / CLI adapter
+- Firestore / event dispatcher / Genkit 呼叫
+
+流程協調屬於 `application/services/`，不是 `domain/services/`。
+
+## 與 Ports / Adapters / Drivers / Read Models 的區別
+
+- Port 宣告協作接縫；它不是業務規則本身
+- Adapter 轉譯外部系統或 driver；它不是 domain service
+- Driver 觸發工作開始；它不是 domain model 元件
+- Projection / Read Model 服務讀取；它不是領域規則容器
+
+## 與 Application Service 的區別
+
+| | Domain Service | Application Service |
+|---|---|---|
+| 核心責任 | 邏輯 | 流程 |
+| 是否可直接碰 infrastructure | 不可 | 不可直接碰 implementation，應透過 ports |
+| 典型內容 | policy、guards、rules | process manager、orchestrator、cross-use-case flow |
+| 依賴方向 | 只依賴 domain | 可依賴 domain、use-cases、ports |
+
+## 目前狀態
+
+- 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
+- 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
+- `domain/services/` 已是正式預留位置；只有當規則穩定成為純領域語言時才放入
+
+## 何時應新增 Domain Service
+
+只有在出現以下情況時，才應把規則抽成 domain service：
+
+- 規則跨越多個 aggregate 或多個 supporting domain objects
+- 規則不是單純的 repository 查詢，也不是 UI composition
+- 規則不依賴 React、Firebase SDK、HTTP client 或 router
+- 規則本身是穩定的領域語言，而不是暫時性的流程拼裝
+
+## 可能的候選服務（尚未落地）
+
+| 候選服務 | 何時需要 |
+|---|---|
+| `WorkspaceLifecyclePolicy` | 若生命週期轉移規則持續增加，超出 aggregate 本身可讀性時 |
+| `WorkspaceAccessResolutionService` | 若 direct grant、team grant、personnel 解析邏輯需要在多個 use case 重複使用時 |
+| `WorkspaceCapabilityMountPolicy` | 若 capability mounting 有穩定、可重用的領域規則時 |
+
+## 若未來引入長流程
+
+- 若只是協調多個事件處理步驟，優先建模為 application-level process orchestration
+- 若流程狀態本身成為業務真相，才考慮引入 tracker aggregate，而不是先把它塞成 Domain Service
+
+## 明確不是 Domain Service 的內容
+
+- React hooks
+- Route Handlers / CLI handlers
+- query wrappers
+- UI draft factories
+- 只服務單一 page 的 tab composition helper
 ````
 
 ## File: modules/workspace/interfaces/api/AGENT.md
@@ -15522,330 +16738,6 @@ Ports、Adapters、Drivers、Read Models 也不是 subdomain 本身；它們是 
 - [context-map.md](./context-map.md) — 與其他 bounded contexts 的關係
 ````
 
-## File: modules/workspace/bounded-context.md
-````markdown
-# Bounded Context — workspace
-
-`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapters 的 bounded context。
-
-全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的內外邊界，不重複整份全域地圖。
-
-## Boundaries
-
-### 這個 bounded context 擁有的語言
-
-- `Workspace`
-- `workspaceId`
-- `WorkspaceLifecycleState`
-- `WorkspaceVisibility`
-- 與工作區範圍直接相關的 aggregate、value object、domain event language
-
-### 這個 bounded context 不擁有的語言
-
-- 組織成員、團隊與治理真相來源：由 `organization` 擁有
-- 知識內容與知識工作流：由 `knowledge`、`knowledge-base`、`notebook` 等擁有
-- 事件儲存與 event bus 基礎設施：由 `shared` 與對應 integration layers 擁有
-- 頁面 tab 組裝與 route composition：屬於 UI / interface composition，不是 bounded-context boundary 本體
-
-## Collaboration Surface
-
-workspace 以兩種主要方式與其他 bounded contexts 協作：
-
-1. 同步公開邊界：`interfaces/api/`
-2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
-
-在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
-
-更完整的外部關係請看 [context-map.md](./context-map.md)。
-
-## Internal Structure
-
-從六邊形架構看，這個 bounded context 的內部切面如下：
-
-| 區域 | 角色 |
-|---|---|
-| `domain/` | aggregates、entities、value-objects、events、factories、純 domain services |
-| `application/` | use-cases、application services、DTO orchestration |
-| `ports/input/` | driving port interfaces，承接外部驅動對 use case 的要求 |
-| `ports/output/` | driven port interfaces，抽象 repository / event publishing / external capabilities |
-| `interfaces/api/` | Next.js Route Handler 與模組公開同步入口 |
-| `interfaces/cli/` | CLI / Cron Job 等 driving adapter |
-| `interfaces/web/` | shadcn UI components + hooks 的 driving adapter |
-| `infrastructure/` | Firebase 與 events 等 output port adapters |
-
-這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
-
-## 依賴箭頭（內部結構）
-
-```txt
-interfaces/api ─┐
-interfaces/cli ─┤
-interfaces/web ─┘
-	 │ call
-	 ▼
-   ports/input
-	 │ call
-	 ▼
- application/use-cases
-	 │ call
-	 ▼
- application/services
-	 │ call
-	 ▼
-  domain/services
-	 │ use
-	 ▼
-  domain/aggregates/entities
-	 │
-	 └─► ports/output ──► infrastructure/* (Firebase / Genkit / Events)
-```
-
-### 說明
-
-1. `interfaces/` 是 driving adapters，不處理 domain 決策。
-2. `ports/input/` 是 input contract 的位置。
-3. `application/use-cases/` 是單一 use case 流程；`application/services/` 是跨 use case 流程協調。
-4. `domain/` 是純業務邏輯。
-5. `ports/output/` 是外部能力抽象；`infrastructure/` 負責實作。
-
-## Drivers, Ports, Adapters, and Read Models
-
-### Drivers / 外部驅動器
-
-- Browser UI
-- Next.js Route Handlers
-- CLI / Cron Jobs
-- 其他 bounded context 經由 `interfaces/api/` 的呼叫者
-- 未來可能的 incoming event handlers / scheduled jobs
-
-### Ports / 端口
-
-- `ports/input/` 是 driving port interfaces
-- `ports/output/` 是內核朝外的 driven ports
-- `interfaces/api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
-
-### Adapters / 適配器
-
-- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
-- Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
-
-### Projections / Read Models
-
-- `WorkspaceMemberView`
-- `WikiAccountContentNode`
-- `WikiWorkspaceContentNode`
-- `WikiContentItemNode`
-
-它們服務查詢與呈現，不是 write-side aggregate，也不是 infrastructure adapter。
-
-## Ownership Guardrails
-
-- 跨模組或 app composition consumer 應透過 `@/modules/workspace/api` 協作
-- `domain/` 不感知 React、Firebase SDK、HTTP client
-- `application/` 不直接依賴 infrastructure implementation
-- `infrastructure/` 不透過 `interfaces/` 反向回繞
-- `WorkspaceMemberView` 與 `Wiki*Node` 是 query-side projection，不是此 bounded context 的 write-side aggregate
-
-## Related Local Docs
-
-- [README.md](./README.md) — 總覽與 tactical summary
-- [context-map.md](./context-map.md) — 對外關係與 integration patterns
-- [aggregates.md](./aggregates.md) — bounded context 內部核心模型
-- [repositories.md](./repositories.md) — output ports 與 adapters
-````
-
-## File: modules/workspace/domain-events.md
-````markdown
-# Domain Events — workspace
-
-本文件定義 workspace 的目標 domain event 契約。它描述的是 bounded context 應該公開的事件語言，不宣稱所有事件都已經完全接線完成。
-
-在 workspace 中，Domain Event（領域事件）是事件類別或訊息物件。它不是 UI callback，也不是 repository method；它是 bounded context 對外發布的語言單位。
-
-從 strategic design 角度看，這些事件是 `workspace` bounded context 對整體 Xuanwu domain 其他 bounded context 公開的 published language。
-
-從六邊形架構角度看，事件型別與工廠屬於內核語言；`ports/output/WorkspaceDomainEventPublisher` 是發布抽象，event bus / event store 與實際發布機制屬於 `infrastructure/events/` adapter 協作。
-
-## Event-Driven Architecture Position
-
-- `workspace` 可以作為一個 hexagonal system 發出 outgoing events，也可能在未來接收 incoming events
-- 事件驅動是 bounded context 之間的解耦機制，不代表 aggregate 必須採 event sourcing
-- 事件 subscriber / pipeline filter / bus adapter 屬於邊界協作，不應污染 domain event 語言本身
-
-## Ports, Adapters, Drivers, and Projections
-
-- Drivers 先透過 `interfaces/* -> ports/input -> application/use-cases` 觸發狀態改變，再由 application / adapter 協調發布事件
-- `WorkspaceDomainEventPublisher` 是 output port；實際 bus / store connector 是 adapter
-- 下游 bounded context 或本地 query-side flow 可以用事件更新 projection / read model
-- 但 domain event 本身不是 projection；它是發布語言，不是讀取結果
-
-## Event Publishing Path
-
-```txt
-interfaces/*
-	-> ports/input
-	-> application/use-cases
-	-> domain/aggregates + domain/services
-	-> ports/output/WorkspaceDomainEventPublisher
-	-> infrastructure/events/*
-```
-
-### 說明
-
-1. Event 由 domain language 定義。
-2. 發布動作由 application layer 在持久化成功後觸發。
-3. 發布介面放在 `ports/output/`。
-4. 實際 dispatcher / bus / store connector 放在 `infrastructure/events/`。
-
-## Event Base Contract
-
-workspace domain events 應對齊 `modules/shared/domain/events.ts` 的共享基底：
-
-- `eventId`
-- `type`
-- `aggregateId`
-- `occurredAt`
-
-`aggregateId` 在 workspace 事件中一律對應 `workspaceId`。
-
-## Canonical Events
-
-| 事件物件 | Discriminant | 觸發條件 | 關鍵欄位 |
-|---|---|---|---|
-| `WorkspaceCreatedEvent` | `workspace.created` | 工作區建立完成後 | `workspaceId`, `accountId`, `accountType`, `name` |
-| `WorkspaceLifecycleTransitionedEvent` | `workspace.lifecycle_transitioned` | `lifecycleState` 發生改變後 | `workspaceId`, `accountId`, `fromState`, `toState` |
-| `WorkspaceVisibilityChangedEvent` | `workspace.visibility_changed` | `visibility` 發生改變後 | `workspaceId`, `accountId`, `fromVisibility`, `toVisibility` |
-
-## Event Factories
-
-workspace module 應提供明確工廠函式來建立事件訊息物件，例如：
-
-- `createWorkspaceCreatedEvent(...)`
-- `createWorkspaceLifecycleTransitionedEvent(...)`
-- `createWorkspaceVisibilityChangedEvent(...)`
-
-這些工廠屬於 domain event language，不是 React helper，也不應放在 page / component 內。
-
-## Publishing Rules
-
-- 先成功持久化 aggregate，再發布事件
-- 事件 payload 只包含下游所需的最小資訊
-- 不把 React state、router path、UI label 放進事件語言
-- application layer 可以組裝 event publisher，但事件物件本身屬於 domain language
-- `infrastructure/events/` 只做 adapter 實作，不寫 domain 規則
-
-## 明確排除的事件
-
-| 不再作為 workspace 事件的名稱 | 原因 |
-|---|---|
-| `workspace.archived` | 此 bounded context 的生命週期語言是 `stopped`，不是 `archived` |
-| `workspace.member_joined` | 工作區成員清單目前是 read projection；成員真相來源屬於 organization / access language |
-| `workspace.member_removed` | 同上 |
-
-## 目前落地策略
-
-- 第一批事件以 `WorkspaceCreatedEvent`、`WorkspaceLifecycleTransitionedEvent`、`WorkspaceVisibilityChangedEvent` 為主
-- event publishing 透過 `ports/output/WorkspaceDomainEventPublisher` 接到 event store / event bus adapters
-- 在事件完全接線前，文件仍以此處為 canonical published language
-
-## 明確不是目前策略的內容
-
-- 目前 workspace repository 不是 event-sourced repository；aggregate 不是從 event store replay reconstitute
-- 目前沒有專屬的 event pipeline / filter chain 作為主要處理模型
-- 目前沒有 `workspace` 專屬的 long-running process executive 或 tracker aggregate
-````
-
-## File: modules/workspace/domain-services.md
-````markdown
-# workspace — Domain Services
-
-> **Canonical bounded context:** `workspace`
-> **模組路徑:** `modules/workspace/`
-> **Domain Type:** Generic Subdomain
-
-目前 workspace 已建立 `domain/services/` 目錄，並以該目錄作為純業務規則的正式位置。即使目前具體 service 檔案仍少，文件上已將此處定義為未來代碼必須遵守的邊界。
-
-在 workspace 中，Domain Service（領域服務）是類別 / 函式，用來承載不自然屬於 aggregate、entity、value object 的純領域規則。
-
-從六邊形架構看，Domain Service 位於 domain model 內核，而不是 `interfaces/` 或 `infrastructure/` adapter。它可以被 application layer 協作呼叫，但不應反向依賴外部技術。
-
-從 strategic design 看，Domain Service 服務的是 `workspace` 這個 bounded context 的語言，不是跨整個 Xuanwu domain 的共用雜項工具。
-
-它也不等同於 event subscriber、pipeline filter、long-running process executive；那些概念若存在，通常屬於應用層協調或邊界整合，而不是先天就是 Domain Service。
-
-## Domain Service = 邏輯
-
-`domain/services/` 的核心原則只有一個：**Domain Service = 邏輯**。
-
-也就是說，這裡只放：
-
-- 業務規則
-- invariant 補助規則
-- guard / policy / rule objects
-- 不自然屬於單一 aggregate 的純 domain 計算
-
-這裡不放：
-
-- 流程協調
-- 多 use case orchestration
-- React / Route Handler / CLI adapter
-- Firestore / event dispatcher / Genkit 呼叫
-
-流程協調屬於 `application/services/`，不是 `domain/services/`。
-
-## 與 Ports / Adapters / Drivers / Read Models 的區別
-
-- Port 宣告協作接縫；它不是業務規則本身
-- Adapter 轉譯外部系統或 driver；它不是 domain service
-- Driver 觸發工作開始；它不是 domain model 元件
-- Projection / Read Model 服務讀取；它不是領域規則容器
-
-## 與 Application Service 的區別
-
-| | Domain Service | Application Service |
-|---|---|---|
-| 核心責任 | 邏輯 | 流程 |
-| 是否可直接碰 infrastructure | 不可 | 不可直接碰 implementation，應透過 ports |
-| 典型內容 | policy、guards、rules | process manager、orchestrator、cross-use-case flow |
-| 依賴方向 | 只依賴 domain | 可依賴 domain、use-cases、ports |
-
-## 目前狀態
-
-- 單一 aggregate 內的規則，優先留在 `Workspace` aggregate 與 supporting domain objects
-- 讀模型組裝與外部資料翻譯，優先留在 query-side repository / application orchestration
-- `domain/services/` 已是正式預留位置；只有當規則穩定成為純領域語言時才放入
-
-## 何時應新增 Domain Service
-
-只有在出現以下情況時，才應把規則抽成 domain service：
-
-- 規則跨越多個 aggregate 或多個 supporting domain objects
-- 規則不是單純的 repository 查詢，也不是 UI composition
-- 規則不依賴 React、Firebase SDK、HTTP client 或 router
-- 規則本身是穩定的領域語言，而不是暫時性的流程拼裝
-
-## 可能的候選服務（尚未落地）
-
-| 候選服務 | 何時需要 |
-|---|---|
-| `WorkspaceLifecyclePolicy` | 若生命週期轉移規則持續增加，超出 aggregate 本身可讀性時 |
-| `WorkspaceAccessResolutionService` | 若 direct grant、team grant、personnel 解析邏輯需要在多個 use case 重複使用時 |
-| `WorkspaceCapabilityMountPolicy` | 若 capability mounting 有穩定、可重用的領域規則時 |
-
-## 若未來引入長流程
-
-- 若只是協調多個事件處理步驟，優先建模為 application-level process orchestration
-- 若流程狀態本身成為業務真相，才考慮引入 tracker aggregate，而不是先把它塞成 Domain Service
-
-## 明確不是 Domain Service 的內容
-
-- React hooks
-- Route Handlers / CLI handlers
-- query wrappers
-- UI draft factories
-- 只服務單一 page 的 tab composition helper
-````
-
 ## File: modules/workspace/application-services.md
 ````markdown
 # workspace — Application Services
@@ -15979,6 +16871,138 @@ interfaces/*
 - `ports/input/` 收斂 inbound contracts
 - `application/services/` 作為跨 use case / 跨 aggregate 流程容器
 - 應用層用語與 `aggregates.md`、`repositories.md`、`domain-events.md` 同步
+````
+
+## File: modules/workspace/bounded-context.md
+````markdown
+# Bounded Context — workspace
+
+`modules/workspace/` 是 Xuanwu 中承載 workspace 語言、模型、應用流程與 adapters 的 bounded context。
+
+全域 bounded-context 地圖由 [docs/ddd/bounded-contexts.md](../../docs/ddd/bounded-contexts.md) 擁有；本文件只描述 `workspace` 這個本地 bounded context 的內外邊界，不重複整份全域地圖。
+
+## Boundaries
+
+### 這個 bounded context 擁有的語言
+
+- `Workspace`
+- `workspaceId`
+- `WorkspaceLifecycleState`
+- `WorkspaceVisibility`
+- 與工作區範圍直接相關的 aggregate、value object、domain event language
+
+### 這個 bounded context 不擁有的語言
+
+- 組織成員、團隊與治理真相來源：由 `organization` 擁有
+- 知識內容與知識工作流：由 `knowledge`、`knowledge-base`、`notebook` 等擁有
+- 事件儲存與 event bus 基礎設施：由 `shared` 與對應 integration layers 擁有
+- 頁面 tab 組裝與 route composition：屬於 UI / interface composition，不是 bounded-context boundary 本體
+
+## Collaboration Surface
+
+workspace 以兩種主要方式與其他 bounded contexts 協作：
+
+1. 同步公開邊界：`interfaces/api/`
+2. Published Language：`workspaceId`、生命週期／可見性語言與 domain events
+
+在本地執行路徑上，read models / projections 也是 bounded context 對 drivers 提供的重要讀取 surface，但它們不是對外 published language 的全部。
+
+更完整的外部關係請看 [context-map.md](./context-map.md)。
+
+## Internal Structure
+
+從六邊形架構看，這個 bounded context 的內部切面如下：
+
+| 區域 | 角色 |
+|---|---|
+| `domain/` | aggregates、entities、value-objects、events、factories、純 domain services |
+| `application/` | use-cases、application services、DTO orchestration |
+| `ports/input/` | driving port interfaces，承接外部驅動對 use case 的要求 |
+| `ports/output/` | driven port interfaces，抽象 repository / event publishing / external capabilities |
+| `interfaces/api/` | Next.js Route Handler 與模組公開同步入口 |
+| `interfaces/cli/` | CLI / Cron Job 等 driving adapter |
+| `interfaces/web/` | shadcn UI components + hooks 的 driving adapter |
+| `infrastructure/` | Firebase 與 events 等 output port adapters |
+
+這個分層是 bounded context 的內部結構，不應和 strategic context map 混為一談。
+
+## 依賴箭頭（內部結構）
+
+```txt
+interfaces/api ─┐
+interfaces/cli ─┤
+interfaces/web ─┘
+	 │ call
+	 ▼
+   ports/input
+	 │ call
+	 ▼
+ application/use-cases
+	 │ call
+	 ▼
+ application/services
+	 │ call
+	 ▼
+  domain/services
+	 │ use
+	 ▼
+  domain/aggregates/entities
+	 │
+	 └─► ports/output ──► infrastructure/* (Firebase / Genkit / Events)
+```
+
+### 說明
+
+1. `interfaces/` 是 driving adapters，不處理 domain 決策。
+2. `ports/input/` 是 input contract 的位置。
+3. `application/use-cases/` 是單一 use case 流程；`application/services/` 是跨 use case 流程協調。
+4. `domain/` 是純業務邏輯。
+5. `ports/output/` 是外部能力抽象；`infrastructure/` 負責實作。
+
+## Drivers, Ports, Adapters, and Read Models
+
+### Drivers / 外部驅動器
+
+- Browser UI
+- Next.js Route Handlers
+- CLI / Cron Jobs
+- 其他 bounded context 經由 `interfaces/api/` 的呼叫者
+- 未來可能的 incoming event handlers / scheduled jobs
+
+### Ports / 端口
+
+- `ports/input/` 是 driving port interfaces
+- `ports/output/` 是內核朝外的 driven ports
+- `interfaces/api/` 是對外穩定 collaboration surface，但不等於把所有內部 ports 直接公開
+
+### Adapters / 適配器
+
+- Driving Adapters：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
+- Driven Adapters：`infrastructure/` 下的 Firebase 與事件整合實作
+
+### Projections / Read Models
+
+- `WorkspaceMemberView`
+- `WikiAccountContentNode`
+- `WikiWorkspaceContentNode`
+- `WikiContentItemNode`
+
+它們服務查詢與呈現，不是 write-side aggregate，也不是 infrastructure adapter。
+
+## Ownership Guardrails
+
+- 跨模組或 app composition consumer 應透過 `@/modules/workspace/api` 協作
+- `domain/` 不感知 React、Firebase SDK、HTTP client
+- `application/` 不直接依賴 infrastructure implementation
+- `infrastructure/` 不透過 `interfaces/` 反向回繞
+- `WorkspaceMemberView` 與 `Wiki*Node` 是 query-side projection，不是此 bounded context 的 write-side aggregate
+
+## Related Local Docs
+
+- [README.md](./README.md) — 總覽與 tactical summary
+- [context-map.md](./context-map.md) — 對外關係與 integration patterns
+- [aggregates.md](./aggregates.md) — bounded context 內部核心模型
+- [repositories.md](./repositories.md) — output ports 與 adapters
 ````
 
 ## File: modules/workspace/context-map.md
@@ -16737,6 +17761,243 @@ Ports、Adapters、Drivers 不是這份文件的主角；它們位於 domain mod
 - P1 已正式落地於 `domain/value-objects/`：`WorkspaceLifecycleState`、`WorkspaceVisibility`、`WorkspaceName`、`Address`
 - `WikiContentTree` 不是 write-side aggregate；它是為導覽組裝的 query model
 - `WorkspaceMember` 不是目前的 canonical write-side 名稱；查詢模型請使用 `WorkspaceMemberView`
+````
+
+## File: modules/platform/AGENT.md
+````markdown
+# AGENT.md — platform blueprint
+
+> **強制開發規範**
+> 本 BC 領域開發必須使用 Serena 指令：
+>
+> ```
+> serena
+> #use skill serena-mcp
+> #use skill alistair-cockburn
+> #use skill context7
+> #use skill shadcn
+> #use skill next-devtools-mcp
+> ```
+
+其中 `shadcn` 與 `next-devtools-mcp` 只在 platform 變更實際觸及 driving adapters、web UI 或 Next.js route composition 時適用。若工作只限於 `domain/`、`application/`、`ports/` 或本地架構文件，這兩個技能不得反向主導平台邊界。
+
+## 模組定位
+
+`platform` 在這裡是平台基礎能力的六邊形架構藍圖。它的任務是保護 platform language、ports/adapters 邊界與子域協作方式，而不是把所有跨領域邏輯集中成單一巨型模組。
+
+## Canonical Subdomain Inventory
+
+platform 的正式子域清單已固定為：
+
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+這份 inventory 預設為 closed by default。代理人必須先把需求映射到這 23 個子域之一，不能為了方便再建立新的資料夾別名。
+
+## 禁用舊名稱
+
+以下舊資料夾別名已退休，不得重新建立或重新引用。若舊子域已被吸收進新名稱，應優先使用canonical名稱：
+
+（舊別名已收斂至 23 個正式子域，不再維護單獨的舊名對照表。）
+
+
+## 代理人工作契約
+
+任何在 `modules/platform/` 的變更，都應遵守以下順序：
+
+1. 先確認變更屬於哪一個平台子域
+2. 再確認它是 domain rule、application orchestration、port contract，還是 adapter concern
+3. 只有在語言與邊界已經穩定時，才擴張資料結構或事件名稱
+
+## 必須維持的六邊形規則
+
+- domain 只擁有模型與規則，不直接呼叫外部系統
+- application 只協調 use cases，不定義 persistence 或 transport 細節
+- input ports 定義進入系統的請求語言
+- output ports 定義離開系統的依賴語言
+- adapters 只實作 ports，不改寫業務語意
+
+## 通用語言守則
+
+在 platform 文件與未來實作中，應優先使用這些詞：
+
+- `PlatformContext`
+- `PolicyCatalog`
+- `IntegrationContract`
+- `SubscriptionAgreement`
+- `PlatformCapability`
+- `PermissionDecision`
+- `WorkflowTrigger`
+- `NotificationDispatch`
+- `AuditSignal`
+- `ObservabilitySignal`
+
+不要把這些術語隨意替換成籠統字眼，如 `settings`、`background-job`、`hook`、`status log`、`feature`、`auth result`。
+
+## 允許的修改
+
+- 新增或細化 platform 子域的語言與責任
+- 新增 input ports / output ports 以描述新的 I/O 邊界
+- 新增 application services 以表達新的 use case handlers
+- 新增 aggregates、值物件或 domain services 以承載純業務規則
+- 新增 adapters 來實作既有 output ports
+
+## 禁止的修改
+
+- 在 domain 中混入 HTTP、SQL、message bus、email、metrics SDK 細節
+- 在 adapter 中定義平台政策或聚合不變數
+- 直接讓一個子域的 adapter 呼叫另一個子域的 adapter
+- 讓事件名稱承載命令語氣，例如 `please_send_notification`
+- 用臨時欄位或臨時語言繞過 `ubiquitous-language.md`
+
+## 文件更新規則
+
+若變更影響聚合、語言或邊界，至少同步更新以下文件：
+
+- 變更聚合或值物件：同步更新 `aggregates.md` 與 `ubiquitous-language.md`
+- 變更 use case handler：同步更新 `application-services.md`
+- 變更 repository/output port：同步更新 `repositories.md`
+- 變更 input port、support port 或 decision object：同步更新 `application-services.md`、`repositories.md` 與 `ubiquitous-language.md`
+- 變更事件名稱或 payload：同步更新 `domain-events.md`
+- 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
+- 變更 platform 邊界：同步更新 `bounded-context.md` 與 `README.md`
+
+## 文件分解對照
+
+`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
+
+- 聚合與不變數：`docs/aggregates.md`
+- use case handlers：`docs/application-services.md`
+- 邊界責任：`docs/bounded-context.md`
+- 子域協作：`docs/context-map.md`
+- 事件語言：`docs/domain-events.md`
+- 純領域規則：`docs/domain-services.md`
+- repositories 與 ports：`docs/repositories.md`
+- 子域清單：`docs/subdomains.md`
+- 術語治理：`docs/ubiquitous-language.md`
+
+## 代理人交付標準
+
+- 優先維持語言一致性，而不是追求一次塞入所有能力
+- 優先讓 ports 穩定，再讓 adapters 成長
+- 優先用事件與契約描述跨邊界協作，而不是共享內部資料結構
+- 任何新術語都應能在 `ubiquitous-language.md` 落地
+
+## 最終檢查
+
+在交付前，代理人至少自問四件事：
+
+1. 這個變更有沒有把 platform policy 泄漏到 adapter？
+2. 這個 I/O 邊界是否已經先表達成 port？
+3. 事件名稱是否描述事實而非命令？
+4. 子域責任是否仍然清楚，沒有回到大泥球結構？
+5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
+6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？
+````
+
+## File: modules/platform/README.md
+````markdown
+# platform
+
+`platform` 是平台基礎能力的六邊形架構藍圖，負責主體治理、政策規則、能力啟用、跨邊界交付、稽核與可觀測性等平台底層能力。這個模組的目標是穩定語言與邊界，不是集中所有跨領域業務邏輯。
+
+## 邊界定位
+
+- 維持 `interfaces -> application -> domain <- infrastructure` 依賴方向
+- `domain/` 保持 framework-free，不引入 HTTP、DB SDK、訊息匯流排與監控 SDK
+- 所有外部輸入先進 `ports/input`
+- 所有外部依賴先定義為 `ports/output`，再由 adapters / infrastructure 實作
+
+## 模組骨架
+
+```text
+modules/platform/
+    domain/
+    application/
+    ports/
+    adapters/
+    infrastructure/
+    docs/
+    subdomains/
+    AGENT.md
+```
+
+## Canonical Subdomain Inventory (23)
+
+- `identity`
+- `account`
+- `account-profile`
+- `organization`
+- `access-control`
+- `security-policy`
+- `platform-config`
+- `feature-flag`
+- `onboarding`
+- `compliance`
+- `billing`
+- `subscription`
+- `referral`
+- `integration`
+- `workflow`
+- `notification`
+- `background-job`
+- `content`
+- `search`
+- `audit-log`
+- `observability`
+- `analytics`
+- `support`
+
+此 inventory 採 closed by default，新增子域前必須先完成文件治理與邊界論證。
+
+## 文件導覽
+
+- [docs/README.md](./docs/README.md): 文件索引與拆分規則
+- [docs/bounded-context.md](./docs/bounded-context.md): 邊界責任與封板規則
+- [docs/subdomains.md](./docs/subdomains.md): 23 子域正式責任表
+- [docs/context-map.md](./docs/context-map.md): 子域協作與共享語言
+- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md): 通用語言詞彙
+- [docs/aggregates.md](./docs/aggregates.md): 核心聚合與不變數
+- [docs/domain-services.md](./docs/domain-services.md): 跨聚合純規則
+- [docs/application-services.md](./docs/application-services.md): use case orchestration
+- [docs/repositories.md](./docs/repositories.md): repositories 與 output ports
+- [docs/domain-events.md](./docs/domain-events.md): 事件命名與收發清單
+
+## 變更準則
+
+1. 先映射到既有子域
+2. 再決定是 language、port、aggregate 或 adapter 變更
+3. 若牽涉命名、事件或邊界，先更新 `docs/` 與 `AGENT.md`，再實作
+
+## 文件閉環驗證
+
+提交前建議最少執行一次文件閉環檢查：
+
+1. `subdomains.md` 與 `bounded-context.md` 的 23 子域是否一致
+2. `subdomains.md` / `application-services.md` 中的 ports 是否都在 `docs/repositories.md`
+3. `docs/domain-events.md` 的事件術語是否都在 `docs/ubiquitous-language.md`
+4. `docs/context-map.md` 的協作語言是否與 `docs/domain-events.md` 命名一致
 ````
 
 ## File: modules/workspace/AGENT.md
