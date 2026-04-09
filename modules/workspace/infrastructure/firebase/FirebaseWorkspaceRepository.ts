@@ -21,10 +21,10 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { firebaseClientApp } from "@integration-firebase/client";
-import type { WorkspaceRepository } from "../../domain/repositories/WorkspaceRepository";
-import type { WorkspaceCapabilityRepository } from "../../domain/repositories/WorkspaceCapabilityRepository";
-import type { WorkspaceAccessRepository } from "../../domain/repositories/WorkspaceAccessRepository";
-import type { WorkspaceLocationRepository } from "../../domain/repositories/WorkspaceLocationRepository";
+import type { WorkspaceRepository } from "../../ports/output/WorkspaceRepository";
+import type { WorkspaceCapabilityRepository } from "../../ports/output/WorkspaceCapabilityRepository";
+import type { WorkspaceAccessRepository } from "../../ports/output/WorkspaceAccessRepository";
+import type { WorkspaceLocationRepository } from "../../ports/output/WorkspaceLocationRepository";
 import type {
   WorkspaceEntity,
   Capability,

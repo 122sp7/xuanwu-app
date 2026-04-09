@@ -1,4 +1,4 @@
-import type { WorkspaceLocation } from "../entities/Workspace";
+import type { WorkspaceLocation } from "../../domain/entities/Workspace";
 
 export interface WorkspaceLocationRepository {
   createLocation(workspaceId: string, location: Omit<WorkspaceLocation, "locationId">): Promise<string>;

@@ -3,7 +3,7 @@ import type {
   WorkspaceMemberPresence,
   WorkspaceMemberView,
 } from "../../domain/entities/WorkspaceMember";
-import type { WorkspaceQueryRepository } from "../../domain/repositories/WorkspaceQueryRepository";
+import type { WorkspaceQueryRepository } from "../../ports/output/WorkspaceQueryRepository";
 import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 import {
   organizationApi,

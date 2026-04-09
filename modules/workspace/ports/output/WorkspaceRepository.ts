@@ -5,7 +5,7 @@
 import type {
   WorkspaceEntity,
   UpdateWorkspaceSettingsCommand,
-} from "../entities/Workspace";
+} from "../../domain/entities/Workspace";
 
 export interface WorkspaceRepository {
   findById(id: string): Promise<WorkspaceEntity | null>;

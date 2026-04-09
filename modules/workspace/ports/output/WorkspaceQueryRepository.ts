@@ -2,8 +2,8 @@
  * WorkspaceQueryRepository — Port for workspace read projections.
  */
 
-import type { WorkspaceMemberView } from "../entities/WorkspaceMember";
-import type { WorkspaceEntity } from "../entities/Workspace";
+import type { WorkspaceMemberView } from "../../domain/entities/WorkspaceMember";
+import type { WorkspaceEntity } from "../../domain/entities/Workspace";
 
 export type Unsubscribe = () => void;
 
