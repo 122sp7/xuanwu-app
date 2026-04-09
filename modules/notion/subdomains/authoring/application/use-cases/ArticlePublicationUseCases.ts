@@ -27,6 +27,6 @@ export class PublishArticleUseCase {
       return commandFailureFrom("ARTICLE_PUBLISH_REJECTED", e instanceof Error ? e.message : "Cannot publish");
     }
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id);
+    return commandSuccess(article.id, article.getSnapshot().version);
   }
 }

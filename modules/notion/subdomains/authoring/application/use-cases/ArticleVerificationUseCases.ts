@@ -1,7 +1,7 @@
 /**
  * Module: notion/subdomains/authoring
  * Layer: application/use-cases
- * Purpose: Article verification use cases — verify and request review.
+ * Purpose: Article verification use cases ??verify and request review.
  */
 
 import type { z } from "@lib-zod";
@@ -23,7 +23,7 @@ export class VerifyArticleUseCase {
     const article = Article.reconstitute(snapshot);
     article.verify(parsed.data.verifiedByUserId, parsed.data.expiresAtISO);
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id);
+    return commandSuccess(article.id, article.getSnapshot().version);
   }
 }
 
@@ -40,6 +40,6 @@ export class RequestArticleReviewUseCase {
     const article = Article.reconstitute(snapshot);
     article.requestReview();
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id);
+    return commandSuccess(article.id, article.getSnapshot().version);
   }
 }
