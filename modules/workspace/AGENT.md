@@ -71,13 +71,13 @@ Based on `/sairyss/domain-driven-hexagon`:
 
 ## Related module docs
 
-- [README.md](./README.md)
-- [subdomain.md](./subdomain.md)
-- [bounded-context.md](./bounded-context.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [aggregates.md](./aggregates.md)
-- [application-services.md](./application-services.md)
-- [domain-services.md](./domain-services.md)
-- [repositories.md](./repositories.md)
-- [domain-events.md](./domain-events.md)
+- [docs/README.md](./docs/README.md) — Module overview, responsibilities, and usage patterns
+- [docs/subdomain.md](./docs/subdomain.md) — Subdomain classification and strategic position
+- [docs/bounded-context.md](./docs/bounded-context.md) — Context boundaries, collaborations, and published language
+- [docs/context-map.md](./docs/context-map.md) — Upstream/downstream dependencies and integration contracts
+- [docs/ubiquitous-language.md](./docs/ubiquitous-language.md) — Canonical terminology and naming rules for this context
+- [docs/aggregates.md](./docs/aggregates.md) — Aggregate roots, entities, and value objects
+- [docs/domain-services.md](./docs/domain-services.md) — Stateless domain services and invariant enforcement
+- [docs/domain-events.md](./docs/domain-events.md) — Published domain events and event names
+- [docs/repositories.md](./docs/repositories.md) — Repository interfaces and persistence contracts
+- [docs/application-services.md](./docs/application-services.md) — Use cases and application-layer orchestration
