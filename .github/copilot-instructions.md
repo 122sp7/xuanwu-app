@@ -34,12 +34,12 @@ Read these in order before making non-trivial decisions:
 
 ## DDD Reference Authority
 
-Strategic DDD root maps are currently owned by `modules/subdomains.md` and `modules/bounded-contexts.md`. Bounded-context reference sets live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
+Strategic DDD root maps are owned by `docs/subdomains.md` and `docs/bounded-contexts.md`. Bounded-context reference sets currently live in `modules/<context>/` and should be read from there unless a future consolidation change explicitly moves ownership.
 
 | Query | Canonical Document |
 |-------|-------------------|
-| Strategic subdomain classification | [`modules/subdomains.md`](../modules/subdomains.md) |
-| Bounded Context boundaries / module map | [`modules/bounded-contexts.md`](../modules/bounded-contexts.md) |
+| Strategic subdomain classification | [`docs/subdomains.md`](../docs/subdomains.md) |
+| Bounded Context boundaries / module map | [`docs/bounded-contexts.md`](../docs/bounded-contexts.md) |
 | Context terminology | `modules/<context>/ubiquitous-language.md` |
 | Context aggregates / entities / value objects | `modules/<context>/aggregates.md` |
 | Context domain events | `modules/<context>/domain-events.md` |
@@ -48,12 +48,12 @@ Strategic DDD root maps are currently owned by `modules/subdomains.md` and `modu
 | Context application services | `modules/<context>/application-services.md` |
 | Context domain services | `modules/<context>/domain-services.md` |
 
-**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `modules/subdomains.md` + `modules/bounded-contexts.md` contain strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
+**Rule**: `.github/instructions/` files contain **behavioral constraints** (what Copilot must do). `docs/subdomains.md` + `docs/bounded-contexts.md` contains strategic DDD routing, and `modules/<context>/` contains the current bounded-context detail set. Link instead of copying.
 
 ## Hexagonal DDD Canonical Triad
 
 - **Ubiquitous Language**: `instructions/ubiquitous-language.instructions.md` + `modules/<context>/ubiquitous-language.md`
-- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `modules/bounded-contexts.md`
+- **Bounded Context**: `instructions/bounded-context-rules.instructions.md` + `docs/bounded-contexts.md`
 - **Context Map**: `modules/<context>/context-map.md`
 
 Any architecture/design update must stay consistent across this triad.

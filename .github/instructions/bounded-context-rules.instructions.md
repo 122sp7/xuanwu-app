@@ -30,7 +30,7 @@ interfaces/ → application/ → domain/ ← infrastructure/
 
 ## 上下文地圖 (Context Map)
 
-完整模組地圖請查閱：**[`modules/bounded-contexts.md`](../../modules/bounded-contexts.md)**
+完整模組地圖請查閱：**[`docs/bounded-contexts.md`](../../docs/bounded-contexts.md)**
 
 > 模組清單不在此複製。模組職責變更時，必須更新上述文件，而非此處。
 
