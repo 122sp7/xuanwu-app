@@ -11,6 +11,7 @@
 // Domain types
 export type {
   DatabaseSnapshot,
+  DatabaseSnapshot as Database,
   Field,
   FieldType,
   DatabaseId,

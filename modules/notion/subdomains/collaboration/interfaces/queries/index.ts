@@ -7,7 +7,8 @@
 import { FirebaseCommentRepository } from "../../infrastructure/firebase/FirebaseCommentRepository";
 import { FirebaseVersionRepository } from "../../infrastructure/firebase/FirebaseVersionRepository";
 import { FirebasePermissionRepository } from "../../infrastructure/firebase/FirebasePermissionRepository";
-import type { CommentSnapshot, CommentUnsubscribe } from "../../domain/aggregates/Comment";
+import type { CommentSnapshot } from "../../domain/aggregates/Comment";
+import type { CommentUnsubscribe } from "../../domain/repositories/ICommentRepository";
 import type { VersionSnapshot } from "../../domain/aggregates/Version";
 import type { PermissionSnapshot } from "../../domain/aggregates/Permission";
 

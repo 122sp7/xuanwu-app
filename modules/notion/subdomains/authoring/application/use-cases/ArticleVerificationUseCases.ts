@@ -40,6 +40,6 @@ export class RequestArticleReviewUseCase {
     const article = Article.reconstitute(snapshot);
     article.requestReview();
     await this.repo.save(article.getSnapshot());
-    return commandSuccess(article.id, article.getSnapshot().version, article.getSnapshot().version, article.getSnapshot().version);
+    return commandSuccess(article.id, article.getSnapshot().version);
   }
 }

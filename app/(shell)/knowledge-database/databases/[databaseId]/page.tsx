@@ -58,7 +58,10 @@ export default function DatabaseDetailPage() {
       await addDatabaseField({
         databaseId,
         accountId,
-        field: { name, type, config: {}, required },
+        name,
+        type,
+        config: {},
+        required,
       });
       await load();
     });
@@ -66,7 +69,7 @@ export default function DatabaseDetailPage() {
 
   function handleArchive() {
     startTransition(async () => {
-      await archiveDatabase(accountId, databaseId);
+      await archiveDatabase({ id: databaseId, accountId });
       router.push("/knowledge-database/databases");
     });
   }
@@ -208,8 +211,6 @@ export default function DatabaseDetailPage() {
         <DatabaseCalendarView
           database={database}
           accountId={accountId}
-          workspaceId={workspaceId}
-          currentUserId={currentUserId}
         />
       )}
       {viewMode === "gallery" && (

@@ -34,7 +34,7 @@ export class CreateCategoryUseCase {
       createdByUserId: parsed.data.createdByUserId,
     });
     await this.repo.save(category.getSnapshot());
-    return commandSuccess(category.id, 1, 1);
+    return commandSuccess(category.id, 1);
   }
 }
 
@@ -51,7 +51,7 @@ export class RenameCategoryUseCase {
     const category = Category.reconstitute(snapshot);
     category.rename(parsed.data.name);
     await this.repo.save(category.getSnapshot());
-    return commandSuccess(category.id, 1, 1);
+    return commandSuccess(category.id, 1);
   }
 }
 
@@ -68,7 +68,7 @@ export class MoveCategoryUseCase {
     const category = Category.reconstitute(snapshot);
     category.move(parsed.data.newParentCategoryId, parsed.data.newDepth);
     await this.repo.save(category.getSnapshot());
-    return commandSuccess(category.id, 1, 1);
+    return commandSuccess(category.id, 0);
   }
 }
 
@@ -81,6 +81,6 @@ export class DeleteCategoryUseCase {
       return commandFailureFrom("CATEGORY_INVALID_INPUT", parsed.error.issues[0]?.message ?? "Invalid input");
     }
     await this.repo.delete(parsed.data.accountId, parsed.data.id);
-    return commandSuccess(parsed.data.id, 0, 0);
+    return commandSuccess(parsed.data.id, 0);
   }
 }

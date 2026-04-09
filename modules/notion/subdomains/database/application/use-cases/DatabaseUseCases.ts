@@ -15,8 +15,8 @@ export class CreateDatabaseUseCase {
   async execute(input: CreateDatabaseDto): Promise<CommandResult> {
     const parsed = CreateDatabaseSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.create(parsed.data);
-    return commandSuccess();
+    const result = await this.repo.create(parsed.data);
+    return commandSuccess(result.id, 1);
   }
 }
 
@@ -25,8 +25,8 @@ export class UpdateDatabaseUseCase {
   async execute(input: UpdateDatabaseDto): Promise<CommandResult> {
     const parsed = UpdateDatabaseSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.update(parsed.data);
-    return commandSuccess();
+    const result = await this.repo.update(parsed.data);
+    return commandSuccess(result?.id ?? parsed.data.id, 0);
   }
 }
 
@@ -36,7 +36,7 @@ export class AddFieldUseCase {
     const parsed = AddFieldSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
     await this.repo.addField(parsed.data);
-    return commandSuccess();
+    return commandSuccess(parsed.data.databaseId, 0);
   }
 }
 
@@ -46,7 +46,7 @@ export class ArchiveDatabaseUseCase {
     const parsed = ArchiveDatabaseSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
     await this.repo.archive(parsed.data.id, parsed.data.accountId);
-    return commandSuccess();
+    return commandSuccess(parsed.data.id, 0);
   }
 }
 

@@ -15,8 +15,8 @@ export class CreateRecordUseCase {
   async execute(input: CreateRecordDto): Promise<CommandResult> {
     const parsed = CreateRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.create(parsed.data);
-    return commandSuccess();
+    const result = await this.repo.create(parsed.data);
+    return commandSuccess(result.id, 1);
   }
 }
 
@@ -25,8 +25,8 @@ export class UpdateRecordUseCase {
   async execute(input: UpdateRecordDto): Promise<CommandResult> {
     const parsed = UpdateRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
-    await this.repo.update(parsed.data);
-    return commandSuccess();
+    const result = await this.repo.update(parsed.data);
+    return commandSuccess(result.id, 0);
   }
 }
 
@@ -36,7 +36,7 @@ export class DeleteRecordUseCase {
     const parsed = DeleteRecordSchema.safeParse(input);
     if (!parsed.success) return commandFailureFrom("INVALID_INPUT", parsed.error.message);
     await this.repo.delete(parsed.data.id, parsed.data.accountId);
-    return commandSuccess();
+    return commandSuccess(parsed.data.id, 0);
   }
 }
 

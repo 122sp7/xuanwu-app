@@ -42,7 +42,7 @@ export const AddFieldSchema = z.object({
   accountId: z.string().min(1),
   name: z.string().min(1).max(100),
   type: FieldTypeSchema,
-  config: z.record(z.unknown()).optional(),
+  config: z.record(z.string(), z.unknown()).optional(),
   required: z.boolean().optional(),
 });
 export type AddFieldDto = z.infer<typeof AddFieldSchema>;
@@ -70,7 +70,7 @@ export type ListDatabasesDto = z.infer<typeof ListDatabasesSchema>;
 export const CreateRecordSchema = WorkspaceScopeSchema.extend({
   databaseId: z.string().min(1),
   pageId: z.string().optional(),
-  properties: z.record(z.unknown()).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
   createdByUserId: z.string().min(1),
 });
 export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
@@ -78,7 +78,7 @@ export type CreateRecordDto = z.infer<typeof CreateRecordSchema>;
 export const UpdateRecordSchema = z.object({
   id: z.string().min(1),
   accountId: z.string().min(1),
-  properties: z.record(z.unknown()),
+  properties: z.record(z.string(), z.unknown()),
 });
 export type UpdateRecordDto = z.infer<typeof UpdateRecordSchema>;
 
