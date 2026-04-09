@@ -116,6 +116,20 @@ platform 的正式子域清單已固定為：
 - 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
 - 變更 platform 邊界：同步更新 `bounded-context.md` 與 `README.md`
 
+## 文件分解對照
+
+`docs/README.md` 僅作為索引入口，內容必須拆分並維持以下對照：
+
+- 聚合與不變數：`docs/aggregates.md`
+- use case handlers：`docs/application-services.md`
+- 邊界責任：`docs/bounded-context.md`
+- 子域協作：`docs/context-map.md`
+- 事件語言：`docs/domain-events.md`
+- 純領域規則：`docs/domain-services.md`
+- repositories 與 ports：`docs/repositories.md`
+- 子域清單：`docs/subdomains.md`
+- 術語治理：`docs/ubiquitous-language.md`
+
 ## 代理人交付標準
 
 - 優先維持語言一致性，而不是追求一次塞入所有能力
