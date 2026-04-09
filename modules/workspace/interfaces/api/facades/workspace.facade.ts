@@ -3,40 +3,35 @@ import type {
   WikiAccountSeed,
   WorkspaceEntity,
 } from "../contracts";
-import {
-  getWorkspaceById as getWorkspaceByIdQuery,
-  getWorkspaceByIdForAccount as getWorkspaceByIdForAccountQuery,
-  getWorkspacesForAccount as getWorkspacesForAccountQuery,
-  subscribeToWorkspacesForAccount as subscribeToWorkspacesForAccountQuery,
-} from "../queries/workspace.query";
-import { buildWikiContentTree as buildWikiContentTreeQuery } from "../queries/wiki-content-tree.query";
+import * as workspaceQueries from "../queries/workspace.query";
+import * as wikiContentTreeQuery from "../queries/wiki-content-tree.query";
 
 export async function getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
-  return getWorkspacesForAccountQuery(accountId);
+  return workspaceQueries.getWorkspacesForAccount(accountId);
 }
 
 export function subscribeToWorkspacesForAccount(
   accountId: string,
   onUpdate: (workspaces: WorkspaceEntity[]) => void,
 ) {
-  return subscribeToWorkspacesForAccountQuery(accountId, onUpdate);
+  return workspaceQueries.subscribeToWorkspacesForAccount(accountId, onUpdate);
 }
 
 export async function getWorkspaceById(workspaceId: string): Promise<WorkspaceEntity | null> {
-  return getWorkspaceByIdQuery(workspaceId);
+  return workspaceQueries.getWorkspaceById(workspaceId);
 }
 
 export async function getWorkspaceByIdForAccount(
   accountId: string,
   workspaceId: string,
 ): Promise<WorkspaceEntity | null> {
-  return getWorkspaceByIdForAccountQuery(accountId, workspaceId);
+  return workspaceQueries.getWorkspaceByIdForAccount(accountId, workspaceId);
 }
 
 export function buildWikiContentTree(
   seeds: WikiAccountSeed[],
 ): Promise<WikiAccountContentNode[]> {
-  return buildWikiContentTreeQuery(seeds);
+  return wikiContentTreeQuery.buildWikiContentTree(seeds);
 }
 
 export {

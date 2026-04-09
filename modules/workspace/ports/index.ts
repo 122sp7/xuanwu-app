@@ -5,13 +5,14 @@
  * Keep ports as interfaces only; implementations must stay in infrastructure/.
  */
 
-// Driven ports (domain/application core -> outside)
+// Driving ports (outside -> domain/application core)
 export type { WorkspaceCommandPort } from "./input/WorkspaceCommandPort";
 export type {
   WorkspaceQueryPort,
   WorkspaceQuerySubscription,
 } from "./input/WorkspaceQueryPort";
 
+// Driven ports (domain/application core -> outside)
 export type { WorkspaceRepository } from "./output/WorkspaceRepository";
 export type { WorkspaceCapabilityRepository } from "./output/WorkspaceCapabilityRepository";
 export type { WorkspaceAccessRepository } from "./output/WorkspaceAccessRepository";
