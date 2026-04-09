@@ -16,6 +16,8 @@ import {
 import {
   ApproveKnowledgePageSchema,
   type ApproveKnowledgePageDto,
+} from "../dto/KnowledgePageDto";
+import {
   VerifyKnowledgePageSchema,
   type VerifyKnowledgePageDto,
   RequestPageReviewSchema,
