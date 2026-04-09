@@ -55,7 +55,7 @@
   - Observability and config systems (Shared Kernel) — telemetry and runtime configuration signals
 
 - **Downstream:**
-  - `knowledge`, `workspace`, `notebook`, `knowledge-base`, `source`, and all other business contexts — conform to platform identity, subscription entitlement, and feature-flag policies
+  - `workspace`, `notion`, `notebooklm` and all other business contexts — conform to platform identity, subscription entitlement, and feature-flag policies
   - `audit-log` and `observability` receive signals from all other platform subdomains
 
 - **Relationship types:**

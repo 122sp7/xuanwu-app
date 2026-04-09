@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, FolderOpen, Layers } from "lucide-react";
 
-import type { Category } from "@/modules/knowledge-base/api";
+import type { CategorySnapshot as Category } from "@/modules/notion/api";
 
 // ── Category tree helpers ────────────────────────────────────────────────────
 

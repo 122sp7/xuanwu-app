@@ -1,1 +1,5 @@
-﻿// Purpose: Application layer placeholder for platform subdomain 'notification'.
+﻿export {
+  DispatchNotificationUseCase,
+  MarkNotificationReadUseCase,
+  MarkAllNotificationsReadUseCase,
+} from "./use-cases/notification.use-cases";

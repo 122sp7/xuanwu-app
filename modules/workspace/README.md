@@ -78,13 +78,13 @@ modules/workspace/
 
 ## Documentation index
 
-- [AGENT.md](./AGENT.md)
-- [subdomain.md](./subdomain.md)
-- [bounded-context.md](./bounded-context.md)
-- [context-map.md](./context-map.md)
-- [ubiquitous-language.md](./ubiquitous-language.md)
-- [aggregates.md](./aggregates.md)
-- [application-services.md](./application-services.md)
-- [domain-services.md](./domain-services.md)
-- [repositories.md](./repositories.md)
-- [domain-events.md](./domain-events.md)
+- [subdomain.md](./docs/subdomain.md) — Subdomain classification and strategic position
+- [subdomains.md](./docs/subdomains.md) — Canonical subdomain inventory (4 subdomains)
+- [bounded-context.md](./docs/bounded-context.md) — Boundary definition, scope, and upstream/downstream relationships
+- [ubiquitous-language.md](./docs/ubiquitous-language.md) — Canonical terminology for this context
+- [aggregates.md](./docs/aggregates.md) — Aggregate roots, entities, and value objects
+- [domain-events.md](./docs/domain-events.md) — Domain events and their payloads
+- [domain-services.md](./docs/domain-services.md) — Stateless domain services and business rules
+- [repositories.md](./docs/repositories.md) — Repository interfaces and contracts
+- [application-services.md](./docs/application-services.md) — Use cases and application orchestration
+- [context-map.md](./docs/context-map.md) — Relationships with other bounded contexts

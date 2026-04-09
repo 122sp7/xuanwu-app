@@ -6,8 +6,8 @@ import { BadgeCheck, BookOpen, CircleDot, FileClock, Plus } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { getArticles, getCategories, ArticleDialog } from "@/modules/knowledge-base/api";
-import type { Article, ArticleStatus, VerificationState, Category } from "@/modules/knowledge-base/api";
+import { getArticles, getCategories, ArticleDialog } from "@/modules/notion/api";
+import type { ArticleSnapshot as Article, ArticleStatus, ArticleVerificationState as VerificationState, CategorySnapshot as Category } from "@/modules/notion/api";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";

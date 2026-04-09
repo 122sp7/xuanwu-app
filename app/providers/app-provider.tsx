@@ -18,7 +18,7 @@ import {
   type ReactNode,
 } from "react";
 
-import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/account/api";
+import { subscribeToAccountsForUser, type AccountEntity } from "@/modules/platform/api";
 import { subscribeToWorkspacesForAccount } from "@/modules/workspace/api";
 import {
   getWorkspaceStorageKey,
@@ -29,7 +29,7 @@ import { AppContext, type AppState, type AppAction } from "./app-context";
 import type { AuthUser } from "./auth-context";
 import { useAuth } from "./auth-provider";
 
-// ─── Initial State ────────────────────────────────────────────────────────────
+// -- Initial State -----------------------------------------------------------
 
 const LAST_ACTIVE_ACCOUNT_STORAGE_KEY = "xuanwu_last_active_account";
 
@@ -43,7 +43,7 @@ const initialState: AppState = {
   workspacesHydrated: false,
 };
 
-// ─── Reducer ──────────────────────────────────────────────────────────────────
+// -- Reducer -----------------------------------------------------------------
 
 function resolveActiveAccount(
   state: AppState,
@@ -127,7 +127,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
   }
 }
 
-// ─── Provider ─────────────────────────────────────────────────────────────────
+// -- Provider ----------------------------------------------------------------
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const { state: authState } = useAuth();
@@ -232,7 +232,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// ─── Hook ─────────────────────────────────────────────────────────────────────
+// -- Hook --------------------------------------------------------------------
 
 export function useApp() {
   const ctx = useContext(AppContext);

@@ -1,8 +1,7 @@
 # notebook
 
-> **Domain Type:** Supporting Subdomain  
-> **Module:** `modules/notebooklm/`  
-> **Authoritative docs:** [`modules/notebooklm/`](../../../modules/notebooklm/)
+> ⚠️ **Renamed Notice:** 此 bounded context 已正式命名為 `notebooklm`。  
+> **最新權威文件請查閱：** [`docs/contexts/notebooklm/README.md`](../notebooklm/README.md)
 
 ## Boundary
 

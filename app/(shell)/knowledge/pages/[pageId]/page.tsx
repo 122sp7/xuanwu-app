@@ -13,9 +13,9 @@ import {
   updateKnowledgePageIcon,
   updateKnowledgePageCover,
   PageEditorView,
-} from "@/modules/knowledge/api";
-import type { KnowledgePage } from "@/modules/knowledge/api";
-import { CommentPanel } from "@/modules/knowledge-collaboration/api";
+} from "@/modules/notion/api";
+import type { KnowledgePage } from "@/modules/notion/api";
+import { CommentPanel } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";

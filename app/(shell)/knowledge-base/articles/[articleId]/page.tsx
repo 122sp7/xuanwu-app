@@ -25,9 +25,9 @@ import {
   verifyArticle,
   requestArticleReview,
   ArticleDialog,
-} from "@/modules/knowledge-base/api";
-import type { Article, Category } from "@/modules/knowledge-base/api";
-import { CommentPanel, VersionHistoryPanel } from "@/modules/knowledge-collaboration/api";
+} from "@/modules/notion/api";
+import type { ArticleSnapshot as Article, CategorySnapshot as Category } from "@/modules/notion/api";
+import { CommentPanel, VersionHistoryPanel } from "@/modules/notion/api";
 import { ReactMarkdown } from "@lib-react-markdown";
 import { remarkGfm } from "@lib-remark-gfm";
 import { Badge } from "@ui-shadcn/ui/badge";

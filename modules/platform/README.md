@@ -68,6 +68,23 @@ modules/platform/
 
 此 inventory 採 closed by default；新增子域前必須先完成文件治理與邊界論證。
 
+## 計畫吸收模組
+
+以下四個現有獨立模組將在未來重構中合并進 platform，成為對應子域的正式實作：
+
+| 獨立模組 | 目標子域 | 現有狀態 | 合并備注 |
+|---|---|---|---|
+| `modules/identity/` | `identity` | ✅ Done — 穩定 | `Identity`, `TokenRefreshSignal` → platform `AuthenticatedSubject` 語言 |
+| `modules/account/` | `account` + `account-profile` | ✅ Done — 穩定 | `Account`, `AccountPolicy`, `AccountProfile` → platform `account`/`account-profile` 子域 |
+| `modules/organization/` | `organization` | ✅ Done — 穩定 | `Organization`, `MemberReference`, `Team` → platform `organization` 子域 |
+| `modules/notification/` | `notification` | 🏗️ Midway | `NotificationEntity`, `NotificationRepository` → platform `notification` 子域 |
+
+**合并優先序：** `identity` → `account` → `organization` → `notification`
+
+合并前，platform blueprint 定義語言與 port 契約規範；獨立模組保持現有 API 介面不中斷。合并後，獨立模組的 `api/index.ts` 應指向 `modules/platform/api`，並標記為 deprecated。
+
+詳細語言映射見 [docs/ubiquitous-language.md](./docs/ubiquitous-language.md)，計畫吸收的事件見 [docs/domain-events.md](./docs/domain-events.md)，計畫吸收的倉儲見 [docs/repositories.md](./docs/repositories.md)。
+
 ## 文件導覽
 
 - [docs/README.md](./docs/README.md): 文件索引與 Hexagonal DDD 閱讀路徑

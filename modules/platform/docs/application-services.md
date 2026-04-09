@@ -51,6 +51,26 @@ platform 的 application layer 是輸入介面與 domain core 之間的協調層
 | `GetSubscriptionEntitlementsService` | 查詢方案權益與限制 | `GetSubscriptionEntitlements` | `SubscriptionAgreementRepository`, `UsageMeterRepository` |
 | `GetWorkflowPolicyViewService` | 查詢 trigger 對應的 workflow policy | `GetWorkflowPolicyView` | `WorkflowPolicyRepository`, `PolicyCatalogViewRepository` |
 
+## 計畫吸收模組的 Use Cases（Migration-Pending）
+
+下列 use cases 目前定義於對應的**獨立模組**，計畫在合并進 platform 後成為各子域 application layer 的正式 use case handlers。
+
+| 模組 | 現有 Use Case | 目標子域 | 說明 |
+|---|---|---|---|
+| `modules/identity/` | `identity.use-cases.ts` — signIn, signOut, getCurrentIdentity | `identity` | 驗證、登出與身份狀態；合并後對應 `PlatformEventIngressPort` 的身份訊號接收路徑 |
+| `modules/identity/` | `token-refresh.use-cases.ts` — refreshCustomClaims | `identity` | token 刷新觸發 custom claims 更新 |
+| `modules/account/` | `account.use-cases.ts` — createAccount, updateAccount, deleteAccount | `account` | 帳號 CRUD；合并後對應 `PlatformCommandPort` 的 `RegisterPlatformContext` 或新增 account 命令 |
+| `modules/account/` | `account-policy.use-cases.ts` — upsertPolicy | `account` | AccountPolicy 管理；合并後對齊 `PublishPolicyCatalogService` 的 account-scoped 規則 |
+| `modules/organization/` | `organization.use-cases.ts` — createOrg | `organization` | 組織建立 |
+| `modules/organization/` | `organization-lifecycle.use-cases.ts` | `organization` | 組織生命週期管理 |
+| `modules/organization/` | `organization-member.use-cases.ts` | `organization` | 成員邀請、加入、移除 |
+| `modules/organization/` | `organization-team.use-cases.ts` | `organization` | Team 管理 |
+| `modules/organization/` | `organization-partner.use-cases.ts` | `organization` | PartnerInvite 管理 |
+| `modules/organization/` | `organization-policy.use-cases.ts` | `organization` | 組織政策管理；合并後對齊 platform `PolicyCatalog` 規則 |
+| `modules/notification/` | `notification.use-cases.ts` — dispatchNotification, markAsRead | `notification` | 通知建立與已讀標記；合并後對應 `RequestNotificationDispatchService` |
+
+**合并優先序：** 建議按 `identity → account → organization → notification` 順序合并，以保持語意依賴方向。
+
 ## Orchestration Rules
 
 - application services 可以協調多個 aggregates，但不應把跨聚合規則硬塞進 handler 本身

@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 
 import { useApp } from "@/app/providers/app-provider";
 import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
-import { SourceDocumentsView } from "@/modules/source/api";
+import { SourceDocumentsView } from "@/modules/notebooklm/api";
 
 export default function SourceDocumentsPage() {
   const searchParams = useSearchParams();

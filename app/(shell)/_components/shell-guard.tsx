@@ -14,7 +14,7 @@ import { useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "@/app/providers/auth-provider";
-import { useTokenRefreshListener } from "@/modules/identity/api";
+import { useTokenRefreshListener } from "@/modules/platform/api";
 
 interface ShellGuardProps {
   children: ReactNode;

@@ -1,1 +1,7 @@
-﻿// Purpose: Adapter layer placeholder for platform subdomain 'notification'.
+﻿export { notificationService } from "./notification-service";
+export { getNotificationsForRecipient } from "./queries/notification.queries";
+export {
+  dispatchNotification,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from "./server-actions/notification.actions";

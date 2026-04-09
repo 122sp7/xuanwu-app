@@ -38,30 +38,30 @@ This skill contains the following reference files:
 
 ## Statistics
 
-1513 files | 74,872 lines
+1757 files | 80,031 lines
 
 | Language | Files | Lines |
 |----------|------:|------:|
-| TypeScript | 673 | 31,521 |
-| Markdown | 336 | 11,832 |
-| No Extension | 232 | 316 |
-| TypeScript (TSX) | 185 | 25,414 |
+| TypeScript | 952 | 37,904 |
+| Markdown | 278 | 11,083 |
+| No Extension | 261 | 345 |
+| TypeScript (TSX) | 189 | 25,493 |
 | Python | 61 | 3,823 |
-| MERMAID | 10 | 583 |
 | JSON | 7 | 821 |
 | Text | 3 | 116 |
-| RULES | 2 | 18 |
 | JavaScript (ESM) | 2 | 167 |
-| Other | 2 | 261 |
+| RULES | 2 | 18 |
+| CSS | 1 | 197 |
+| Other | 1 | 64 |
 
 **Largest files:**
 - `packages/ui-shadcn/ui/sidebar.tsx` (702 lines)
 - `app/(shell)/_components/dashboard-sidebar.tsx` (554 lines)
 - `app/(shell)/dev-tools/page.tsx` (475 lines)
 - `firestore.indexes.json` (437 lines)
-- `modules/organization/infrastructure/firebase/FirebaseOrganizationRepository.ts` (389 lines)
 - `app/(shell)/_components/app-rail.tsx` (360 lines)
 - `packages/ui-shadcn/ui/chart.tsx` (356 lines)
 - `app/(shell)/ai-chat/page.tsx` (337 lines)
 - `modules/knowledge/infrastructure/firebase/FirebaseKnowledgePageRepository.ts` (332 lines)
 - `app/(shell)/layout.tsx` (321 lines)
+- `modules/notion/subdomains/knowledge/domain/aggregates/KnowledgePage.ts` (305 lines)

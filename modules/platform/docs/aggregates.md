@@ -149,6 +149,27 @@
 | `EndpointRef` | 外部端點參照 |
 | `SecretReference` | 認證資料參照 |
 
+## 計畫吸收模組的聚合（Migration-Pending）
+
+下列聚合目前定義於對應的**獨立模組**，計畫在合并進 platform 後成為各子域 domain layer 的正式聚合根或實體。合并時須對齊 platform 的命名規範與不變數設計準則。
+
+| 聚合 / 實體 | 來源模組 | 目標子域 | 主要屬性摘要 |
+|---|---|---|---|
+| `Identity` | `modules/identity/` | `identity` | `uid`, `email`, `displayName`, `photoURL`；目前唯讀（由 Firebase SDK 產生） |
+| `TokenRefreshSignal` | `modules/identity/` | `identity` | `uid`, `occurredAt`；值物件，表達 token 刷新訊號 |
+| `Account` | `modules/account/` | `account` | `id`, `displayName`, `email`, `avatarUrl`, `createdAt` |
+| `AccountPolicy` | `modules/account/` | `account` | `id`, `accountId`, `rules[]`, `effect`；決定 Firebase custom claims |
+| `Organization` | `modules/organization/` | `organization` | `id`, `name`, `members[]`, `teams[]`, `partnerInvites[]` |
+| `MemberReference` | `modules/organization/` | `organization` | 成員快照（accountId, role, presence）；值物件 |
+| `Team` | `modules/organization/` | `organization` | 子群組（id, name, type, memberIds）；值物件 |
+| `PartnerInvite` | `modules/organization/` | `organization` | 邀請記錄（email, role, inviteState, invitedAt）；值物件 |
+| `NotificationEntity` | `modules/notification/` | `notification` | `id`, `recipientId`, `title`, `message`, `type`, `read`, `timestamp` |
+
+**合并設計準則：**
+- `Identity` 目前為唯讀；合并後若需支援 platform 命令，須重新設計工廠方法與不變數
+- `AccountPolicy` 的 `PolicyRule` 須對齊 platform `PolicyCatalog` 的規則語言，避免雙重政策模型
+- `Organization` 的 `Owner` 至少一位的不變數在合并後須在聚合層明確守護
+
 ## 聚合邊界規則
 
 - `PlatformContext` 負責 capability enablement，不直接儲存外部 integration 細節

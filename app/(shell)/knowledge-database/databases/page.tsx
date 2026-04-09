@@ -6,8 +6,8 @@ import { Plus, Table2 } from "lucide-react";
 
 import { useApp } from "@/app/providers/app-provider";
 import { useAuth } from "@/app/providers/auth-provider";
-import { getDatabases, DatabaseDialog } from "@/modules/knowledge-database/api";
-import type { Database } from "@/modules/knowledge-database/api";
+import { getDatabases, DatabaseDialog } from "@/modules/notion/api";
+import type { Database } from "@/modules/notion/api";
 import { Button } from "@ui-shadcn/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@ui-shadcn/ui/card";
 import { Skeleton } from "@ui-shadcn/ui/skeleton";

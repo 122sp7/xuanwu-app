@@ -1,1 +1,3 @@
-﻿// Purpose: Public entry point placeholder for platform subdomain 'organization'.
+﻿export * from "./domain";
+export * from "./application";
+export * from "./adapters";
