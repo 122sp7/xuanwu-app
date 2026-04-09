@@ -5849,38 +5849,6 @@ export default function NotebookPage() {
 }
 ````
 
-## File: app/(shell)/notebook/rag-query/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { RagQueryView } from "@/modules/search/api";
-
-export default function NotebookRagQueryPage() {
-  const searchParams = useSearchParams();
-  const { state: appState } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(appState.workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : appState.activeWorkspaceId || undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
-        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
-      </header>
-
-      <RagQueryView workspaceId={workspaceId} />
-    </div>
-  );
-}
-````
-
 ## File: app/(shell)/organization/_utils.ts
 ````typescript
 import type { AccountEntity } from "@/modules/account/api";
@@ -6902,40 +6870,6 @@ import { redirect } from "next/navigation";
 
 export default function SettingsProfilePage() {
   redirect("/workspace");
-}
-````
-
-## File: app/(shell)/source/documents/page.tsx
-````typescript
-"use client";
-
-import { useSearchParams } from "next/navigation";
-
-import { useApp } from "@/app/providers/app-provider";
-import { SourceDocumentsView } from "@/modules/source/api";
-
-export default function SourceDocumentsPage() {
-  const searchParams = useSearchParams();
-  const {
-    state: { workspaces, activeWorkspaceId },
-  } = useApp();
-  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
-  const workspaceId =
-    requestedWorkspaceId && Object.hasOwn(workspaces, requestedWorkspaceId)
-      ? requestedWorkspaceId
-      : activeWorkspaceId || undefined;
-
-  return (
-    <div className="space-y-4">
-      <header className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
-        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
-        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
-      </header>
-
-      <SourceDocumentsView workspaceId={workspaceId} />
-    </div>
-  );
 }
 ````
 
@@ -56526,6 +56460,37 @@ export default function KnowledgePageDetailPage() {
 }
 ````
 
+## File: app/(shell)/notebook/rag-query/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { RagQueryView } from "@/modules/search/api";
+
+export default function NotebookRagQueryPage() {
+  const searchParams = useSearchParams();
+  const { state: appState } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(appState.workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? appState.activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Notebook</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">RAG 查詢</h1>
+        <p className="text-sm text-muted-foreground">使用工作區脈絡執行查詢，並檢視回答與引用來源。</p>
+      </header>
+
+      <RagQueryView workspaceId={workspaceId} />
+    </div>
+  );
+}
+````
+
 ## File: app/(shell)/organization/audit/page.tsx
 ````typescript
 "use client";
@@ -56851,6 +56816,39 @@ export default function OrganizationPage() {
           已切換組織情境；下一步建議先回到 Workspace Hub，再從工作區進入知識與協作模組。
         </p>
       )}
+    </div>
+  );
+}
+````
+
+## File: app/(shell)/source/documents/page.tsx
+````typescript
+"use client";
+
+import { useSearchParams } from "next/navigation";
+
+import { useApp } from "@/app/providers/app-provider";
+import { resolveWorkspaceFromMap } from "@/modules/workspace/api";
+import { SourceDocumentsView } from "@/modules/source/api";
+
+export default function SourceDocumentsPage() {
+  const searchParams = useSearchParams();
+  const {
+    state: { workspaces, activeWorkspaceId },
+  } = useApp();
+  const requestedWorkspaceId = searchParams.get("workspaceId")?.trim() || "";
+  const resolvedWorkspace = resolveWorkspaceFromMap(workspaces, requestedWorkspaceId);
+  const workspaceId = resolvedWorkspace?.id ?? activeWorkspaceId ?? undefined;
+
+  return (
+    <div className="space-y-4">
+      <header className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-widest text-primary">Source</p>
+        <h1 className="text-2xl font-semibold tracking-tight text-foreground">文件</h1>
+        <p className="text-sm text-muted-foreground">預設顯示帳號層級文件；可用 workspaceId 切換為工作區視角。</p>
+      </header>
+
+      <SourceDocumentsView workspaceId={workspaceId} />
     </div>
   );
 }
@@ -63945,6 +63943,150 @@ export {
 } from "../interfaces/_actions/workspace.actions";
 ````
 
+## File: modules/workspace/application/dtos/AGENT.md
+````markdown
+# application/dtos — Application DTOs（應用層資料傳輸物件）
+
+此目錄放 **use case 邊界的 input/output 型別**，與 domain model 解耦。
+
+> DTO 是使用案例的「語言」，不是 domain model 的語言。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Use case input DTO | `CreateWorkspaceDto`、`UpdateWorkspaceSettingsDto` |
+| Use case output projection | `WorkspaceSummaryDto`（唯讀快照） |
+| Query filter DTO | `WorkspaceQueryDto`（分頁、篩選條件） |
+| Zod schema（邊界驗證） | `CreateWorkspaceDtoSchema`（Server Action 或 API 邊界使用） |
+| 跨 use case 共用的資料形狀 | `PaginationDto`、`TaskQueryDto`（Phase 3 移入） |
+
+**判斷準則**：資料從 interface layer 進入 → use case 需要的 input shape，
+或 use case 回傳給 interface layer 的 output shape → 放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Domain entity class 或 Aggregate Root | 放 `domain/aggregates/`、`domain/entities/` |
+| Firebase、HTTP、React 等框架 import | DTO 是純資料結構 |
+| 業務規則邏輯（Zod 以外的驗證） | 業務規則放 `domain/services/` |
+| Repository interface | 放 `domain/repositories/` 或 `ports/output/` |
+| 直接可序列化為 Firestore document 的 shape | 那是 infrastructure converter 的責任 |
+
+---
+
+## 命名慣例
+
+```
+create-<entity>.dto.ts    → 新建用 input DTO
+update-<entity>.dto.ts    → 更新用 input DTO
+<entity>-query.dto.ts     → 查詢篩選 DTO
+<entity>-summary.dto.ts   → 唯讀輸出 projection DTO
+pagination.dto.ts         → 共用分頁 DTO
+```
+
+## 依賴方向
+
+```
+application/dtos → domain/（只取 enum 或 value object 型別作為欄位型別）
+application/use-cases → application/dtos（use case 使用 DTO 作為參數或回傳）
+interfaces/ → application/dtos（表單、Server Action 使用 DTO 作為輸入）
+```
+
+`application/dtos` **不可**依賴 `infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，以下 DTO 將搬入此目錄：
+`create-task.dto.ts`、`update-task.dto.ts`、`open-issue.dto.ts`、
+`resolve-issue.dto.ts`、`add-invoice-item.dto.ts`、`update-invoice-item.dto.ts`、
+`remove-invoice-item.dto.ts`、`task-query.dto.ts`、`issue-query.dto.ts`、
+`invoice-query.dto.ts`、`pagination.dto.ts`
+````
+
+## File: modules/workspace/application/services/AGENT.md
+````markdown
+# application/services — Application Services（應用服務 = 流程）
+
+> **Application Service = 流程**
+> 協調多個 use case 或跨 aggregate 的執行**順序與事務邊界**。
+> 它不包含業務規則——那是 Domain Service 的責任。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Process Manager / Saga | `KnowledgeToWorkflowMaterializer`（Phase 3 移入） |
+| 跨 aggregate 複合流程 | 需要協調 2 個以上 repository 的操作 |
+| 事件驅動流程 | 訂閱 domain event → 觸發多個 use case 的 orchestrator |
+| 冪等性管理器 | 對外部事件去重、保證 at-most-once 處理 |
+
+**判斷準則**：
+- 單一 aggregate 的一個動作 → `application/use-cases/`
+- 多個 use case 按順序執行，或需要跨越 aggregate 邊界協調 → **此處**
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 業務規則計算（invariant、guard） | 業務規則放 `domain/services/` |
+| 單一 aggregate 的 CRUD 操作 | 放 `application/use-cases/` |
+| UI 組裝、React component | 放 `interfaces/` |
+| Firebase 直接操作（非透過 port） | 走 `domain/repositories/` port，由 infrastructure 實作 |
+| 持有長期狀態（in-memory singleton） | 冪等性狀態需持久化，不可只存 in-memory |
+
+---
+
+## 與 Domain Service 的區別
+
+| | Domain Service | Application Service |
+|--|---------------|---------------------|
+| **職責** | **邏輯**（業務規則） | **流程**（協調順序） |
+| **狀態** | 無狀態 | 可能跨步驟維護流程狀態 |
+| **依賴** | 只依賴 domain | 可依賴 use-cases、ports |
+| **範例** | `task-transition-policy.ts` | `KnowledgeToWorkflowMaterializer` |
+
+---
+
+## 命名慣例
+
+```
+<process>-manager.ts            → Process Manager（Saga）
+<domain>-workflow.service.ts    → 跨 aggregate 流程協調
+<event-topic>-handler.ts        → 事件驅動 orchestrator
+```
+
+## 依賴方向
+
+```
+application/services → domain/（entities, repositories, events）
+application/services → application/use-cases（組裝流程時）
+application/services → ports/output（取得 repository / event publisher port）
+```
+
+`application/services` **不可**依賴 `infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，Process Manager 將搬入此目錄：
+- `KnowledgeToWorkflowMaterializer`（目前在 `workspace-flow/application/process-managers/`）
+
+同時，其 in-memory 冪等性 Set 需替換為 Firestore persistent store（`infrastructure/firebase/MaterializedEventRepository`）。
+````
+
 ## File: modules/workspace/application/use-cases/wiki-content-tree.use-case.ts
 ````typescript
 /**
@@ -64009,6 +64151,72 @@ export async function buildWikiContentTree(
     return a.accountName.localeCompare(b.accountName, "zh-Hant");
   });
 }
+````
+
+## File: modules/workspace/domain/aggregates/AGENT.md
+````markdown
+# domain/aggregates — Aggregate Roots（聚合根）
+
+此目錄放 `workspace` BC 的所有 **Aggregate Root 類別**。
+Aggregate Root 是 write-side 的一致性邊界。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Aggregate Root class | `Workspace`（含 invariant、domain event 發出） |
+| Aggregate 內嵌的 command type | `CreateWorkspaceCommand`、`UpdateWorkspaceSettingsCommand` |
+| Aggregate 上的 factory method 或 static constructor | `Workspace.create()`、`Task.create()` |
+
+**判斷準則**：有自己的唯一識別、維護業務不變量（invariant）、
+作為外部引用的根（其他 aggregate 只能持有其 ID）→ 放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| 純實體（Entity，無 invariant 責任） | 放 `domain/entities/` |
+| Value Object（無 identity，equality by value） | 放 `domain/value-objects/` |
+| Read model / projection（查詢用途） | 放 `interfaces/` 或 `application/dtos/` |
+| Repository interface | 放 `domain/repositories/` |
+| Framework import（Firebase、React 等） | Aggregate 必須 framework-free |
+
+---
+
+## 現況
+
+> `Workspace` 目前仍在 `domain/entities/Workspace.ts`。
+> 在 Phase 3（workspace-flow 合併）完成後，將整批遷移：
+
+| Aggregate Root | 來源 | 狀態 |
+|---------------|------|------|
+| `Workspace` | `domain/entities/Workspace.ts` | 待遷移 |
+| `Task` | `workspace-flow` 合併 | Phase 3 |
+| `Issue` | `workspace-flow` 合併 | Phase 3 |
+| `Invoice` | `workspace-flow` 合併 | Phase 3 |
+
+---
+
+## 命名慣例
+
+```
+PascalCase.ts     → Aggregate Root 類別檔案
+PascalCase.test.ts → 對應的單元測試
+```
+
+## 依賴方向
+
+```
+domain/aggregates → domain/value-objects
+domain/aggregates → domain/events（發出事件型別）
+domain/aggregates → domain/services（呼叫 domain service，如有需要）
+```
+
+`domain/aggregates` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
 ````
 
 ## File: modules/workspace/domain/entities/Workspace.test.ts
@@ -64242,6 +64450,71 @@ export interface WorkspaceRepository {
   updateSettings(command: UpdateWorkspaceSettingsCommand): Promise<void>;
   delete(id: string): Promise<void>;
 }
+````
+
+## File: modules/workspace/domain/services/AGENT.md
+````markdown
+# domain/services — Domain Services（領域服務 = 邏輯）
+
+> **Domain Service = 邏輯**
+> 不自然屬於單一 Aggregate 或 Value Object 的**純業務規則**放在這裡。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| 跨 Aggregate invariant 驗證 | 工作區名稱全域唯一性規則 |
+| Transition policy（狀態轉換規則） | `WorkspaceLifecycleTransitionPolicy`、`TaskTransitionPolicy` |
+| Guard 函式（前置條件檢查） | `WorkspaceAccessGuard`、`task-guards.ts` |
+| 複雜業務規則計算 | 無需持久化的純計算邏輯 |
+
+**判斷準則**：規則自然屬於某個 Aggregate → 放入 Aggregate。
+跨越 Aggregate 邊界，或 Aggregate 裡放了會讓它太胖 → 才放入此處。
+
+---
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Firebase、HTTP、React 等框架 import | Domain 層必須 framework-free |
+| Repository 呼叫（持久化）| 持久化是 infrastructure 的責任 |
+| 流程協調（順序控制、多步驟 orchestration） | 那是 Application Service（`application/services/`）的責任 |
+| Use case 邏輯 | Use case 放 `application/use-cases/` |
+| `class` 持有狀態 | Domain Service 必須無狀態（stateless） |
+
+---
+
+## 命名慣例
+
+```
+<entity>-guards.ts              → 前置條件檢查
+<entity>-transition-policy.ts   → 狀態轉換規則
+<concept>-rules.ts              → 業務規則集合
+```
+
+## 依賴方向
+
+```
+domain/services → domain/entities
+domain/services → domain/value-objects
+domain/services → domain/events（只取型別）
+```
+
+`domain/services` **不可**依賴 `application/`、`infrastructure/`、`interfaces/`。
+
+---
+
+## Phase 3 預計移入
+
+workspace-flow 合併後，以下檔案將搬入此目錄：
+- `task-guards.ts`
+- `task-transition-policy.ts`
+- `issue-transition-policy.ts`
+- `invoice-guards.ts`
+- `invoice-transition-policy.ts`
 ````
 
 ## File: modules/workspace/domain/value-objects/Address.ts
@@ -64743,6 +65016,53 @@ export class FirebaseWorkspaceQueryRepository implements WorkspaceQueryRepositor
     );
   }
 }
+````
+
+## File: modules/workspace/interfaces/api/AGENT.md
+````markdown
+# API Interface Agent Guide
+
+## 目標
+`api/` 是 **HTTP / Next.js App Router 驅動層**，負責將外部請求（REST / HTTP）轉換為 **Input Port 呼叫**。
+
+## 能放的內容
+- Route Handlers / API Endpoint（Next.js App Router / API Route）
+- HTTP Request → DTO 轉換
+- 驗證請求（Request validation）
+- 呼叫 Application Input Ports（Use Case）
+- 將結果轉換為 HTTP Response / JSON
+- HTTP Error Handling（非業務邏輯錯誤）
+
+## 不能放的內容
+- 核心業務邏輯（Domain / Application 流程）
+- 直接呼叫 Repository / Database / Genkit
+- UI 元件、React hooks
+- State 管理或 UI 格式化（純 API 層不處理）
+
+## 依賴原則
+````
+
+## File: modules/workspace/interfaces/cli/AGENT.md
+````markdown
+# CLI Interface Agent Guide
+
+## 目標
+`cli/` 是 **命令行驅動層**，將命令參數轉換為 **Input Port 呼叫**，供系統內部或 Cron Job 使用。
+
+## 能放的內容
+- CLI 命令解析（yargs / commander / Oclif）
+- 參數轉成 DTO
+- 呼叫 Application Input Ports（Use Case）
+- 顯示命令結果（console.log / stdout）
+- 簡單錯誤訊息處理（非業務邏輯）
+
+## 不能放的內容
+- Domain / Application 流程邏輯
+- Repository / Database / Genkit 直接操作
+- UI 元件或 React Hook
+- 複雜的資料格式化或業務計算
+
+## 依賴原則
 ````
 
 ## File: modules/workspace/interfaces/components/CreateWorkspaceDialog.tsx
@@ -66092,6 +66412,28 @@ export async function getWorkspaceByIdForAccount(
 }
 ````
 
+## File: modules/workspace/interfaces/web/AGENT.md
+````markdown
+# Web Interface Agent Guide
+
+## 目標
+`web/` 是 **UI 封裝層**，將前端 UI 元件與 Application Input Port 連接，支援 React / shadcn 組件。
+
+## 能放的內容
+- shadcn UI Components 封裝
+- React Hooks 封裝（呼叫 Input Ports，管理 loading / error state）
+- UI 狀態管理（非業務邏輯）
+- Input Port 呼叫的簡單資料格式化（例如日期 / string → DTO）
+
+## 不能放的內容
+- 核心業務邏輯（Domain / Application）
+- Repository / Database / Genkit 呼叫
+- HTTP Route Handler（應該在 api/）
+- CLI 命令解析（應該在 cli/）
+
+## 依賴原則
+````
+
 ## File: modules/workspace/interfaces/workspace-nav-items.ts
 ````typescript
 /**
@@ -66260,6 +66602,104 @@ export type {
   WorkspaceDomainEventPublisher,
   WorkspaceEventPublishMetadata,
 } from "../domain/ports/WorkspaceDomainEventPublisher";
+````
+
+## File: modules/workspace/ports/input/AGENT.md
+````markdown
+# ports/input — Driving Ports（輸入端口）
+
+此目錄保留給 `workspace` BC 的顯式 **inbound port interfaces**。
+
+---
+
+## 現況：目前為空
+
+workspace 的 driving port 即為 application layer 的 **use case 類別本身**。
+外部呼叫者（UI、Server Action、其他 BC）直接透過 `api/facade.ts` 進入，
+不需要額外定義 input interface。
+
+> 此目錄作為結構佔位，代表「我們知道 input port 的概念位置在哪裡」。
+
+---
+
+## ✅ 屬於此處（未來填入條件）
+
+| 類型 | 填入時機 |
+|------|---------|
+| Inbound event handler interface | 當外部 BC 需要透過明確 interface 訂閱 workspace 事件時 |
+| Command bus interface | 當引入 CQRS command bus，需要顯式 command handler contract 時 |
+| Driving Adapter contract | 當 UI / external trigger 需要對 usecase 有針對性的版本化 interface 時 |
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| Concrete class 或 adapter | 實作放 `interfaces/` 或 `infrastructure/` |
+| 業務規則或流程邏輯 | 邏輯放 `domain/services/` 或 `application/services/` |
+| 目前作用中的業務邏輯 | 此目錄未有 input contract 需求前保持空白 |
+
+---
+
+## 依賴方向
+
+```
+ports/input  →  domain/（只取型別，如有需要）
+interfaces/  →  implements ports/input（如有顯式 driving adapter contract）
+```
+````
+
+## File: modules/workspace/ports/output/AGENT.md
+````markdown
+# ports/output — Driven Ports（輸出端口）
+
+此目錄是 `workspace` BC 核心對外部基礎設施「要求能力」的**唯一抽象入口**。
+Core（domain + application）依賴這些 interface；infrastructure 實作它們。
+
+---
+
+## ✅ 屬於此處
+
+| 類型 | 範例 |
+|------|------|
+| Repository port interface | `WorkspaceRepository`、`WorkspaceQueryRepository` |
+| Domain event publisher port | `WorkspaceDomainEventPublisher` |
+| 任何 BC 核心向外索取能力的抽象介面 | `StoragePort`、`NotificationPort`（未來） |
+
+## ❌ 禁止放入
+
+| 禁止項目 | 原因 |
+|----------|------|
+| `class`、concrete implementation | 實作放 `infrastructure/` |
+| Firebase、HTTP、React 等框架 import | 抽象層不能感知外部技術 |
+| 業務邏輯、計算 | 邏輯放 `domain/services/` |
+| DTO / data shape | 資料形狀放 `application/dtos/` |
+
+---
+
+## 依賴方向
+
+```
+ports/output  →  domain/（只取型別，e.g., WorkspaceDomainEvent）
+infrastructure  →  ports/output（實作 interface）
+application  →  ports/output（消費 interface，透過 constructor injection）
+```
+
+`ports/output` 本身**不可**被 `domain/` 反向依賴。
+
+---
+
+## 目前 Port 清單
+
+> 現有定義暫存於 `domain/ports/WorkspaceDomainEventPublisher.ts`，
+> 遷移至此目錄後請更新 `ports/index.ts` 的 re-export 路徑。
+
+- `WorkspaceDomainEventPublisher`（待遷移）
+- `WorkspaceRepository`（re-export 自 `domain/repositories/`）
+- `WorkspaceCapabilityRepository`
+- `WorkspaceAccessRepository`
+- `WorkspaceLocationRepository`
+- `WorkspaceQueryRepository`
+- `WikiWorkspaceRepository`
 ````
 
 ## File: modules/workspace/ports/README.md
@@ -79817,16 +80257,6 @@ export class DeleteWorkspaceUseCase {
 }
 ````
 
-## File: next-env.d.ts
-````typescript
-/// <reference types="next" />
-/// <reference types="next/image-types/global" />
-import "./.next/dev/types/routes.d.ts";
-
-// NOTE: This file should not be edited
-// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
-````
-
 ## File: modules/workspace/interfaces/components/WorkspaceDetailScreen.tsx
 ````typescript
 "use client";
@@ -80072,6 +80502,16 @@ export function WorkspaceDetailScreen({
     </div>
   );
 }
+````
+
+## File: next-env.d.ts
+````typescript
+/// <reference types="next" />
+/// <reference types="next/image-types/global" />
+import "./.next/types/routes.d.ts";
+
+// NOTE: This file should not be edited
+// see https://nextjs.org/docs/app/api-reference/config/typescript for more information.
 ````
 
 ## File: app/(shell)/_components/dashboard-sidebar.tsx
