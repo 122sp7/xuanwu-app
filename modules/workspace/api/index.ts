@@ -5,4 +5,6 @@
  * reaching into interfaces/api directly.
  */
 
-export * from "../interfaces/api";
+export * from "./contracts";
+export * from "./facade";
+export * from "./ui";

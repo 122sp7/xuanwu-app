@@ -18,25 +18,25 @@ import { useApp } from "@/app/providers/app-provider";
 import {
   createSettingsDraft,
   type WorkspaceSettingsDraft,
-} from "../workspace-settings";
+} from "../../workspace-settings";
 import {
   getWorkspaceAddressLines,
   getWorkspacePersonnelEntries,
-} from "../workspace-supporting-records";
-import { WorkspaceDailyTab } from "./WorkspaceDailyTab";
-import { WorkspaceMembersTab } from "./WorkspaceMembersTab";
+} from "../../workspace-supporting-records";
+import { WorkspaceDailyTab } from "../tabs/WorkspaceDailyTab";
+import { WorkspaceMembersTab } from "../tabs/WorkspaceMembersTab";
 import {
   getWorkspaceTabLabel,
   getWorkspaceTabStatus,
   getWorkspaceTabsByGroup,
   isWorkspaceTabValue,
   type WorkspaceTabValue,
-} from "../workspace-tabs";
-import { MOBILE_TAB_GROUP_ORDER } from "./workspace-detail-helpers";
-import { WorkspaceOverviewTab } from "./WorkspaceOverviewTab";
-import { WorkspaceSettingsDialog } from "./WorkspaceSettingsDialog";
-import { useWorkspaceSettingsSave } from "../hooks/useWorkspaceSettingsSave";
-import { useWorkspaceDetail } from "../hooks/useWorkspaceDetail";
+} from "../../workspace-tabs";
+import { MOBILE_TAB_GROUP_ORDER } from "../layout/workspace-detail-helpers";
+import { WorkspaceOverviewTab } from "../tabs/WorkspaceOverviewTab";
+import { WorkspaceSettingsDialog } from "../dialogs/WorkspaceSettingsDialog";
+import { useWorkspaceSettingsSave } from "../../hooks/useWorkspaceSettingsSave";
+import { useWorkspaceDetail } from "../../hooks/useWorkspaceDetail";
 
 interface WorkspaceDetailScreenProps {
   readonly workspaceId: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import { Badge } from "@ui-shadcn/ui/badge";
 import {
   Card,
@@ -11,11 +11,11 @@ import {
 } from "@ui-shadcn/ui/card";
 import { Separator } from "@ui-shadcn/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@ui-shadcn/ui/tabs";
-import { describeGrant } from "../workspace-settings";
+import { describeGrant } from "../../workspace-settings";
 import { WorkspaceOverviewSettingsTab } from "./WorkspaceOverviewSettingsTab";
-import { WorkspaceOverviewSummaryCard } from "./WorkspaceOverviewSummaryCard";
-import { WorkspaceProductSpineCard } from "./WorkspaceProductSpineCard";
-import { WorkspaceQuickstartCard } from "./WorkspaceQuickstartCard";
+import { WorkspaceOverviewSummaryCard } from "../cards/WorkspaceOverviewSummaryCard";
+import { WorkspaceProductSpineCard } from "../cards/WorkspaceProductSpineCard";
+import { WorkspaceQuickstartCard } from "../cards/WorkspaceQuickstartCard";
 
 interface WorkspaceOverviewTabProps {
   readonly workspace: WorkspaceEntity;

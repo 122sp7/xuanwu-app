@@ -2,8 +2,8 @@
  * Workspace Read Queries — thin wrappers exposing read operations through the input port.
  */
 
-import type { WorkspaceEntity } from "./contracts";
-import { workspaceQueryPort } from "./workspace-runtime";
+import type { WorkspaceEntity } from "../contracts";
+import { workspaceQueryPort } from "../runtime";
 
 export async function getWorkspacesForAccount(accountId: string): Promise<WorkspaceEntity[]> {
   return workspaceQueryPort.getWorkspacesForAccount(accountId);

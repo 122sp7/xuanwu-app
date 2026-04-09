@@ -1,7 +1,7 @@
 "use client";
 
 import { type FormEvent } from "react";
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@ui-shadcn/ui/select";
-import type { WorkspaceSettingsDraft } from "../workspace-settings";
+import type { WorkspaceSettingsDraft } from "../../workspace-settings";
 import { WorkspaceSettingsInformationFields } from "./WorkspaceSettingsInformationFields";
 
 interface WorkspaceSettingsDialogProps {

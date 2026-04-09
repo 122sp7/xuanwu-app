@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import { Badge } from "@ui-shadcn/ui/badge";
 import { Button } from "@ui-shadcn/ui/button";
 import {
@@ -11,8 +11,8 @@ import {
   CardTitle,
 } from "@ui-shadcn/ui/card";
 
-import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
-import { lifecycleBadgeVariant } from "./workspace-detail-helpers";
+import { WorkspaceInformationCard } from "../cards/WorkspaceInformationCard";
+import { lifecycleBadgeVariant } from "../layout/workspace-detail-helpers";
 
 interface WorkspaceOverviewSettingsTabProps {
   readonly workspace: WorkspaceEntity;

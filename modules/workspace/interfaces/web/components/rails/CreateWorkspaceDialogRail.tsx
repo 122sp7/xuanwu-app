@@ -2,7 +2,7 @@
 
 import { type FormEvent, useState } from "react";
 
-import { createWorkspace } from "../../api/facade";
+import { createWorkspace } from "../../../api/facade";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Dialog,

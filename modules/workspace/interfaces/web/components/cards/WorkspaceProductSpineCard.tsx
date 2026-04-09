@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import { Button } from "@ui-shadcn/ui/button";
 import {
   Card,
@@ -14,7 +14,7 @@ import { WorkspaceInformationCard } from "./WorkspaceInformationCard";
 import {
   getWorkspaceAddressLines,
   getWorkspaceRoleAssignments,
-} from "../workspace-supporting-records";
+} from "../../workspace-supporting-records";
 
 interface WorkspaceProductSpineCardProps {
   readonly workspace: WorkspaceEntity;

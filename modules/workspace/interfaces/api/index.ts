@@ -4,5 +4,5 @@
  */
 
 export * from "./contracts";
-export * from "./facade";
+export * from "./facades";
 export * from "./ui";

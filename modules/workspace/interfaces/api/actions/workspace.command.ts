@@ -11,8 +11,8 @@ import type {
   Capability,
   WorkspaceGrant,
   WorkspaceLocation,
-} from "./contracts";
-import { workspaceCommandPort } from "./workspace-runtime";
+} from "../contracts";
+import { workspaceCommandPort } from "../runtime";
 
 export async function createWorkspace(command: CreateWorkspaceCommand): Promise<CommandResult> {
   return workspaceCommandPort.createWorkspace(command);

@@ -1,6 +1,6 @@
 "use client";
 
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import {
   Avatar,
   AvatarFallback,
@@ -14,8 +14,8 @@ import {
   formatTimestamp,
   getWorkspaceInitials,
   lifecycleBadgeVariant,
-} from "./workspace-detail-helpers";
-import { getWorkspaceGovernanceSummary } from "../workspace-supporting-records";
+} from "../layout/workspace-detail-helpers";
+import { getWorkspaceGovernanceSummary } from "../../workspace-supporting-records";
 
 interface WorkspaceOverviewSummaryCardProps {
   readonly workspace: WorkspaceEntity;

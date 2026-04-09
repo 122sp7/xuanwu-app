@@ -1,5 +1,5 @@
-import type { WorkspaceMemberView } from "./contracts";
-import { workspaceQueryPort } from "./workspace-runtime";
+import type { WorkspaceMemberView } from "../contracts";
+import { workspaceQueryPort } from "../runtime";
 
 export async function getWorkspaceMembers(workspaceId: string): Promise<WorkspaceMemberView[]> {
   const normalizedWorkspaceId = workspaceId.trim();

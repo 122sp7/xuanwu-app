@@ -77,7 +77,7 @@
 
 | 類型 | Surface |
 |---|---|
-| 同步 API | `modules/workspace/interfaces/api` |
+| 同步 API | `modules/workspace/api` |
 | Published Language | `workspaceId`、`WorkspaceLifecycleState`、`WorkspaceVisibility` 等 aggregate / value object 語言 |
 | 非同步事件（目標） | `workspace.created`、`workspace.lifecycle_transitioned`、`workspace.visibility_changed` 等 domain event 訊息物件 |
 

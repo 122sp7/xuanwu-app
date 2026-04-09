@@ -1,6 +1,6 @@
-import type { WorkspaceEntity } from "../../api/contracts";
+import type { WorkspaceEntity } from "../../../api/contracts";
 import { formatDate } from "@shared-utils";
-import type { WorkspaceTabGroup } from "../workspace-tabs";
+import type { WorkspaceTabGroup } from "../../workspace-tabs";
 
 export const MOBILE_TAB_GROUP_ORDER: WorkspaceTabGroup[] = [
   "primary",

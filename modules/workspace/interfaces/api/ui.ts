@@ -4,14 +4,14 @@
  * Public interface-layer composition exports.
  */
 
-export { WorkspaceDetailScreen } from "../web/components/WorkspaceDetailScreen";
-export { WorkspaceDetailRouteScreen } from "../web/components/WorkspaceDetailRouteScreen";
-export { WorkspaceHubScreen } from "../web/components/WorkspaceHubScreen";
-export { WorkspaceMembersTab } from "../web/components/WorkspaceMembersTab";
-export { WorkspaceSidebarSection } from "../web/components/WorkspaceSidebarSection";
-export { CreateWorkspaceDialogRail } from "../web/components/CreateWorkspaceDialogRail";
-export { OrganizationWorkspacesScreen } from "../web/components/OrganizationWorkspacesScreen";
-export { WorkspaceContextCard } from "../web/components/WorkspaceContextCard";
+export { WorkspaceDetailScreen } from "../web/components/screens/WorkspaceDetailScreen";
+export { WorkspaceDetailRouteScreen } from "../web/components/screens/WorkspaceDetailRouteScreen";
+export { WorkspaceHubScreen } from "../web/components/screens/WorkspaceHubScreen";
+export { WorkspaceMembersTab } from "../web/components/tabs/WorkspaceMembersTab";
+export { WorkspaceSidebarSection } from "../web/components/layout/WorkspaceSidebarSection";
+export { CreateWorkspaceDialogRail } from "../web/components/rails/CreateWorkspaceDialogRail";
+export { OrganizationWorkspacesScreen } from "../web/components/screens/OrganizationWorkspacesScreen";
+export { WorkspaceContextCard } from "../web/components/cards/WorkspaceContextCard";
 
 export {
   WORKSPACE_TAB_GROUPS,

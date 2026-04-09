@@ -49,9 +49,9 @@ modules/workspace/
 │   └── firebase/               ← Firestore / Storage / Genkit Adapter
 │
 └── interfaces/                 ← Driving Adapters（外部入口）
-	├── api/                    ← Next.js Route Handler → Input Port
+	├── api/                    ← Adapter implementation（contracts / facades / queries / actions / runtime）
 	├── cli/                    ← CLI / Cron Job → Input Port
-	└── web/                    ← shadcn UI Components + Hooks → Input Port
+	└── web/                    ← shadcn UI Components + Hooks（cards / dialogs / screens / tabs / rails / layout）
 ```
 
 ## 戰略層級（Domain / Subdomain / Bounded Context）
@@ -114,7 +114,8 @@ interfaces/web ─┘
 
 目前實際入口對位：
 
-- `interfaces/api/`：公開同步入口（Next.js Route Handler / 模組對外 surface）
+- `api/`：模組正式對外公開邊界（cross-module 與 app composition 應從這裡進入）
+- `interfaces/api/`：同步 adapter implementation（contracts / facades / queries / actions / runtime）
 - `interfaces/web/`：Web UI 與 hooks 進入點
 - `ports/index.ts`：公開 port 抽象（input/output 聚合匯出）
 
@@ -175,7 +176,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 
 ## 分層守衛
 
-- `api/index.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
+- `api/index.ts`、`api/contracts.ts`、`api/facade.ts`、`api/ui.ts` 只能是薄入口；跨模組與 app composition consumer 應優先使用 `@/modules/workspace/api`
 - `interfaces/api/`、`interfaces/cli/`、`interfaces/web/` 只做 driving adapter，不處理 domain 決策
 - `application/use-cases/` 處理單一 use case，不吞進純業務規則
 - `application/services/` 只負責流程，不替代 domain service
@@ -190,7 +191,7 @@ import { CreateWorkspaceUseCase } from "@/modules/workspace/application/use-case
 - Driving Adapters 是進入此 bounded context 的入口：`interfaces/api/`、`interfaces/cli/`、`interfaces/web/`
 - `ports/input/` 是 driving contract 的位置
 - `ports/output/` 是內核朝外的 driven ports；adapter 可以替換，但 domain model 不應感知 Firebase / HTTP / React
-- `interfaces/api/` 是此 bounded context 對外暴露的同步入口；它是公開邊界，不是把內部 layers 攤平
+- `interfaces/api/` 是公開邊界背後的同步 adapter implementation；真正的 cross-module surface 是 `api/`
 - 依賴方向維持 inward：`interfaces/` 與 `infrastructure/` 可以依賴 `application/`、`domain/`，但 `domain/` 不反向依賴外部技術
 - 若採事件驅動整合，incoming / outgoing events 也是 bounded context 邊界的一部分，不改變 domain model 必須位於中心的原則
 - Browser UI、Route Handlers、CLI、其他 bounded context 對 `interfaces/api/` 的呼叫者，都是此 hexagon 的 drivers；它們透過 adapters 進入，不直接碰 domain model

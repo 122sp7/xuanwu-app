@@ -69,7 +69,7 @@
 
 ### `workspace` 模組
 
-**代碼位置：** `modules/workspace/interfaces/api/workspace.queries.ts`
+**代碼位置：** `modules/workspace/interfaces/api/queries/workspace.query.ts`
 
 ```typescript
 // 一次性查詢
@@ -91,7 +91,7 @@ export function subscribeToWorkspacesForAccount(
 
 ### `workspace` 成員查詢
 
-**代碼位置：** `modules/workspace/interfaces/api/workspace-member.queries.ts`
+**代碼位置：** `modules/workspace/interfaces/api/queries/workspace-member.query.ts`
 
 | 函式 | 說明 |
 |------|------|

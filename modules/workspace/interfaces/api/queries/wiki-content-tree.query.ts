@@ -1,8 +1,8 @@
 import type {
   WikiAccountContentNode,
   WikiAccountSeed,
-} from "./contracts";
-import { workspaceQueryPort } from "./workspace-runtime";
+} from "../contracts";
+import { workspaceQueryPort } from "../runtime";
 
 export function buildWikiContentTree(
   seeds: WikiAccountSeed[],
