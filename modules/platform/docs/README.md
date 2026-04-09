@@ -31,3 +31,12 @@
 - 變更事件名稱或 payload：同步更新 `domain-events.md`
 - 變更子域責任：同步更新 `subdomains.md` 與 `context-map.md`
 - 變更平台邊界：同步更新 `bounded-context.md` 與 `../AGENT.md`
+
+## 文件閉環檢查清單
+
+每次調整 platform 文件後，至少確認以下四點：
+
+1. 單一文件只承載單一主題（邊界、術語、聚合、事件、ports 不混寫）
+2. `subdomains.md` 出現的術語都能在 `ubiquitous-language.md` 找到定義
+3. `application-services.md` 與 `subdomains.md` 提到的 ports 都能在 `repositories.md` 找到契約
+4. `domain-events.md` 的事件命名、事件擁有者與 `context-map.md` 協作語言沒有衝突

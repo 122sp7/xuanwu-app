@@ -145,3 +145,5 @@ platform 的正式子域清單已固定為：
 2. 這個 I/O 邊界是否已經先表達成 port？
 3. 事件名稱是否描述事實而非命令？
 4. 子域責任是否仍然清楚，沒有回到大泥球結構？
+5. 子域或 handler 提到的 ports，是否都已在 `docs/repositories.md` 明確定義？
+6. 新增術語、事件、決策物件是否都已在 `docs/ubiquitous-language.md` 與 `docs/domain-events.md` 完整落地？

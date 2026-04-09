@@ -31,19 +31,29 @@
 | 訂閱協議 | SubscriptionAgreement | 方案、權益、限制與有效期間的商業邊界 |
 | 權益 | Entitlement | 某方案允許使用的 capability 或額度 |
 | 用量限制 | UsageLimit | 對使用量、頻率或配額的限制 |
+| 推薦連結 | ReferralLink | 推薦關係的識別與追蹤語言 |
+| 推薦獎勵 | ReferralReward | 推薦成功後可被核算與發放的獎勵語言 |
 | 生效區間 | EffectivePeriod | 某份協議、設定或規則的有效期間 |
 | 平台生命週期狀態 | PlatformLifecycleState | `draft | active | suspended | retired` |
 | 契約狀態 | ContractState | `draft | active | paused | revoked` |
 | 計費狀態 | BillingState | `pending | active | delinquent | expired | cancelled` |
 | 工作流觸發器 | WorkflowTrigger | 把某個平台事實轉成流程啟動點的語言 |
 | 工作流政策 | WorkflowPolicy | 用來規定 trigger 何時啟動、延後、抑制或升級的規則 |
+| 作業排程 | JobSchedule | 背景任務何時執行與重試策略的語言 |
+| 作業執行 | JobExecution | 背景任務一次執行結果與狀態的語言 |
 | 通知派送 | NotificationDispatch | 一次待交付的通知請求 |
 | 通知路由 | NotificationRoute | 通知應走的通道與對象語言 |
 | 派送結果 | DispatchOutcome | 一次交付成功、失敗、跳過或延後的結果 |
+| 內容資產 | ContentAsset | 可被治理、發布與檢索的內容單位語言 |
+| 發布狀態 | PublicationState | 內容在草稿、審核、發布等狀態中的語言 |
+| 搜尋結果 | SearchResult | 對 `SearchQuery` 的可消費回應語言 |
 | 稽核訊號 | AuditSignal | 必須被永久記錄的決策或行為事實 |
 | 稽核分類 | AuditClassification | 用來決定 audit signal 嚴重度與保留要求的分類 |
 | 可觀測性訊號 | ObservabilitySignal | metrics、trace、alert 等診斷輸入的統一語言 |
 | 健康指標 | HealthIndicator | 用來表達系統健康、退化或告警狀態的指標語言 |
+| 分析事件 | AnalyticsEvent | 可被聚合與分析的行為訊號語言 |
+| 支援工單 | SupportTicket | 客服互動與追蹤案件的語言 |
+| 知識文章 | KnowledgeArticle | 支援流程中引用的知識內容語言 |
 | 資源描述子 | ResourceDescriptor | 權限或 workflow 決策所面向的資源描述 |
 | 關聯上下文 | CorrelationContext | 用來串接 workflow、integration、notification、audit 的追蹤語言 |
 | 輸入介面 | InputPort | 進入 application layer 的穩定契約 |
@@ -62,11 +72,20 @@
 | 事件發佈器 | DomainEventPublisher | 發佈 domain events 的 output port |
 | 配置輪廓儲存介面 | ConfigurationProfileStore | 提供 configuration profile 的 support port |
 | 主體目錄 | SubjectDirectory | 提供帳戶輪廓、偏好與角色資料的 support port |
+| 帳戶倉儲 | AccountRepository | 提供 account 聚合狀態存取的 repository port |
+| 啟用引導倉儲 | OnboardingRepository | 提供 onboarding 流程狀態存取的 repository port |
+| 合規政策儲存介面 | CompliancePolicyStore | 提供 compliance 規則與保留策略的 support port |
+| 推薦倉儲 | ReferralRepository | 提供推薦關係與獎勵狀態存取的 repository port |
 | 工作流政策倉儲 | WorkflowPolicyRepository | 提供 workflow policy 的 query/support port |
 | 工作流派送介面 | WorkflowDispatcherPort | 將 trigger 交給執行引擎的 output port |
 | 通知閘道 | NotificationGateway | 對外派送通知的 output port |
+| 作業佇列介面 | JobQueuePort | 提交與追蹤背景作業的 output port |
+| 內容倉儲 | ContentRepository | 提供 content 資產狀態存取的 repository port |
+| 搜尋索引介面 | SearchIndexPort | 提供索引寫入與搜尋查詢的 output/query port |
 | 稽核訊號儲存介面 | AuditSignalStore | 寫入不可變稽核紀錄的 output port |
 | 可觀測性匯流介面 | ObservabilitySink | 發送 metrics、trace、alert 的 output port |
+| 分析匯流介面 | AnalyticsSink | 發送分析事件與行為指標的 output port |
+| 支援倉儲 | SupportRepository | 提供支援工單與知識關聯的 repository port |
 | 密鑰參照解析器 | SecretReferenceResolver | 解析憑證參照的 support port |
 
 ## 事件語言
